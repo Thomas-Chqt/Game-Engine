@@ -10,7 +10,6 @@
 #ifndef ECSWORLD_HPP
 # define ECSWORLD_HPP
 
-#include "Archetype.hpp"
 #include "UtilsCPP/Array.hpp"
 #include "UtilsCPP/Dictionary.hpp"
 #include "UtilsCPP/Types.hpp"
@@ -19,17 +18,10 @@
 namespace GE
 {
 
-class ECSWorld;
+using EntityID    = utils::uint64;
+using ComponentID = utils::uint32;
 
-struct Entity
-{
-    ECSWorld* ecsWorld;
-    utils::uint64 idx;
-
-    template<typename T> inline T& get() const;
-    template<typename T> inline void add(const T& component);
-    template<typename T> inline void remove();
-};
+class Archetype;
 
 class ECSWorld
 {
@@ -38,35 +30,45 @@ public:
     ECSWorld(const ECSWorld&) = delete;
     ECSWorld(ECSWorld&&)      = delete;
     
-    Entity createEntity();
-    void deleteEntity(Entity entt);
+    EntityID createEntity();
+    void deleteEntity(EntityID);
     
-    template<typename T> T& getComponent(utils::uint64 idx) const;
-    template<typename T> void addComponent(utils::uint64 idx, const T& component);
-    template<typename T> void removeComponent(utils::uint64 idx);
+    template<typename T> inline void addComponent(EntityID entity, const T& component) { addComponent(entity, componentID<T>(), sizeof(T), [](void* ptr){ ((T*)ptr)->~T(); }); }
+    template<typename T> void removeComponent(EntityID);
 
     ~ECSWorld() = default;
 
 private:
     struct EntityData
     {
-        Archetype::ID archetypeID;
-        Archetype::Index idx;
+        Archetype* archetype = nullptr;
+        utils::uint32 idx = 0;
     };
 
+    template<typename T>
+    ComponentID componentID()
+    {
+        static ComponentID id = m_nextComponentID++;
+        return id;
+    }
+
+    void addComponent(EntityID, ComponentID, void* data, utils::uint32 size, utils::Func<void(void*)> destructor);
+    void removeComponent(EntityID, ComponentID);
+
+    Archetype* newArchetype();
+
+    ComponentID m_nextComponentID = 0;
+
     utils::Array<EntityData> m_entityDatas;
-    utils::Array<utils::uint64> m_availableIndices;
+    utils::Array<EntityID> m_availableEntityIDs;
     
-    utils::Dictionary<Archetype::ID, utils::UniquePtr<Archetype>> m_archetypes;
+    utils::Dictionary<ComponentID, utils::UniquePtr<Archetype>> m_rootArchetypes;
+    utils::Array<utils::UniquePtr<Archetype>> m_archetypes;
     
 public:
     ECSWorld& operator = (const ECSWorld&) = delete;
     ECSWorld& operator = (ECSWorld&&)      = delete;
 };
-
-template<typename T> T& Entity::get() const { return ecsWorld->getComponent<T>(idx); }
-template<typename T> void Entity::add(const T& component) { return ecsWorld->addComponent<T>(idx, component); }
-template<typename T> void Entity::remove() { return ecsWorld->removeComponent<T>(idx); }
 
 }
 
