@@ -11,7 +11,7 @@ include(GoogleTest)
 add_executable(Game-Engine_test)
 
 set_target_properties(Game-Engine_test PROPERTIES
-    CXX_STANDARD 14
+    CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
     FOLDER "tests"
 )

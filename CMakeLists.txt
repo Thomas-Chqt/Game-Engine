@@ -18,7 +18,7 @@ enable_language(CXX)
 
 
 add_library(Game-Engine ${GE_LIBRARY_TYPE})
-set_target_properties(Game-Engine PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
+set_target_properties(Game-Engine PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 
 file(GLOB_RECURSE GAME_ENGINE_SRC "src/*" "include/*")
 list(REMOVE_ITEM GAME_ENGINE_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/main/main.cpp")
