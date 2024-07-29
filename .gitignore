@@ -2,3 +2,5 @@
 build/
 build.nosync/
 .clangd
+.cache/
+default.profraw

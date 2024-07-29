@@ -2,7 +2,7 @@
  * ---------------------------------------------------
  * sandbox.cpp
  *
- * Author: Thomas Choquet <thomas.publique@icloud.com>
+ * Author: Thomas Choquet <semoir.dense-0h@icloud.com>
  * Date: 2024/06/20 16:38:24
  * ---------------------------------------------------
  */

@@ -27,8 +27,8 @@ jobs:
         include:
           - os: macos-latest
             compiler: clang
-            c_compiler: $(brew --prefix llvm@15)/bin/clang
-            cpp_compiler: $(brew --prefix llvm@15)/bin/clang++
+            c_compiler: clang
+            cpp_compiler: clang++
             
           - os: ubuntu-latest
             compiler: clang
@@ -64,6 +64,14 @@ jobs:
           -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
           -DGLFW_BUILD_WAYLAND=OFF
           -DGE_BUILD_EXEMPLES=ON
+          -DGE_BUILD_TESTS=ON
           
       - name: Build
         run: cmake --build build
+
+      - name: Test
+        working-directory: build
+        run: ctest -j 8 --output-on-failure
+        env:
+          GTEST_COLOR: 1
+
