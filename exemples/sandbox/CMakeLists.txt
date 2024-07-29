@@ -6,6 +6,7 @@
 # ---------------------------------------------------
 
 add_executable(sandbox)
+set_target_properties(sandbox PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
 
 file(GLOB_RECURSE SANDBOX_SRC "src/*")
 target_sources(sandbox PRIVATE ${SANDBOX_SRC})
