@@ -133,6 +133,7 @@ utils::uint32 ECSWorld::nextAvailableIdx(Archetype* archetype)
             row.buffer = newBuffer;
         }
     }
+    archetype->entityIds.append(0);
     return archetype->entryCount++;
 }
 
@@ -152,6 +153,7 @@ void ECSWorld::moveComponents(Archetype* src, utils::uint32 srcIdx, Archetype* d
             );
         }
     }
+    dst->entityIds[dstIdx] = src->entityIds[srcIdx];
     src->availableIndices.insert(srcIdx);
 }
 

@@ -1,6 +1,6 @@
 /*
  * ---------------------------------------------------
- * Engine.hpp
+ * EngineSingleton.hpp
  *
  * Author: Thomas Choquet <semoir.dense-0h@icloud.com>
  * Date: 2024/06/20 16:49:26
@@ -9,8 +9,8 @@
 
 #include "Game-Engine/Game.hpp"
 #include "Graphics/Event.hpp"
-#include "Graphics/GraphicAPI.hpp"
 #include "Graphics/Window.hpp"
+#include "Renderer/Renderer.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 
@@ -41,8 +41,11 @@ private:
 
     utils::UniquePtr<Game> m_game;
     bool m_running = false;
+
     utils::SharedPtr<gfx::Window> m_gameWindow;
-    utils::SharedPtr<gfx::GraphicAPI> m_gameAPI;
+    float m_aspectRatio = 800.0f / 600.0f;
+
+    Renderer m_gameRenderer;
 
 public:
     EngineSingleton& operator = (const EngineSingleton&) = delete;

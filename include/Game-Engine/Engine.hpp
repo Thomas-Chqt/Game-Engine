@@ -10,13 +10,10 @@
 #ifndef ENGINE_HPP
 # define ENGINE_HPP
 
-namespace GE
+namespace GE::Engine
 {
 
-namespace Engine
-{
-    void terminateGame();
-}
+void terminateGame();
 
 }
 

@@ -10,11 +10,17 @@
 #ifndef GAME_HPP
 # define GAME_HPP
 
+#include "Game-Engine/ECSWorld.hpp"
+#include "UtilsCPP/Types.hpp"
+
 namespace GE
 {
 
 class Game
 {
+private:
+    friend class EngineSingleton;
+
 public:
     Game(const Game&) = delete;
     Game(Game&&)      = delete;
@@ -24,7 +30,13 @@ public:
     virtual ~Game() = default;
 
 protected:
-    Game() = default;
+    Game();
+
+    utils::uint32 m_windowWidth = 800;
+    utils::uint32 m_windowHeight = 600;
+
+    ECSWorld* m_activeECSWorld = nullptr;
+    ECSWorld m_defaultECSWorld;
 };
 
 }

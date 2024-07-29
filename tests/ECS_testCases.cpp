@@ -324,3 +324,30 @@ TEST(ECSTest, componentEdit)
         view.foreach([&](Component2& comp2){ EXPECT_EQ(comp2.value, utils::String("3")); });
     }
 }
+
+TEST(ECSTest, viewFirst)
+{
+    struct Component1 { int value; };
+    struct Component2 { utils::String value; };
+
+    GE::ECSWorld world;
+
+    {
+        GE::EntityID entityId = world.createEntity();
+        world.addComponent(entityId, Component1{1});
+    }
+    {
+        GE::EntityID entityId = world.createEntity();
+        world.addComponent(entityId, Component2{"2"});
+    }
+    {
+        GE::EntityID entityId = world.createEntity();
+        world.addComponent(entityId, Component1{1});
+        world.addComponent(entityId, Component2{"2"});
+    }
+
+    {
+        GE::ECSWorldView<Component1> view(world);
+        EXPECT_EQ(world.getComponent<Component1>(view.first()).value, 1);
+    }
+}

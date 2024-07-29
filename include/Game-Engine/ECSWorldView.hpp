@@ -11,6 +11,7 @@
 #define ECSWORLDVIEW_HPP
 
 #include "ECSWorld.hpp"
+#include "UtilsCPP/Error.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/Types.hpp"
 
@@ -20,6 +21,9 @@ namespace GE
 template<typename ... Ts>
 class ECSWorldView
 {
+public:
+    ERROR_DEFF(NoMatchError, "No entity matching the predicate found");
+
 public:
     ECSWorldView()                    = delete;
     ECSWorldView(const ECSWorldView&) = delete;
@@ -54,6 +58,16 @@ public:
                 }
             }
         }
+    }
+
+    EntityID first() const
+    {
+        for (auto& [_, archetype] : m_world.m_archetypes)
+        {
+            if (m_world.archetypeHasComponents<Ts...>(*archetype))
+                return archetype->entityIds.first();
+        }
+        throw NoMatchError();
     }
 
     ~ECSWorldView() = default;

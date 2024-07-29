@@ -52,6 +52,7 @@ private:
         utils::uint32 entryCount = 0;
         utils::uint32 entryCapacity = 0;
         utils::Set<utils::uint32> availableIndices;
+        utils::Array<utils::uint64> entityIds;
         utils::Dictionary<ComponentID, Row> rows;
         
         utils::Dictionary<ComponentID, Archetype*> edgeAdd;
@@ -87,6 +88,7 @@ public:
         utils::uint32 newArchetypeIdx = nextAvailableIdx(newArchetype);
         moveComponents(entity.archetype, entity.idx, newArchetype, newArchetypeIdx);
 
+        newArchetype->entityIds[newArchetypeIdx] = entityID;
         new (&((T*)newArchetype->rows[componentID<T>()].buffer)[newArchetypeIdx]) T(component);
 
         entity.archetype = newArchetype;
