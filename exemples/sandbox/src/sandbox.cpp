@@ -9,46 +9,34 @@
 
 #include "Game-Engine/Components.hpp"
 #include "Game-Engine/ECSWorld.hpp"
+#include "Game-Engine/Engine.hpp"
 #include "Game-Engine/Game.hpp"
 #include "Math/Constants.hpp"
-#include "UtilsCPP/Func.hpp"
+#include "Math/Vector.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 
 class Sandbox : public GE::Game
 {
-private:
-    class Camera
-    {
-    public:
-        Camera(GE::ECSWorld& world) : m_entity(world)
-        {
-            m_entity.add(GE::TransformComponent{ {0, 0, 0}, {0, 0, 0}, {1, 1, 1} });
-            m_entity.add(GE::ViewPointComponent{ 60 * (PI / 180.0F), 0.1F, 10000 });
-            m_entity.add(GE::ActiveViewPointComponent());
-            m_entity.add(GE::ScriptComponent{ utils::Func<void(const utils::Set<int>&)>(*this, &Camera::onFrame) });
-        }
-
-        void onFrame(const utils::Set<int>& pressedKeys)
-        {
-        }
-
-    private:
-        GE::ECSWorld::Entity m_entity;
-    };
-
-    
-
 public:
-    Sandbox() : m_camera(m_defaultECSWorld)
+    Sandbox()
     {
-        m_windowWidth = 800;
-        m_windowHeight = 600;
+        m_camera.add(GE::TransformComponent{ {0, 0, 0}, {0, 0, 0}, {1, 1, 1} });
+        m_camera.add(GE::ViewPointComponent{ 60 * (PI / 180.0F), 0.1F, 10000 });
+        m_camera.add(GE::ActiveViewPointComponent());
+
+        m_cube.add(GE::TransformComponent{ {0, 0, 5}, {0, 0, 0}, {1, 1, 1} });
+        m_cube.add(GE::RenderableComponent{ GE::Engine::shared().loadMeshes(RESSOURCES_DIR"/cube.glb")[0] });
+
+        m_light.add(GE::TransformComponent{ {0, 0, 0}, {0, 0, 0}, {1, 1, 1} });
+        m_light.add(GE::LightSourceComponent{ GE::LightSourceComponent::Type::point, WHITE3, 1.0 });
     }
 
     ~Sandbox() = default;
 
 private:
-    Camera m_camera;
+    GE::ECSWorld::Entity m_camera = m_defaultECSWorld;
+    GE::ECSWorld::Entity m_cube = m_defaultECSWorld;
+    GE::ECSWorld::Entity m_light = m_defaultECSWorld;
 };
 
 utils::UniquePtr<GE::Game> createGame(int argv, char* argc[])

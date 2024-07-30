@@ -10,6 +10,7 @@
 #ifndef COMPONENTS_HPP
 #define COMPONENTS_HPP
 
+#include "Game-Engine/Mesh.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
 #include "UtilsCPP/Func.hpp"
@@ -24,6 +25,11 @@ struct TransformComponent
     math::vec3f position;
     math::vec3f rotation;
     math::vec3f scale;
+
+    inline math::mat4x4 modelMatrix() const
+    {
+        return math::mat4x4::translation(position) * math::mat4x4::scale(scale) * math::mat4x4::rotation(rotation);
+    }
 };
 
 struct ViewPointComponent
@@ -52,6 +58,19 @@ struct ActiveViewPointComponent
 struct ScriptComponent
 {
     utils::Func<void(const utils::Set<int>& pressedKeys)> onFrame;
+};
+
+struct LightSourceComponent
+{
+    enum class Type { point };
+    Type type;
+    math::rgb color;
+    float intensity;
+};
+
+struct RenderableComponent
+{
+    Mesh mesh;
 };
 
 }

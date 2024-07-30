@@ -15,7 +15,7 @@ namespace GE
 
 void Game::onWindowCloseEvent()
 {
-    Engine::terminateGame();
+    Engine::shared().terminateGame();
 }
 
 }

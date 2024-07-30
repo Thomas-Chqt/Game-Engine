@@ -7,20 +7,17 @@
  * ---------------------------------------------------
  */
 
-#include "Engine/EngineSingleton.hpp"
+#include "Game-Engine/Engine.hpp"
 #include "Game-Engine/Game.hpp"
-#include "Graphics/Platform.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 
 extern utils::UniquePtr<GE::Game> createGame(int argv, char* argc[]);
 
 int main(int argv, char* argc[])
 {
-    gfx::Platform::init();
-    GE::EngineSingleton::init();
+    GE::Engine::init();
 
-    GE::EngineSingleton::shared().runGame(createGame(argv, argc));
+    GE::Engine::shared().runGame(createGame(argv, argc));
 
-    GE::EngineSingleton::terminate();
-    gfx::Platform::terminate();
+    GE::Engine::terminate();
 }

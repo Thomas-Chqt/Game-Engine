@@ -128,7 +128,8 @@ utils::uint32 ECSWorld::nextAvailableIdx(Archetype* archetype)
         for (auto& [_, row] : archetype->rows)
         {
             utils::byte* newBuffer = (utils::byte*)operator new (archetype->entryCapacity * row.elementSize);
-            std::memcpy(newBuffer, row.buffer, archetype->entryCount * row.elementSize);
+            if (archetype->entryCount > 0)
+                std::memcpy(newBuffer, row.buffer, archetype->entryCount * row.elementSize);
             operator delete (row.buffer);
             row.buffer = newBuffer;
         }
