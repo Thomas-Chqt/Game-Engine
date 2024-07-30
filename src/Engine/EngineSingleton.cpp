@@ -14,9 +14,9 @@
 #include "Graphics/Platform.hpp"
 #include "Game-Engine/Engine.hpp"
 #include "Math/Matrix.hpp"
+#include "Math/Vector.hpp"
 #include "Renderer/Renderer.hpp"
 #include "UtilsCPP/Func.hpp"
-#include "Game-Engine/ECSWorldView.hpp"
 
 namespace GE
 {
@@ -50,13 +50,17 @@ void EngineSingleton::runGame(utils::UniquePtr<Game>&& game)
     {
         gfx::Platform::shared().pollEvents();
 
-        EntityID mainCamera = ECSWorldView<TransformComponent, ViewPointComponent, ActiveViewPointComponent>(*m_game->m_activeECSWorld).first();
-        TransformComponent& mainCameraTransform = m_game->m_activeECSWorld->getComponent<TransformComponent>(mainCamera);
-        ViewPointComponent& mainCameraViewPoint = m_game->m_activeECSWorld->getComponent<ViewPointComponent>(mainCamera);
-        math::mat4x4 mainCameraViewMatrix = (math::mat4x4::translation(mainCameraTransform.position) * math::mat4x4::rotation(mainCameraTransform.rotation)).inversed();
-        math::mat4x4 mainCameraVPMatrix = mainCameraViewPoint.projectionMatrix(m_aspectRatio) * mainCameraViewMatrix;
+        math::vec3f mainCameraPosition = {0, 0 ,0};
+        math::mat4x4 mainCameraVPMatrix = 1.0f;
 
-        m_gameRenderer.beginScene(mainCameraTransform.position, mainCameraVPMatrix);
+        ECSWorld::View<TransformComponent, ViewPointComponent, ActiveViewPointComponent>(*m_game->m_activeECSWorld)
+            .onFirst([&](TransformComponent& transform, ViewPointComponent& viewPoint, ActiveViewPointComponent&){
+                mainCameraPosition = transform.position;
+                math::mat4x4 viewMatrix = (math::mat4x4::translation(transform.position) * math::mat4x4::rotation(transform.rotation)).inversed();
+                mainCameraVPMatrix = viewPoint.projectionMatrix(m_aspectRatio) * viewMatrix;
+            });
+
+        m_gameRenderer.beginScene(mainCameraPosition, mainCameraVPMatrix);
         m_gameRenderer.endScene();
     }
 }

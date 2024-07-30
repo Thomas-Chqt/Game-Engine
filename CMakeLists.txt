@@ -28,7 +28,7 @@ target_include_directories(Game-Engine PRIVATE "src" PUBLIC "include")
 
 
 add_library(Game-Engine_main ${GE_LIBRARY_TYPE})
-set_target_properties(Game-Engine_main PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
+set_target_properties(Game-Engine_main PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 
 target_sources(Game-Engine_main PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/main/main.cpp")
 target_include_directories(Game-Engine_main PRIVATE "src" PUBLIC "include")

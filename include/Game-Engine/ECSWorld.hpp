@@ -24,11 +24,14 @@ using EntityID = utils::uint64;
 
 class ECSWorld
 {
-private:
-    template<typename ... Ts> friend class ECSWorldView;
 
+private:
     using ComponentID = utils::uint32;
     using ArchetypeID = utils::Set<ComponentID>;
+
+private:
+    inline static ComponentID nextComponentID() { static ComponentID id = 0; return id++; };
+    template<typename T> inline static ComponentID componentID() { static ComponentID id = nextComponentID(); return id; }
 
     struct Archetype
     {
@@ -59,6 +62,9 @@ private:
         utils::Dictionary<ComponentID, Archetype*> edgeRemove;
 
         inline Archetype(ArchetypeID id) : id(std::move(id)) {}
+
+        template<typename T> inline bool hasComponents() const { return id.contain(componentID<T>()); }
+        template<typename T, typename Y, typename ... Ts> inline bool hasComponents() const { return hasComponents<T>() && hasComponents<Y, Ts...>(); }
     };
 
     struct EntityData
@@ -118,33 +124,26 @@ public:
         return ((T*)row.buffer)[entityData.idx];
     }
 
+    template<typename T> inline const T& getComponent(EntityID entityID) const { return (const T&)const_cast<ECSWorld*>(this)->getComponent<T>(entityID); }
+
     template<typename ... Ts>
-    bool hasComponents(EntityID entityID)
+    bool hasComponents(EntityID entityID) const
     {
-        EntityData& entityData = m_entityDatas[entityID];
+        const EntityData& entityData = m_entityDatas[entityID];
         if (entityData.archetype == nullptr)
             return false;
-        return archetypeHasComponents<Ts...>(*entityData.archetype);
+        return entityData.archetype->hasComponents<Ts...>();
     }
 
     ~ECSWorld() = default;
 
 private:
-    template<typename T> inline ComponentID componentID() const { static ComponentID id = s_nextComponentID++; return id; }
 
     Archetype* archetypeEdgeAdd(Archetype*, ComponentID, utils::uint32 size, const utils::Func<void(void*)>& destructor);
     Archetype* archetypeEdgeRemove(Archetype*, ComponentID);
 
     utils::uint32 nextAvailableIdx(Archetype*);
     void moveComponents(Archetype* src, utils::uint32 srcIdx, Archetype* dst, utils::uint32 dstIdx);
-
-    template<typename T>
-    bool archetypeHasComponents(const Archetype& archetype) const { return archetype.id.contain(componentID<T>()); }
-
-    template<typename T, typename Y, typename ... Ts>
-    bool archetypeHasComponents(const Archetype& archetype) const { return archetypeHasComponents<T>() && archetypeHasComponents<Y, Ts...>(); }
-
-    inline static ComponentID s_nextComponentID = 0;
 
     utils::Array<EntityData> m_entityDatas;
     utils::Set<EntityID> m_availableEntityIDs;
@@ -154,6 +153,96 @@ private:
 public:
     ECSWorld& operator = (const ECSWorld&) = delete;
     ECSWorld& operator = (ECSWorld&&)      = delete;
+
+public:
+    class Entity
+    {
+    public:
+        Entity()              = delete;
+        Entity(const Entity&) = delete;
+        Entity(Entity&&)      = delete;
+
+        inline Entity(ECSWorld& world) : world(&world), id(world.createEntity()) {}
+
+        template<typename T> inline void add(const T& component) { world->addComponent(id, component); }
+        template<typename T> inline void remove() { world->removeComponent<T>(id); }
+        template<typename T> inline T& get() { return world->getComponent<T>(id); }
+        template<typename ... Ts> inline bool has() { return world->hasComponents<Ts...>(id); }
+
+        inline ~Entity() { world->deleteEntity(id); }
+
+    private:
+        ECSWorld* world;
+        EntityID id;
+
+    public:
+        Entity& operator = (const Entity&) = delete;
+        Entity& operator = (Entity&&)      = delete;
+    };
+
+    template<typename ... Ts>
+    class View
+    {
+    public:
+        View()            = delete;
+        View(const View&) = delete;
+        View(View&&)      = delete;
+
+        View(ECSWorld& world) : m_world(world)
+        {
+        }
+
+        utils::uint32 count() const
+        {
+            utils::uint32 output = 0;
+            for (auto& [_, archetype] : m_world.m_archetypes)
+            {
+                if (archetype->hasComponents<Ts...>())
+                    output += archetype->entryCount - archetype->availableIndices.size();
+            }
+            return output;
+        }
+
+        void foreach(const utils::Func<void(Ts&...)>& func) const
+        {
+            for (auto& [_, archetype] : m_world.m_archetypes)
+            {
+                if (archetype->hasComponents<Ts...>())
+                {
+                    for (utils::uint32 i = 0; i < archetype->entryCount; i++)
+                    {
+                        if (archetype->availableIndices.contain(i))
+                            continue;
+                        func(((Ts*)(archetype->rows[m_world.componentID<Ts>()].buffer))[i] ...);
+                    }
+                }
+            }
+        }
+
+        void onFirst(const utils::Func<void(Ts&...)>& func) const
+        {
+            for (auto& [_, archetype] : m_world.m_archetypes)
+            {
+                if (archetype->hasComponents<Ts...>())
+                {
+                    for (utils::uint32 i = 0; i < archetype->entryCount; i++)
+                    {
+                        if (archetype->availableIndices.contain(i))
+                            continue;
+                        func(((Ts*)(archetype->rows[m_world.componentID<Ts>()].buffer))[i] ...);
+                        return;
+                    }
+                }
+            }
+        }
+
+    private:
+        ECSWorld& m_world;
+
+    public:
+        View& operator = (const View&) = delete;
+        View& operator = (View&&)      = delete;
+    };
 };
 
 }

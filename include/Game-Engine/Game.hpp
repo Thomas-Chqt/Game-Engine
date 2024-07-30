@@ -30,13 +30,13 @@ public:
     virtual ~Game() = default;
 
 protected:
-    Game();
+    Game() = default;
 
     utils::uint32 m_windowWidth = 800;
     utils::uint32 m_windowHeight = 600;
 
-    ECSWorld* m_activeECSWorld = nullptr;
     ECSWorld m_defaultECSWorld;
+    ECSWorld* m_activeECSWorld = &m_defaultECSWorld;
 };
 
 }

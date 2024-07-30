@@ -16,6 +16,28 @@
 
 class Sandbox : public GE::Game
 {
+private:
+    class Camera
+    {
+    public:
+        Camera(GE::ECSWorld& world) : m_entity(world)
+        {
+            m_entity.add(GE::TransformComponent{ {0, 0, 0}, {0, 0, 0}, {1, 1, 1} });
+            m_entity.add(GE::ViewPointComponent{ 60 * (PI / 180.0F), 0.1F, 10000 });
+            m_entity.add(GE::ActiveViewPointComponent());
+            m_entity.add(GE::ScriptComponent{ utils::Func<void(const utils::Set<int>&)>(*this, &Camera::onFrame) });
+        }
+
+        void onFrame(const utils::Set<int>& pressedKeys)
+        {
+        }
+
+    private:
+        GE::ECSWorld::Entity m_entity;
+    };
+
+    
+
 public:
     Sandbox() : m_camera(m_defaultECSWorld)
     {
@@ -26,25 +48,6 @@ public:
     ~Sandbox() = default;
 
 private:
-    struct Camera
-    {
-        GE::ECSWorld& world;
-        GE::EntityID id;
-
-        Camera(GE::ECSWorld& world) : world(world)
-        {
-            world.createEntity();
-            world.addComponent(id, GE::TransformComponent{ {0, 0, 0}, {0, 0, 0}, {1, 1, 1} });
-            world.addComponent(id, GE::ViewPointComponent{ 60 * (PI / 180.0F), 0.1F, 10000 });
-            world.addComponent(id, GE::ActiveViewPointComponent());
-            world.addComponent(id, GE::ScriptComponent{ utils::Func<void(const utils::Set<int>&)>(*this, &Sandbox::Camera::onFrame) });
-        }
-
-        void onFrame(const utils::Set<int>& pressedKeys)
-        {
-        }
-    };
-
     Camera m_camera;
 };
 

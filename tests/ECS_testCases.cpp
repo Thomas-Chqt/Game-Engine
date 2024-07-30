@@ -13,7 +13,6 @@
 #include "UtilsCPP/Set.hpp"
 
 #include "Game-Engine/ECSWorld.hpp"
-#include "Game-Engine/ECSWorldView.hpp"
 
 TEST(ECSTest, entities)
 {
@@ -267,7 +266,7 @@ TEST(ECSTest, view)
     }
 
     {
-        GE::ECSWorldView<Component1> view(world);
+        GE::ECSWorld::View<Component1> view(world);
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
@@ -276,7 +275,7 @@ TEST(ECSTest, view)
         });
     }
     {
-        GE::ECSWorldView<Component2> view(world);
+        GE::ECSWorld::View<Component2> view(world);
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
@@ -308,19 +307,19 @@ TEST(ECSTest, componentEdit)
     }
 
     {
-        GE::ECSWorldView<Component1> view(world);
+        GE::ECSWorld::View<Component1> view(world);
         view.foreach([&](Component1& comp1){ comp1.value += 1; });
     }
     {
-        GE::ECSWorldView<Component2> view(world);
+        GE::ECSWorld::View<Component2> view(world);
         view.foreach([&](Component2& comp2){ comp2.value[0] += 1; });
     }
     {
-        GE::ECSWorldView<Component1> view(world);
+        GE::ECSWorld::View<Component1> view(world);
         view.foreach([&](Component1& comp1){ EXPECT_EQ(comp1.value, 2); });
     }
     {
-        GE::ECSWorldView<Component2> view(world);
+        GE::ECSWorld::View<Component2> view(world);
         view.foreach([&](Component2& comp2){ EXPECT_EQ(comp2.value, utils::String("3")); });
     }
 }
@@ -342,12 +341,15 @@ TEST(ECSTest, viewFirst)
     }
     {
         GE::EntityID entityId = world.createEntity();
-        world.addComponent(entityId, Component1{1});
-        world.addComponent(entityId, Component2{"2"});
+        world.addComponent(entityId, Component1{3});
+        world.addComponent(entityId, Component2{"4"});
     }
 
     {
-        GE::ECSWorldView<Component1> view(world);
-        EXPECT_EQ(world.getComponent<Component1>(view.first()).value, 1);
+        GE::ECSWorld::View<Component1> view(world);
+        EXPECT_EQ(view.count(), 2);
+        view.onFirst([&](Component1& comp1){
+            EXPECT_EQ(comp1.value, 1);
+        });
     }
 }

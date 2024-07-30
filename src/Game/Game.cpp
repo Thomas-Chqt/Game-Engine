@@ -18,9 +18,4 @@ void Game::onWindowCloseEvent()
     Engine::terminateGame();
 }
 
-Game::Game()
-{
-    m_activeECSWorld = &m_defaultECSWorld;
-}
-
 }
