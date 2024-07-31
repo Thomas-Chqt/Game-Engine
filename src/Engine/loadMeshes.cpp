@@ -9,10 +9,13 @@
 
 #include "Engine/InternalEngine.hpp"
 #include "Game-Engine/Mesh.hpp"
+#include "Game-Engine/RenderMethod.hpp"
 #include "Graphics/Buffer.hpp"
+#include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
-#include "Renderer/DefaultRenderMethod.hpp"
+#include "UtilsCPP/Array.hpp"
 #include "UtilsCPP/RuntimeError.hpp"
+#include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/Types.hpp"
 #include "assimp/Importer.hpp"
 #include "assimp/postprocess.h"
@@ -52,9 +55,9 @@ utils::Array<Mesh> InternalEngine::loadMeshes(const utils::String& filePath)
         newSubMesh.name = aiMesh->mName.C_Str();
 
         gfx::Buffer::Descriptor bufferDescriptor;
-        bufferDescriptor.size = aiMesh->mNumVertices * sizeof(DefaultRenderMethod::Vertex);
+        bufferDescriptor.size = aiMesh->mNumVertices * sizeof(RenderMethod::Vertex);
         newSubMesh.vertexBuffer = m_graphicAPI->newBuffer(bufferDescriptor);
-        auto* vertices = (DefaultRenderMethod::Vertex*)newSubMesh.vertexBuffer->mapContent();
+        auto* vertices = (RenderMethod::Vertex*)newSubMesh.vertexBuffer->mapContent();
 
         bufferDescriptor.size = aiMesh->mNumFaces * 3UL * sizeof(utils::uint32);
         newSubMesh.indexBuffer = m_graphicAPI->newBuffer(bufferDescriptor);

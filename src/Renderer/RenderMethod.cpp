@@ -7,7 +7,7 @@
  * ---------------------------------------------------
  */
 
-#include "Renderer/RenderMethod.hpp"
+#include "Game-Engine/RenderMethod.hpp"
 #include "Graphics/GraphicAPI.hpp"
 #include "Graphics/GraphicPipeline.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
@@ -15,9 +15,9 @@
 namespace GE
 {
 
-void RenderMethod::setGraphicAPI(const utils::SharedPtr<gfx::GraphicAPI>& api)
+void RenderMethod::build(gfx::GraphicAPI& api)
 {
-    m_graphicAPI = api;
+    m_graphicAPI = &api;
 
     utils::SharedPtr<gfx::Shader> vs = m_graphicAPI->newShader(vertexShaderDescriptor());
     utils::SharedPtr<gfx::Shader> fs = m_graphicAPI->newShader(fragmentShaderDescriptor());
@@ -27,11 +27,19 @@ void RenderMethod::setGraphicAPI(const utils::SharedPtr<gfx::GraphicAPI>& api)
     m_graphicPipeline = m_graphicAPI->newGraphicsPipeline(gfxPipelineDesc);
 }
 
-void RenderMethod::use(const ShaderGlobalDatas& shData)
+void RenderMethod::use()
 {
     m_graphicAPI->useGraphicsPipeline(m_graphicPipeline);
-    m_graphicAPI->setVertexBuffer(shData.vpMatrixBuffer, vpMatrixBufferIdx());
-    m_graphicAPI->setFragmentBuffer(shData.lightsBuffer, lightsBufferIdx());
+}
+
+void RenderMethod::setVPMatrixBuffer(const utils::SharedPtr<gfx::Buffer>& buffer)
+{
+    m_graphicAPI->setVertexBuffer(buffer, vpMatrixBufferIdx());
+}
+
+void RenderMethod::setLightsBuffer(const utils::SharedPtr<gfx::Buffer>& buffer)
+{
+    m_graphicAPI->setFragmentBuffer(buffer, lightsBufferIdx());
 }
 
 void RenderMethod::setModelMatrixBuffer(const utils::SharedPtr<gfx::Buffer>& buffer)

@@ -15,6 +15,7 @@
 #include "Graphics/GraphicAPI.hpp"
 #include "Graphics/Window.hpp"
 #include "Renderer/Renderer.hpp"
+#include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 
 namespace GE
@@ -32,6 +33,7 @@ public:
 
     utils::Array<Mesh> loadMeshes(const utils::String& filePath) override;
 
+
     ~InternalEngine() override;
 
 private:
@@ -39,10 +41,13 @@ private:
 
     utils::SharedPtr<gfx::Window> m_window;
     utils::SharedPtr<gfx::GraphicAPI> m_graphicAPI;
+    
     Renderer m_renderer;
 
-    utils::UniquePtr<Game> m_game;
+    utils::UniquePtr<Game> m_runningGame;
     bool m_running = false;
+
+    utils::Set<int> m_pressedKeys;
 
 public:
     InternalEngine& operator = (const InternalEngine&) = delete;

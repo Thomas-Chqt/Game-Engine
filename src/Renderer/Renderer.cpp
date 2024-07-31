@@ -8,19 +8,80 @@
  */
 
 #include "Renderer/Renderer.hpp"
-#include "Math/Vector.hpp"
-#include "Renderer/RenderMethod.hpp"
-#include "UtilsCPP/SharedPtr.hpp"
+#include "Game-Engine/RenderMethod.hpp"
+#include "Graphics/Enums.hpp"
+#include "Graphics/GraphicAPI.hpp"
+#include "Math/Matrix.hpp"
+#include "UtilsCPP/UniquePtr.hpp"
 
 namespace GE
 {
 
-void Renderer::setGraphicAPI(const utils::SharedPtr<gfx::GraphicAPI>& api)
+class DefaultRenderMethod : public RenderMethod
 {
-    m_graphicAPI = api;
-    m_defaultRenderMethod.setGraphicAPI(m_graphicAPI);
-    m_vpMatrixBuffer.alloc(*m_graphicAPI);
-    m_lightsBuffer.alloc(*m_graphicAPI);
+public:
+    gfx::Shader::Descriptor vertexShaderDescriptor() override
+    {
+        gfx::Shader::Descriptor shaderDescriptor;
+
+        shaderDescriptor.type = gfx::ShaderType::vertex;
+        #ifdef GFX_BUILD_METAL
+            shaderDescriptor.mtlShaderLibPath = MTL_SHADER_LIB;
+            shaderDescriptor.mtlFunction = "default_vs";
+        #endif
+        #ifdef GFX_BUILD_OPENGL
+            shaderDescriptor.openglCode = utils::String::contentOfFile(OPENGL_SHADER_DIR"/default.vs");
+        #endif
+
+        return shaderDescriptor;
+    }
+
+    gfx::Shader::Descriptor fragmentShaderDescriptor() override
+    {
+        gfx::Shader::Descriptor shaderDescriptor;
+
+        shaderDescriptor.type = gfx::ShaderType::fragment;
+        #ifdef GFX_BUILD_METAL
+            shaderDescriptor.mtlShaderLibPath = MTL_SHADER_LIB;
+            shaderDescriptor.mtlFunction = "default_fs";
+        #endif
+        #ifdef GFX_BUILD_OPENGL
+            shaderDescriptor.openglCode = utils::String::contentOfFile(OPENGL_SHADER_DIR"/default.fs");
+        #endif
+
+        return shaderDescriptor;
+    }
+
+    gfx::GraphicPipeline::Descriptor graphicPipelineDescriptor() override
+    {
+        gfx::VertexLayout vertexLayout;
+        vertexLayout.attributes.append({gfx::VertexAttributeFormat::vec3f, offsetof(Vertex, pos)});
+        vertexLayout.attributes.append({gfx::VertexAttributeFormat::vec2f, offsetof(Vertex, uv)});
+        vertexLayout.attributes.append({gfx::VertexAttributeFormat::vec3f, offsetof(Vertex, normal)});
+        vertexLayout.stride = sizeof(Vertex);
+
+        gfx::GraphicPipeline::Descriptor gfxPipelineDesc;
+        gfxPipelineDesc.vertexLayout = vertexLayout;
+
+        return gfxPipelineDesc;
+    }
+
+    inline utils::uint64 vpMatrixBufferIdx() override { return m_graphicPipeline->getVertexBufferIndex("vpMatrixBuffer"); }
+    inline utils::uint64 modelMatrixBufferIdx() override { return m_graphicPipeline->getVertexBufferIndex("modelMatrixBuffer"); }
+    inline utils::uint64 lightsBufferIdx() override { return m_graphicPipeline->getFragmentBufferIndex("lightsBuffer"); }
+
+    ~DefaultRenderMethod() override = default;
+};
+
+
+Renderer::Renderer(gfx::GraphicAPI& api)
+    : m_graphicAPI(api),
+      m_vpMatrixBuffer(m_graphicAPI),
+      m_lightsBuffer(m_graphicAPI)
+{
+    m_renderMethods.append(utils::makeUnique<DefaultRenderMethod>().staticCast<RenderMethod>());
+    m_defaultRenderMethod = m_renderMethods.first();
+    m_defaultRenderMethod->build(m_graphicAPI);
 }
 
 void Renderer::beginScene(const math::mat4x4& vpMatrix)
@@ -35,37 +96,33 @@ void Renderer::beginScene(const math::mat4x4& vpMatrix)
     m_lightsBuffer.content().pointLightCount = 0;
 }
 
-void Renderer::addPointLight(const math::vec3f& pos, const math::rgb& color, float intentsity)
-{
-    auto& newLight = m_lightsBuffer.content().pointLights[m_lightsBuffer.content().pointLightCount++];
-    newLight.pos = pos;
-    newLight.color = color;
-    newLight.intentsity = intentsity;
-}
-
 void Renderer::endScene()
 {
     m_lightsBuffer.unmap();
 
-    RenderMethod::ShaderGlobalDatas shaderGlobalDatas;
-    shaderGlobalDatas.vpMatrixBuffer = m_vpMatrixBuffer.buffer();
-    shaderGlobalDatas.lightsBuffer = m_lightsBuffer.buffer();
+    m_graphicAPI.beginFrame();
+    m_graphicAPI.beginRenderPass();
 
-    m_graphicAPI->beginFrame();
-    m_graphicAPI->beginRenderPass();
-
-    m_defaultRenderMethod.use(shaderGlobalDatas);
+    useRenderMethod(m_defaultRenderMethod);
 
     for (auto& renderable : m_renderables)
     {
-        m_defaultRenderMethod.setModelMatrixBuffer(renderable.modelMatrix);
+        m_usedRenderMethod->setModelMatrixBuffer(renderable.modelMatrix);
 
-        m_graphicAPI->setVertexBuffer(renderable.vertexBuffer, 0);
-        m_graphicAPI->drawIndexedVertices(renderable.indexBuffer);
+        m_graphicAPI.setVertexBuffer(renderable.vertexBuffer, 0);
+        m_graphicAPI.drawIndexedVertices(renderable.indexBuffer);
     }
 
-    m_graphicAPI->endRenderPass();
-    m_graphicAPI->endFrame();
+    m_graphicAPI.endRenderPass();
+    m_graphicAPI.endFrame();
+}
+
+void Renderer::useRenderMethod(RenderMethod* method)
+{
+    m_usedRenderMethod = method;
+    m_usedRenderMethod->use();
+    m_usedRenderMethod->setVPMatrixBuffer(m_vpMatrixBuffer.buffer());
+    m_usedRenderMethod->setLightsBuffer(m_lightsBuffer.buffer());
 }
 
 }

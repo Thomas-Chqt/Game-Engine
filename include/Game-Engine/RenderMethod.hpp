@@ -13,7 +13,6 @@
 #include "Graphics/GraphicAPI.hpp"
 #include "Graphics/GraphicPipeline.hpp"
 #include "Graphics/Shader.hpp"
-#include "Math/Vector.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/Types.hpp"
 
@@ -23,32 +22,25 @@ namespace GE
 class RenderMethod
 {
 public:
-    struct LightsBuffer
+    struct Vertex
     {
-        struct {
-            math::vec3f pos;
-            math::rgb color;
-            float intentsity;
-        }
-        pointLights[32];
-        utils::uint32 pointLightCount;
-    };
-
-    struct ShaderGlobalDatas
-    {
-        utils::SharedPtr<gfx::Buffer> vpMatrixBuffer;
-        utils::SharedPtr<gfx::Buffer> lightsBuffer;
+        math::vec3f pos;
+        math::vec2f uv;
+        math::vec3f normal;
+        math::vec3f tangent;
     };
 
 public:
     RenderMethod(const RenderMethod&) = delete;
     RenderMethod(RenderMethod&&)      = delete;
 
-    virtual void setGraphicAPI(const utils::SharedPtr<gfx::GraphicAPI>&);
+    void build(gfx::GraphicAPI&);
 
-    virtual void use(const ShaderGlobalDatas&);
+    void use();
 
-    virtual void setModelMatrixBuffer(const utils::SharedPtr<gfx::Buffer>&);
+    void setVPMatrixBuffer(const utils::SharedPtr<gfx::Buffer>&);
+    void setLightsBuffer(const utils::SharedPtr<gfx::Buffer>&);
+    void setModelMatrixBuffer(const utils::SharedPtr<gfx::Buffer>&);
 
     virtual gfx::Shader::Descriptor vertexShaderDescriptor() = 0;
     virtual gfx::Shader::Descriptor fragmentShaderDescriptor() = 0;
@@ -63,8 +55,10 @@ public:
 protected:
     RenderMethod() = default;
 
-    utils::SharedPtr<gfx::GraphicAPI> m_graphicAPI;
     utils::SharedPtr<gfx::GraphicPipeline> m_graphicPipeline;
+
+private:
+    gfx::GraphicAPI* m_graphicAPI = nullptr;
 
 public:
     RenderMethod& operator = (const RenderMethod&) = delete;

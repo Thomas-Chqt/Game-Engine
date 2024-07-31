@@ -12,18 +12,53 @@
 #include "Game-Engine/Engine.hpp"
 #include "Game-Engine/Game.hpp"
 #include "Math/Constants.hpp"
+#include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
+#include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
+#include "Graphics/KeyCodes.hpp"
+
+class Player
+{
+public:
+    Player(GE::ECSWorld& world) : m_entity(world)
+    {
+        m_entity.add(GE::TransformComponent{ {0, 0, 0}, {0, 0, 0}, {1, 1, 1} });
+        m_entity.add(GE::ViewPointComponent{ 60 * (PI / 180.0F), 0.1F, 10000 });
+        m_entity.add(GE::ActiveViewPointComponent());
+        m_entity.add(GE::ScriptComponent{utils::Func<void(const utils::Set<int>&)>(*this, &Player::onLoop)});
+    }
+
+    void onLoop(const utils::Set<int>& pressedKeys)
+    {
+        GE::TransformComponent& transformComponent = m_entity.get<GE::TransformComponent>();    
+        math::vec3f dir = { 0.0, 0.0, 0.0 };
+        for (const auto& key : pressedKeys)
+        {
+            switch (key)
+            {
+                case W_KEY:     dir += math::vec3f{ 0, 0,  1};         break;
+                case A_KEY:     dir += math::vec3f{-1, 0,  0};         break;
+                case S_KEY:     dir += math::vec3f{ 0, 0, -1};         break;
+                case D_KEY:     dir += math::vec3f{ 1, 0,  0};         break;
+                case UP_KEY:    transformComponent.rotation.x -= 0.05; break;
+                case LEFT_KEY:  transformComponent.rotation.y -= 0.05; break;
+                case DOWN_KEY:  transformComponent.rotation.x += 0.05; break;
+                case RIGHT_KEY: transformComponent.rotation.y += 0.05; break;
+            }
+        }
+        transformComponent.position += math::mat3x3::rotation(transformComponent.rotation) * dir.normalized() * 0.2;
+    }
+
+private:
+    GE::ECSWorld::Entity m_entity;
+};
 
 class Sandbox : public GE::Game
 {
 public:
     Sandbox()
     {
-        m_camera.add(GE::TransformComponent{ {0, 0, 0}, {0, 0, 0}, {1, 1, 1} });
-        m_camera.add(GE::ViewPointComponent{ 60 * (PI / 180.0F), 0.1F, 10000 });
-        m_camera.add(GE::ActiveViewPointComponent());
-
         m_cube.add(GE::TransformComponent{ {0, 0, 5}, {0, 0, 0}, {1, 1, 1} });
         m_cube.add(GE::RenderableComponent{ GE::Engine::shared().loadMeshes(RESSOURCES_DIR"/cube.glb")[0] });
 
@@ -31,10 +66,16 @@ public:
         m_light.add(GE::LightSourceComponent{ GE::LightSourceComponent::Type::point, WHITE3, 1.0 });
     }
 
+    void onKeyDownEvent(int keyCode, bool isRepeat) override
+    {
+        if (keyCode == ESC_KEY)
+            GE::Engine::shared().terminateGame();
+    }
+
     ~Sandbox() = default;
 
 private:
-    GE::ECSWorld::Entity m_camera = m_defaultECSWorld;
+    Player m_player = m_defaultECSWorld;
     GE::ECSWorld::Entity m_cube = m_defaultECSWorld;
     GE::ECSWorld::Entity m_light = m_defaultECSWorld;
 };

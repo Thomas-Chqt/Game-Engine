@@ -24,7 +24,8 @@ public:
     Game(const Game&) = delete;
     Game(Game&&)      = delete;
 
-    virtual void onWindowCloseEvent();
+    virtual void onWindowRequestCloseEvent();
+    virtual void onKeyDownEvent(int keyCode, bool isRepeat) = 0;
 
     virtual ~Game() = default;
 

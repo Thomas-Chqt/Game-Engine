@@ -15,9 +15,10 @@
 #include "Graphics/GraphicAPI.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
-#include "Renderer/DefaultRenderMethod.hpp"
+#include "Game-Engine/RenderMethod.hpp"
 #include "UtilsCPP/Array.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
+#include "UtilsCPP/UniquePtr.hpp"
 
 namespace GE
 {
@@ -33,15 +34,15 @@ public:
     };
 
 public:
-    Renderer()                = default;
+    Renderer()                = delete;
     Renderer(const Renderer&) = delete;
     Renderer(Renderer&&)      = delete;
-    
-    void setGraphicAPI(const utils::SharedPtr<gfx::GraphicAPI>& api);
 
+    Renderer(gfx::GraphicAPI&);
+    
     void beginScene(const math::mat4x4& vpMatrix);
 
-    void addPointLight(const math::vec3f& pos, const math::rgb& color, float intentsity);
+    inline void addPointLight(const math::vec3f& pos, const math::rgb& color, float intentsity) { m_lightsBuffer.content().pointLights[m_lightsBuffer.content().pointLightCount++] = {pos, color, intentsity}; }
     inline void addRenderable(const Renderable& renderable) { m_renderables.append(renderable); }
 
     void endScene();
@@ -49,13 +50,29 @@ public:
     ~Renderer() = default;
 
 private:
-    utils::SharedPtr<gfx::GraphicAPI> m_graphicAPI;
-    DefaultRenderMethod m_defaultRenderMethod;
+    struct LightsBuffer
+    {
+        struct {
+            math::vec3f pos;
+            math::rgb color;
+            float intentsity;
+        }
+        pointLights[32];
+        utils::uint32 pointLightCount;
+    };
+
+    void useRenderMethod(RenderMethod*);
+
+    gfx::GraphicAPI& m_graphicAPI;
+    utils::Array<utils::UniquePtr<RenderMethod>> m_renderMethods;
+    RenderMethod* m_defaultRenderMethod;
 
     gfx::BufferInstance<math::mat4x4> m_vpMatrixBuffer;
-    gfx::BufferInstance<RenderMethod::LightsBuffer> m_lightsBuffer;
+    gfx::BufferInstance<LightsBuffer> m_lightsBuffer;
 
+    // Scene time
     utils::Array<Renderable> m_renderables;
+    RenderMethod* m_usedRenderMethod = nullptr;
 
 public:
     Renderer& operator = (const Renderer&) = delete;

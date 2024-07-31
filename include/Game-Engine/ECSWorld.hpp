@@ -78,8 +78,8 @@ public:
     ECSWorld(const ECSWorld&) = delete;
     ECSWorld(ECSWorld&&)      = delete;
 
-    inline utils::uint32 entityCount() const { return m_entityDatas.length() - m_availableEntityIDs.size(); }
-    inline utils::uint32 archetypeCount() const { return m_archetypes.size(); }
+    inline utils::uint64 entityCount() const { return m_entityDatas.length() - m_availableEntityIDs.size(); }
+    inline utils::uint64 archetypeCount() const { return m_archetypes.size(); }
     utils::uint32 componentCount() const;
     
     EntityID createEntity();
@@ -197,7 +197,7 @@ public:
             utils::uint32 output = 0;
             for (auto& [_, archetype] : m_world.m_archetypes)
             {
-                if (archetype->hasComponents<Ts...>())
+                if (archetype->template hasComponents<Ts...>())
                     output += archetype->entryCount - archetype->availableIndices.size();
             }
             return output;
@@ -207,7 +207,7 @@ public:
         {
             for (auto& [_, archetype] : m_world.m_archetypes)
             {
-                if (archetype->hasComponents<Ts...>())
+                if (archetype->template hasComponents<Ts...>())
                 {
                     for (utils::uint32 i = 0; i < archetype->entryCount; i++)
                     {
@@ -223,7 +223,7 @@ public:
         {
             for (auto& [_, archetype] : m_world.m_archetypes)
             {
-                if (archetype->hasComponents<Ts...>())
+                if (archetype->template hasComponents<Ts...>())
                 {
                     for (utils::uint32 i = 0; i < archetype->entryCount; i++)
                     {

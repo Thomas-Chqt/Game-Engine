@@ -9,15 +9,18 @@
 
 #include "Game-Engine/Engine.hpp"
 #include "Game-Engine/Game.hpp"
+#include "Graphics/Platform.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 
 extern utils::UniquePtr<GE::Game> createGame(int argv, char* argc[]);
 
 int main(int argv, char* argc[])
 {
+    gfx::Platform::init();
     GE::Engine::init();
 
     GE::Engine::shared().runGame(createGame(argv, argc));
 
     GE::Engine::terminate();
+    gfx::Platform::terminate();
 }

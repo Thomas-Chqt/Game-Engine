@@ -13,7 +13,7 @@
 namespace GE
 {
 
-void Game::onWindowCloseEvent()
+void Game::onWindowRequestCloseEvent()
 {
     Engine::shared().terminateGame();
 }

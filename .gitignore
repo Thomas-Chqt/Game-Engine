@@ -4,3 +4,4 @@ build.nosync/
 .clangd
 .cache/
 default.profraw
+build_xcode.nosync/
