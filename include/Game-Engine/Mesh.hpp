@@ -17,6 +17,9 @@
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 
+namespace GE
+{
+
 struct SubMesh
 {
     utils::String name;
@@ -34,5 +37,7 @@ struct Mesh
     utils::String name;
     utils::Array<SubMesh> subMeshes;
 };
+
+}
 
 #endif // MESH_HPP

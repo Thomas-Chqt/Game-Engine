@@ -7,7 +7,7 @@
  * ---------------------------------------------------
  */
 
-#include "Game-Engine/RenderMethod.hpp"
+#include "Renderer/RenderMethod.hpp"
 #include "Graphics/GraphicAPI.hpp"
 #include "Graphics/GraphicPipeline.hpp"
 #include "UtilsCPP/SharedPtr.hpp"

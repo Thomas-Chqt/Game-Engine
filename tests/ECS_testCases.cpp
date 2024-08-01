@@ -18,13 +18,13 @@ TEST(ECSTest, entities)
 {
     GE::ECSWorld world;
 
-    GE::EntityID entity1 = world.createEntity();
+    GE::ECSWorld::EntityID entity1 = world.createEntity();
     EXPECT_EQ(entity1, 0);
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 0);
     EXPECT_EQ(world.componentCount(), 0);
 
-    GE::EntityID entity2 = world.createEntity();
+    GE::ECSWorld::EntityID entity2 = world.createEntity();
     EXPECT_EQ(entity2, 1);
     EXPECT_EQ(world.entityCount(), 2);
     EXPECT_EQ(world.archetypeCount(), 0);
@@ -35,7 +35,7 @@ TEST(ECSTest, entities)
     EXPECT_EQ(world.archetypeCount(), 0);
     EXPECT_EQ(world.componentCount(), 0);
 
-    GE::EntityID entity3 = world.createEntity();
+    GE::ECSWorld::EntityID entity3 = world.createEntity();
     EXPECT_EQ(entity3, 0);
     EXPECT_EQ(world.entityCount(), 2);
     EXPECT_EQ(world.archetypeCount(), 0);
@@ -49,7 +49,7 @@ TEST(ECSTest, oneComponent)
 
     GE::ECSWorld world;
 
-    GE::EntityID entityId = world.createEntity();
+    GE::ECSWorld::EntityID entityId = world.createEntity();
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 0);
     EXPECT_EQ(world.componentCount(), 0);
@@ -69,7 +69,7 @@ TEST(ECSTest, twoComponent)
 
     GE::ECSWorld world;
 
-    GE::EntityID entityId = world.createEntity();
+    GE::ECSWorld::EntityID entityId = world.createEntity();
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 0);
     EXPECT_EQ(world.componentCount(), 0);
@@ -95,7 +95,7 @@ TEST(ECSTest, removeComponent)
 
     GE::ECSWorld world;
 
-    GE::EntityID entityId = world.createEntity();
+    GE::ECSWorld::EntityID entityId = world.createEntity();
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 0);
     EXPECT_EQ(world.componentCount(), 0);
@@ -126,7 +126,7 @@ TEST(ECSTest, removeComponent2)
 
     GE::ECSWorld world;
 
-    GE::EntityID entityId = world.createEntity();
+    GE::ECSWorld::EntityID entityId = world.createEntity();
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 0);
     EXPECT_EQ(world.componentCount(), 0);
@@ -157,7 +157,7 @@ TEST(ECSTest, multipleEntity)
 
     GE::ECSWorld world;
 
-    GE::EntityID entityId1 = world.createEntity();
+    GE::ECSWorld::EntityID entityId1 = world.createEntity();
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 0);
     EXPECT_EQ(world.componentCount(), 0);
@@ -186,7 +186,7 @@ TEST(ECSTest, multipleEntity)
     EXPECT_FALSE(world.hasComponents<Component1>(entityId1));
 
 
-    GE::EntityID entityId2 = world.createEntity();
+    GE::ECSWorld::EntityID entityId2 = world.createEntity();
     EXPECT_EQ(world.entityCount(), 2);
     EXPECT_EQ(world.archetypeCount(), 3);
     EXPECT_EQ(world.componentCount(), 1);
@@ -215,7 +215,7 @@ TEST(ECSTest, multipleEntity)
     EXPECT_FALSE(world.hasComponents<Component1>(entityId2));
 
 
-    GE::EntityID entityId3 = world.createEntity();
+    GE::ECSWorld::EntityID entityId3 = world.createEntity();
     EXPECT_EQ(world.entityCount(), 3);
     EXPECT_EQ(world.archetypeCount(), 3);
     EXPECT_EQ(world.componentCount(), 2);
@@ -252,15 +252,15 @@ TEST(ECSTest, view)
     GE::ECSWorld world;
 
     {
-        GE::EntityID entityId = world.createEntity();
+        GE::ECSWorld::EntityID entityId = world.createEntity();
         world.addComponent(entityId, Component1{1});
     }
     {
-        GE::EntityID entityId = world.createEntity();
+        GE::ECSWorld::EntityID entityId = world.createEntity();
         world.addComponent(entityId, Component2{"2"});
     }
     {
-        GE::EntityID entityId = world.createEntity();
+        GE::ECSWorld::EntityID entityId = world.createEntity();
         world.addComponent(entityId, Component1{3});
         world.addComponent(entityId, Component2{"3"});
     }
@@ -293,15 +293,15 @@ TEST(ECSTest, componentEdit)
     GE::ECSWorld world;
 
     {
-        GE::EntityID entityId = world.createEntity();
+        GE::ECSWorld::EntityID entityId = world.createEntity();
         world.addComponent(entityId, Component1{1});
     }
     {
-        GE::EntityID entityId = world.createEntity();
+        GE::ECSWorld::EntityID entityId = world.createEntity();
         world.addComponent(entityId, Component2{"2"});
     }
     {
-        GE::EntityID entityId = world.createEntity();
+        GE::ECSWorld::EntityID entityId = world.createEntity();
         world.addComponent(entityId, Component1{1});
         world.addComponent(entityId, Component2{"2"});
     }
@@ -332,15 +332,15 @@ TEST(ECSTest, viewFirst)
     GE::ECSWorld world;
 
     {
-        GE::EntityID entityId = world.createEntity();
+        GE::ECSWorld::EntityID entityId = world.createEntity();
         world.addComponent(entityId, Component1{1});
     }
     {
-        GE::EntityID entityId = world.createEntity();
+        GE::ECSWorld::EntityID entityId = world.createEntity();
         world.addComponent(entityId, Component2{"2"});
     }
     {
-        GE::EntityID entityId = world.createEntity();
+        GE::ECSWorld::EntityID entityId = world.createEntity();
         world.addComponent(entityId, Component1{3});
         world.addComponent(entityId, Component2{"4"});
     }

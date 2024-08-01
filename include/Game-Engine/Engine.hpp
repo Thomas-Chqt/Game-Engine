@@ -32,6 +32,9 @@ public:
     virtual void runGame(utils::UniquePtr<Game>&&) = 0;
     virtual void terminateGame() = 0;
 
+    virtual void showEditorUI() = 0;
+    virtual void hideEditorUI() = 0;
+
     virtual utils::Array<Mesh> loadMeshes(const utils::String& filePath) = 0;
     
     virtual ~Engine() = default;

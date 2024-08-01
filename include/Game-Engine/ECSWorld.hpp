@@ -20,14 +20,68 @@
 namespace GE
 {
 
-using EntityID = utils::uint64;
 
 class ECSWorld
 {
+public:
+    using EntityID = utils::uint64;
 
 private:
     using ComponentID = utils::uint32;
     using ArchetypeID = utils::Set<ComponentID>;
+
+public:
+    struct Entity
+    {
+        ECSWorld* world = nullptr;
+        EntityID id = 0;
+
+        Entity()              = default;
+        Entity(const Entity&) = default;
+        Entity(Entity&&)      = default;
+
+        inline Entity(ECSWorld& world) : world(&world), id(world.createEntity()) {}
+        inline Entity(ECSWorld& world, EntityID id) : world(&world), id(id) {}
+
+        template<typename T> inline void add(const T& component) { world->addComponent(id, component); }
+        template<typename T> inline void remove() { world->removeComponent<T>(id); }
+        template<typename T> inline T& get() { return world->getComponent<T>(id); }
+        template<typename ... Ts> inline bool has() { return world->hasComponents<Ts...>(id); }
+
+        Entity& operator = (const Entity&) = default;
+        Entity& operator = (Entity&&)      = default;
+
+        bool operator == (const Entity& rhs) { return world == rhs.world && id == rhs.id; }
+    };
+
+    struct Iterator
+    {
+    private:
+        friend ECSWorld;
+
+    public:
+        Iterator()                = default;
+        Iterator(const Iterator&) = default;
+        Iterator(Iterator&&)      = default;
+
+    private:
+        inline Iterator(ECSWorld* world, EntityID id) : world(world), id(id) {}
+        
+        ECSWorld* world;
+        EntityID id;
+
+    public:
+        Iterator& operator = (const Iterator&) = default;
+        Iterator& operator = (Iterator&&)      = default;
+
+        inline Entity operator * () const { return Entity(*world, id);  };
+
+        inline Iterator& operator ++ () { do { id++; }while (world->m_availableEntityIDs.contain(id));  return *this; }
+        inline Iterator  operator ++ (int) { Iterator tmp = *this; ++tmp; return tmp; }
+
+        inline bool operator == (const Iterator& rhs) const { return world == rhs.world && id == rhs.id; }
+        inline bool operator != (const Iterator& rhs) const { return !(*this == rhs); }
+    };
 
 private:
     inline static ComponentID nextComponentID() { static ComponentID id = 0; return id++; };
@@ -84,6 +138,11 @@ public:
     
     EntityID createEntity();
     void deleteEntity(EntityID);
+
+    bool isValid(const Entity& entity) { return entity.world != nullptr && m_availableEntityIDs.contain(entity.id) == false; }
+
+    Iterator begin();
+    Iterator end();
     
     template<typename T>
     void addComponent(EntityID entityID, const T& component)
@@ -155,31 +214,6 @@ public:
     ECSWorld& operator = (ECSWorld&&)      = delete;
 
 public:
-    class Entity
-    {
-    public:
-        Entity()              = delete;
-        Entity(const Entity&) = delete;
-        Entity(Entity&&)      = delete;
-
-        inline Entity(ECSWorld& world) : world(&world), id(world.createEntity()) {}
-
-        template<typename T> inline void add(const T& component) { world->addComponent(id, component); }
-        template<typename T> inline void remove() { world->removeComponent<T>(id); }
-        template<typename T> inline T& get() { return world->getComponent<T>(id); }
-        template<typename ... Ts> inline bool has() { return world->hasComponents<Ts...>(id); }
-
-        inline ~Entity() { world->deleteEntity(id); }
-
-    private:
-        ECSWorld* world;
-        EntityID id;
-
-    public:
-        Entity& operator = (const Entity&) = delete;
-        Entity& operator = (Entity&&)      = delete;
-    };
-
     template<typename ... Ts>
     class View
     {

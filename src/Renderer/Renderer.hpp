@@ -15,8 +15,9 @@
 #include "Graphics/GraphicAPI.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
-#include "Game-Engine/RenderMethod.hpp"
+#include "Renderer/RenderMethod.hpp"
 #include "UtilsCPP/Array.hpp"
+#include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 
@@ -39,6 +40,8 @@ public:
     Renderer(Renderer&&)      = delete;
 
     Renderer(gfx::GraphicAPI&);
+
+    inline void setUI(const utils::Func<void()>& f) { m_makeUIFunc = f; }
     
     void beginScene(const math::mat4x4& vpMatrix);
 
@@ -66,6 +69,8 @@ private:
     gfx::GraphicAPI& m_graphicAPI;
     utils::Array<utils::UniquePtr<RenderMethod>> m_renderMethods;
     RenderMethod* m_defaultRenderMethod;
+
+    utils::Func<void()> m_makeUIFunc;
 
     gfx::BufferInstance<math::mat4x4> m_vpMatrixBuffer;
     gfx::BufferInstance<LightsBuffer> m_lightsBuffer;

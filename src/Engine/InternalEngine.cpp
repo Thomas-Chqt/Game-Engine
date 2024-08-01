@@ -34,6 +34,7 @@ InternalEngine::InternalEngine()
       m_renderer(*m_graphicAPI)
 {
     m_window->addEventCallBack(utils::Func<void(gfx::Event&)>(*this, &InternalEngine::onEvent), this);
+    m_graphicAPI->initImgui();
 }
 
 void InternalEngine::runGame(utils::UniquePtr<Game>&& game)
@@ -96,31 +97,24 @@ void InternalEngine::runGame(utils::UniquePtr<Game>&& game)
 
 void InternalEngine::onEvent(gfx::Event& event)
 {
-    bool didCast = false;
-
-    didCast = event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& event) {
+    if (event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& event) {
         m_runningGame->onWindowRequestCloseEvent();
-    });
-    if (didCast)
-        return;
+    })) return;
 
-    didCast = event.dispatch<gfx::KeyDownEvent>([&](gfx::KeyDownEvent& event) {
+    if (event.dispatch<gfx::KeyDownEvent>([&](gfx::KeyDownEvent& event) {
+        m_runningGame->onKeyDownEvent(event.keyCode(), event.isRepeat());
         if (event.isRepeat() == false)
             m_pressedKeys.insert(event.keyCode());
-        m_runningGame->onKeyDownEvent(event.keyCode(), event.isRepeat());
-    });
-    if (didCast)
-        return;
+    })) return;
     
-    didCast = event.dispatch<gfx::KeyUpEvent>([&](gfx::KeyUpEvent& event) {
+    if (event.dispatch<gfx::KeyUpEvent>([&](gfx::KeyUpEvent& event) {
         m_pressedKeys.remove(m_pressedKeys.find(event.keyCode()));
-    });
-    if (didCast)
-        return;
+    })) return;
 }
 
 InternalEngine::~InternalEngine()
 {
+    m_graphicAPI->terminateImGui();
     m_window->clearCallbacks(this);
 }
 

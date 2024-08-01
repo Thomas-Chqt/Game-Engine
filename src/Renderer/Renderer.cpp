@@ -8,7 +8,7 @@
  */
 
 #include "Renderer/Renderer.hpp"
-#include "Game-Engine/RenderMethod.hpp"
+#include "Renderer/RenderMethod.hpp"
 #include "Graphics/Enums.hpp"
 #include "Graphics/GraphicAPI.hpp"
 #include "Math/Matrix.hpp"
@@ -101,7 +101,10 @@ void Renderer::endScene()
     m_lightsBuffer.unmap();
 
     m_graphicAPI.beginFrame();
-    m_graphicAPI.beginRenderPass();
+    if (m_makeUIFunc)
+        m_graphicAPI.beginImguiRenderPass();
+    else
+        m_graphicAPI.beginRenderPass();
 
     useRenderMethod(m_defaultRenderMethod);
 
@@ -112,6 +115,9 @@ void Renderer::endScene()
         m_graphicAPI.setVertexBuffer(renderable.vertexBuffer, 0);
         m_graphicAPI.drawIndexedVertices(renderable.indexBuffer);
     }
+
+    if (m_makeUIFunc)
+        m_makeUIFunc();
 
     m_graphicAPI.endRenderPass();
     m_graphicAPI.endFrame();

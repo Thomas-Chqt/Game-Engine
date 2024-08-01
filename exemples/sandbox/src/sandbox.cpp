@@ -26,7 +26,7 @@ public:
         m_entity.add(GE::TransformComponent{ {0, 0, 0}, {0, 0, 0}, {1, 1, 1} });
         m_entity.add(GE::ViewPointComponent{ 60 * (PI / 180.0F), 0.1F, 10000 });
         m_entity.add(GE::ActiveViewPointComponent());
-        m_entity.add(GE::ScriptComponent{utils::Func<void(const utils::Set<int>&)>(*this, &Player::onLoop)});
+        m_entity.add(GE::ScriptComponent{ utils::Func<void(const utils::Set<int>&)>(*this, &Player::onLoop) });
     }
 
     void onLoop(const utils::Set<int>& pressedKeys)
@@ -59,6 +59,8 @@ class Sandbox : public GE::Game
 public:
     Sandbox()
     {
+        GE::Engine::shared().showEditorUI();
+
         m_cube.add(GE::TransformComponent{ {0, 0, 5}, {0, 0, 0}, {1, 1, 1} });
         m_cube.add(GE::RenderableComponent{ GE::Engine::shared().loadMeshes(RESSOURCES_DIR"/cube.glb")[0] });
 

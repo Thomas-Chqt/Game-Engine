@@ -35,7 +35,7 @@ utils::uint32 ECSWorld::componentCount() const
     return output;
 }
 
-EntityID ECSWorld::createEntity()
+ECSWorld::EntityID ECSWorld::createEntity()
 {
     EntityID newEntity = 0;
     if (m_availableEntityIDs.isEmpty())
@@ -49,6 +49,22 @@ EntityID ECSWorld::createEntity()
         new (&m_entityDatas[newEntity]) EntityData;
     }
     return newEntity;
+}
+
+ECSWorld::Iterator ECSWorld::begin()
+{
+    EntityID id = 0;
+    while (m_availableEntityIDs.contain(id))
+        id++;
+    return Iterator(this, id);
+}
+
+ECSWorld::Iterator ECSWorld::end()
+{
+    EntityID id = m_entityDatas.length() - 1;
+    while (m_availableEntityIDs.contain(id))
+        id--;
+    return Iterator(this, ++id);
 }
 
 void ECSWorld::deleteEntity(EntityID entityIdx)

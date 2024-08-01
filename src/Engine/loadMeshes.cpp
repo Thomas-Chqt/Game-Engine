@@ -9,7 +9,7 @@
 
 #include "Engine/InternalEngine.hpp"
 #include "Game-Engine/Mesh.hpp"
-#include "Game-Engine/RenderMethod.hpp"
+#include "Renderer/RenderMethod.hpp"
 #include "Graphics/Buffer.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
