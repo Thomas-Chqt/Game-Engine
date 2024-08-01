@@ -15,10 +15,16 @@
 #include "Math/Vector.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/Set.hpp"
+#include "UtilsCPP/String.hpp"
 #include <cmath>
 
 namespace GE
 {
+
+struct DebugNameComponent
+{
+    utils::String name;
+};
 
 struct TransformComponent
 {

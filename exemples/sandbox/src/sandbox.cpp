@@ -23,6 +23,7 @@ class Player
 public:
     Player(GE::ECSWorld& world) : m_entity(world)
     {
+        m_entity.add(GE::DebugNameComponent{ "Player" });
         m_entity.add(GE::TransformComponent{ {0, 0, 0}, {0, 0, 0}, {1, 1, 1} });
         m_entity.add(GE::ViewPointComponent{ 60 * (PI / 180.0F), 0.1F, 10000 });
         m_entity.add(GE::ActiveViewPointComponent());
@@ -61,9 +62,11 @@ public:
     {
         GE::Engine::shared().showEditorUI();
 
+        m_cube.add(GE::DebugNameComponent{ "Cube" });
         m_cube.add(GE::TransformComponent{ {0, 0, 5}, {0, 0, 0}, {1, 1, 1} });
         m_cube.add(GE::RenderableComponent{ GE::Engine::shared().loadMeshes(RESSOURCES_DIR"/cube.glb")[0] });
 
+        m_light.add(GE::DebugNameComponent{ "Light" });
         m_light.add(GE::TransformComponent{ {0, 0, 0}, {0, 0, 0}, {1, 1, 1} });
         m_light.add(GE::LightSourceComponent{ GE::LightSourceComponent::Type::point, WHITE3, 1.0 });
     }

@@ -29,8 +29,17 @@ void InternalEngine::makeUI()
         {
             for (auto entity : *m_runningGame->m_activeECSWorld)
             {
-                if (ImGui::Selectable((char*)utils::String::fromUInt(entity.id), m_selectedEntity == entity))
-                    m_selectedEntity = entity;
+                if (entity.has<DebugNameComponent>())
+                {
+                    DebugNameComponent& comp = entity.get<DebugNameComponent>();
+                    if (ImGui::Selectable(comp.name, m_selectedEntity == entity))
+                        m_selectedEntity = entity;
+                }
+                else
+                {
+                    if (ImGui::Selectable((char*)utils::String::fromUInt(entity.id), m_selectedEntity == entity))
+                        m_selectedEntity = entity;
+                }
             }
         }
         
@@ -61,7 +70,16 @@ void InternalEngine::makeUI()
                         ImGui::TreePop();
                     }
                 }   
-                    
+
+                if (m_selectedEntity.has<LightSourceComponent>())
+                {
+                    if (ImGui::TreeNode("Light source component"))
+                    {
+                        ImGui::ColorEdit3("color",    (float*)&m_selectedEntity.get<LightSourceComponent>().color);
+                        ImGui::DragFloat("intensity", (float*)&m_selectedEntity.get<LightSourceComponent>().intensity, 0.001F,  0.0F, 1.0F);
+                        ImGui::TreePop();
+                    }
+                }   
             }
         }
     }
