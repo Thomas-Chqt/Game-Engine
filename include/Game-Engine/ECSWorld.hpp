@@ -20,7 +20,6 @@
 namespace GE
 {
 
-
 class ECSWorld
 {
 public:
@@ -29,59 +28,6 @@ public:
 private:
     using ComponentID = utils::uint32;
     using ArchetypeID = utils::Set<ComponentID>;
-
-public:
-    struct Entity
-    {
-        ECSWorld* world = nullptr;
-        EntityID id = 0;
-
-        Entity()              = default;
-        Entity(const Entity&) = default;
-        Entity(Entity&&)      = default;
-
-        inline Entity(ECSWorld& world) : world(&world), id(world.createEntity()) {}
-        inline Entity(ECSWorld& world, EntityID id) : world(&world), id(id) {}
-
-        template<typename T> inline void add(const T& component) { world->addComponent(id, component); }
-        template<typename T> inline void remove() { world->removeComponent<T>(id); }
-        template<typename T> inline T& get() { return world->getComponent<T>(id); }
-        template<typename ... Ts> inline bool has() { return world->hasComponents<Ts...>(id); }
-
-        Entity& operator = (const Entity&) = default;
-        Entity& operator = (Entity&&)      = default;
-
-        bool operator == (const Entity& rhs) { return world == rhs.world && id == rhs.id; }
-    };
-
-    struct Iterator
-    {
-    private:
-        friend ECSWorld;
-
-    public:
-        Iterator()                = default;
-        Iterator(const Iterator&) = default;
-        Iterator(Iterator&&)      = default;
-
-    private:
-        inline Iterator(ECSWorld* world, EntityID id) : world(world), id(id) {}
-        
-        ECSWorld* world;
-        EntityID id;
-
-    public:
-        Iterator& operator = (const Iterator&) = default;
-        Iterator& operator = (Iterator&&)      = default;
-
-        inline Entity operator * () const { return Entity(*world, id);  };
-
-        inline Iterator& operator ++ () { do { id++; }while (world->m_availableEntityIDs.contain(id));  return *this; }
-        inline Iterator  operator ++ (int) { Iterator tmp = *this; ++tmp; return tmp; }
-
-        inline bool operator == (const Iterator& rhs) const { return world == rhs.world && id == rhs.id; }
-        inline bool operator != (const Iterator& rhs) const { return !(*this == rhs); }
-    };
 
 private:
     inline static ComponentID nextComponentID() { static ComponentID id = 0; return id++; };
@@ -132,18 +78,37 @@ public:
     ECSWorld(const ECSWorld&) = delete;
     ECSWorld(ECSWorld&&)      = delete;
 
-    inline utils::uint64 entityCount() const { return m_entityDatas.length() - m_availableEntityIDs.size(); }
+    template<typename ... Ts>
+    utils::uint64 entityCount()
+    {
+        utils::uint64 count = 0;
+        for (auto& [_, archetype] : m_archetypes)
+        {
+            if (archetype->template hasComponents<Ts...>())
+            {
+                for (utils::uint32 i = 0; i < archetype->entryCount; i++)
+                {
+                    if (archetype->availableIndices.contain(i) == false)
+                        count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    template<>
+    utils::uint64 entityCount<>()
+    {
+        return m_entityDatas.length() - m_availableEntityIDs.size();
+    }
+
     inline utils::uint64 archetypeCount() const { return m_archetypes.size(); }
     utils::uint32 componentCount() const;
     
     EntityID createEntity();
     void deleteEntity(EntityID);
+    bool isValid(const EntityID& entityId) { return entityId < m_entityDatas.length() && m_availableEntityIDs.contain(entityId) == false; }
 
-    bool isValid(const Entity& entity) { return entity.world != nullptr && m_availableEntityIDs.contain(entity.id) == false; }
-
-    Iterator begin();
-    Iterator end();
-    
     template<typename T>
     void addComponent(EntityID entityID, const T& component)
     {
@@ -194,10 +159,43 @@ public:
         return entityData.archetype->hasComponents<Ts...>();
     }
 
+    template<typename ... Ts>
+    void foreach(const utils::Func<void(EntityID, Ts&...)>& func)
+    {
+        for (auto& [_, archetype] : m_archetypes)
+        {
+            if (archetype->template hasComponents<Ts...>())
+            {
+                for (utils::uint32 i = 0; i < archetype->entryCount; i++)
+                {
+                    if (archetype->availableIndices.contain(i) == false)
+                        func(archetype->entityIds[i], ((Ts*)(archetype->rows[componentID<Ts>()].buffer))[i] ...);
+                }
+            }
+        }
+    }
+
+    template<typename ... Ts>
+    void onFirst(const utils::Func<void(EntityID, Ts&...)>& func)
+    {
+        for (auto& [_, archetype] : m_archetypes)
+        {
+            if (archetype->template hasComponents<Ts...>())
+            {
+                for (utils::uint32 i = 0; i < archetype->entryCount; i++)
+                {
+                    if (archetype->availableIndices.contain(i))
+                        continue;
+                    func(archetype->entityIds[i], ((Ts*)(archetype->rows[componentID<Ts>()].buffer))[i] ...);
+                    return;
+                }
+            }
+        }
+    }
+
     ~ECSWorld() = default;
 
 private:
-
     Archetype* archetypeEdgeAdd(Archetype*, ComponentID, utils::uint32 size, const utils::Func<void(void*)>& destructor);
     Archetype* archetypeEdgeRemove(Archetype*, ComponentID);
 
@@ -212,71 +210,28 @@ private:
 public:
     ECSWorld& operator = (const ECSWorld&) = delete;
     ECSWorld& operator = (ECSWorld&&)      = delete;
+};
 
-public:
-    template<typename ... Ts>
-    class View
-    {
-    public:
-        View()            = delete;
-        View(const View&) = delete;
-        View(View&&)      = delete;
+template<typename ... Ts>
+struct ECSView
+{
+    ECSView(ECSWorld& w) : world(w) {}
 
-        View(ECSWorld& world) : m_world(world)
-        {
-        }
+    inline void operator () (const utils::Func<void(ECSWorld::EntityID, Ts&...)>& func) { world.foreach<Ts...>(func); }
+    inline void onFirst(const utils::Func<void(ECSWorld::EntityID, Ts&...)>& func) { world.onFirst(func); }
 
-        utils::uint32 count() const
-        {
-            utils::uint32 output = 0;
-            for (auto& [_, archetype] : m_world.m_archetypes)
-            {
-                if (archetype->template hasComponents<Ts...>())
-                    output += archetype->entryCount - archetype->availableIndices.size();
-            }
-            return output;
-        }
+    ECSWorld& world;
+};
 
-        void foreach(const utils::Func<void(Ts&...)>& func) const
-        {
-            for (auto& [_, archetype] : m_world.m_archetypes)
-            {
-                if (archetype->template hasComponents<Ts...>())
-                {
-                    for (utils::uint32 i = 0; i < archetype->entryCount; i++)
-                    {
-                        if (archetype->availableIndices.contain(i))
-                            continue;
-                        func(((Ts*)(archetype->rows[m_world.componentID<Ts>()].buffer))[i] ...);
-                    }
-                }
-            }
-        }
+template<>
+struct ECSView<>
+{
+    ECSView(ECSWorld& w) : world(w) {}
 
-        void onFirst(const utils::Func<void(Ts&...)>& func) const
-        {
-            for (auto& [_, archetype] : m_world.m_archetypes)
-            {
-                if (archetype->template hasComponents<Ts...>())
-                {
-                    for (utils::uint32 i = 0; i < archetype->entryCount; i++)
-                    {
-                        if (archetype->availableIndices.contain(i))
-                            continue;
-                        func(((Ts*)(archetype->rows[m_world.componentID<Ts>()].buffer))[i] ...);
-                        return;
-                    }
-                }
-            }
-        }
+    void operator () (const utils::Func<void(ECSWorld::EntityID)>& func);
+    void onFirst(const utils::Func<void(ECSWorld::EntityID)>& func);
 
-    private:
-        ECSWorld& m_world;
-
-    public:
-        View& operator = (const View&) = delete;
-        View& operator = (View&&)      = delete;
-    };
+    ECSWorld& world;
 };
 
 }

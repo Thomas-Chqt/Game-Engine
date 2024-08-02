@@ -54,7 +54,7 @@ private:
 
     utils::Set<int> m_pressedKeys;
 
-    ECSWorld::Entity m_selectedEntity;
+    ECSWorld::EntityID m_selectedEntity;
 
 public:
     InternalEngine& operator = (const InternalEngine&) = delete;

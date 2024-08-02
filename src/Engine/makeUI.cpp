@@ -9,6 +9,7 @@
 
 #include "Engine/InternalEngine.hpp"
 #include "Game-Engine/Components.hpp"
+#include "Game-Engine/ECSWorld.hpp"
 #include "Math/Constants.hpp"
 #include "UtilsCPP/String.hpp"
 
@@ -27,20 +28,19 @@ void InternalEngine::makeUI()
 
         ImGui::SeparatorText("Entities");
         {
-            for (auto entity : *m_runningGame->m_activeECSWorld)
-            {
-                if (entity.has<DebugNameComponent>())
+            ECSView<>(*m_runningGame->m_activeECSWorld)([&](ECSWorld::EntityID id) {
+                if (m_runningGame->m_activeECSWorld->hasComponents<DebugNameComponent>(id))
                 {
-                    DebugNameComponent& comp = entity.get<DebugNameComponent>();
-                    if (ImGui::Selectable(comp.name, m_selectedEntity == entity))
-                        m_selectedEntity = entity;
+                    DebugNameComponent& comp = m_runningGame->m_activeECSWorld->getComponent<DebugNameComponent>(id);
+                    if (ImGui::Selectable(comp.name, m_selectedEntity == id))
+                        m_selectedEntity = id;
                 }
                 else
                 {
-                    if (ImGui::Selectable((char*)utils::String::fromUInt(entity.id), m_selectedEntity == entity))
-                        m_selectedEntity = entity;
+                    if (ImGui::Selectable((char*)utils::String::fromUInt(id), m_selectedEntity == id))
+                        m_selectedEntity = id;
                 }
-            }
+            });
         }
         
         ImGui::SeparatorText("Components");
@@ -49,34 +49,37 @@ void InternalEngine::makeUI()
                 ImGui::Text("No entity slected");
             else
             {
-                if (m_selectedEntity.has<TransformComponent>())
+                if (m_runningGame->m_defaultECSWorld.hasComponents<TransformComponent>(m_selectedEntity))
                 {
                     if (ImGui::TreeNode("Transform component"))
                     {
-                        ImGui::DragFloat3("position", (float*)&m_selectedEntity.get<TransformComponent>().position, 0.1F);
-                        ImGui::DragFloat3("rotation", (float*)&m_selectedEntity.get<TransformComponent>().rotation, 0.01F, -2*PI, 2*PI);
-                        ImGui::DragFloat3("scale",    (float*)&m_selectedEntity.get<TransformComponent>().scale,    0.01F,  0.0F, 5.0F);
+                        TransformComponent& comp = m_runningGame->m_defaultECSWorld.getComponent<TransformComponent>(m_selectedEntity);
+                        ImGui::DragFloat3("position", (float*)&comp.position, 0.1F);
+                        ImGui::DragFloat3("rotation", (float*)&comp.rotation, 0.01F, -2*PI, 2*PI);
+                        ImGui::DragFloat3("scale",    (float*)&comp.scale,    0.01F,  0.0F, 5.0F);
                         ImGui::TreePop();
                     }
                 }   
 
-                if (m_selectedEntity.has<ViewPointComponent>())
+                if (m_runningGame->m_defaultECSWorld.hasComponents<ViewPointComponent>(m_selectedEntity))
                 {
                     if (ImGui::TreeNode("View point component"))
                     {
-                        ImGui::DragFloat("fov",   (float*)&m_selectedEntity.get<ViewPointComponent>().fov,   0.01F, 0.0F, 180.0F);
-                        ImGui::DragFloat("zNear", (float*)&m_selectedEntity.get<ViewPointComponent>().zNear, 0.01F, 0.0F, 10000.0F);
-                        ImGui::DragFloat("zFar",  (float*)&m_selectedEntity.get<ViewPointComponent>().zFar,  1.0F,  0.0F, 10000.0F);
+                        ViewPointComponent& comp = m_runningGame->m_defaultECSWorld.getComponent<ViewPointComponent>(m_selectedEntity);
+                        ImGui::DragFloat("fov",   (float*)&comp.fov,   0.01F, 0.0F, 180.0F);
+                        ImGui::DragFloat("zNear", (float*)&comp.zNear, 0.01F, 0.0F, 10000.0F);
+                        ImGui::DragFloat("zFar",  (float*)&comp.zFar,  1.0F,  0.0F, 10000.0F);
                         ImGui::TreePop();
                     }
                 }   
 
-                if (m_selectedEntity.has<LightSourceComponent>())
+                if (m_runningGame->m_defaultECSWorld.hasComponents<LightSourceComponent>(m_selectedEntity))
                 {
                     if (ImGui::TreeNode("Light source component"))
                     {
-                        ImGui::ColorEdit3("color",    (float*)&m_selectedEntity.get<LightSourceComponent>().color);
-                        ImGui::DragFloat("intensity", (float*)&m_selectedEntity.get<LightSourceComponent>().intensity, 0.001F,  0.0F, 1.0F);
+                        LightSourceComponent& comp = m_runningGame->m_defaultECSWorld.getComponent<LightSourceComponent>(m_selectedEntity);
+                        ImGui::ColorEdit3("color",    (float*)&comp.color);
+                        ImGui::DragFloat("intensity", (float*)&comp.intensity, 0.001F,  0.0F, 1.0F);
                         ImGui::TreePop();
                     }
                 }   

@@ -17,6 +17,7 @@
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include "Graphics/KeyCodes.hpp"
+#include "Game-Engine/Entity.hpp"
 
 class Player
 {
@@ -52,7 +53,7 @@ public:
     }
 
 private:
-    GE::ECSWorld::Entity m_entity;
+    GE::Entity m_entity;
 };
 
 class Sandbox : public GE::Game
@@ -81,8 +82,8 @@ public:
 
 private:
     Player m_player = m_defaultECSWorld;
-    GE::ECSWorld::Entity m_cube = m_defaultECSWorld;
-    GE::ECSWorld::Entity m_light = m_defaultECSWorld;
+    GE::Entity m_cube = m_defaultECSWorld;
+    GE::Entity m_light = m_defaultECSWorld;
 };
 
 utils::UniquePtr<GE::Game> createGame(int argv, char* argc[])

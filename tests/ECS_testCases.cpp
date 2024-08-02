@@ -9,6 +9,7 @@
 
 #include <gtest/gtest.h>
 
+#include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Set.hpp"
 
@@ -266,21 +267,21 @@ TEST(ECSTest, view)
     }
 
     {
-        GE::ECSWorld::View<Component1> view(world);
-        EXPECT_EQ(view.count(), 2);
+        GE::ECSView<Component1> view(world);
+        EXPECT_EQ(world.entityCount<Component1>(), 2);
 
         EXPECT_NO_THROW({
             utils::Set<int> values;
-            view.foreach([&](Component1& comp1){ values.insert(comp1.value); });
+            view([&](GE::ECSWorld::EntityID, Component1& comp1){ values.insert(comp1.value); });
         });
     }
     {
-        GE::ECSWorld::View<Component2> view(world);
-        EXPECT_EQ(view.count(), 2);
+        GE::ECSView<Component2> view(world);
+        EXPECT_EQ(world.entityCount<Component2>(), 2);
 
         EXPECT_NO_THROW({
             utils::Set<utils::String> values;
-            view.foreach([&](Component2& comp2){ values.insert(comp2.value); });
+            view([&](GE::ECSWorld::EntityID, Component2& comp2){ values.insert(comp2.value); });
         });
     }
 }
@@ -307,20 +308,20 @@ TEST(ECSTest, componentEdit)
     }
 
     {
-        GE::ECSWorld::View<Component1> view(world);
-        view.foreach([&](Component1& comp1){ comp1.value += 1; });
+        GE::ECSView<Component1> view(world);
+        view([&](GE::ECSWorld::EntityID, Component1& comp1){ comp1.value += 1; });
     }
     {
-        GE::ECSWorld::View<Component2> view(world);
-        view.foreach([&](Component2& comp2){ comp2.value[0] += 1; });
+        GE::ECSView<Component2> view(world);
+        view([&](GE::ECSWorld::EntityID, Component2& comp2){ comp2.value[0] += 1; });
     }
     {
-        GE::ECSWorld::View<Component1> view(world);
-        view.foreach([&](Component1& comp1){ EXPECT_EQ(comp1.value, 2); });
+        GE::ECSView<Component1> view(world);
+        view([&](GE::ECSWorld::EntityID, Component1& comp1){ EXPECT_EQ(comp1.value, 2); });
     }
     {
-        GE::ECSWorld::View<Component2> view(world);
-        view.foreach([&](Component2& comp2){ EXPECT_EQ(comp2.value, utils::String("3")); });
+        GE::ECSView<Component2> view(world);
+        view([&](GE::ECSWorld::EntityID, Component2& comp2){ EXPECT_EQ(comp2.value, utils::String("3")); });
     }
 }
 
@@ -346,9 +347,9 @@ TEST(ECSTest, viewFirst)
     }
 
     {
-        GE::ECSWorld::View<Component1> view(world);
-        EXPECT_EQ(view.count(), 2);
-        view.onFirst([&](Component1& comp1){
+        GE::ECSView<Component1> view(world);
+        EXPECT_EQ(world.entityCount<Component1>(), 2);
+        view.onFirst([&](GE::ECSWorld::EntityID, Component1& comp1){
             EXPECT_EQ(comp1.value, 1);
         });
     }

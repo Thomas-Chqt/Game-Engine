@@ -17,6 +17,7 @@
 #include "Graphics/Platform.hpp"
 #include "Math/Matrix.hpp"
 #include "Renderer/Renderer.hpp"
+#include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 
@@ -46,50 +47,46 @@ void InternalEngine::runGame(utils::UniquePtr<Game>&& game)
     {
         gfx::Platform::shared().pollEvents();
 
-        ECSWorld::View<ScriptComponent>(*m_runningGame->m_activeECSWorld)
-            .foreach([&](ScriptComponent& scriptComponent) {
-                scriptComponent.onFrame(m_pressedKeys);
-            });
+        ECSView<ScriptComponent>(*m_runningGame->m_activeECSWorld)([&](ECSWorld::EntityID, ScriptComponent& scriptComponent) {
+            scriptComponent.onFrame(m_pressedKeys);
+        });
 
         math::mat4x4 mainCameraVPMatrix = 1.0f;
 
-        ECSWorld::View<TransformComponent, ViewPointComponent, ActiveViewPointComponent>(*m_runningGame->m_activeECSWorld)
-            .onFirst([&](TransformComponent& transform, ViewPointComponent& viewPoint, ActiveViewPointComponent&) {
-                math::mat4x4 viewMatrix = (math::mat4x4::translation(transform.position) * math::mat4x4::rotation(transform.rotation)).inversed();
-                utils::uint32 w, h;
-                m_window->getWindowSize(&w, &h);
-                mainCameraVPMatrix = viewPoint.projectionMatrix((float)w / (float)h) * viewMatrix;
-            });
+        ECSView<TransformComponent, ViewPointComponent, ActiveViewPointComponent>(*m_runningGame->m_activeECSWorld)([&](ECSWorld::EntityID, TransformComponent& transformComponent, ViewPointComponent& viewPointComponent, ActiveViewPointComponent&) {
+            math::mat4x4 viewMatrix = (math::mat4x4::translation(transformComponent.position) * math::mat4x4::rotation(transformComponent.rotation)).inversed();
+            utils::uint32 w, h;
+            m_window->getWindowSize(&w, &h);
+            mainCameraVPMatrix = viewPointComponent.projectionMatrix((float)w / (float)h) * viewMatrix;
+        });
 
         m_renderer.beginScene(mainCameraVPMatrix);
 
-        ECSWorld::View<TransformComponent, LightSourceComponent>(*m_runningGame->m_activeECSWorld)
-            .foreach([&](TransformComponent& transform, LightSourceComponent& lightSource) {
-                if (lightSource.type == LightSourceComponent::Type::point)
-                    m_renderer.addPointLight(transform.position, lightSource.color, lightSource.intensity);
-            });
+        ECSView<TransformComponent, LightSourceComponent>(*m_runningGame->m_activeECSWorld)([&](ECSWorld::EntityID, TransformComponent& transform, LightSourceComponent& lightSource) {
+            if (lightSource.type == LightSourceComponent::Type::point)
+                m_renderer.addPointLight(transform.position, lightSource.color, lightSource.intensity);
+        });
+        
+        ECSView<TransformComponent, RenderableComponent>(*m_runningGame->m_activeECSWorld)([&](ECSWorld::EntityID, TransformComponent& transform, RenderableComponent& renderableComp) {
+            utils::Func<void(SubMesh&, const math::mat4x4&)> addSubMesh = [&](SubMesh& subMesh, const math::mat4x4& transform) {
+                math::mat4x4 modelMatrix = transform * subMesh.transform;
+                if (subMesh.vertexBuffer && subMesh.indexBuffer)
+                {
+                    subMesh.modelMatrix.map();
+                    subMesh.modelMatrix.content() = modelMatrix;
+                    subMesh.modelMatrix.unmap();
 
-        ECSWorld::View<TransformComponent, RenderableComponent>(*m_runningGame->m_activeECSWorld)
-            .foreach([&](TransformComponent& transform, RenderableComponent& renderableComp) {
-                utils::Func<void(SubMesh&, const math::mat4x4&)> addSubMesh = [&](SubMesh& subMesh, const math::mat4x4& transform) {
-                    math::mat4x4 modelMatrix = transform * subMesh.transform;
-                    if (subMesh.vertexBuffer && subMesh.indexBuffer)
-                    {
-                        subMesh.modelMatrix.map();
-                        subMesh.modelMatrix.content() = modelMatrix;
-                        subMesh.modelMatrix.unmap();
+                    Renderer::Renderable renderable;
+                    renderable.vertexBuffer = subMesh.vertexBuffer;
+                    renderable.indexBuffer = subMesh.indexBuffer;
+                    renderable.modelMatrix = subMesh.modelMatrix.buffer();
 
-                        Renderer::Renderable renderable;
-                        renderable.vertexBuffer = subMesh.vertexBuffer;
-                        renderable.indexBuffer = subMesh.indexBuffer;
-                        renderable.modelMatrix = subMesh.modelMatrix.buffer();
-
-                        m_renderer.addRenderable(renderable);
-                    }
-                };
-                for (auto& subMesh : renderableComp.mesh.subMeshes)
-                    addSubMesh(subMesh, transform.modelMatrix());
-            });
+                    m_renderer.addRenderable(renderable);
+                }
+            };
+            for (auto& subMesh : renderableComp.mesh.subMeshes)
+                addSubMesh(subMesh, transform.modelMatrix());
+        });
 
         m_renderer.endScene();
     }

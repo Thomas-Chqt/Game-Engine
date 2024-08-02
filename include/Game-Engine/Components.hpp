@@ -34,7 +34,7 @@ struct TransformComponent
 
     inline math::mat4x4 modelMatrix() const
     {
-        return math::mat4x4::translation(position) * math::mat4x4::scale(scale) * math::mat4x4::rotation(rotation);
+        return math::mat4x4::translation(position) * math::mat4x4::rotation(rotation) * math::mat4x4::scale(scale);
     }
 };
 

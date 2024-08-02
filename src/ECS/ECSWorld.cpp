@@ -51,22 +51,6 @@ ECSWorld::EntityID ECSWorld::createEntity()
     return newEntity;
 }
 
-ECSWorld::Iterator ECSWorld::begin()
-{
-    EntityID id = 0;
-    while (m_availableEntityIDs.contain(id))
-        id++;
-    return Iterator(this, id);
-}
-
-ECSWorld::Iterator ECSWorld::end()
-{
-    EntityID id = m_entityDatas.length() - 1;
-    while (m_availableEntityIDs.contain(id))
-        id--;
-    return Iterator(this, ++id);
-}
-
 void ECSWorld::deleteEntity(EntityID entityIdx)
 {
     EntityData& entity = m_entityDatas[entityIdx];
@@ -172,6 +156,44 @@ void ECSWorld::moveComponents(Archetype* src, utils::uint32 srcIdx, Archetype* d
     }
     dst->entityIds[dstIdx] = src->entityIds[srcIdx];
     src->availableIndices.insert(srcIdx);
+}
+
+template<>
+void ECSWorld::foreach<>(const utils::Func<void(EntityID)>& func)
+{
+    for (auto& [_, archetype] : m_archetypes)
+    {
+        for (utils::uint32 i = 0; i < archetype->entryCount; i++)
+        {
+            if (archetype->availableIndices.contain(i) == false)
+                func(archetype->entityIds[i]);
+        }
+    }
+}
+
+template<>
+void ECSWorld::onFirst<>(const utils::Func<void(EntityID)>& func)
+{
+    for (auto& [_, archetype] : m_archetypes)
+    {
+        for (utils::uint32 i = 0; i < archetype->entryCount; i++)
+        {
+            if (archetype->availableIndices.contain(i))
+                continue;
+            func(archetype->entityIds[i]);
+            return;
+        }
+    }
+}
+
+void ECSView<>::operator()(const utils::Func<void(ECSWorld::EntityID)>& func)
+{
+    world.foreach<>(func);
+}
+
+void ECSView<>::onFirst(const utils::Func<void(ECSWorld::EntityID)>& func)
+{
+    world.onFirst<>(func);
 }
 
 }
