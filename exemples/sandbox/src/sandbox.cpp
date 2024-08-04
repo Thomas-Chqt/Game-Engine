@@ -19,21 +19,21 @@
 #include "Graphics/KeyCodes.hpp"
 #include "Game-Engine/Entity.hpp"
 
-class Player
+class Player : public GE::Entity
 {
 public:
-    Player(GE::ECSWorld& world) : m_entity(world)
+    Player(GE::ECSWorld& world) : GE::Entity(world)
     {
-        m_entity.add(GE::DebugNameComponent{ "Player" });
-        m_entity.add(GE::TransformComponent{ {0, 0, 0}, {0, 0, 0}, {1, 1, 1} });
-        m_entity.add(GE::ViewPointComponent{ 60 * (PI / 180.0F), 0.1F, 10000 });
-        m_entity.add(GE::ActiveViewPointComponent());
-        m_entity.add(GE::ScriptComponent{ utils::Func<void(const utils::Set<int>&)>(*this, &Player::onLoop) });
+        add(GE::DebugNameComponent{ "Player" });
+        add(GE::TransformComponent{ {0, 0, 0}, {0, 0, 0}, {1, 1, 1} });
+        add(GE::ViewPointComponent{ 60 * (PI / 180.0F), 0.1F, 10000 });
+        add(GE::ActiveViewPointComponent());
+        add(GE::ScriptComponent{ utils::Func<void(const utils::Set<int>&)>(*this, &Player::onLoop) });
     }
 
     void onLoop(const utils::Set<int>& pressedKeys)
     {
-        GE::TransformComponent& transformComponent = m_entity.get<GE::TransformComponent>();    
+        GE::TransformComponent& transformComponent = get<GE::TransformComponent>();    
         math::vec3f dir = { 0.0, 0.0, 0.0 };
         for (const auto& key : pressedKeys)
         {
@@ -51,9 +51,6 @@ public:
         }
         transformComponent.position += math::mat3x3::rotation(transformComponent.rotation) * dir.normalized() * 0.2;
     }
-
-private:
-    GE::Entity m_entity;
 };
 
 class Sandbox : public GE::Game
