@@ -10,6 +10,8 @@
 #ifndef GAME_HPP
 # define GAME_HPP
 
+#include "Game-Engine/Engine.hpp"
+#include "Game-Engine/Scene.hpp"
 namespace GE
 {
 
@@ -19,12 +21,17 @@ public:
     Game(const Game&) = delete;
     Game(Game&&)      = delete;
 
-    virtual void onWindowCloseEvent();
+    inline Scene& activeScene() { return *m_activeScene; }
+
+    inline virtual void onWindowCloseEvent() { Engine::terminateGame(); }
 
     virtual ~Game() = default;
 
 protected:
     Game() = default;
+
+    Scene m_defaultScene;
+    Scene* m_activeScene = &m_defaultScene;
 };
 
 }

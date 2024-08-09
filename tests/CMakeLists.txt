@@ -20,7 +20,7 @@ set_target_properties(Game-Engine_test PROPERTIES
 file(GLOB_RECURSE UTILSCPP_TEST_SRC "*.cpp" "*.tpp" "*.hpp")
 target_sources(Game-Engine_test PRIVATE ${UTILSCPP_TEST_SRC})
 
-target_include_directories(Game-Engine_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(Game-Engine_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} "${CMAKE_SOURCE_DIR}/src")
 
 
 target_link_libraries(Game-Engine_test PRIVATE Game-Engine)

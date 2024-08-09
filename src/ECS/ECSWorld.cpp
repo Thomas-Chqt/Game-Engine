@@ -8,6 +8,7 @@
  */
 
 #include "Game-Engine/ECSWorld.hpp"
+#include "ECS/Archetype.hpp"
 #include "UtilsCPP/Dictionary.hpp"
 #include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/Types.hpp"
@@ -17,142 +18,115 @@
 namespace GE
 {
 
-ECSWorld::Archetype::Row::~Row()
+ECSWorld::ECSWorld()
 {
-    for (utils::uint32 i = 0; i < archetype.entryCount; i++)
-    {
-        if (archetype.availableIndices.contain(i) == false)
-            destructor(buffer + (elementSize * i));
-    }
-    operator delete (buffer);
+    m_emptyArchetype = utils::makeUnique<Archetype>();
 }
 
-utils::uint32 ECSWorld::componentCount() const
+ECSWorld::EntityID ECSWorld::newEntity()
+{
+    utils::uint32 newEntityArchIdx = m_emptyArchetype->newIndex();
+
+    EntityID newEntityId = 0;
+    if (m_availableEntityIDs.isEmpty())
+    {
+        newEntityId = m_entityDatas.length();
+        m_entityDatas.append(EntityData{m_emptyArchetype, newEntityArchIdx});
+    }
+    else
+    {
+        newEntityId = m_availableEntityIDs.pop(m_availableEntityIDs.begin());
+        new (&m_entityDatas[newEntityId]) EntityData{m_emptyArchetype, newEntityArchIdx};
+    }
+    *m_emptyArchetype->getEntityId(newEntityArchIdx) = newEntityId;
+    return newEntityId;
+}
+
+void ECSWorld::deleteEntity(EntityID entityId)
+{
+    EntityData& entityData = m_entityDatas[entityId];
+    entityData.archetype->deleteComponents(entityData.idx);
+    m_availableEntityIDs.insert(entityId);
+}
+
+utils::uint32 ECSWorld::componentCount()
 {
     utils::uint32 output = 0;
-    for (auto& [_, archetype] : m_archetypes)
-        output += archetype->rows.size() * (archetype->entryCount - archetype->availableIndices.size());
+    for (auto& [id, arc] : m_archetypes) {
+        output += id.size() * arc->entityCount();
+    }
     return output;
 }
 
-EntityID ECSWorld::createEntity()
+ECSWorld::~ECSWorld()
 {
-    EntityID newEntity = 0;
-    if (m_availableEntityIDs.isEmpty())
-    {
-        newEntity = m_entityDatas.length();
-        m_entityDatas.append(EntityData());
-    }
-    else
-    {
-        newEntity = m_availableEntityIDs.pop(m_availableEntityIDs.begin());
-        new (&m_entityDatas[newEntity]) EntityData;
-    }
-    return newEntity;
 }
 
-void ECSWorld::deleteEntity(EntityID entityIdx)
+void* ECSWorld::emplace(EntityID entityId, ComponentID componentID, utils::uint32 size, const utils::Func<void(void*)>& constructor, const utils::Func<void(void*)>& destructor)
 {
-    EntityData& entity = m_entityDatas[entityIdx];
-    if (entity.archetype != nullptr)
+    EntityData& entityData = m_entityDatas[entityId];
+    Archetype*& newArchetype = entityData.archetype->edgeAdd(componentID);
+    if (newArchetype == nullptr)
     {
-        for (const auto& [_, row] : entity.archetype->rows)
-            row.destructor(row.buffer + (row.elementSize * entity.idx));
-        entity.archetype->availableIndices.insert(entity.idx);
-    }
-    m_availableEntityIDs.insert(entityIdx);
-}
-
-ECSWorld::Archetype* ECSWorld::archetypeEdgeAdd(Archetype* archetype, ComponentID componentID, utils::uint32 size, const utils::Func<void(void*)>& destructor)
-{
-    if (archetype == nullptr)
-    {
-        ArchetypeID outputArcID = { componentID };
-        utils::Dictionary<ArchetypeID, utils::UniquePtr<Archetype>>::Iterator it = m_archetypes.find(outputArcID);
+        ArchetypeID newArchetypeId = entityData.archetype->id() + componentID;
+        utils::Dictionary<ArchetypeID, utils::UniquePtr<Archetype>>::Iterator it = m_archetypes.find(newArchetypeId);
         if (it == m_archetypes.end())
         {
-            it = m_archetypes.insert(outputArcID, utils::makeUnique<Archetype>(outputArcID));
-            it->val->rows.insert(componentID, Archetype::Row(*it->val, size, destructor));
+            it = m_archetypes.insert(newArchetypeId, entityData.archetype->duplicate());
+            it->val->addRow(componentID, size, destructor);
         }
-        return (Archetype*)it->val;
+        newArchetype = it->val;
     }
-    else
+    utils::uint32 newArchetypeIdx = newArchetype->newIndex();
+    Archetype::moveComponents(entityData.archetype, entityData.idx, newArchetype, newArchetypeIdx);
+    entityData.archetype = newArchetype;
+    entityData.idx = newArchetypeIdx;
+
+    void* componentPtr = entityData.archetype->getComponent(componentID, entityData.idx);
+    constructor(componentPtr);
+
+    return componentPtr;
+}
+
+void ECSWorld::remove(EntityID entityId, ComponentID componentID)
+{
+    EntityData& entityData = m_entityDatas[entityId];
+
+    entityData.archetype->destructComponent(componentID, entityData.idx);
+
+    Archetype*& newArchetype = entityData.archetype->edgeRemove(componentID);
+    if (newArchetype == nullptr)
     {
-        utils::Dictionary<ComponentID, Archetype*>::Iterator edgeIt = archetype->edgeAdd.find(componentID);
-        if (edgeIt == archetype->edgeAdd.end())
+        ArchetypeID newArchetypeId = entityData.archetype->id() - componentID;
+        if (newArchetypeId.isEmpty())
+            newArchetype = m_emptyArchetype;
+        else
         {
-            ArchetypeID outputArcID = archetype->id + componentID;
-            utils::Dictionary<ArchetypeID, utils::UniquePtr<Archetype>>::Iterator arcIt = m_archetypes.find(outputArcID);
-            if (arcIt == m_archetypes.end())
+            utils::Dictionary<ArchetypeID, utils::UniquePtr<Archetype>>::Iterator it = m_archetypes.find(newArchetypeId);
+            if (it == m_archetypes.end())
             {
-                arcIt = m_archetypes.insert(outputArcID, utils::makeUnique<Archetype>(outputArcID));
-                for (auto& [compId, row] : archetype->rows)
-                    arcIt->val->rows.insert(compId, Archetype::Row(*arcIt->val, row.elementSize, row.destructor));
-                arcIt->val->rows.insert(componentID, Archetype::Row(*arcIt->val, size, destructor));
+                it = m_archetypes.insert(newArchetypeId, entityData.archetype->duplicate());
+                it->val->removeRow(componentID);
             }
-            edgeIt = archetype->edgeAdd.insert(componentID, (Archetype*)arcIt->val);
+            newArchetype = it->val;
         }
-        return edgeIt->val;
     }
+    utils::uint32 newArchetypeIdx = newArchetype->newIndex();
+    Archetype::moveComponents(entityData.archetype, entityData.idx, newArchetype, newArchetypeIdx);
+    entityData.archetype = newArchetype;
+    entityData.idx = newArchetypeIdx;
 }
 
-ECSWorld::Archetype* ECSWorld::archetypeEdgeRemove(Archetype* archetype, ComponentID componentID)
+bool ECSWorld::has(EntityID entityId, ComponentID componentID)
 {
-    ArchetypeID outputArcID = archetype->id - componentID;
-    if (outputArcID.isEmpty())
-        return nullptr;
-    utils::Dictionary<ComponentID, Archetype*>::Iterator edgeIt = archetype->edgeRemove.find(componentID);
-    if (edgeIt == archetype->edgeRemove.end())
-    {
-        utils::Dictionary<ArchetypeID, utils::UniquePtr<Archetype>>::Iterator arcIt = m_archetypes.find(outputArcID);
-        if (arcIt == m_archetypes.end())
-        {
-            arcIt = m_archetypes.insert(outputArcID, utils::makeUnique<Archetype>(outputArcID));
-            for (auto& compId : outputArcID)
-                arcIt->val->rows.insert(compId, Archetype::Row(*arcIt->val, archetype->rows[compId].elementSize, archetype->rows[compId].destructor));
-        }
-        edgeIt = archetype->edgeRemove.insert(componentID, (Archetype*)arcIt->val);
-    }
-    return edgeIt->val;
+    EntityData& entityData = m_entityDatas[entityId];
+    return entityData.archetype->id().contain(componentID);
 }
 
-utils::uint32 ECSWorld::nextAvailableIdx(Archetype* archetype)
+void* ECSWorld::get(EntityID entityId, ComponentID componentID)
 {
-    if (archetype == nullptr)
-        return 0;
-    if (archetype->availableIndices.isEmpty() == false)
-        return archetype->availableIndices.pop(archetype->availableIndices.begin());
-    if (archetype->entryCapacity == archetype->entryCount)
-    {
-        archetype->entryCapacity = archetype->entryCapacity == 0 ? 1 : archetype->entryCapacity * 2;
-        for (auto& [_, row] : archetype->rows)
-        {
-            utils::byte* newBuffer = (utils::byte*)operator new (archetype->entryCapacity * row.elementSize);
-            std::memcpy(newBuffer, row.buffer, archetype->entryCount * row.elementSize);
-            operator delete (row.buffer);
-            row.buffer = newBuffer;
-        }
-    }
-    return archetype->entryCount++;
-}
-
-void ECSWorld::moveComponents(Archetype* src, utils::uint32 srcIdx, Archetype* dst, utils::uint32 dstIdx)
-{
-    if (src == nullptr)
-        return;
-    for (auto& [compID, row] : src->rows)
-    {
-        if (dst != nullptr && dst->rows.contain(compID))
-        {
-            Archetype::Row& dstRow = dst->rows[compID];
-            std::memcpy(
-                dstRow.buffer + dstRow.elementSize * dstIdx,
-                row.buffer    + row.elementSize    * srcIdx,
-                row.elementSize
-            );
-        }
-    }
-    src->availableIndices.insert(srcIdx);
+    EntityData& entityData = m_entityDatas[entityId];
+    return entityData.archetype->getComponent(componentID, entityData.idx);
 }
 
 }
