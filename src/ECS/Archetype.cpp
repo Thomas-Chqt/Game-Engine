@@ -11,6 +11,7 @@
 #include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include <cassert>
+#include <cstring>
 
 namespace GE
 {
