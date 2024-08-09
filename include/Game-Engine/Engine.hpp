@@ -10,14 +10,21 @@
 #ifndef ENGINE_HPP
 # define ENGINE_HPP
 
+#include "UtilsCPP/UniquePtr.hpp"
+
 namespace GE
-{
+{ 
+    class Game;
 
-namespace Engine
-{
-    void terminateGame();
-}
+    namespace Engine
+    {    
+        void init();
 
+        void runGame(utils::UniquePtr<Game>&&);
+        void terminateGame();
+
+        void terminate();
+    }
 }
 
 #endif // ENGINE_HPP

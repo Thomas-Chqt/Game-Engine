@@ -8,15 +8,30 @@
  */
 
 #include "Game-Engine/Engine.hpp"
+#include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Game.hpp"
+#include "Game-Engine/Scene.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include <iostream>
+
+class Player : public GE::ScriptableEntity
+{
+public:
+    using GE::ScriptableEntity::ScriptableEntity;
+
+    void onUpdate() override
+    {
+        std::cout << "On update" << std::endl;
+    };
+};
 
 class Sandbox : public GE::Game
 {
 public:
     Sandbox()
     {
+        m_scene.newScriptableEntity<Player>("player");
+        m_activeScene = &m_scene;
     }
 
     void onWindowCloseEvent() override
@@ -25,10 +40,15 @@ public:
         GE::Engine::terminateGame();
     }
 
-    ~Sandbox() = default;
+private:
+    GE::Scene m_scene;
 };
 
-utils::UniquePtr<GE::Game> createGame(int argv, char* argc[])
+int main()
 {
-    return utils::UniquePtr<GE::Game>(new Sandbox);
+    GE::Engine::init();
+
+    GE::Engine::runGame(utils::makeUnique<Sandbox>().staticCast<GE::Game>());
+
+    GE::Engine::terminate();
 }
