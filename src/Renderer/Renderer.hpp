@@ -32,8 +32,8 @@ public:
 
     struct Renderable
     {
-        utils::SharedPtr<gfx::Buffer> m_vertexBuffer;
-        utils::SharedPtr<gfx::Buffer> m_indexBuffer;
+        utils::SharedPtr<gfx::Buffer> vertexBuffer;
+        utils::SharedPtr<gfx::Buffer> indexBuffer;
         utils::SharedPtr<gfx::Buffer> modelMatrix;
     };
 

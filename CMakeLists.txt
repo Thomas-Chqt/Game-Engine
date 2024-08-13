@@ -7,6 +7,8 @@
 
 cmake_minimum_required(VERSION 3.16)
 
+include(FetchContent)
+
 enable_testing()
 
 option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
@@ -50,6 +52,19 @@ endif()
 if(GE_BUILD_OPENGL)
     target_compile_definitions(Game-Engine PRIVATE "OPENGL_SHADER_DIR=\"${OPENGL_SHADER_DIR}\"")
 endif()
+
+FetchContent_Declare(assimp GIT_REPOSITORY https://github.com/assimp/assimp.git GIT_TAG v5.4.1 GIT_SHALLOW 1)
+set(ASSIMP_BUILD_TESTS OFF)
+set(ASSIMP_INSTALL OFF)
+set(ASSIMP_NO_EXPORT OFF)
+set(ASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT OFF)
+set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF)
+set(ASSIMP_BUILD_OBJ_IMPORTER ON)
+set(ASSIMP_BUILD_FBX_IMPORTER ON)
+set(ASSIMP_BUILD_GLTF_IMPORTER ON)
+FetchContent_MakeAvailable(assimp)
+set_target_properties(assimp PROPERTIES FOLDER "dependencies")
+target_link_libraries(Game-Engine PRIVATE Graphics assimp)
 
 if(GE_BUILD_METAL)
     add_custom_target(MTLShaderLib DEPENDS ${MTL_SHADER_LIB})

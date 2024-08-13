@@ -10,6 +10,7 @@
 #ifndef ENGINE_HPP
 # define ENGINE_HPP
 
+#include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 
 namespace GE
@@ -22,6 +23,8 @@ namespace GE
 
         void runGame(utils::UniquePtr<Game>&&);
         void terminateGame();
+
+        utils::Set<int> pressedKeys();
 
         void terminate();
     }

@@ -12,6 +12,7 @@
 
 #include "Game-Engine/Engine.hpp"
 #include "Game-Engine/Scene.hpp"
+
 namespace GE
 {
 
@@ -23,7 +24,11 @@ public:
 
     inline Scene& activeScene() { return *m_activeScene; }
 
-    inline virtual void onWindowCloseEvent() { Engine::terminateGame(); }
+    inline virtual void onSetup() {}
+    inline virtual void onUpdate() {}
+
+    inline virtual void onKeyDownEvent(int keyCode, bool isRepeat) {}
+    inline virtual void onWindowRequestCloseEvent() { Engine::terminateGame(); }
 
     virtual ~Game() = default;
 

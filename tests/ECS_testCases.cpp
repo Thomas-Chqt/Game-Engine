@@ -289,6 +289,49 @@ TEST(ECSTest, view)
     }
 }
 
+TEST(ECSTest, multipleComponentView)
+{
+    struct Component1 { int value; };
+    struct Component2 { utils::String value; };
+    struct Component3 { float value; };
+
+    GE::ECSWorld world;
+
+    {
+        GE::ECSWorld::EntityID entityId = world.newEntity();
+        world.emplace<Component1>(entityId, 1);
+    }
+    {
+        GE::ECSWorld::EntityID entityId = world.newEntity();
+        world.emplace<Component2>(entityId, utils::String("2"));
+    }
+    {
+        GE::ECSWorld::EntityID entityId = world.newEntity();
+        world.emplace<Component1>(entityId, 3);
+        world.emplace<Component2>(entityId, utils::String("3"));
+    }
+    {
+        GE::ECSWorld::EntityID entityId = world.newEntity();
+        world.emplace<Component1>(entityId, 4);
+        world.emplace<Component2>(entityId, utils::String("4"));
+        world.emplace<Component3>(entityId, 4.0f);
+    }
+
+    {
+        GE::ECSView<Component1, Component2> view(world);
+        EXPECT_EQ(view.count(), 2);
+
+        EXPECT_NO_THROW({
+            utils::Set<int> valuesInt;
+            utils::Set<utils::String> valuesStr;
+            view.onEach([&](GE::Entity, Component1& comp1, Component2& comp2) {
+                valuesInt.insert(comp1.value);
+                valuesStr.insert(comp2.value);
+            });
+        });
+    }
+}
+
 TEST(ECSTest, componentEdit)
 {
     struct Component1 { int value; };

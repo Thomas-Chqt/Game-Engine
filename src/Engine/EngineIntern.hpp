@@ -10,6 +10,7 @@
 #include "Game-Engine/Game.hpp"
 #include "Graphics/Event.hpp"
 #include "Graphics/Window.hpp"
+#include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 
@@ -29,6 +30,8 @@ public:
     void runGame(utils::UniquePtr<Game>&&);
     inline void terminateGame() { m_runningGame.clear(); }
 
+    utils::Set<int> pressedKeys() { return m_pressedKeys; }
+
     ~EngineIntern();
 
 private:
@@ -40,6 +43,8 @@ private:
 
     utils::UniquePtr<Game> m_runningGame;
     utils::SharedPtr<gfx::Window> m_gameWindow;
+
+    utils::Set<int> m_pressedKeys;
 
 public:
     EngineIntern& operator = (const EngineIntern&) = delete;

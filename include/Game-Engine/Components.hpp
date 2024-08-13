@@ -10,10 +10,13 @@
 #ifndef COMPONENTS_HPP
 #define COMPONENTS_HPP
 
-#include "Game-Engine/Entity.hpp"
+#include "Entity.hpp"
+#include "Game-Engine/Asset.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
+#include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
+#include <cmath>
 
 namespace GE
 {
@@ -25,6 +28,8 @@ struct TransformComponent
     math::vec3f scale;
 
     inline math::mat4x4 transform() { return math::mat4x4::translation(position) * math::mat4x4::rotation(rotation) * math::mat4x4::scale(scale); }
+
+    inline operator math::mat4x4 () { return transform(); }
 };
 
 struct ScriptComponent
@@ -36,7 +41,7 @@ struct CameraComponent
 {
     math::mat4x4 projectionMatrix;
 
-    CameraComponent(float fov, float zFar, float zNear)
+    inline CameraComponent(float fov, float zFar, float zNear)
     {
         float zs = zFar / (zFar - zNear);
         float ys = 1.0F / std::tan(fov * 0.5F);
@@ -47,6 +52,20 @@ struct CameraComponent
                                          0,  0, zs, -zNear * zs,
                                          0,  0,  1,           0);
     }
+};
+
+struct LightComponent
+{
+    enum class Type { point } type;
+    math::rgb color;
+    float intentsity;
+};
+
+struct MeshComponent
+{
+    Asset<Mesh> mesh;
+
+    inline operator utils::SharedPtr<Mesh>& () { return mesh; }
 };
 
 }
