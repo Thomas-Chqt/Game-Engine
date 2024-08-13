@@ -32,6 +32,23 @@ struct ScriptComponent
     utils::UniquePtr<ScriptableEntity> instance;
 };
 
+struct CameraComponent
+{
+    math::mat4x4 projectionMatrix;
+
+    CameraComponent(float fov, float zFar, float zNear)
+    {
+        float zs = zFar / (zFar - zNear);
+        float ys = 1.0F / std::tan(fov * 0.5F);
+        float xs = ys; // (ys / aspectRatio)
+
+        projectionMatrix = math::mat4x4(xs,  0,  0,           0,
+                                         0, ys,  0,           0,
+                                         0,  0, zs, -zNear * zs,
+                                         0,  0,  1,           0);
+    }
+};
+
 }
 
 #endif // COMPONENTS_HPP
