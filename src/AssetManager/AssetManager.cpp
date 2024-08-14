@@ -45,40 +45,33 @@ utils::SharedPtr<Mesh> AssetManager::getMesh(const utils::String& filepath)
 
 utils::SharedPtr<Mesh> AssetManager::loadMesh(const utils::String& filepath)
 {
-    utils::SharedPtr<MeshImpl> output = utils::makeShared<MeshImpl>();
-
     Assimp::Importer importer;
 
     const aiScene* scene = importer.ReadFile(filepath, POST_PROCESSING_FLAGS);
     if (scene == nullptr)
         throw utils::RuntimeError("fail to load the model using assimp");
 
-    utils::Array<SubMesh> allMeshes;
+    utils::Array<SubMeshImpl> allMeshes;
 
     for(utils::uint32 meshIndex = 0; meshIndex < scene->mNumMeshes; meshIndex++)
     {
         aiMesh* aiMesh = scene->mMeshes[meshIndex];
 
-        SubMesh newSubMesh;
+        SubMeshImpl newSubMesh;
 
         newSubMesh.name = aiMesh->mName.C_Str();
 
         gfx::Buffer::Descriptor bufferDescriptor;
         bufferDescriptor.size = aiMesh->mNumVertices * sizeof(Renderer::Vertex);
-        newSubMesh.vertexBufferIdx = output->buffers.length();
-        GPURessource<gfx::Buffer> vertexBuffer = GPURessourceManager::shared().newManagedBuffer(bufferDescriptor);
-        auto* vertices = (Renderer::Vertex*)vertexBuffer->mapContent();
-        output->buffers.append(vertexBuffer);
+        newSubMesh.vertexBuffer = GPURessourceManager::shared().newManagedBuffer(bufferDescriptor);
+        auto* vertices = (Renderer::Vertex*)newSubMesh.vertexBuffer->mapContent();
 
         bufferDescriptor.size = aiMesh->mNumFaces * 3UL * sizeof(utils::uint32);
-        newSubMesh.indexBufferIdx = output->buffers.length();
-        GPURessource<gfx::Buffer> indexBuffer = GPURessourceManager::shared().newManagedBuffer(bufferDescriptor);
-        auto* indices = (utils::uint32*)indexBuffer->mapContent();
-        output->buffers.append(indexBuffer);
+        newSubMesh.indexBuffer = GPURessourceManager::shared().newManagedBuffer(bufferDescriptor);
+        auto* indices = (utils::uint32*)newSubMesh.indexBuffer->mapContent();
 
         bufferDescriptor.size = sizeof(math::mat4x4);
-        newSubMesh.modelMatrixBufferIdx = output->buffers.length();
-        output->buffers.append(GPURessourceManager::shared().newManagedBuffer(bufferDescriptor));
+        newSubMesh.modelMatrixBuffer = GPURessourceManager::shared().newManagedBuffer(bufferDescriptor);
 
         for(utils::uint32 i = 0; i < aiMesh->mNumVertices; i++)
         {
@@ -119,18 +112,17 @@ utils::SharedPtr<Mesh> AssetManager::loadMesh(const utils::String& filepath)
             indices[i * 3 + 2] = aiMesh->mFaces[i].mIndices[2];
         }
 
-        vertexBuffer->unMapContent();
-        indexBuffer->unMapContent();
+        newSubMesh.vertexBuffer->unMapContent();
+        newSubMesh.indexBuffer->unMapContent();
 
         allMeshes.append(newSubMesh);
     }
 
-    utils::Func<void(aiNode*, utils::Array<SubMesh>&, math::mat4x4)> addNode = [&](aiNode* aiNode, utils::Array<SubMesh>& dst, math::mat4x4 additionalTransform) {
-        SubMesh newSubMesh;
+    utils::SharedPtr<MeshImpl> output = utils::makeShared<MeshImpl>();
 
-        newSubMesh.name = aiNode->mName.C_Str();
+    utils::Func<void(aiNode*, math::mat4x4)> addNode = [&](aiNode* aiNode, math::mat4x4 additionalTransform) {
 
-        newSubMesh.transform = additionalTransform * math::mat4x4(
+        math::mat4x4 transform = additionalTransform * math::mat4x4(
             aiNode->mTransformation.a1, aiNode->mTransformation.a2, aiNode->mTransformation.a3, aiNode->mTransformation.a4,
             aiNode->mTransformation.b1, aiNode->mTransformation.b2, aiNode->mTransformation.b3, aiNode->mTransformation.b4,
             aiNode->mTransformation.c1, aiNode->mTransformation.c2, aiNode->mTransformation.c3, aiNode->mTransformation.c4,
@@ -138,21 +130,23 @@ utils::SharedPtr<Mesh> AssetManager::loadMesh(const utils::String& filepath)
         );
 
         for (utils::uint32 i = 0; i < aiNode->mNumMeshes; i++)
-            newSubMesh.childs.append(allMeshes[aiNode->mMeshes[i]]);
+        {
+            SubMeshImpl& subMesh = allMeshes[aiNode->mMeshes[i]];
+            subMesh.transform = transform;
+            output->addSubMesh(subMesh);
+        }
 
         for (utils::uint32 i = 0; i < aiNode->mNumChildren; i++)
-            addNode(aiNode->mChildren[i], newSubMesh.childs, math::mat4x4(1.0F));
-
-        dst.append(newSubMesh);
+            addNode(aiNode->mChildren[i], transform);
     };
 
     output->name = scene->mRootNode->mName.C_Str();
 
     for (utils::uint32 i = 0; i < scene->mRootNode->mNumMeshes; i++)
-        output->subMeshes.append(allMeshes[scene->mRootNode->mMeshes[i]]);
+        output->addSubMesh(allMeshes[scene->mRootNode->mMeshes[i]]);
 
     for (utils::uint32 i = 0; i < scene->mRootNode->mNumChildren; i++)
-        addNode(scene->mRootNode->mChildren[i], output->subMeshes, math::mat4x4(1.0F));
+        addNode(scene->mRootNode->mChildren[i], math::mat4x4(1.0F));
 
     return output.staticCast<Mesh>();
 }
