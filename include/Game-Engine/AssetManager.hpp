@@ -10,8 +10,8 @@
 #ifndef ASSETMANAGER_HPP
 #define ASSETMANAGER_HPP
 
-#include "Asset.hpp"
 #include "UtilsCPP/Dictionary.hpp"
+#include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 
@@ -30,18 +30,18 @@ public:
     static inline AssetManager& shared() { return *s_sharedInstance; }
     static inline void terminate() { s_sharedInstance.clear(); }
 
-    MeshAsset getMesh(const utils::String& filepath);
+    utils::SharedPtr<Mesh> getMesh(const utils::String& filepath);
 
     ~AssetManager() = default;
 
 private:
     AssetManager() = default;
 
-    Mesh loadMesh(const utils::String& filepath);
+    utils::SharedPtr<Mesh> loadMesh(const utils::String& filepath);
 
     inline static utils::UniquePtr<AssetManager> s_sharedInstance;
 
-    utils::Dictionary<utils::String, MeshAsset> m_cachedMeshes;
+    utils::Dictionary<utils::String, utils::SharedPtr<Mesh>> m_cachedMeshes;
 
 public:
     AssetManager& operator = (const AssetManager&) = delete;

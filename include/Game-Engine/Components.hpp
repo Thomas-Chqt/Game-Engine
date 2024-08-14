@@ -11,7 +11,7 @@
 #define COMPONENTS_HPP
 
 #include "Entity.hpp"
-#include "Game-Engine/Asset.hpp"
+#include "Game-Engine/Mesh.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
@@ -63,7 +63,7 @@ struct LightComponent
 
 struct MeshComponent
 {
-    MeshAsset mesh;
+    utils::SharedPtr<Mesh> mesh;
 
     inline operator utils::SharedPtr<Mesh>& () { return mesh; }
 };

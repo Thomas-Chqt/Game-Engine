@@ -8,11 +8,13 @@
  */
 
 #include "Game-Engine/Scene.hpp"
-#include "AssetManager/Mesh.hpp"
+#include "AssetManager/MeshImpl.hpp"
+#include "Game-Engine/Mesh.hpp"
 #include "ECS/ECSView.hpp"
 #include "Game-Engine/Components.hpp"
 #include "Game-Engine/Entity.hpp"
 #include "Math/Matrix.hpp"
+#include "Renderer/GPURessourceManager.hpp"
 #include "Renderer/Renderer.hpp"
 #include "Scene/InternalComponents.hpp"
 #include "UtilsCPP/Dictionary.hpp"
@@ -59,21 +61,21 @@ void Scene::onUpdate()
     });
 
     ECSView<TransformComponent, MeshComponent>(m_world).onEach([](Entity, TransformComponent& transform, MeshComponent& mesh) {
+        utils::Array<GPURessource<gfx::Buffer>>& buffers = mesh.mesh.forceDynamicCast<MeshImpl>()->buffers;
+
         utils::Func<void(SubMesh&, const math::mat4x4&)> addSubMesh = [&](SubMesh& subMesh, const math::mat4x4& transform) {
             math::mat4x4 modelMatrix = transform * subMesh.transform;
-            if (subMesh.vertexBuffer && subMesh.indexBuffer)
-            {
-                *static_cast<math::mat4x4*>(subMesh.modelMatrix->mapContent()) = modelMatrix;
-                subMesh.modelMatrix->unMapContent();
+            *static_cast<math::mat4x4*>(buffers[subMesh.modelMatrixBufferIdx]->mapContent()) = modelMatrix;
+            buffers[subMesh.modelMatrixBufferIdx]->unMapContent();
 
-                Renderer::Renderable renderable;
-                renderable.vertexBuffer = subMesh.vertexBuffer;
-                renderable.indexBuffer = subMesh.indexBuffer;
-                renderable.modelMatrix = subMesh.modelMatrix;
+            Renderer::Renderable renderable;
+            renderable.vertexBuffer = buffers[subMesh.vertexBufferIdx];
+            renderable.indexBuffer = buffers[subMesh.indexBufferIdx];
+            renderable.modelMatrix = buffers[subMesh.modelMatrixBufferIdx];
 
-                Renderer::shared().addRenderable(renderable);
-            }
+            Renderer::shared().addRenderable(renderable);
         };
+
         for (auto& subMesh : ((utils::SharedPtr<Mesh>)mesh)->subMeshes)
             addSubMesh(subMesh, transform);
     });
