@@ -49,7 +49,7 @@ private:
     template<typename T, typename Y, typename ... Ys>
     static utils::Set<ECSWorld::ComponentID> makePredicate()
     {
-        return makePredicate<T>() + makePredicate<Y, Ts...>(); 
+        return makePredicate<T>() + makePredicate<Y, Ys...>(); 
     }
 
 public:
@@ -69,7 +69,7 @@ utils::uint32 ECSView<Ts...>::count()
 }
 
 template<typename ... Ts>
-void ECSView<Ts...>::onFirst(const utils::Func<void(Entity, Ts& ...)>&)
+void ECSView<Ts...>::onFirst(const utils::Func<void(Entity, Ts& ...)>& func)
 {
     for (auto& [archetypeId, archetype] : m_world.m_archetypes)
     {
