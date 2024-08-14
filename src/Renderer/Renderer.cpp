@@ -16,6 +16,7 @@
 #include "Renderer/GPURessourceManager.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/Types.hpp"
+#include "imgui/imgui.h"
 
 namespace GE
 {
@@ -63,6 +64,8 @@ void Renderer::setWindow(const utils::SharedPtr<gfx::Window>& window)
 {
     m_window = window;
     m_graphicAPI = gfx::Platform::shared().newGraphicAPI(m_window);
+    m_graphicAPI->initImgui();
+    gfxPipeline = makeGraphicPipeline(*m_graphicAPI);
 
     GPURessourceManager::shared().setGraphicAPI(m_graphicAPI);
 
@@ -101,15 +104,14 @@ void Renderer::addPointLight(const Renderer::PointLight& pointLight)
 void Renderer::endScene()
 {
     m_lightsBuffer.unmap();
-    
 }
 
 void Renderer::render()
 {
     m_graphicAPI->beginFrame();
-    m_graphicAPI->beginRenderPass();
+    // m_graphicAPI->beginRenderPass();
+    m_graphicAPI->beginImguiRenderPass();
 
-    utils::SharedPtr<gfx::GraphicPipeline> gfxPipeline = makeGraphicPipeline(*m_graphicAPI);
     m_graphicAPI->useGraphicsPipeline(gfxPipeline);
 
     m_graphicAPI->setVertexBuffer(m_vpMatrix.buffer(), gfxPipeline->getVertexBufferIndex("vpMatrixBuffer"));
@@ -122,6 +124,8 @@ void Renderer::render()
         m_graphicAPI->setVertexBuffer(renderable.vertexBuffer, 0);
         m_graphicAPI->drawIndexedVertices(renderable.indexBuffer);
     }
+
+    ImGui::ShowMetricsWindow();
 
     m_graphicAPI->endRenderPass();
     m_graphicAPI->endFrame();

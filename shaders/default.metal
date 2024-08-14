@@ -46,7 +46,7 @@ struct LightsBuffer
     struct {
         float3 pos;
         float3 color;
-        float intentsity;
+        float intensity;
     }
     pointLights[32];
     uint pointLightCount;
@@ -67,10 +67,10 @@ fragment float4 default_fs(VertexOut in [[stage_in]],
 
         float diffuseFactor = dot(fragNormal, normalize(light.pos - in.pos));
 
-        float3 ambiant = fragDiffuse * light.color * (light.intentsity * 0.2);
-        float3 diffuse = fragDiffuse * light.color * light.intentsity * max(diffuseFactor, 0.0f);
+        float3 ambient = fragDiffuse * light.color * (light.intensity * 0.2);
+        float3 diffuse = fragDiffuse * light.color * light.intensity * max(diffuseFactor, 0.0f);
         
-        finalColor += ambiant + diffuse;
+        finalColor += ambient + diffuse;
     }
 
     return float4(finalColor, 1.0F);

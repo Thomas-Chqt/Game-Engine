@@ -87,6 +87,7 @@ private:
 
     utils::SharedPtr<gfx::Window> m_window;
     utils::SharedPtr<gfx::GraphicAPI> m_graphicAPI;
+    utils::SharedPtr<gfx::GraphicPipeline> gfxPipeline;
 
     // Scene data
     gfx::BufferInstance<math::mat4x4> m_vpMatrix;

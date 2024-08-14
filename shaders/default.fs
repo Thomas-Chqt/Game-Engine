@@ -23,6 +23,7 @@ out vec4 finalColor;
 struct PointLight
 {
     vec3  pos;
+    float _pad0;
     vec3  color;
     float _pad1;
     float intentsity;
