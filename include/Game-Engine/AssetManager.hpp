@@ -30,7 +30,7 @@ public:
     static inline AssetManager& shared() { return *s_sharedInstance; }
     static inline void terminate() { s_sharedInstance.clear(); }
 
-    Asset<Mesh> getMesh(const utils::String& filepath);
+    MeshAsset getMesh(const utils::String& filepath);
 
     ~AssetManager() = default;
 
@@ -41,7 +41,7 @@ private:
 
     inline static utils::UniquePtr<AssetManager> s_sharedInstance;
 
-    utils::Dictionary<utils::String, Asset<Mesh>> m_cachedMeshes;
+    utils::Dictionary<utils::String, MeshAsset> m_cachedMeshes;
 
 public:
     AssetManager& operator = (const AssetManager&) = delete;

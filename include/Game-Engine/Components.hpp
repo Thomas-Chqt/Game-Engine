@@ -63,7 +63,7 @@ struct LightComponent
 
 struct MeshComponent
 {
-    Asset<Mesh> mesh;
+    MeshAsset mesh;
 
     inline operator utils::SharedPtr<Mesh>& () { return mesh; }
 };

@@ -17,21 +17,18 @@ namespace GE
 
 class Mesh;
 
-template<typename T> class Asset;
-
-template<>
-class Asset<Mesh>
+class MeshAsset
 {
 public:
-    Asset() = default;
-    Asset(const Asset<Mesh>&);
-    Asset(Asset<Mesh>&&);
+    MeshAsset() = default;
+    MeshAsset(const MeshAsset&);
+    MeshAsset(MeshAsset&&);
 
-    Asset(const utils::SharedPtr<Mesh>&);
+    MeshAsset(const utils::SharedPtr<Mesh>&);
     
     inline operator utils::SharedPtr<Mesh>& () { return m_ptr; }
 
-    ~Asset();
+    ~MeshAsset();
 
 private:
     utils::SharedPtr<Mesh> m_ptr;

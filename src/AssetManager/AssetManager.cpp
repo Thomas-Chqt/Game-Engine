@@ -35,9 +35,9 @@
 namespace GE
 {
 
-Asset<Mesh> AssetManager::getMesh(const utils::String& filepath)
+MeshAsset AssetManager::getMesh(const utils::String& filepath)
 {
-    using Iterator = utils::Dictionary<utils::String, Asset<Mesh>>::Iterator;
+    using Iterator = utils::Dictionary<utils::String, MeshAsset>::Iterator;
     Iterator it = m_cachedMeshes.find(filepath);
     if (it == m_cachedMeshes.end())
         it = m_cachedMeshes.insert(filepath, utils::makeShared<Mesh>(loadMesh(filepath)));

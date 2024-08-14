@@ -14,22 +14,22 @@
 namespace GE
 {
 
-Asset<Mesh>::Asset(const Asset<Mesh>& cp)
+MeshAsset::MeshAsset(const MeshAsset& cp)
     : m_ptr(cp.m_ptr)
 {
 }
 
-Asset<Mesh>::Asset(Asset<Mesh>&& mv)
+MeshAsset::MeshAsset(MeshAsset&& mv)
     : m_ptr(std::move(mv.m_ptr))
 {
 }
 
-Asset<Mesh>::Asset(const utils::SharedPtr<Mesh>& ptr)
+MeshAsset::MeshAsset(const utils::SharedPtr<Mesh>& ptr)
     : m_ptr(ptr)
 {
 }
 
-Asset<Mesh>::~Asset()
+MeshAsset::~MeshAsset()
 {
 }
 
