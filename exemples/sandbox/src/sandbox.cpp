@@ -73,13 +73,15 @@ public:
 
         GE::Entity player = m_scene.newScriptableEntity<Player>("player");
         player.emplace<GE::CameraComponent>((float)(60 * (PI / 180.0F)), 10000.0f, 0.01f);
+        player.emplace<GE::LightComponent>(GE::LightComponent::Type::point, WHITE3, 1.0f);
 
         GE::Entity cube = m_scene.newScriptableEntity<Cube>("cube");
         cube.emplace<GE::MeshComponent>(GE::AssetManager::shared().getMesh(RESSOURCES_DIR"/cube.glb"));
         cube.position() = {0, 0, 5};
 
-        GE::Entity light = m_scene.newEntity("light");
-        light.emplace<GE::LightComponent>(GE::LightComponent::Type::point, WHITE3, 1.0f);
+        GE::Entity chess_set = m_scene.newEntity("chess_set");
+        chess_set.emplace<GE::MeshComponent>(GE::AssetManager::shared().getMesh(RESSOURCES_DIR"/chess_set/chess_set.gltf"));
+        chess_set.scale() = {5, 5, 5};
     }
 
     void onKeyDownEvent(int keyCode, bool isRepeat) override

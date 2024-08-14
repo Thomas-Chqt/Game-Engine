@@ -11,9 +11,9 @@
 #define COMPONENTS_HPP
 
 #include "Entity.hpp"
-#include "Game-Engine/Mesh.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
+#include "Mesh.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include <cmath>

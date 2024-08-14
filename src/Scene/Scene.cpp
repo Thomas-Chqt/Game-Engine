@@ -18,6 +18,7 @@
 #include "Renderer/Renderer.hpp"
 #include "Scene/InternalComponents.hpp"
 #include "UtilsCPP/Dictionary.hpp"
+#include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/String.hpp"
 
 namespace GE
@@ -60,23 +61,23 @@ void Scene::onUpdate()
         }
     });
 
-    ECSView<TransformComponent, MeshComponent>(m_world).onEach([](Entity, TransformComponent& transform, MeshComponent& mesh) {
-        utils::Array<GPURessource<gfx::Buffer>>& buffers = mesh.mesh.forceDynamicCast<MeshImpl>()->buffers;
+    ECSView<TransformComponent, MeshComponent>(m_world).onEach([](Entity, TransformComponent& transform, MeshComponent& meshComponent) {
+        utils::SharedPtr<MeshImpl> mesh = meshComponent.mesh.forceDynamicCast<MeshImpl>();
 
-        utils::Func<void(SubMesh&, const math::mat4x4&)> addSubMesh = [&](SubMesh& subMesh, const math::mat4x4& transform) {
+        auto addSubMesh = [&](SubMeshImpl& subMesh, const math::mat4x4& transform) {
             math::mat4x4 modelMatrix = transform * subMesh.transform;
-            *static_cast<math::mat4x4*>(buffers[subMesh.modelMatrixBufferIdx]->mapContent()) = modelMatrix;
-            buffers[subMesh.modelMatrixBufferIdx]->unMapContent();
+            *static_cast<math::mat4x4*>(subMesh.modelMatrixBuffer->mapContent()) = modelMatrix;
+            subMesh.modelMatrixBuffer->unMapContent();
 
             Renderer::Renderable renderable;
-            renderable.vertexBuffer = buffers[subMesh.vertexBufferIdx];
-            renderable.indexBuffer = buffers[subMesh.indexBufferIdx];
-            renderable.modelMatrix = buffers[subMesh.modelMatrixBufferIdx];
+            renderable.vertexBuffer = subMesh.vertexBuffer;
+            renderable.indexBuffer = subMesh.indexBuffer;
+            renderable.modelMatrix = subMesh.modelMatrixBuffer;
 
             Renderer::shared().addRenderable(renderable);
         };
 
-        for (auto& subMesh : ((utils::SharedPtr<Mesh>)mesh)->subMeshes)
+        for (auto& subMesh : mesh->subMeshes)
             addSubMesh(subMesh, transform);
     });
 

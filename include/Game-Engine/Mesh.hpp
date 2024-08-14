@@ -18,13 +18,11 @@
 namespace GE
 {
 
+
 struct SubMesh
 {
-    utils::String name;
-    math::mat4x4 transform = math::mat4x4(1.0F);
-    utils::Array<SubMesh> childs;
-    
-    utils::uint32 vertexBufferIdx, indexBufferIdx, modelMatrixBufferIdx;
+    utils::String& name;
+    math::mat4x4& transform;
 };
 
 struct Mesh
@@ -33,6 +31,15 @@ struct Mesh
     utils::Array<SubMesh> subMeshes;
 
     virtual ~Mesh() = default;
+
+protected:
+    Mesh() = default;
+
+public:
+    Mesh(const Mesh&)              = delete;
+    Mesh(Mesh&&)                   = delete;
+    Mesh& operator = (const Mesh&) = delete;
+    Mesh& operator = (Mesh&&)      = delete;
 };
 
 }
