@@ -14,6 +14,7 @@
 #include "Graphics/GraphicAPI.hpp"
 #include "Graphics/Window.hpp"
 #include "Math/Matrix.hpp"
+#include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include "Graphics/BufferInstance.hpp"
@@ -61,6 +62,7 @@ public:
     static inline void terminate() { s_sharedInstance.clear(); }
 
     void setWindow(const utils::SharedPtr<gfx::Window>&);
+    inline void setOnImGuiRender(const utils::Func<void(void)>& f) { m_onImGuiRender = f; }
 
     void beginScene(const Renderer::Camera&);
 
@@ -88,6 +90,7 @@ private:
     utils::SharedPtr<gfx::Window> m_window;
     utils::SharedPtr<gfx::GraphicAPI> m_graphicAPI;
     utils::SharedPtr<gfx::GraphicPipeline> gfxPipeline;
+    utils::Func<void(void)> m_onImGuiRender;
 
     // Scene data
     gfx::BufferInstance<math::mat4x4> m_vpMatrix;

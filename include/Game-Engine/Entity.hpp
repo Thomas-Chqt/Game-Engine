@@ -28,25 +28,42 @@ public:
     
     Entity(ECSWorld&, ECSWorld::EntityID);
 
+    inline void* imGuiID() { return (void*)m_entityId; }
+
     template<typename T, typename ... Args>
-    inline T& emplace(Args&& ... args) { return m_world->emplace<T, Args...>(m_entityId, std::forward<Args>(args)...); }
+    T& emplace(Args&& ... args)
+    {
+        utils::uint32 size = sizeof(T);
+        auto constructor = [&](void* ptr){ new (ptr) T{std::forward<Args>(args)...}; };
+        auto destructor = [](void* ptr){ ((T*)ptr)->~T(); };
+        return *(T*)m_world->emplace(m_entityId, ECSWorld::componentID<T>(), size, constructor, destructor);
+    }
 
-    template<typename T>
-    inline void remove() { m_world->remove<T>(m_entityId); }
-
-    template<typename T>
-    inline bool has() { return m_world->has<T>(m_entityId); }
-
-    template<typename T>
-    inline T& get() { return m_world->get<T>(m_entityId); }
-
-    inline void destroy() { m_world->deleteEntity(m_entityId); }
+    template<typename T> inline void remove() { m_world->remove(m_entityId, ECSWorld::componentID<T>()); }
+    template<typename T> inline bool has() { return m_world->has(m_entityId, ECSWorld::componentID<T>()); }
+    template<typename T> inline T& get() { return *(T*)m_world->get(m_entityId, ECSWorld::componentID<T>()); }
+    
+    void destroy()
+    {
+        m_world->deleteEntity(m_entityId);
+        m_world = nullptr;
+        m_entityId = INVALID_ENTITY_ID;
+    }
 
     utils::String& name();
     math::mat4x4 transform();
     math::vec3f& position();
     math::vec3f& rotation();
     math::vec3f& scale();
+    Entity parent();
+    Entity firstChild();
+    Entity nextChild();
+
+    void pushChild(Entity);
+    Entity popChild();
+    math::mat4x4 worldTransform();
+
+    virtual void onUpdate() {}
 
     ~Entity() = default;
 
@@ -59,16 +76,8 @@ public:
     Entity& operator = (Entity&&)      = default;
 
     inline operator bool () { return m_world != nullptr && m_world->isValid(m_entityId); }
-};
-
-class ScriptableEntity : public Entity
-{
-public:
-    ScriptableEntity(Entity entity) : Entity(entity) {}
-
-    virtual void onUpdate() = 0;
-
-    virtual ~ScriptableEntity() = default;
+    inline bool operator == (const Entity& e) const { return m_world == e.m_world && m_entityId == e.m_entityId; }
+    inline bool operator != (const Entity& e) const { return !(m_world == e.m_world && m_entityId == e.m_entityId); }
 };
 
 }

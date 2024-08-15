@@ -16,7 +16,6 @@
 #include "Renderer/GPURessourceManager.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/Types.hpp"
-#include "imgui/imgui.h"
 
 namespace GE
 {
@@ -64,13 +63,14 @@ void Renderer::setWindow(const utils::SharedPtr<gfx::Window>& window)
 {
     m_window = window;
     m_graphicAPI = gfx::Platform::shared().newGraphicAPI(m_window);
+
     m_graphicAPI->initImgui();
+
     gfxPipeline = makeGraphicPipeline(*m_graphicAPI);
-
-    GPURessourceManager::shared().setGraphicAPI(m_graphicAPI);
-
     m_vpMatrix.alloc(*m_graphicAPI);
     m_lightsBuffer.alloc(*m_graphicAPI);
+
+    GPURessourceManager::shared().setGraphicAPI(m_graphicAPI);
 }
 
 void Renderer::beginScene(const Renderer::Camera& cam)
@@ -109,7 +109,6 @@ void Renderer::endScene()
 void Renderer::render()
 {
     m_graphicAPI->beginFrame();
-    // m_graphicAPI->beginRenderPass();
     m_graphicAPI->beginImguiRenderPass();
 
     m_graphicAPI->useGraphicsPipeline(gfxPipeline);
@@ -125,7 +124,8 @@ void Renderer::render()
         m_graphicAPI->drawIndexedVertices(renderable.indexBuffer);
     }
 
-    ImGui::ShowMetricsWindow();
+    if (m_onImGuiRender)
+        m_onImGuiRender();
 
     m_graphicAPI->endRenderPass();
     m_graphicAPI->endFrame();

@@ -10,12 +10,10 @@
 #ifndef COMPONENTS_HPP
 #define COMPONENTS_HPP
 
-#include "Entity.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
 #include "Mesh.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
-#include "UtilsCPP/UniquePtr.hpp"
 #include <cmath>
 
 namespace GE
@@ -32,26 +30,27 @@ struct TransformComponent
     inline operator math::mat4x4 () { return transform(); }
 };
 
-struct ScriptComponent
-{
-    utils::UniquePtr<ScriptableEntity> instance;
-};
-
 struct CameraComponent
 {
-    math::mat4x4 projectionMatrix;
+    float fov;
+    float zFar;
+    float zNear;
 
-    inline CameraComponent(float fov, float zFar, float zNear)
+    math::mat4x4 projectionMatrix()
     {
         float zs = zFar / (zFar - zNear);
         float ys = 1.0F / std::tan(fov * 0.5F);
         float xs = ys; // (ys / aspectRatio)
 
-        projectionMatrix = math::mat4x4(xs,  0,  0,           0,
-                                         0, ys,  0,           0,
-                                         0,  0, zs, -zNear * zs,
-                                         0,  0,  1,           0);
+        return math::mat4x4(xs,  0,  0,           0,
+                             0, ys,  0,           0,
+                             0,  0, zs, -zNear * zs,
+                             0,  0,  1,           0);
     }
+};
+
+struct ActiveCameraComponent
+{
 };
 
 struct LightComponent

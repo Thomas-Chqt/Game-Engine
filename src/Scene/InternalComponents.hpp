@@ -10,7 +10,9 @@
 #ifndef INTERNALCOMPONENTS_HPP
 #define INTERNALCOMPONENTS_HPP
 
+#include "Game-Engine/Entity.hpp"
 #include "UtilsCPP/String.hpp"
+#include "UtilsCPP/UniquePtr.hpp"
 
 namespace GE
 {
@@ -18,6 +20,20 @@ namespace GE
 struct NameComponent
 {
     utils::String name;
+
+    inline operator utils::String& () { return name; }
+};
+
+struct ScriptComponent
+{
+    utils::UniquePtr<Entity> instance;
+};
+
+struct HierarchicalComponent
+{
+    Entity parent;
+    Entity firstChild;
+    Entity nextChild;
 };
 
 }

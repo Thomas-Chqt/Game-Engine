@@ -14,9 +14,9 @@
 #include "UtilsCPP/Dictionary.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/Set.hpp"
+#include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
-#include <utility>
 #include <climits>
 
 #define INVALID_ENTITY_ID ULONG_MAX
@@ -25,44 +25,33 @@ namespace GE
 {
 
 class Archetype;
+class Entity;
 
 class ECSWorld
 {
-public:
-    using EntityID = utils::uint64;
-
 private:
+    using EntityID = utils::uint64;
     using ComponentID = utils::uint32;
     using ArchetypeID = utils::Set<ComponentID>;
 
 private:
-    template<typename ... Ts> friend class ECSView;
+    friend class Entity;
     friend class Archetype;
+    template<typename ... Ts> friend class ECSView;
 
 public:
     ECSWorld();
     ECSWorld(const ECSWorld&) = delete;
     ECSWorld(ECSWorld&&)      = delete;
 
-    EntityID newEntity();
-    void deleteEntity(EntityID);
-    bool isValid(EntityID id) { return m_entityDatas.length() > id && m_availableEntityIDs.contain(id) == false; }
+    Entity newEmptyEntity();
+    Entity newEntity(const utils::String& name = "No name");
+
+    Entity makeEntityScriptable(utils::UniquePtr<Entity>&&);
 
     inline utils::uint32 entityCount() { return m_entityDatas.length() - m_availableEntityIDs.size(); }
     inline utils::uint32 archetypeCount() { return m_archetypes.size(); }
     utils::uint32 componentCount();
-
-    template<typename T, typename ... Args>
-    T& emplace(EntityID, Args&& ... args);
-
-    template<typename T>
-    inline void remove(EntityID entityId) { remove(entityId, componentID<T>()); }
-
-    template<typename T>
-    inline bool has(EntityID entityId) { return has(entityId, componentID<T>()); }
-
-    template<typename T>
-    inline T& get(EntityID entityId) { return *(T*)get(entityId, componentID<T>()); }
 
     ~ECSWorld();
 
@@ -75,6 +64,9 @@ private:
 
     inline static ComponentID nextComponentID() { static ComponentID id = 0; return id++; };
     template<typename T> inline static ComponentID componentID() { static ComponentID id = nextComponentID(); return id; }
+    
+    void deleteEntity(EntityID);
+    bool isValid(EntityID id) { return m_entityDatas.length() > id && m_availableEntityIDs.contain(id) == false; }
 
     void* emplace(EntityID, ComponentID, utils::uint32 size, const utils::Func<void(void*)>& constructor, const utils::Func<void(void*)>& destructor);
     void remove(EntityID, ComponentID);
@@ -92,15 +84,6 @@ public:
     ECSWorld& operator = (const ECSWorld&) = delete;
     ECSWorld& operator = (ECSWorld&&)      = delete;
 };
-
-template<typename T, typename ... Args>
-T& ECSWorld::emplace(EntityID entityId, Args&& ... args)
-{
-    utils::uint32 size = sizeof(T);
-    auto constructor = [&](void* ptr){ new (ptr) T{std::forward<Args>(args)...}; };
-    auto destructor = [](void* ptr){ ((T*)ptr)->~T(); };
-    return *(T*)emplace(entityId, componentID<T>(), size, constructor, destructor);
-}
 
 }
 

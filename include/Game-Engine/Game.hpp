@@ -10,8 +10,10 @@
 #ifndef GAME_HPP
 # define GAME_HPP
 
+#include "Game-Engine/ECSWorld.hpp"
 #include "Game-Engine/Engine.hpp"
-#include "Game-Engine/Scene.hpp"
+#include "Graphics/Event.hpp"
+#include "UtilsCPP/Types.hpp"
 
 namespace GE
 {
@@ -22,21 +24,24 @@ public:
     Game(const Game&) = delete;
     Game(Game&&)      = delete;
 
-    inline Scene& activeScene() { return *m_activeScene; }
+    inline ECSWorld& activeScene() { return *m_activeScene; }
 
     inline virtual void onSetup() {}
     inline virtual void onUpdate() {}
 
-    inline virtual void onKeyDownEvent(int keyCode, bool isRepeat) {}
-    inline virtual void onWindowRequestCloseEvent() { Engine::terminateGame(); }
+    virtual void onEvent(gfx::Event&);
+    virtual void onImGuiRender() {};
 
     virtual ~Game() = default;
 
 protected:
     Game() = default;
 
-    Scene m_defaultScene;
-    Scene* m_activeScene = &m_defaultScene;
+    utils::uint32 m_windowWidth = 800;
+    utils::uint32 m_windowHeight = 600;
+
+    ECSWorld m_defaultScene;
+    ECSWorld* m_activeScene = &m_defaultScene;
 };
 
 }
