@@ -9,11 +9,14 @@
 
 #include "Game-Engine/ECSWorld.hpp"
 #include "ECS/Archetype.hpp"
+#include "Game-Engine/Components.hpp"
+#include "Scene/InternalComponents.hpp"
 #include "UtilsCPP/Dictionary.hpp"
 #include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include <cstring>
+#include "Game-Engine/Entity.hpp"
 
 namespace GE
 {
@@ -23,7 +26,7 @@ ECSWorld::ECSWorld()
     m_emptyArchetype = utils::makeUnique<Archetype>();
 }
 
-ECSWorld::EntityID ECSWorld::newEntity()
+Entity ECSWorld::newEmptyEntity()
 {
     utils::uint32 newEntityArchIdx = m_emptyArchetype->newIndex();
 
@@ -39,14 +42,26 @@ ECSWorld::EntityID ECSWorld::newEntity()
         new (&m_entityDatas[newEntityId]) EntityData{m_emptyArchetype, newEntityArchIdx};
     }
     *m_emptyArchetype->getEntityId(newEntityArchIdx) = newEntityId;
-    return newEntityId;
+    return Entity(*this, newEntityId);
 }
 
-void ECSWorld::deleteEntity(EntityID entityId)
+Entity ECSWorld::newEntity(const utils::String& name)
 {
-    EntityData& entityData = m_entityDatas[entityId];
-    entityData.archetype->deleteComponents(entityData.idx);
-    m_availableEntityIDs.insert(entityId);
+    Entity newEntity = newEmptyEntity();
+
+    newEntity.emplace<NameComponent>(name);
+    newEntity.emplace<TransformComponent>(
+        math::vec3f{ 0.0F, 0.0F, 0.0F }, // position
+        math::vec3f{ 0.0F, 0.0F, 0.0F }, // rotation
+        math::vec3f{ 1.0F, 1.0F, 1.0F }  // scale
+    );
+
+    return newEntity;
+}
+
+void ECSWorld::makeEntityScriptable(utils::UniquePtr<Entity>&& entity)
+{
+    entity->emplace<ScriptComponent>(std::move(entity));
 }
 
 utils::uint32 ECSWorld::componentCount()
@@ -61,6 +76,15 @@ utils::uint32 ECSWorld::componentCount()
 ECSWorld::~ECSWorld()
 {
 }
+
+
+void ECSWorld::deleteEntity(EntityID entityId)
+{
+    EntityData& entityData = m_entityDatas[entityId];
+    entityData.archetype->deleteComponents(entityData.idx);
+    m_availableEntityIDs.insert(entityId);
+}
+
 
 void* ECSWorld::emplace(EntityID entityId, ComponentID componentID, utils::uint32 size, const utils::Func<void(void*)>& constructor, const utils::Func<void(void*)>& destructor)
 {

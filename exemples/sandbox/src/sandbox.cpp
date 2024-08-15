@@ -12,22 +12,29 @@
 #include "Game-Engine/Engine.hpp"
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Game.hpp"
-#include "Game-Engine/KeyCodes.hpp"
-#include "Game-Engine/Scene.hpp"
+#include "Graphics/Event.hpp"
+#include "Graphics/KeyCodes.hpp"
+#include "Graphics/Platform.hpp"
 #include "Math/Vector.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include "Math/Constants.hpp"
+#include <iostream>
 
-class Player : public GE::ScriptableEntity
+class Player : public GE::Entity
 {
 public:
-    using GE::ScriptableEntity::ScriptableEntity;
+    Player(GE::Entity entity) : GE::Entity(entity)
+    {
+        emplace<GE::CameraComponent>((float)(60 * (PI / 180.0F)), 10000.0f, 0.01f);
+        emplace<GE::ActiveCameraComponent>();
+        emplace<GE::LightComponent>(GE::LightComponent::Type::point, WHITE3, 1.0f);
+    }
 
     void onUpdate() override
     {
         GE::TransformComponent& transformComponent = get<GE::TransformComponent>();    
         math::vec3f dir = { 0.0, 0.0, 0.0 };
-        for (const auto& key : GE::Engine::pressedKeys())
+        for (const auto& key : GE::Engine::shared().pressedKeys())
         {
             switch (key)
             {
@@ -45,10 +52,14 @@ public:
     };
 };
 
-class Cube : public GE::ScriptableEntity
+class Cube : public GE::Entity
 {
 public:
-    using GE::ScriptableEntity::ScriptableEntity;
+    Cube(GE::Entity entity) : GE::Entity(entity)
+    {
+        emplace<GE::MeshComponent>(GE::AssetManager::shared().getMesh(RESSOURCES_DIR"/cube.glb"));
+        get<GE::TransformComponent>().position = {0, 0, 5};
+    }
 
     void onUpdate() override
     {
@@ -67,38 +78,37 @@ public:
 class Sandbox : public GE::Game
 {
 public:
-    void onSetup() override
+    Sandbox()
     {
-        m_activeScene = &m_scene;
+        m_defaultScene.makeEntityScriptable(utils::makeUnique<Player>(m_defaultScene.newEntity("player")).staticCast<GE::Entity>());
+        m_defaultScene.makeEntityScriptable(utils::makeUnique<Cube>(m_defaultScene.newEntity("cube")).staticCast<GE::Entity>());
 
-        GE::Entity player = m_scene.newScriptableEntity<Player>("player");
-        player.emplace<GE::CameraComponent>((float)(60 * (PI / 180.0F)), 10000.0f, 0.01f);
-        player.emplace<GE::LightComponent>(GE::LightComponent::Type::point, WHITE3, 1.0f);
-
-        GE::Entity cube = m_scene.newScriptableEntity<Cube>("cube");
-        cube.emplace<GE::MeshComponent>(GE::AssetManager::shared().getMesh(RESSOURCES_DIR"/cube.glb"));
-        cube.position() = {0, 0, 5};
-
-        GE::Entity chess_set = m_scene.newEntity("chess_set");
+        GE::Entity chess_set = m_defaultScene.newEntity("chess_set");
         chess_set.emplace<GE::MeshComponent>(GE::AssetManager::shared().getMesh(RESSOURCES_DIR"/chess_set/chess_set.gltf"));
         chess_set.scale() = {5, 5, 5};
     }
 
-    void onKeyDownEvent(int keyCode, bool isRepeat) override
+    void onSetup() override
     {
-        if (keyCode == ESC_KEY)
-            GE::Engine::terminateGame();
+        std::cout << "Game setup" << std::endl;
     }
 
-private:
-    GE::Scene m_scene;
+    void onEvent(gfx::Event& event) override
+    {
+        if (event.dispatch<gfx::KeyDownEvent>([](gfx::KeyDownEvent& event) { 
+            if (event.keyCode() == ESC_KEY)
+                GE::Engine::shared().terminateGame();
+        })) return;
+
+        GE::Game::onEvent(event);
+    }
 };
 
 int main()
 {
     GE::Engine::init();
 
-    GE::Engine::runGame(utils::makeUnique<Sandbox>().staticCast<GE::Game>());
+    GE::Engine::shared().runGame(utils::makeUnique<Sandbox>().staticCast<GE::Game>());
 
     GE::Engine::terminate();
 }

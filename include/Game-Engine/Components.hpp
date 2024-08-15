@@ -32,11 +32,6 @@ struct TransformComponent
     inline operator math::mat4x4 () { return transform(); }
 };
 
-struct ScriptComponent
-{
-    utils::UniquePtr<ScriptableEntity> instance;
-};
-
 struct CameraComponent
 {
     math::mat4x4 projectionMatrix;
@@ -52,6 +47,10 @@ struct CameraComponent
                                          0,  0, zs, -zNear * zs,
                                          0,  0,  1,           0);
     }
+};
+
+struct ActiveCameraComponent
+{
 };
 
 struct LightComponent
