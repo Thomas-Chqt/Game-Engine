@@ -10,7 +10,7 @@
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Components.hpp"
 #include "Game-Engine/ECSWorld.hpp"
-#include "Scene/InternalComponents.hpp"
+#include "ECS/InternalComponents.hpp"
 #include "Math/Vector.hpp"
 #include <cassert>
 

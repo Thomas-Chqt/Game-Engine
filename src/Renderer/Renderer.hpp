@@ -16,7 +16,6 @@
 #include "Math/Matrix.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
-#include "UtilsCPP/UniquePtr.hpp"
 #include "Graphics/BufferInstance.hpp"
 
 namespace GE
@@ -54,17 +53,13 @@ public:
     };
 
 public:
+    Renderer();
     Renderer(const Renderer&) = delete;
     Renderer(Renderer&&)      = delete;
     
-    static inline void init() { s_sharedInstance = utils::UniquePtr<Renderer>(new Renderer()); }
-    static inline Renderer& shared() { return *s_sharedInstance; }
-    static inline void terminate() { s_sharedInstance.clear(); }
-
-    void setWindow(const utils::SharedPtr<gfx::Window>&);
     inline void setOnImGuiRender(const utils::Func<void(void)>& f) { m_onImGuiRender = f; }
 
-    void beginScene(const Renderer::Camera&);
+    void beginScene(const Renderer::Camera&, const gfx::Window&);
 
     void addRenderable(const Renderer::Renderable&);
     void addPointLight(const Renderer::PointLight&);
@@ -83,20 +78,16 @@ private:
     };
 
 private:
-    Renderer() = default;
-
-    inline static utils::UniquePtr<Renderer> s_sharedInstance;
-
-    utils::SharedPtr<gfx::Window> m_window;
-    utils::SharedPtr<gfx::GraphicAPI> m_graphicAPI;
     utils::SharedPtr<gfx::GraphicPipeline> gfxPipeline;
-    utils::Func<void(void)> m_onImGuiRender;
 
-    // Scene data
+    gfx::GraphicAPI& m_graphicAPI;
+
     gfx::BufferInstance<math::mat4x4> m_vpMatrix;
     gfx::BufferInstance<LightsBuffer> m_lightsBuffer;
 
     utils::Array<Renderable> m_renderables;
+
+    utils::Func<void(void)> m_onImGuiRender;
     
 public:
     Renderer& operator = (const Renderer&) = delete;

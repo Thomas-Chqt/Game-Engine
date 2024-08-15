@@ -8,12 +8,10 @@
  */
 
 #ifndef ENGINE_HPP
-# define ENGINE_HPP
+#define ENGINE_HPP
 
-#include "Game-Engine/Entity.hpp"
 #include "Graphics/Event.hpp"
 #include "UtilsCPP/Set.hpp"
-#include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 
 namespace GE
@@ -27,38 +25,23 @@ public:
     Engine(const Engine&) = delete;
     Engine(Engine&&)      = delete;
 
-    static inline void init() { s_sharedInstance = utils::UniquePtr<Engine>(new Engine()); }
+    static void init();
     static inline Engine& shared() { return *s_sharedInstance; }
-    static inline void terminate() { s_sharedInstance.clear(); }
+    static void terminate();
 
-    inline gfx::Window& mainWindow() { return *m_mainWindow; }
+    virtual gfx::Window& mainWindow() = 0;
 
-    void runGame(utils::UniquePtr<Game>&&);
-    inline void terminateGame() { m_running = false; }
+    virtual void runGame(utils::UniquePtr<Game>&&) = 0;
+    virtual void terminateGame() = 0;
 
-    utils::Set<int> pressedKeys() { return m_pressedKeys; }
+    virtual const utils::Set<int>& pressedKeys() = 0;
 
-    ~Engine();
+    virtual ~Engine() = default;
 
-private:
-    Engine();
-
-    void onEvent(gfx::Event& event);
-    void onImGuiRender();
-    void drawSceneGraphWindow();
-    void drawEntityInspectorWindow();
+protected:
+    Engine() = default;
 
     static inline utils::UniquePtr<Engine> s_sharedInstance;
-
-    utils::SharedPtr<gfx::Window> m_mainWindow;
-
-    bool m_running = false;
-    utils::UniquePtr<Game> m_runningGame;
-
-    utils::Set<int> m_pressedKeys;
-
-    // Editor
-    Entity m_selectedEntity;
 
 public:
     Engine& operator = (const Engine&) = delete;

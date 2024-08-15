@@ -10,7 +10,7 @@
 #include "Game-Engine/ECSWorld.hpp"
 #include "ECS/Archetype.hpp"
 #include "Game-Engine/Components.hpp"
-#include "Scene/InternalComponents.hpp"
+#include "ECS/InternalComponents.hpp"
 #include "UtilsCPP/Dictionary.hpp"
 #include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/Types.hpp"
