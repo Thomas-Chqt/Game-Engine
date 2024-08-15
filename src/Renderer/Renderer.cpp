@@ -10,17 +10,16 @@
 #include "Renderer/Renderer.hpp"
 #include "Graphics/GraphicAPI.hpp"
 #include "Graphics/GraphicPipeline.hpp"
-#include "Graphics/Platform.hpp"
 #include "Graphics/Window.hpp"
 #include "Math/Matrix.hpp"
-#include "Renderer/GPURessourceManager.hpp"
+#include "GPURessourceManager.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/Types.hpp"
 
 namespace GE
 {
 
-utils::SharedPtr<gfx::GraphicPipeline> makeGraphicPipeline(const gfx::GraphicAPI& api)
+static utils::SharedPtr<gfx::GraphicPipeline> makeGraphicPipeline()
 {
     gfx::Shader::Descriptor shaderDescriptor;
 
@@ -33,7 +32,7 @@ utils::SharedPtr<gfx::GraphicPipeline> makeGraphicPipeline(const gfx::GraphicAPI
         shaderDescriptor.openglCode = utils::String::contentOfFile(OPENGL_SHADER_DIR"/default.vs");
     #endif
 
-    utils::SharedPtr<gfx::Shader> vs = api.newShader(shaderDescriptor);
+    utils::SharedPtr<gfx::Shader> vs = GPURessourceManager::shared().newShader(shaderDescriptor);
 
     shaderDescriptor.type = gfx::ShaderType::fragment;
     #ifdef GFX_BUILD_METAL
@@ -44,7 +43,7 @@ utils::SharedPtr<gfx::GraphicPipeline> makeGraphicPipeline(const gfx::GraphicAPI
         shaderDescriptor.openglCode = utils::String::contentOfFile(OPENGL_SHADER_DIR"/default.fs");
     #endif
 
-    utils::SharedPtr<gfx::Shader> fs = api.newShader(shaderDescriptor);
+    utils::SharedPtr<gfx::Shader> fs = GPURessourceManager::shared().newShader(shaderDescriptor);
 
     gfx::VertexLayout vertexLayout;
     vertexLayout.attributes.append({gfx::VertexAttributeFormat::vec3f, offsetof(Renderer::Vertex, pos)});
@@ -56,27 +55,25 @@ utils::SharedPtr<gfx::GraphicPipeline> makeGraphicPipeline(const gfx::GraphicAPI
     gfxPipelineDesc.vertexLayout = vertexLayout;
     gfxPipelineDesc.vertexShader = vs;
     gfxPipelineDesc.fragmentShader = fs;
-    return api.newGraphicsPipeline(gfxPipelineDesc);
+    return GPURessourceManager::shared().newGraphicsPipeline(gfxPipelineDesc);
 }
 
-void Renderer::setWindow(const utils::SharedPtr<gfx::Window>& window)
+
+
+
+
+
+Renderer::Renderer() : m_graphicAPI(GPURessourceManager::shared().graphicAPI())
 {
-    m_window = window;
-    m_graphicAPI = gfx::Platform::shared().newGraphicAPI(m_window);
-
-    m_graphicAPI->initImgui();
-
-    gfxPipeline = makeGraphicPipeline(*m_graphicAPI);
-    m_vpMatrix.alloc(*m_graphicAPI);
-    m_lightsBuffer.alloc(*m_graphicAPI);
-
-    GPURessourceManager::shared().setGraphicAPI(m_graphicAPI);
+    m_vpMatrix.alloc(m_graphicAPI);
+    m_lightsBuffer.alloc(m_graphicAPI);
+    gfxPipeline = makeGraphicPipeline();
 }
 
-void Renderer::beginScene(const Renderer::Camera& cam)
+void Renderer::beginScene(const Renderer::Camera& cam, const gfx::Window& win)
 {
     utils::uint32 w, h;
-    m_window->getWindowSize(&w, &h);
+    win.getWindowSize(&w, &h);
     math::mat4x4 projectionMatrix = cam.projectionMatrix;
     projectionMatrix[0][0] /= (float)w / (float)h;
 
@@ -108,27 +105,27 @@ void Renderer::endScene()
 
 void Renderer::render()
 {
-    m_graphicAPI->beginFrame();
-    m_graphicAPI->beginImguiRenderPass();
+    m_graphicAPI.beginFrame();
+    m_graphicAPI.beginImguiRenderPass();
 
-    m_graphicAPI->useGraphicsPipeline(gfxPipeline);
+    m_graphicAPI.useGraphicsPipeline(gfxPipeline);
 
-    m_graphicAPI->setVertexBuffer(m_vpMatrix.buffer(), gfxPipeline->getVertexBufferIndex("vpMatrixBuffer"));
-    m_graphicAPI->setFragmentBuffer(m_lightsBuffer.buffer(), gfxPipeline->getFragmentBufferIndex("lightsBuffer"));
+    m_graphicAPI.setVertexBuffer(m_vpMatrix.buffer(), gfxPipeline->getVertexBufferIndex("vpMatrixBuffer"));
+    m_graphicAPI.setFragmentBuffer(m_lightsBuffer.buffer(), gfxPipeline->getFragmentBufferIndex("lightsBuffer"));
 
     for (auto& renderable : m_renderables)
     {
-        m_graphicAPI->setVertexBuffer(renderable.modelMatrix, gfxPipeline->getVertexBufferIndex("modelMatrixBuffer"));
+        m_graphicAPI.setVertexBuffer(renderable.modelMatrix, gfxPipeline->getVertexBufferIndex("modelMatrixBuffer"));
 
-        m_graphicAPI->setVertexBuffer(renderable.vertexBuffer, 0);
-        m_graphicAPI->drawIndexedVertices(renderable.indexBuffer);
+        m_graphicAPI.setVertexBuffer(renderable.vertexBuffer, 0);
+        m_graphicAPI.drawIndexedVertices(renderable.indexBuffer);
     }
 
     if (m_onImGuiRender)
         m_onImGuiRender();
 
-    m_graphicAPI->endRenderPass();
-    m_graphicAPI->endFrame();
+    m_graphicAPI.endRenderPass();
+    m_graphicAPI.endFrame();
 }
 
 }

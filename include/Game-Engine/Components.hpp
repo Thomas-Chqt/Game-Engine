@@ -13,7 +13,6 @@
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
 #include "Mesh.hpp"
-#include "UtilsCPP/SharedPtr.hpp"
 #include <cmath>
 
 namespace GE
@@ -62,9 +61,9 @@ struct LightComponent
 
 struct MeshComponent
 {
-    utils::SharedPtr<Mesh> mesh;
+    Mesh mesh;
 
-    inline operator utils::SharedPtr<Mesh>& () { return mesh; }
+    inline operator Mesh& () { return mesh; }
 };
 
 }

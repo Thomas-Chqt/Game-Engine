@@ -8,10 +8,9 @@
  */
 
 #include "Game-Engine/AssetManager.hpp"
-#include "AssetManager/MeshImpl.hpp"
 #include "Game-Engine/Mesh.hpp"
 #include "Math/Matrix.hpp"
-#include "Renderer/GPURessourceManager.hpp"
+#include "GPURessourceManager.hpp"
 #include "Renderer/Renderer.hpp"
 #include "UtilsCPP/RuntimeError.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
@@ -34,16 +33,16 @@
 namespace GE
 {
 
-utils::SharedPtr<Mesh> AssetManager::getMesh(const utils::String& filepath)
+Mesh AssetManager::getMesh(const utils::String& filepath)
 {
-    using Iterator = utils::Dictionary<utils::String, utils::SharedPtr<Mesh>>::Iterator;
+    using Iterator = utils::Dictionary<utils::String, Mesh>::Iterator;
     Iterator it = m_cachedMeshes.find(filepath);
     if (it == m_cachedMeshes.end())
         it = m_cachedMeshes.insert(filepath, loadMesh(filepath));
     return it->val;
 }
 
-utils::SharedPtr<Mesh> AssetManager::loadMesh(const utils::String& filepath)
+Mesh AssetManager::loadMesh(const utils::String& filepath)
 {
     Assimp::Importer importer;
 
@@ -51,27 +50,27 @@ utils::SharedPtr<Mesh> AssetManager::loadMesh(const utils::String& filepath)
     if (scene == nullptr)
         throw utils::RuntimeError("fail to load the model using assimp");
 
-    utils::Array<SubMeshImpl> allMeshes;
+    utils::Array<SubMesh> allMeshes;
 
     for(utils::uint32 meshIndex = 0; meshIndex < scene->mNumMeshes; meshIndex++)
     {
         aiMesh* aiMesh = scene->mMeshes[meshIndex];
 
-        SubMeshImpl newSubMesh;
+        SubMesh newSubMesh;
 
         newSubMesh.name = aiMesh->mName.C_Str();
 
         gfx::Buffer::Descriptor bufferDescriptor;
         bufferDescriptor.size = aiMesh->mNumVertices * sizeof(Renderer::Vertex);
-        newSubMesh.vertexBuffer = GPURessourceManager::shared().newManagedBuffer(bufferDescriptor);
+        newSubMesh.vertexBuffer = GPURessourceManager::shared().newBuffer(bufferDescriptor);
         auto* vertices = (Renderer::Vertex*)newSubMesh.vertexBuffer->mapContent();
 
         bufferDescriptor.size = aiMesh->mNumFaces * 3UL * sizeof(utils::uint32);
-        newSubMesh.indexBuffer = GPURessourceManager::shared().newManagedBuffer(bufferDescriptor);
+        newSubMesh.indexBuffer = GPURessourceManager::shared().newBuffer(bufferDescriptor);
         auto* indices = (utils::uint32*)newSubMesh.indexBuffer->mapContent();
 
         bufferDescriptor.size = sizeof(math::mat4x4);
-        newSubMesh.modelMatrixBuffer = GPURessourceManager::shared().newManagedBuffer(bufferDescriptor);
+        newSubMesh.modelMatrixBuffer = GPURessourceManager::shared().newBuffer(bufferDescriptor);
 
         for(utils::uint32 i = 0; i < aiMesh->mNumVertices; i++)
         {
@@ -118,7 +117,7 @@ utils::SharedPtr<Mesh> AssetManager::loadMesh(const utils::String& filepath)
         allMeshes.append(newSubMesh);
     }
 
-    utils::SharedPtr<MeshImpl> output = utils::makeShared<MeshImpl>();
+    Mesh output;
 
     utils::Func<void(aiNode*, math::mat4x4)> addNode = [&](aiNode* aiNode, math::mat4x4 additionalTransform) {
 
@@ -131,24 +130,24 @@ utils::SharedPtr<Mesh> AssetManager::loadMesh(const utils::String& filepath)
 
         for (utils::uint32 i = 0; i < aiNode->mNumMeshes; i++)
         {
-            SubMeshImpl& subMesh = allMeshes[aiNode->mMeshes[i]];
+            SubMesh& subMesh = allMeshes[aiNode->mMeshes[i]];
             subMesh.transform = transform;
-            output->addSubMesh(subMesh);
+            output.subMeshes.append(subMesh);
         }
 
         for (utils::uint32 i = 0; i < aiNode->mNumChildren; i++)
             addNode(aiNode->mChildren[i], transform);
     };
 
-    output->name = scene->mRootNode->mName.C_Str();
+    output.name = scene->mRootNode->mName.C_Str();
 
     for (utils::uint32 i = 0; i < scene->mRootNode->mNumMeshes; i++)
-        output->addSubMesh(allMeshes[scene->mRootNode->mMeshes[i]]);
+        output.subMeshes.append(allMeshes[scene->mRootNode->mMeshes[i]]);
 
     for (utils::uint32 i = 0; i < scene->mRootNode->mNumChildren; i++)
         addNode(scene->mRootNode->mChildren[i], math::mat4x4(1.0F));
 
-    return output.staticCast<Mesh>();
+    return output;
 }
 
 }
