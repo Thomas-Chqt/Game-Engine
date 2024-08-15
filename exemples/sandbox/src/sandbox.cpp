@@ -14,7 +14,6 @@
 #include "Game-Engine/Game.hpp"
 #include "Graphics/Event.hpp"
 #include "Graphics/KeyCodes.hpp"
-#include "Graphics/Platform.hpp"
 #include "Math/Vector.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include "Math/Constants.hpp"
@@ -70,8 +69,8 @@ public:
             transformComponent.rotation.x -= 2*PI;
 
         transformComponent.rotation.y += + 0.7 * (PI / 180.0F);
-        if (transformComponent.rotation.x > 2*PI)
-            transformComponent.rotation.x -= 2*PI;
+        if (transformComponent.rotation.y > 2*PI)
+            transformComponent.rotation.y -= 2*PI;
     };
 };
 
@@ -81,11 +80,13 @@ public:
     Sandbox()
     {
         m_defaultScene.makeEntityScriptable(utils::makeUnique<Player>(m_defaultScene.newEntity("player")).staticCast<GE::Entity>());
-        m_defaultScene.makeEntityScriptable(utils::makeUnique<Cube>(m_defaultScene.newEntity("cube")).staticCast<GE::Entity>());
+        GE::Entity cube = m_defaultScene.makeEntityScriptable(utils::makeUnique<Cube>(m_defaultScene.newEntity("cube")).staticCast<GE::Entity>());
 
         GE::Entity chess_set = m_defaultScene.newEntity("chess_set");
         chess_set.emplace<GE::MeshComponent>(GE::AssetManager::shared().getMesh(RESSOURCES_DIR"/chess_set/chess_set.gltf"));
         chess_set.scale() = {5, 5, 5};
+
+        cube.pushChild(chess_set);
     }
 
     void onSetup() override

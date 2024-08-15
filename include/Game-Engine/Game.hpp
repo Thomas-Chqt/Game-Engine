@@ -30,6 +30,7 @@ public:
     inline virtual void onUpdate() {}
 
     virtual void onEvent(gfx::Event&);
+    virtual void onImGuiRender() {};
 
     virtual ~Game() = default;
 

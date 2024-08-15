@@ -59,9 +59,9 @@ Entity ECSWorld::newEntity(const utils::String& name)
     return newEntity;
 }
 
-void ECSWorld::makeEntityScriptable(utils::UniquePtr<Entity>&& entity)
+Entity ECSWorld::makeEntityScriptable(utils::UniquePtr<Entity>&& entity)
 {
-    entity->emplace<ScriptComponent>(std::move(entity));
+    return *entity->emplace<ScriptComponent>(std::move(entity)).instance;
 }
 
 utils::uint32 ECSWorld::componentCount()

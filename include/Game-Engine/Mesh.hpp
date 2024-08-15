@@ -13,7 +13,6 @@
 #include "Math/Matrix.hpp"
 #include "UtilsCPP/Array.hpp"
 #include "UtilsCPP/String.hpp"
-#include "UtilsCPP/Types.hpp"
 
 namespace GE
 {

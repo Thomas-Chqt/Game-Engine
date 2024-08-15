@@ -17,14 +17,23 @@
 namespace GE
 {
 
+struct NameComponent
+{
+    utils::String name;
+
+    inline operator utils::String& () { return name; }
+};
+
 struct ScriptComponent
 {
     utils::UniquePtr<Entity> instance;
 };
 
-struct NameComponent
+struct HierarchicalComponent
 {
-    utils::String name;
+    Entity parent;
+    Entity firstChild;
+    Entity nextChild;
 };
 
 }

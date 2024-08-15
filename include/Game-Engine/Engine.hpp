@@ -10,10 +10,10 @@
 #ifndef ENGINE_HPP
 # define ENGINE_HPP
 
+#include "Game-Engine/Entity.hpp"
 #include "Graphics/Event.hpp"
 #include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
-#include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 
 namespace GE
@@ -44,6 +44,9 @@ private:
     Engine();
 
     void onEvent(gfx::Event& event);
+    void onImGuiRender();
+    void drawSceneGraphWindow();
+    void drawEntityInspectorWindow();
 
     static inline utils::UniquePtr<Engine> s_sharedInstance;
 
@@ -53,6 +56,9 @@ private:
     utils::UniquePtr<Game> m_runningGame;
 
     utils::Set<int> m_pressedKeys;
+
+    // Editor
+    Entity m_selectedEntity;
 
 public:
     Engine& operator = (const Engine&) = delete;

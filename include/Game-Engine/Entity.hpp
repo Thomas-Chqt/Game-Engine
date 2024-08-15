@@ -14,7 +14,6 @@
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
 #include "UtilsCPP/String.hpp"
-#include "UtilsCPP/UniquePtr.hpp"
 #include <utility>
 
 namespace GE
@@ -28,6 +27,8 @@ public:
     Entity(Entity&&)      = default;
     
     Entity(ECSWorld&, ECSWorld::EntityID);
+
+    inline void* imGuiID() { return (void*)m_entityId; }
 
     template<typename T, typename ... Args>
     T& emplace(Args&& ... args)
@@ -54,6 +55,13 @@ public:
     math::vec3f& position();
     math::vec3f& rotation();
     math::vec3f& scale();
+    Entity parent();
+    Entity firstChild();
+    Entity nextChild();
+
+    void pushChild(Entity);
+    Entity popChild();
+    math::mat4x4 worldTransform();
 
     virtual void onUpdate() {}
 

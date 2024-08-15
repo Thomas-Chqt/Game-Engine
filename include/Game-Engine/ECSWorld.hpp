@@ -17,7 +17,6 @@
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
-#include <utility>
 #include <climits>
 
 #define INVALID_ENTITY_ID ULONG_MAX
@@ -48,7 +47,7 @@ public:
     Entity newEmptyEntity();
     Entity newEntity(const utils::String& name = "No name");
 
-    void makeEntityScriptable(utils::UniquePtr<Entity>&&);
+    Entity makeEntityScriptable(utils::UniquePtr<Entity>&&);
 
     inline utils::uint32 entityCount() { return m_entityDatas.length() - m_availableEntityIDs.size(); }
     inline utils::uint32 archetypeCount() { return m_archetypes.size(); }
