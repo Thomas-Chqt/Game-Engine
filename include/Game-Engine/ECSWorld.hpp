@@ -47,8 +47,6 @@ public:
     Entity newEmptyEntity();
     Entity newEntity(const utils::String& name = "No name");
 
-    Entity makeEntityScriptable(utils::UniquePtr<Entity>&&);
-
     inline utils::uint32 entityCount() { return m_entityDatas.length() - m_availableEntityIDs.size(); }
     inline utils::uint32 archetypeCount() { return m_archetypes.size(); }
     utils::uint32 componentCount();

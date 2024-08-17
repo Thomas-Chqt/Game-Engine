@@ -15,6 +15,7 @@
 #include "Graphics/GraphicAPI.hpp"
 #include "Graphics/Platform.hpp"
 #include "GPURessourceManager.hpp"
+#include "InputManager.hpp"
 #include "Renderer/Renderer.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
@@ -28,27 +29,7 @@ namespace GE
 
 void Engine::init()
 {
-    gfx::Platform::init();
-
-    utils::SharedPtr<gfx::Window> window = gfx::Platform::shared().newWindow(800, 600);
-    utils::SharedPtr<gfx::GraphicAPI> graphicAPI = gfx::Platform::shared().newGraphicAPI(window);
-    graphicAPI->initImgui();
-
-    GPURessourceManager::init(graphicAPI);
-
-    EngineIntern::init(std::move(window));
-}
-
-void Engine::terminate()
-{
-    s_sharedInstance.clear();
-    GPURessourceManager::terminate();
-    gfx::Platform::terminate();
-}
-
-void EngineIntern::init(utils::SharedPtr<gfx::Window>&& win)
-{
-    Engine::s_sharedInstance = utils::UniquePtr<EngineIntern>(new EngineIntern(std::move(win))).staticCast<Engine>();
+    EngineIntern::init();
 }
 
 void EngineIntern::runGame(utils::UniquePtr<Game>&& game)
@@ -64,47 +45,53 @@ void EngineIntern::runGame(utils::UniquePtr<Game>&& game)
 
         m_game->onUpdate();
 
+        Renderer& render = Renderer::shared();
+
         scriptSystem();
 
-        m_renderer.beginScene(getActiveCameraSystem(), *m_mainWindow);
+        render.beginScene(getActiveCameraSystem(), *m_mainWindow);
         {
             addLightsSystem();
             addRenderableSystem();
         }
-        m_renderer.endScene();
+        render.endScene();
 
-        m_renderer.render();
+        render.render();
     }
 }
 
 EngineIntern::~EngineIntern()
 {
     AssetManager::terminate();
+    InputManager::terminate();
 
-    gfx::Platform::shared().clearCallbacks(this);    
+    Renderer::terminate();
+
+    GPURessourceManager::terminate();
+
+    gfx::Platform::shared().clearCallbacks(this);
+    gfx::Platform::terminate();
 }
 
-EngineIntern::EngineIntern(utils::SharedPtr<gfx::Window>&& window)
-    : m_mainWindow(std::move(window))
+EngineIntern::EngineIntern()
 {
-    m_renderer.setOnImGuiRender(utils::Func<void()>(*this, &EngineIntern::onImGuiRender));
-
+    gfx::Platform::init();
     gfx::Platform::shared().addEventCallBack(utils::Func<void(gfx::Event&)>(*this, &EngineIntern::onEvent), this);
- 
+
+    m_mainWindow = gfx::Platform::shared().newWindow(800, 600);
+    utils::SharedPtr<gfx::GraphicAPI> graphicAPI = gfx::Platform::shared().newGraphicAPI(m_mainWindow);
+    graphicAPI->initImgui();
+    GPURessourceManager::init(graphicAPI);
+
+    Renderer::init();
+    Renderer::shared().setOnImGuiRender(utils::Func<void()>(*this, &EngineIntern::onImGuiRender));
+
+    InputManager::init();
     AssetManager::init();
 }
 
 void EngineIntern::onEvent(gfx::Event& event)
 {
-    event.dispatch<gfx::KeyDownEvent>([&](gfx::KeyDownEvent& event) {
-        if (event.isRepeat() == false)
-            m_pressedKeys.insert(event.keyCode());
-    });
-    
-    event.dispatch<gfx::KeyUpEvent>([&](gfx::KeyUpEvent& event) {
-        m_pressedKeys.remove(m_pressedKeys.find(event.keyCode()));
-    });
-
     assert(m_game);
     m_game->onEvent(event);
 }

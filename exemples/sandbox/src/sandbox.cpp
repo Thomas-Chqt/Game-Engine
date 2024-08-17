@@ -9,9 +9,11 @@
 
 #include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Components.hpp"
+#include "Game-Engine/ECSWorld.hpp"
 #include "Game-Engine/Engine.hpp"
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Game.hpp"
+#include "Game-Engine/Inputs.hpp"
 #include "Graphics/Event.hpp"
 #include "Graphics/KeyCodes.hpp"
 #include "Math/Vector.hpp"
@@ -22,18 +24,23 @@
 class Player : public GE::Entity
 {
 public:
-    Player(GE::Entity entity) : GE::Entity(entity)
+    using GE::Entity::Entity;
+
+    static GE::Entity create(GE::ECSWorld& scene)
     {
-        emplace<GE::CameraComponent>((float)(60 * (PI / 180.0F)), 10000.0f, 0.01f);
-        emplace<GE::ActiveCameraComponent>();
-        emplace<GE::LightComponent>(GE::LightComponent::Type::point, WHITE3, 1.0f);
+        GE::Entity entity = scene.newEntity("player");
+        entity.emplace<GE::CameraComponent>((float)(60 * (PI / 180.0F)), 10000.0f, 0.01f);
+        entity.emplace<GE::ActiveCameraComponent>();
+        entity.emplace<GE::LightComponent>(GE::LightComponent::Type::point, WHITE3, 1.0f);
+        entity.setScriptInstance<Player>();
+        return entity;
     }
 
     void onUpdate() override
     {
         GE::TransformComponent& transformComponent = get<GE::TransformComponent>();    
         math::vec3f dir = { 0.0, 0.0, 0.0 };
-        for (const auto& key : GE::Engine::shared().pressedKeys())
+        for (const auto& key : GE::Inputs::pressedKeys())
         {
             switch (key)
             {
@@ -54,10 +61,15 @@ public:
 class Cube : public GE::Entity
 {
 public:
-    Cube(GE::Entity entity) : GE::Entity(entity)
+    using GE::Entity::Entity;
+
+    static GE::Entity create(GE::ECSWorld& scene)
     {
-        emplace<GE::MeshComponent>(GE::AssetManager::shared().getMesh(RESSOURCES_DIR"/cube.glb"));
-        get<GE::TransformComponent>().position = {0, 0, 5};
+        GE::Entity entity = scene.newEntity("cube");
+        entity.emplace<GE::MeshComponent>(GE::AssetManager::shared().getMesh(RESSOURCES_DIR"/cube.glb"));
+        entity.get<GE::TransformComponent>().position = {0, 0, 5};
+        entity.setScriptInstance<Cube>();
+        return entity;
     }
 
     void onUpdate() override
@@ -79,8 +91,8 @@ class Sandbox : public GE::Game
 public:
     Sandbox()
     {
-        m_defaultScene.makeEntityScriptable(utils::makeUnique<Player>(m_defaultScene.newEntity("player")).staticCast<GE::Entity>());
-        GE::Entity cube = m_defaultScene.makeEntityScriptable(utils::makeUnique<Cube>(m_defaultScene.newEntity("cube")).staticCast<GE::Entity>());
+        Player::create(m_defaultScene);
+        GE::Entity cube = Cube::create(m_defaultScene);
 
         GE::Entity chess_set = m_defaultScene.newEntity("chess_set");
         chess_set.emplace<GE::MeshComponent>(GE::AssetManager::shared().getMesh(RESSOURCES_DIR"/chess_set/chess_set.gltf"));

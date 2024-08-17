@@ -14,6 +14,7 @@
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
 #include "UtilsCPP/String.hpp"
+#include "UtilsCPP/UniquePtr.hpp"
 #include <utility>
 
 namespace GE
@@ -51,13 +52,18 @@ public:
     }
 
     utils::String& name();
+
     math::mat4x4 transform();
     math::vec3f& position();
     math::vec3f& rotation();
     math::vec3f& scale();
+    
     Entity parent();
     Entity firstChild();
     Entity nextChild();
+    
+    template<typename T>
+    inline void setScriptInstance() { setScriptInstance(utils::makeUnique<T>(*m_world, m_entityId).template staticCast<Entity>()); }
 
     void pushChild(Entity);
     Entity popChild();
@@ -70,6 +76,8 @@ public:
 private:
     ECSWorld* m_world = nullptr;
     ECSWorld::EntityID m_entityId = INVALID_ENTITY_ID;
+
+    void setScriptInstance(utils::UniquePtr<Entity>&&);
 
 public:
     Entity& operator = (const Entity&) = default;

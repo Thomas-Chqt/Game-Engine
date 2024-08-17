@@ -26,19 +26,17 @@ public:
     EngineIntern(const EngineIntern&) = delete;
     EngineIntern(EngineIntern&&)      = delete;
     
-    static void init(utils::SharedPtr<gfx::Window>&& win);
+    static inline void init() { Engine::s_sharedInstance = utils::UniquePtr<EngineIntern>(new EngineIntern).staticCast<Engine>(); }
 
     inline gfx::Window& mainWindow() override { return *m_mainWindow; }
 
     void runGame(utils::UniquePtr<Game>&&) override;
     inline void terminateGame() override { m_running = false; }
 
-    inline const utils::Set<int>& pressedKeys() override { return m_pressedKeys; }
-
     ~EngineIntern() override;
 
 private:
-    EngineIntern(utils::SharedPtr<gfx::Window>&&);
+    EngineIntern();
 
     void scriptSystem();
     Renderer::Camera getActiveCameraSystem();
@@ -51,13 +49,10 @@ private:
     void drawEntityInspectorWindow();
 
     utils::SharedPtr<gfx::Window> m_mainWindow;
-    Renderer m_renderer;
 
     utils::UniquePtr<Game> m_game;
 
     bool m_running = false;
-
-    utils::Set<int> m_pressedKeys;
 
     // Editor
     Entity m_selectedEntity;
@@ -65,7 +60,6 @@ private:
 public:
     EngineIntern& operator = (const EngineIntern&) = delete;
     EngineIntern& operator = (EngineIntern&&)      = delete;
-
 };
 
 }

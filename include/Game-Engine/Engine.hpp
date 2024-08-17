@@ -11,7 +11,6 @@
 #define ENGINE_HPP
 
 #include "Graphics/Event.hpp"
-#include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 
 namespace GE
@@ -27,14 +26,12 @@ public:
 
     static void init();
     static inline Engine& shared() { return *s_sharedInstance; }
-    static void terminate();
+    static inline void terminate() { s_sharedInstance.clear(); }
 
     virtual gfx::Window& mainWindow() = 0;
 
     virtual void runGame(utils::UniquePtr<Game>&&) = 0;
     virtual void terminateGame() = 0;
-
-    virtual const utils::Set<int>& pressedKeys() = 0;
 
     virtual ~Engine() = default;
 

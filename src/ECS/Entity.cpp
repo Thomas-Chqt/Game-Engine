@@ -13,6 +13,7 @@
 #include "ECS/InternalComponents.hpp"
 #include "Math/Vector.hpp"
 #include <cassert>
+#include <utility>
 
 namespace GE
 {
@@ -64,34 +65,32 @@ Entity Entity::nextChild()
 
 void Entity::pushChild(Entity child)
 {
-    HierarchicalComponent* comp;
     if (has<HierarchicalComponent>() == false)
-        comp = &emplace<HierarchicalComponent>();
-    else
-        comp = &get<HierarchicalComponent>();
+        emplace<HierarchicalComponent>();
 
-    HierarchicalComponent* childComp;
     if (child.has<HierarchicalComponent>() == false)
-        childComp = &child.emplace<HierarchicalComponent>();
-    else
-        childComp = &child.get<HierarchicalComponent>();
+        child.emplace<HierarchicalComponent>();
     
-    assert(childComp->parent == false);
-    childComp->parent = *this;
-    childComp->nextChild = comp->firstChild;
-    comp->firstChild = child;
+    HierarchicalComponent& thisComp = this->get<HierarchicalComponent>();
+    HierarchicalComponent& childComp = child.get<HierarchicalComponent>();
+
+    assert(childComp.parent == false);
+    childComp.parent = *this;
+    childComp.nextChild = thisComp.firstChild;
+    thisComp.firstChild = child;
 }
 
 Entity Entity::popChild()
 {
     assert(has<HierarchicalComponent>());
 
-    HierarchicalComponent& comp = get<HierarchicalComponent>();
+    HierarchicalComponent& thisComp = this->get<HierarchicalComponent>();
 
-    Entity prevFirstChild = comp.firstChild;
+    Entity prevFirstChild = thisComp.firstChild;
+
     HierarchicalComponent& prevFirstChildComp = prevFirstChild.get<HierarchicalComponent>();
 
-    comp.firstChild = prevFirstChildComp.nextChild;
+    thisComp.firstChild = prevFirstChildComp.nextChild;
     prevFirstChildComp.parent = Entity();
     prevFirstChildComp.nextChild = Entity();
     return prevFirstChild;
@@ -102,6 +101,16 @@ math::mat4x4 Entity::worldTransform()
     if (has<HierarchicalComponent>() == false || parent() == false)
         return transform();
     return parent().worldTransform() * transform();
+}
+
+void Entity::setScriptInstance(utils::UniquePtr<Entity>&& instance)
+{
+    ScriptComponent* comp;
+    if (has<ScriptComponent>())
+        comp = &get<ScriptComponent>();
+    else
+        comp = &emplace<ScriptComponent>();
+    comp->instance = std::move(instance);
 }
 
 }

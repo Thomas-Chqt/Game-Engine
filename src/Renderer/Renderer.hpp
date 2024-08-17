@@ -17,6 +17,7 @@
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "Graphics/BufferInstance.hpp"
+#include "UtilsCPP/UniquePtr.hpp"
 
 namespace GE
 {
@@ -53,9 +54,12 @@ public:
     };
 
 public:
-    Renderer();
     Renderer(const Renderer&) = delete;
     Renderer(Renderer&&)      = delete;
+
+    static inline void init() { s_sharedInstance = utils::UniquePtr<Renderer>(new Renderer()); }
+    static inline Renderer& shared() { return *s_sharedInstance; }
+    static inline void terminate() { s_sharedInstance.clear(); }
     
     inline void setOnImGuiRender(const utils::Func<void(void)>& f) { m_onImGuiRender = f; }
 
@@ -78,6 +82,10 @@ private:
     };
 
 private:
+    Renderer();
+
+    static inline utils::UniquePtr<Renderer> s_sharedInstance;
+
     utils::SharedPtr<gfx::GraphicPipeline> gfxPipeline;
 
     gfx::GraphicAPI& m_graphicAPI;

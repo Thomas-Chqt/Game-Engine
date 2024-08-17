@@ -43,7 +43,7 @@ void EngineIntern::addLightsSystem()
             switch (light.type)
             {
             case LightComponent::Type::point:
-                m_renderer.addPointLight({transform.position, light.color, light.intentsity});
+                Renderer::shared().addPointLight({transform.position, light.color, light.intentsity});
                 break;
             default:
                 UNREACHABLE
@@ -65,7 +65,7 @@ void EngineIntern::addRenderableSystem()
                 renderable.indexBuffer = subMesh.indexBuffer;
                 renderable.modelMatrix = subMesh.modelMatrixBuffer;
 
-                m_renderer.addRenderable(renderable);
+                Renderer::shared().addRenderable(renderable);
             };
 
             for (auto& subMesh : ((Mesh&)mesh).subMeshes)

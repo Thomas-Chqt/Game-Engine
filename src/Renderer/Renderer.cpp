@@ -58,18 +58,6 @@ static utils::SharedPtr<gfx::GraphicPipeline> makeGraphicPipeline()
     return GPURessourceManager::shared().newGraphicsPipeline(gfxPipelineDesc);
 }
 
-
-
-
-
-
-Renderer::Renderer() : m_graphicAPI(GPURessourceManager::shared().graphicAPI())
-{
-    m_vpMatrix.alloc(m_graphicAPI);
-    m_lightsBuffer.alloc(m_graphicAPI);
-    gfxPipeline = makeGraphicPipeline();
-}
-
 void Renderer::beginScene(const Renderer::Camera& cam, const gfx::Window& win)
 {
     utils::uint32 w, h;
@@ -126,6 +114,13 @@ void Renderer::render()
 
     m_graphicAPI.endRenderPass();
     m_graphicAPI.endFrame();
+}
+
+Renderer::Renderer() : m_graphicAPI(GPURessourceManager::shared().graphicAPI())
+{
+    m_vpMatrix.alloc(m_graphicAPI);
+    m_lightsBuffer.alloc(m_graphicAPI);
+    gfxPipeline = makeGraphicPipeline();
 }
 
 }
