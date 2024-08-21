@@ -6,3 +6,4 @@ build_xcode.nosync/
 .cache/
 default.profraw
 **/imgui.ini
+graph.drawio.svg

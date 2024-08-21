@@ -15,6 +15,7 @@
 #include "GPURessourceManager.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/Types.hpp"
+#include "Game-Engine/Vertex.hpp"
 
 namespace GE
 {
@@ -46,10 +47,10 @@ static utils::SharedPtr<gfx::GraphicPipeline> makeGraphicPipeline()
     utils::SharedPtr<gfx::Shader> fs = GPURessourceManager::shared().newShader(shaderDescriptor);
 
     gfx::VertexLayout vertexLayout;
-    vertexLayout.attributes.append({gfx::VertexAttributeFormat::vec3f, offsetof(Renderer::Vertex, pos)});
-    vertexLayout.attributes.append({gfx::VertexAttributeFormat::vec2f, offsetof(Renderer::Vertex, uv)});
-    vertexLayout.attributes.append({gfx::VertexAttributeFormat::vec3f, offsetof(Renderer::Vertex, normal)});
-    vertexLayout.stride = sizeof(Renderer::Vertex);
+    vertexLayout.attributes.append({gfx::VertexAttributeFormat::vec3f, offsetof(Vertex, pos)});
+    vertexLayout.attributes.append({gfx::VertexAttributeFormat::vec2f, offsetof(Vertex, uv)});
+    vertexLayout.attributes.append({gfx::VertexAttributeFormat::vec3f, offsetof(Vertex, normal)});
+    vertexLayout.stride = sizeof(Vertex);
 
     gfx::GraphicPipeline::Descriptor gfxPipelineDesc;
     gfxPipelineDesc.vertexLayout = vertexLayout;

@@ -56,7 +56,7 @@ class Cube : public GE::Entity
 public:
     Cube(GE::Entity entity) : GE::Entity(entity)
     {
-        emplace<GE::MeshComponent>(GE::AssetManager::shared().getMesh(RESSOURCES_DIR"/cube.glb"));
+        emplace<GE::MeshComponent>(GE::AssetManager::shared().loadMesh(RESSOURCES_DIR"/cube.glb"));
         get<GE::TransformComponent>().position = {0, 0, 5};
     }
 
@@ -83,7 +83,7 @@ public:
         GE::Entity cube = m_defaultScene.makeEntityScriptable(utils::makeUnique<Cube>(m_defaultScene.newEntity("cube")).staticCast<GE::Entity>());
 
         GE::Entity chess_set = m_defaultScene.newEntity("chess_set");
-        chess_set.emplace<GE::MeshComponent>(GE::AssetManager::shared().getMesh(RESSOURCES_DIR"/chess_set/chess_set.gltf"));
+        chess_set.emplace<GE::MeshComponent>(GE::AssetManager::shared().loadMesh(RESSOURCES_DIR"/chess_set/chess_set.gltf"));
         chess_set.scale() = {5, 5, 5};
 
         cube.pushChild(chess_set);

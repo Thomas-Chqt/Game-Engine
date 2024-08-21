@@ -44,14 +44,6 @@ public:
         float intentsity;
     };
 
-    struct Vertex
-    {
-        math::vec3f pos;
-        math::vec2f uv;
-        math::vec3f normal;
-        math::vec3f tangent;
-    };
-
 public:
     Renderer();
     Renderer(const Renderer&) = delete;

@@ -1,19 +1,19 @@
 /*
  * ---------------------------------------------------
- * AssetManager.cpp
+ * MeshLoading.cpp
  *
  * Author: Thomas Choquet <semoir.dense-0h@icloud.com>
- * Date: 2024/08/13 12:00:28
+ * Date: 2024/08/20 15:07:14
  * ---------------------------------------------------
  */
 
+#include "GPURessourceManager.hpp"
 #include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Mesh.hpp"
-#include "Math/Matrix.hpp"
-#include "GPURessourceManager.hpp"
+#include "Game-Engine/Vertex.hpp"
 #include "Renderer/Renderer.hpp"
+#include "UtilsCPP/Dictionary.hpp"
 #include "UtilsCPP/RuntimeError.hpp"
-#include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/String.hpp"
 #include "assimp/Importer.hpp"
 #include "assimp/postprocess.h"
@@ -33,17 +33,12 @@
 namespace GE
 {
 
-Mesh AssetManager::getMesh(const utils::String& filepath)
-{
-    using Iterator = utils::Dictionary<utils::String, Mesh>::Iterator;
-    Iterator it = m_cachedMeshes.find(filepath);
-    if (it == m_cachedMeshes.end())
-        it = m_cachedMeshes.insert(filepath, loadMesh(filepath));
-    return it->val;
-}
-
 Mesh AssetManager::loadMesh(const utils::String& filepath)
 {
+    utils::Dictionary<utils::String, Mesh>::Iterator it = m_cachedMeshes.find(filepath);
+    if (it != m_cachedMeshes.end())
+        return it->val;
+
     Assimp::Importer importer;
 
     const aiScene* scene = importer.ReadFile(filepath, POST_PROCESSING_FLAGS);
@@ -61,9 +56,9 @@ Mesh AssetManager::loadMesh(const utils::String& filepath)
         newSubMesh.name = aiMesh->mName.C_Str();
 
         gfx::Buffer::Descriptor bufferDescriptor;
-        bufferDescriptor.size = aiMesh->mNumVertices * sizeof(Renderer::Vertex);
+        bufferDescriptor.size = aiMesh->mNumVertices * sizeof(Vertex);
         newSubMesh.vertexBuffer = GPURessourceManager::shared().newBuffer(bufferDescriptor);
-        auto* vertices = (Renderer::Vertex*)newSubMesh.vertexBuffer->mapContent();
+        auto* vertices = (Vertex*)newSubMesh.vertexBuffer->mapContent();
 
         bufferDescriptor.size = aiMesh->mNumFaces * 3UL * sizeof(utils::uint32);
         newSubMesh.indexBuffer = GPURessourceManager::shared().newBuffer(bufferDescriptor);
@@ -117,7 +112,7 @@ Mesh AssetManager::loadMesh(const utils::String& filepath)
         allMeshes.append(newSubMesh);
     }
 
-    Mesh output;
+    Mesh newMesh;
 
     utils::Func<void(aiNode*, math::mat4x4)> addNode = [&](aiNode* aiNode, math::mat4x4 additionalTransform) {
 
@@ -132,22 +127,29 @@ Mesh AssetManager::loadMesh(const utils::String& filepath)
         {
             SubMesh& subMesh = allMeshes[aiNode->mMeshes[i]];
             subMesh.transform = transform;
-            output.subMeshes.append(subMesh);
+            newMesh.subMeshes.append(subMesh);
         }
 
         for (utils::uint32 i = 0; i < aiNode->mNumChildren; i++)
             addNode(aiNode->mChildren[i], transform);
     };
 
-    output.name = scene->mRootNode->mName.C_Str();
+    newMesh.name = scene->mRootNode->mName.C_Str();
 
     for (utils::uint32 i = 0; i < scene->mRootNode->mNumMeshes; i++)
-        output.subMeshes.append(allMeshes[scene->mRootNode->mMeshes[i]]);
+        newMesh.subMeshes.append(allMeshes[scene->mRootNode->mMeshes[i]]);
 
     for (utils::uint32 i = 0; i < scene->mRootNode->mNumChildren; i++)
         addNode(scene->mRootNode->mChildren[i], math::mat4x4(1.0F));
 
-    return output;
+    m_cachedMeshes.insert(filepath, newMesh);
+
+    return newMesh;
+}
+
+void AssetManager::unloadMesh(const utils::String &filepath)
+{
+    m_cachedMeshes.remove(filepath);
 }
 
 }

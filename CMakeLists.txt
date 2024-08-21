@@ -64,7 +64,12 @@ set(ASSIMP_BUILD_FBX_IMPORTER ON)
 set(ASSIMP_BUILD_GLTF_IMPORTER ON)
 FetchContent_MakeAvailable(assimp)
 set_target_properties(assimp PROPERTIES FOLDER "dependencies")
-target_link_libraries(Game-Engine PRIVATE Graphics assimp)
+
+FetchContent_Declare(stb_image GIT_REPOSITORY https://github.com/Thomas-Chqt/stb_image.git GIT_TAG master)
+FetchContent_MakeAvailable(stb_image)
+set_target_properties(stb_image PROPERTIES FOLDER "dependencies")
+
+target_link_libraries(Game-Engine PRIVATE Graphics assimp stb_image)
 
 if(GE_BUILD_METAL)
     add_custom_target(MTLShaderLib DEPENDS ${MTL_SHADER_LIB})
