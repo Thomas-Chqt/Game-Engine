@@ -11,6 +11,7 @@
 #define ENGINE_HPP
 
 #include "Graphics/Event.hpp"
+#include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 
 namespace GE
@@ -32,6 +33,8 @@ public:
 
     virtual void runGame(utils::UniquePtr<Game>&&) = 0;
     virtual void terminateGame() = 0;
+
+    virtual const utils::Set<int>& pressedKeys() = 0;
 
     virtual ~Engine() = default;
 

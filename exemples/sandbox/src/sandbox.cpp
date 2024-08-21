@@ -13,7 +13,6 @@
 #include "Game-Engine/Engine.hpp"
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Game.hpp"
-#include "Game-Engine/Inputs.hpp"
 #include "Graphics/Event.hpp"
 #include "Graphics/KeyCodes.hpp"
 #include "Math/Vector.hpp"
@@ -40,7 +39,7 @@ public:
     {
         GE::TransformComponent& transformComponent = get<GE::TransformComponent>();    
         math::vec3f dir = { 0.0, 0.0, 0.0 };
-        for (const auto& key : GE::Inputs::pressedKeys())
+        for (const auto& key : GE::Engine::shared().pressedKeys())
         {
             switch (key)
             {

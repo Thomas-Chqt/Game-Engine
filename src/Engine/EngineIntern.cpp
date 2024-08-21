@@ -15,7 +15,6 @@
 #include "Graphics/GraphicAPI.hpp"
 #include "Graphics/Platform.hpp"
 #include "GPURessourceManager.hpp"
-#include "InputManager.hpp"
 #include "Renderer/Renderer.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
@@ -63,7 +62,6 @@ void EngineIntern::runGame(utils::UniquePtr<Game>&& game)
 EngineIntern::~EngineIntern()
 {
     AssetManager::terminate();
-    InputManager::terminate();
 
     Renderer::terminate();
 
@@ -86,12 +84,20 @@ EngineIntern::EngineIntern()
     Renderer::init();
     Renderer::shared().setOnImGuiRender(utils::Func<void()>(*this, &EngineIntern::onImGuiRender));
 
-    InputManager::init();
     AssetManager::init();
 }
 
 void EngineIntern::onEvent(gfx::Event& event)
 {
+    event.dispatch<gfx::KeyDownEvent>([&](gfx::KeyDownEvent& event) {
+        if (event.isRepeat() == false)
+            m_pressedKeys.insert(event.keyCode());
+    });
+    
+    event.dispatch<gfx::KeyUpEvent>([&](gfx::KeyUpEvent& event) {
+        m_pressedKeys.remove(m_pressedKeys.find(event.keyCode()));
+    });
+
     assert(m_game);
     m_game->onEvent(event);
 }
