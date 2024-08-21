@@ -37,8 +37,6 @@ public:
 
     void editorForGame(utils::UniquePtr<Game>&&) override;
 
-    inline const utils::Set<int>& pressedKeys() override { return m_pressedKeys; }
-
     ~EngineIntern() override;
 
 private:
@@ -69,8 +67,6 @@ private:
 
     bool m_gameRunning = false;
     bool m_editorRunning = false;
-
-    utils::Set<int> m_pressedKeys;
 
     // Editor
     Entity m_selectedEntity;

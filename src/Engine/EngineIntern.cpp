@@ -20,6 +20,7 @@
 #include "Graphics/Texture.hpp"
 #include "Math/Constants.hpp"
 #include "Math/Vector.hpp"
+#include "Game-Engine/InputManager.hpp"
 #include "Renderer/Renderer.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
@@ -107,6 +108,7 @@ void EngineIntern::editorForGame(utils::UniquePtr<Game>&& game)
 
 EngineIntern::~EngineIntern()
 {
+    InputManager::terminate();
     AssetManager::terminate();
 
     Renderer::terminate();
@@ -130,21 +132,13 @@ EngineIntern::EngineIntern()
     Renderer::init();
 
     AssetManager::init();
+    InputManager::init();
 
     m_viewportPanelSize = {800, 600};
 }
 
 void EngineIntern::onEvent(gfx::Event& event)
 {
-    event.dispatch<gfx::KeyDownEvent>([&](gfx::KeyDownEvent& event) {
-        if (event.isRepeat() == false)
-            m_pressedKeys.insert(event.keyCode());                     
-    });
-    
-    event.dispatch<gfx::KeyUpEvent>([&](gfx::KeyUpEvent& event) {
-        m_pressedKeys.remove(m_pressedKeys.find(event.keyCode()));
-    });
-
     if (m_gameRunning)
         m_game->onEvent(event);
 }
@@ -165,7 +159,7 @@ void EngineIntern::onImGuiRender()
 void EngineIntern::updateEditorCamera()
 {
     math::vec3f dir = { 0.0, 0.0, 0.0 };
-    for (const auto& key : GE::Engine::shared().pressedKeys())
+    for (const auto& key : InputManager::shared().pressedKeys())
     {
         switch (key)
         {
