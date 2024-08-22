@@ -11,6 +11,7 @@
 #define RENDERER_HPP
 
 #include "Graphics/Buffer.hpp"
+#include "Graphics/FrameBuffer.hpp"
 #include "Graphics/GraphicAPI.hpp"
 #include "Graphics/Window.hpp"
 #include "Math/Matrix.hpp"
@@ -64,6 +65,7 @@ public:
     inline void setOnImGuiRender(const utils::Func<void(void)>& f) { m_onImGuiRender = f; }
 
     void beginScene(const Renderer::Camera&, const gfx::Window&);
+    void beginScene(const Renderer::Camera&, const utils::SharedPtr<gfx::FrameBuffer>&);
 
     void addRenderable(const Renderer::Renderable&);
     void addPointLight(const Renderer::PointLight&);
@@ -90,13 +92,15 @@ private:
 
     gfx::GraphicAPI& m_graphicAPI;
 
+    utils::SharedPtr<gfx::FrameBuffer> m_frameBuffer;
+
     gfx::BufferInstance<math::mat4x4> m_vpMatrix;
     gfx::BufferInstance<LightsBuffer> m_lightsBuffer;
 
     utils::Array<Renderable> m_renderables;
 
     utils::Func<void(void)> m_onImGuiRender;
-    
+
 public:
     Renderer& operator = (const Renderer&) = delete;
     Renderer& operator = (Renderer&&)      = delete;

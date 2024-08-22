@@ -12,7 +12,9 @@
 
 #include "Game-Engine/Engine.hpp"
 #include "Game-Engine/Entity.hpp"
+#include "Graphics/FrameBuffer.hpp"
 #include "Graphics/Window.hpp"
+#include "Math/Vector.hpp"
 #include "Renderer/Renderer.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
@@ -31,7 +33,9 @@ public:
     inline gfx::Window& mainWindow() override { return *m_mainWindow; }
 
     void runGame(utils::UniquePtr<Game>&&) override;
-    inline void terminateGame() override { m_running = false; }
+    inline void terminateGame() override { m_gameRunning = false; }
+
+    void editorForGame(utils::UniquePtr<Game>&&) override;
 
     inline const utils::Set<int>& pressedKeys() override { return m_pressedKeys; }
 
@@ -47,19 +51,30 @@ private:
 
     void onEvent(gfx::Event& event);
     void onImGuiRender();
+    void drawViewportPanel();
     void drawSceneGraphWindow();
     void drawEntityInspectorWindow();
+
+    void updateEditorCamera();
+    Renderer::Camera getEditorCamera();
 
     utils::SharedPtr<gfx::Window> m_mainWindow;
 
     utils::UniquePtr<Game> m_game;
 
-    bool m_running = false;
+    bool m_gameRunning = false;
+    bool m_editorRunning = false;
 
     utils::Set<int> m_pressedKeys;
 
     // Editor
     Entity m_selectedEntity;
+
+    math::vec3f m_editorCameraPos;
+    math::vec3f m_editorCameraRot;
+
+    math::vec2f m_viewportPanelSize;
+    utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
 
 public:
     EngineIntern& operator = (const EngineIntern&) = delete;

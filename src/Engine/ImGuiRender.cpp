@@ -11,8 +11,11 @@
 #include "Engine/EngineIntern.hpp"
 #include "Game-Engine/Components.hpp"
 #include "Game-Engine/Game.hpp" // IWYU pragma: keep
+#include "Graphics/Texture.hpp"
 #include "Math/Constants.hpp"
 #include "ECS/InternalComponents.hpp"
+#include "UtilsCPP/SharedPtr.hpp"
+#include "imgui/imgui.h"
 #include <cstring>
 
 namespace GE
@@ -20,15 +23,27 @@ namespace GE
 
 void EngineIntern::onImGuiRender()
 {
+    ImGui::DockSpaceOverViewport();
+    
     if (ImGui::Begin("FPS"))
         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
     ImGui::End();
 
     drawSceneGraphWindow();
     drawEntityInspectorWindow();
+    if (m_viewportFBuff)
+        drawViewportPanel();
 
-    assert(m_game);
-    m_game->onImGuiRender();
+    if (m_gameRunning)
+        m_game->onImGuiRender();
+}
+
+void EngineIntern::drawViewportPanel()
+{
+    ImGui::Begin("viewport");
+    // utils::SharedPtr<gfx::Texture> colorTexture = m_viewportFBuff->colorTexture();
+    // ImGui::Image((void*)(gfx::Texture*)colorTexture, ImVec2(colorTexture->width(), colorTexture->height()));
+    ImGui::End();
 }
 
 void EngineIntern::drawSceneGraphWindow()

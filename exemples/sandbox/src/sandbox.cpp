@@ -120,7 +120,8 @@ int main()
 {
     GE::Engine::init();
 
-    GE::Engine::shared().runGame(utils::makeUnique<Sandbox>().staticCast<GE::Game>());
+    // GE::Engine::shared().runGame(utils::makeUnique<Sandbox>().staticCast<GE::Game>());
+    GE::Engine::shared().editorForGame(utils::makeUnique<Sandbox>().staticCast<GE::Game>());
 
     GE::Engine::terminate();
 }

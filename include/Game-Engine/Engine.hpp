@@ -34,6 +34,8 @@ public:
     virtual void runGame(utils::UniquePtr<Game>&&) = 0;
     virtual void terminateGame() = 0;
 
+    virtual void editorForGame(utils::UniquePtr<Game>&&) = 0;
+
     virtual const utils::Set<int>& pressedKeys() = 0;
 
     virtual ~Engine() = default;

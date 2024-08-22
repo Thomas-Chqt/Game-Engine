@@ -8,6 +8,7 @@
  */
 
 #include "Renderer/Renderer.hpp"
+#include "Graphics/Enums.hpp"
 #include "Graphics/GraphicAPI.hpp"
 #include "Graphics/GraphicPipeline.hpp"
 #include "Graphics/Window.hpp"
@@ -60,8 +61,29 @@ static utils::SharedPtr<gfx::GraphicPipeline> makeGraphicPipeline()
 
 void Renderer::beginScene(const Renderer::Camera& cam, const gfx::Window& win)
 {
+    m_frameBuffer.clear();
+
     utils::uint32 w, h;
     win.getWindowSize(&w, &h);
+    math::mat4x4 projectionMatrix = cam.projectionMatrix;
+    projectionMatrix[0][0] /= (float)w / (float)h;
+
+    m_vpMatrix.map();
+    m_vpMatrix.content() = projectionMatrix * cam.viewMatrix;
+    m_vpMatrix.unmap();
+
+    m_lightsBuffer.map();
+    m_lightsBuffer.content().pointLightCount = 0;
+
+    m_renderables.clear();
+}
+
+void Renderer::beginScene(const Renderer::Camera& cam, const utils::SharedPtr<gfx::FrameBuffer>& fBuff)
+{
+    m_frameBuffer = fBuff;
+
+    utils::uint32 w = fBuff->colorTexture()->width();
+    utils::uint32 h = fBuff->colorTexture()->height();
     math::mat4x4 projectionMatrix = cam.projectionMatrix;
     projectionMatrix[0][0] /= (float)w / (float)h;
 
@@ -94,7 +116,12 @@ void Renderer::endScene()
 void Renderer::render()
 {
     m_graphicAPI.beginFrame();
-    m_graphicAPI.beginImguiRenderPass();
+
+    m_graphicAPI.setLoadAction(gfx::LoadAction::clear);
+    if (m_frameBuffer)
+        m_graphicAPI.beginRenderPass(m_frameBuffer);
+    else
+        m_graphicAPI.beginRenderPass();
 
     m_graphicAPI.useGraphicsPipeline(gfxPipeline);
 
@@ -109,10 +136,16 @@ void Renderer::render()
         m_graphicAPI.drawIndexedVertices(renderable.indexBuffer);
     }
 
-    if (m_onImGuiRender)
-        m_onImGuiRender();
-
     m_graphicAPI.endRenderPass();
+
+    if (m_onImGuiRender)
+    {
+        m_graphicAPI.setLoadAction(gfx::LoadAction::load);
+        m_graphicAPI.beginImguiRenderPass();
+        m_onImGuiRender();
+        m_graphicAPI.endRenderPass();
+    }
+
     m_graphicAPI.endFrame();
 }
 
