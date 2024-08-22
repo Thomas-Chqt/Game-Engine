@@ -202,19 +202,32 @@ Renderer::Camera EngineIntern::getEditorCamera()
 
 void EngineIntern::updateVPFrameBuff()
 {
+    float xScale, yScale;
+    m_mainWindow->getFrameBufferScaleFactor(&xScale, &yScale);
+
+    math::vec2f viewportPanelfBuffSize = math::vec2f(
+        (m_viewportPanelSize.x == 0 ? 1 : m_viewportPanelSize.x) * xScale,
+        (m_viewportPanelSize.y == 0 ? 1 : m_viewportPanelSize.y) * yScale
+    );
+    
     if (m_viewportFBuff)
     {
         utils::SharedPtr<gfx::Texture> fbColorTex = m_viewportFBuff->colorTexture();
-        if (fbColorTex->height() == m_viewportPanelSize.y && fbColorTex->width() == m_viewportPanelSize.x)
+        if (fbColorTex->height() == viewportPanelfBuffSize.y && fbColorTex->width() == viewportPanelfBuffSize.x)
             return;
     }
-    float xScale, yScale;
-    m_mainWindow->getFrameBufferScaleFactor(&xScale, &yScale);
-    math::vec2f fBuffSize = math::vec2f(m_viewportPanelSize.x * xScale, m_viewportPanelSize.y * yScale);
+
+    gfx::Texture::Descriptor colorTextureDescriptor;
+    colorTextureDescriptor.width = viewportPanelfBuffSize.x;
+    colorTextureDescriptor.height = viewportPanelfBuffSize.y;
+    colorTextureDescriptor.pixelFormat = gfx::PixelFormat::BGRA;
+    colorTextureDescriptor.usage = gfx::Texture::Usage::ShaderReadAndRenderTarget;
+    
+    gfx::Texture::Descriptor depthTextureDescriptor = gfx::Texture::Descriptor::depthTextureDescriptor(viewportPanelfBuffSize.x, viewportPanelfBuffSize.y);
 
     gfx::FrameBuffer::Descriptor fBuffDesc;
-    fBuffDesc.colorTexture = GPURessourceManager::shared().newTexture(gfx::Texture::Descriptor::texture2dDescriptor(fBuffSize.x, fBuffSize.y));
-    fBuffDesc.depthTexture = GPURessourceManager::shared().newTexture(gfx::Texture::Descriptor::depthTextureDescriptor(fBuffSize.x, fBuffSize.y));
+    fBuffDesc.colorTexture = GPURessourceManager::shared().newTexture(colorTextureDescriptor);
+    fBuffDesc.depthTexture = GPURessourceManager::shared().newTexture(depthTextureDescriptor);
     m_viewportFBuff = GPURessourceManager::shared().newFrameBuffer(fBuffDesc);
 }
 
