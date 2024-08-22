@@ -14,10 +14,9 @@
 #include "Graphics/Texture.hpp"
 #include "Math/Constants.hpp"
 #include "ECS/InternalComponents.hpp"
+#include "Math/Vector.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
-#include "UtilsCPP/Types.hpp"
 #include "imgui/imgui.h"
-#include <X11/Xutil.h>
 #include <cstring>
 
 namespace GE
@@ -26,12 +25,10 @@ namespace GE
 void EngineIntern::drawViewportPanel()
 {
     ImGui::Begin("viewport");
+    ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+    m_viewportPanelSize = math::vec2f(viewportSize.x, viewportSize.y);
     utils::SharedPtr<gfx::Texture> colorTexture = m_viewportFBuff->colorTexture();
-    utils::byte* data = (utils::byte*)operator new (colorTexture->width() * colorTexture->height());
-    std::memset(data, 255, colorTexture->width() * colorTexture->height());
-    colorTexture->replaceRegion(gfx::Texture::Region{0, 0, 100, 100}, data);
-    ImGui::Image(colorTexture->imguiTextureId(), ImVec2(colorTexture->width(), colorTexture->height()));
-    operator delete (data);
+    ImGui::Image(colorTexture->imguiTextureId(), viewportSize);
     ImGui::End();
 }
 
@@ -147,6 +144,13 @@ void EngineIntern::drawEntityInspectorPanel()
             ImGui::PopItemWidth();
         }
     }
+    ImGui::End();
+}
+
+void EngineIntern::drawFPSPanel()
+{
+    if (ImGui::Begin("FPS"))
+        ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
     ImGui::End();
 }
 

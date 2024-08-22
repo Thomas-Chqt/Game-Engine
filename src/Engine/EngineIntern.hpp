@@ -55,6 +55,7 @@ private:
     void drawViewportPanel();
     void drawSceneGraphPanel();
     void drawEntityInspectorPanel();
+    void drawFPSPanel();
 
     // Systems
     void scriptSystem();

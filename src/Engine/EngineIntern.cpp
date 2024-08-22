@@ -19,6 +19,7 @@
 #include "GPURessourceManager.hpp"
 #include "Graphics/Texture.hpp"
 #include "Math/Constants.hpp"
+#include "Math/Vector.hpp"
 #include "Renderer/Renderer.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
@@ -71,11 +72,9 @@ void EngineIntern::editorForGame(utils::UniquePtr<Game>&& game)
     m_game = std::move(game);
 
     Renderer::shared().setOnImGuiRender(utils::Func<void()>(*this, &EngineIntern::onImGuiRender));
-    gfx::Platform::shared().addEventCallBack([&](gfx::Event& event){
-        event.dispatch<gfx::KeyDownEvent>([&](gfx::KeyDownEvent& keyDownEvent){
-            if (keyDownEvent.keyCode() == ESC_KEY)
-                m_editorRunning = false;
-        });
+    gfx::Platform::shared().addEventCallBack([&](gfx::Event& event) {
+        event.dispatch<gfx::KeyDownEvent>([&](gfx::KeyDownEvent& keyDownEvent) { if (keyDownEvent.keyCode() == ESC_KEY) m_editorRunning = false; });
+        event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& windowRequestCloseEvent) { m_editorRunning = false; });
     }, EDITOR_EVENT_CALLBACK_ID);
 
     m_editorRunning = true;
@@ -123,7 +122,7 @@ EngineIntern::EngineIntern()
     gfx::Platform::init();
     gfx::Platform::shared().addEventCallBack(utils::Func<void(gfx::Event&)>(*this, &EngineIntern::onEvent), this);
 
-    m_mainWindow = gfx::Platform::shared().newWindow(800, 600);
+    m_mainWindow = gfx::Platform::shared().newWindow(1280, 720);
     utils::SharedPtr<gfx::GraphicAPI> graphicAPI = gfx::Platform::shared().newGraphicAPI(m_mainWindow);
     graphicAPI->initImgui();
     GPURessourceManager::init(graphicAPI);
@@ -131,6 +130,8 @@ EngineIntern::EngineIntern()
     Renderer::init();
 
     AssetManager::init();
+
+    m_viewportPanelSize = {800, 600};
 }
 
 void EngineIntern::onEvent(gfx::Event& event)
@@ -152,13 +153,10 @@ void EngineIntern::onImGuiRender()
 {
     ImGui::DockSpaceOverViewport();
     
-    if (ImGui::Begin("FPS"))
-        ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-    ImGui::End();
-
     drawViewportPanel();
     drawSceneGraphPanel();
     drawEntityInspectorPanel();
+    drawFPSPanel();
 
     if (m_gameRunning)
         m_game->onImGuiRender();
@@ -210,12 +208,14 @@ void EngineIntern::updateVPFrameBuff()
         if (fbColorTex->height() == m_viewportPanelSize.y && fbColorTex->width() == m_viewportPanelSize.x)
             return;
     }
-    gfx::FrameBuffer::Descriptor fBuffDesc;
-    fBuffDesc.colorTexture = GPURessourceManager::shared().newTexture(gfx::Texture::Descriptor::texture2dDescriptor(800, 600));
-    fBuffDesc.depthTexture = GPURessourceManager::shared().newTexture(gfx::Texture::Descriptor::depthTextureDescriptor(800, 600));
-    m_viewportFBuff = GPURessourceManager::shared().newFrameBuffer(fBuffDesc);
+    float xScale, yScale;
+    m_mainWindow->getFrameBufferScaleFactor(&xScale, &yScale);
+    math::vec2f fBuffSize = math::vec2f(m_viewportPanelSize.x * xScale, m_viewportPanelSize.y * yScale);
 
-    m_viewportPanelSize = {800, 600};
+    gfx::FrameBuffer::Descriptor fBuffDesc;
+    fBuffDesc.colorTexture = GPURessourceManager::shared().newTexture(gfx::Texture::Descriptor::texture2dDescriptor(fBuffSize.x, fBuffSize.y));
+    fBuffDesc.depthTexture = GPURessourceManager::shared().newTexture(gfx::Texture::Descriptor::depthTextureDescriptor(fBuffSize.x, fBuffSize.y));
+    m_viewportFBuff = GPURessourceManager::shared().newFrameBuffer(fBuffDesc);
 }
 
 }
