@@ -1,6 +1,6 @@
 /*
  * ---------------------------------------------------
- * ImGuiRender.cpp
+ * ImGuiPanels.cpp
  *
  * Author: Thomas Choquet <semoir.dense-0h@icloud.com>
  * Date: 2024/08/15 15:18:37
@@ -15,38 +15,27 @@
 #include "Math/Constants.hpp"
 #include "ECS/InternalComponents.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
+#include "UtilsCPP/Types.hpp"
 #include "imgui/imgui.h"
+#include <X11/Xutil.h>
 #include <cstring>
 
 namespace GE
 {
 
-void EngineIntern::onImGuiRender()
-{
-    ImGui::DockSpaceOverViewport();
-    
-    if (ImGui::Begin("FPS"))
-        ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-    ImGui::End();
-
-    drawSceneGraphWindow();
-    drawEntityInspectorWindow();
-    if (m_viewportFBuff)
-        drawViewportPanel();
-
-    if (m_gameRunning)
-        m_game->onImGuiRender();
-}
-
 void EngineIntern::drawViewportPanel()
 {
     ImGui::Begin("viewport");
-    // utils::SharedPtr<gfx::Texture> colorTexture = m_viewportFBuff->colorTexture();
-    // ImGui::Image((void*)(gfx::Texture*)colorTexture, ImVec2(colorTexture->width(), colorTexture->height()));
+    utils::SharedPtr<gfx::Texture> colorTexture = m_viewportFBuff->colorTexture();
+    utils::byte* data = (utils::byte*)operator new (colorTexture->width() * colorTexture->height());
+    std::memset(data, 255, colorTexture->width() * colorTexture->height());
+    colorTexture->replaceRegion(gfx::Texture::Region{0, 0, 100, 100}, data);
+    ImGui::Image(colorTexture->imguiTextureId(), ImVec2(colorTexture->width(), colorTexture->height()));
+    operator delete (data);
     ImGui::End();
 }
 
-void EngineIntern::drawSceneGraphWindow()
+void EngineIntern::drawSceneGraphPanel()
 {
     utils::Func<void(Entity)> sceneGraphEntityRow = [&](Entity entity) {
         bool node_open = false;
@@ -87,7 +76,7 @@ void EngineIntern::drawSceneGraphWindow()
     ImGui::End();
 }
 
-void EngineIntern::drawEntityInspectorWindow()
+void EngineIntern::drawEntityInspectorPanel()
 {
     if (ImGui::Begin("Entity inspector"))
     {

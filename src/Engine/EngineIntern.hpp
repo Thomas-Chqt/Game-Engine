@@ -44,19 +44,23 @@ public:
 private:
     EngineIntern();
 
+    void onEvent(gfx::Event& event);
+    void onImGuiRender();
+
+    void updateEditorCamera();
+    Renderer::Camera getEditorCamera();
+    void updateVPFrameBuff();
+
+    // ImGuiPanels
+    void drawViewportPanel();
+    void drawSceneGraphPanel();
+    void drawEntityInspectorPanel();
+
+    // Systems
     void scriptSystem();
     Renderer::Camera getActiveCameraSystem();
     void addLightsSystem();
     void addRenderableSystem();
-
-    void onEvent(gfx::Event& event);
-    void onImGuiRender();
-    void drawViewportPanel();
-    void drawSceneGraphWindow();
-    void drawEntityInspectorWindow();
-
-    void updateEditorCamera();
-    Renderer::Camera getEditorCamera();
 
     utils::SharedPtr<gfx::Window> m_mainWindow;
 
