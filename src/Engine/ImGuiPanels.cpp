@@ -28,7 +28,7 @@ void EngineIntern::drawViewportPanel()
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
     m_viewportPanelSize = math::vec2f(viewportSize.x, viewportSize.y);
     utils::SharedPtr<gfx::Texture> colorTexture = m_viewportFBuff->colorTexture();
-    ImGui::Image(colorTexture->imguiTextureId(), viewportSize);
+    ImGui::Image(colorTexture->imguiTextureId(), viewportSize, colorTexture->imguiUV0(), colorTexture->imguiUV1());
     ImGui::End();
 }
 
