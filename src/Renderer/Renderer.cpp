@@ -123,14 +123,14 @@ void Renderer::render()
     else
         m_graphicAPI.beginRenderPass();
 
-    m_graphicAPI.useGraphicsPipeline(gfxPipeline);
+    m_graphicAPI.useGraphicsPipeline(m_gfxPipeline);
 
-    m_graphicAPI.setVertexBuffer(m_vpMatrix.buffer(), gfxPipeline->getVertexBufferIndex("vpMatrixBuffer"));
-    m_graphicAPI.setFragmentBuffer(m_lightsBuffer.buffer(), gfxPipeline->getFragmentBufferIndex("lightsBuffer"));
+    m_graphicAPI.setVertexBuffer(m_vpMatrix.buffer(), m_gfxPipeline->getVertexBufferIndex("vpMatrixBuffer"));
+    m_graphicAPI.setFragmentBuffer(m_lightsBuffer.buffer(), m_gfxPipeline->getFragmentBufferIndex("lightsBuffer"));
 
     for (auto& renderable : m_renderables)
     {
-        m_graphicAPI.setVertexBuffer(renderable.modelMatrix, gfxPipeline->getVertexBufferIndex("modelMatrixBuffer"));
+        m_graphicAPI.setVertexBuffer(renderable.modelMatrix, m_gfxPipeline->getVertexBufferIndex("modelMatrixBuffer"));
 
         m_graphicAPI.setVertexBuffer(renderable.vertexBuffer, 0);
         m_graphicAPI.drawIndexedVertices(renderable.indexBuffer);
@@ -153,7 +153,7 @@ Renderer::Renderer() : m_graphicAPI(GPURessourceManager::shared().graphicAPI())
 {
     m_vpMatrix.alloc(m_graphicAPI);
     m_lightsBuffer.alloc(m_graphicAPI);
-    gfxPipeline = makeGraphicPipeline();
+    m_gfxPipeline = makeGraphicPipeline();
 }
 
 }

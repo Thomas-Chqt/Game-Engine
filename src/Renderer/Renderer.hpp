@@ -88,7 +88,7 @@ private:
 
     static inline utils::UniquePtr<Renderer> s_sharedInstance;
 
-    utils::SharedPtr<gfx::GraphicPipeline> gfxPipeline;
+    utils::SharedPtr<gfx::GraphicPipeline> m_gfxPipeline;
 
     gfx::GraphicAPI& m_graphicAPI;
 
