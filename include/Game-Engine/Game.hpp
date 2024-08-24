@@ -29,7 +29,8 @@ public:
     inline virtual void onSetup() {}
     inline virtual void onUpdate() {}
 
-    virtual void onEvent(gfx::Event&);
+    virtual void onWindowResizeEvent(gfx::WindowResizeEvent&) {}
+    virtual void onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&);
     virtual void onImGuiRender() {};
 
     virtual ~Game() = default;

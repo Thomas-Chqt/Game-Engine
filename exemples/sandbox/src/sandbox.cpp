@@ -14,7 +14,6 @@
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Game.hpp"
 #include "Game-Engine/InputManager.hpp"
-#include "Graphics/Event.hpp"
 #include "Graphics/KeyCodes.hpp"
 #include "Math/Vector.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
@@ -104,16 +103,6 @@ public:
     void onSetup() override
     {
         std::cout << "Game setup" << std::endl;
-    }
-
-    void onEvent(gfx::Event& event) override
-    {
-        if (event.dispatch<gfx::KeyDownEvent>([](gfx::KeyDownEvent& event) { 
-            if (event.keyCode() == ESC_KEY)
-                GE::Engine::shared().terminateGame();
-        })) return;
-
-        GE::Game::onEvent(event);
     }
 };
 

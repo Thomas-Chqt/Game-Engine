@@ -25,8 +25,14 @@ namespace GE
 void EngineIntern::drawViewportPanel()
 {
     ImGui::Begin("viewport");
+    
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-    m_viewportPanelSize = math::vec2f(viewportSize.x, viewportSize.y);
+    viewportSize.x = viewportSize.x == 0 ? 1 : viewportSize.x;
+    viewportSize.y = viewportSize.y == 0 ? 1 : viewportSize.y;
+    if (math::vec2f{viewportSize.x, viewportSize.y} != m_viewportPanelSize)
+        m_viewportPanelSizeIsDirty = true;
+    m_viewportPanelSize = math::vec2f{viewportSize.x, viewportSize.y};
+
     utils::SharedPtr<gfx::Texture> colorTexture = m_viewportFBuff->colorTexture();
     ImGui::Image(colorTexture->imguiTextureId(), viewportSize, colorTexture->imguiUV0(), colorTexture->imguiUV1());
     ImGui::End();

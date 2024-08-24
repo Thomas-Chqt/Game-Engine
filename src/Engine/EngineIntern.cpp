@@ -14,23 +14,20 @@
 #include "Graphics/Event.hpp"
 #include "Graphics/FrameBuffer.hpp"
 #include "Graphics/GraphicAPI.hpp"
-#include "Graphics/KeyCodes.hpp"
 #include "Graphics/Platform.hpp"
 #include "GPURessourceManager.hpp"
 #include "Graphics/Texture.hpp"
-#include "Math/Constants.hpp"
+#include "InputManager/InputManagerIntern.hpp"
 #include "Math/Vector.hpp"
-#include "Game-Engine/InputManager.hpp"
 #include "Renderer/Renderer.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
+#include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include <cassert>
 #include <cmath>
 #include <cstring>
 #include <utility>
-
-#define EDITOR_EVENT_CALLBACK_ID (void*)123
 
 namespace GE
 {
@@ -44,14 +41,15 @@ void EngineIntern::runGame(utils::UniquePtr<Game>&& game)
 {
     m_game = std::move(game);
 
-    Renderer::shared().setOnImGuiRender(utils::Func<void()>(*m_game, &Game::onImGuiRender));
-
     m_game->onSetup();
+    InputManagerIntern::shared().disableEditorInputs();
+    InputManagerIntern::shared().enableGameInputs();
 
     m_gameRunning = true;
     while (m_gameRunning)
     {
         gfx::Platform::shared().pollEvents();
+        InputManagerIntern::shared().dispatchInputs();
 
         m_game->onUpdate();
         scriptSystem();
@@ -72,29 +70,30 @@ void EngineIntern::editorForGame(utils::UniquePtr<Game>&& game)
 {
     m_game = std::move(game);
 
-    Renderer::shared().setOnImGuiRender(utils::Func<void()>(*this, &EngineIntern::onImGuiRender));
-    gfx::Platform::shared().addEventCallBack([&](gfx::Event& event) {
-        event.dispatch<gfx::KeyDownEvent>([&](gfx::KeyDownEvent& keyDownEvent) { if (keyDownEvent.keyCode() == ESC_KEY) m_editorRunning = false; });
-        event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& windowRequestCloseEvent) { m_editorRunning = false; });
-    }, EDITOR_EVENT_CALLBACK_ID);
+    m_editorCamera.setupFreeCam();
+    InputManagerIntern::shared().disableGameInputs();
+    InputManagerIntern::shared().enableEditorInputs();
 
     m_editorRunning = true;
     while (m_editorRunning)
     {
         gfx::Platform::shared().pollEvents();
+        InputManagerIntern::shared().dispatchInputs();
 
         if (m_gameRunning)
         {   
             m_game->onUpdate();
             scriptSystem();
         }
-        else
-            updateEditorCamera();
 
-        updateVPFrameBuff();
+        if (m_viewportPanelSizeIsDirty)
+        {
+            updateVPFrameBuff();
+            m_viewportPanelSizeIsDirty = false;
+        }        
 
         Renderer& renderer = Renderer::shared();
-        Renderer::Camera camera = m_gameRunning ? getActiveCameraSystem() : getEditorCamera();
+        Renderer::Camera camera = m_gameRunning ? getActiveCameraSystem() : m_editorCamera.getRendererCam();
         renderer.beginScene(camera, m_viewportFBuff);
         {
             addLightsSystem();
@@ -108,7 +107,7 @@ void EngineIntern::editorForGame(utils::UniquePtr<Game>&& game)
 
 EngineIntern::~EngineIntern()
 {
-    InputManager::terminate();
+    InputManagerIntern::terminate();
     AssetManager::terminate();
 
     Renderer::terminate();
@@ -130,68 +129,48 @@ EngineIntern::EngineIntern()
     GPURessourceManager::init(graphicAPI);
 
     Renderer::init();
+    Renderer::shared().setOnImGuiRender(utils::Func<void()>(*this, &EngineIntern::onImGuiRender));
 
     AssetManager::init();
-    InputManager::init();
-
-    m_viewportPanelSize = {800, 600};
+    InputManagerIntern::init();
 }
 
 void EngineIntern::onEvent(gfx::Event& event)
 {
-    if (m_gameRunning)
-        m_game->onEvent(event);
+    if (m_editorRunning)
+    {
+        if (event.dispatch<gfx::WindowResizeEvent>([&](gfx::WindowResizeEvent& windowResizeEvent){
+            //
+        })) return;
+        if (event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& windowRequestCloseEvent){
+            m_editorRunning = false;
+        })) return;
+    }
+    else
+    {
+        if (event.dispatch<gfx::WindowResizeEvent>([&](gfx::WindowResizeEvent& windowResizeEvent){
+            m_game->onWindowResizeEvent(windowResizeEvent);
+        })) return;
+        if (event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& windowRequestCloseEvent){
+            m_game->onWindowRequestCloseEvent(windowRequestCloseEvent);
+        })) return;
+    }
 }
 
 void EngineIntern::onImGuiRender()
 {
-    ImGui::DockSpaceOverViewport();
-    
-    drawViewportPanel();
-    drawSceneGraphPanel();
-    drawEntityInspectorPanel();
-    drawFPSPanel();
+    if (m_editorRunning)
+    {
+        ImGui::DockSpaceOverViewport();
+        
+        drawViewportPanel();
+        drawSceneGraphPanel();
+        drawEntityInspectorPanel();
+        drawFPSPanel();
+    }
 
     if (m_gameRunning)
         m_game->onImGuiRender();
-}
-
-void EngineIntern::updateEditorCamera()
-{
-    math::vec3f dir = { 0.0, 0.0, 0.0 };
-    for (const auto& key : InputManager::shared().pressedKeys())
-    {
-        switch (key)
-        {
-            case W_KEY: dir += math::vec3f{ 0, 0,  1}; break;
-            case A_KEY: dir += math::vec3f{-1, 0,  0}; break;
-            case S_KEY: dir += math::vec3f{ 0, 0, -1}; break;
-            case D_KEY: dir += math::vec3f{ 1, 0,  0}; break;
-
-            case UP_KEY:    m_editorCameraRot.x -= 0.05; break;
-            case LEFT_KEY:  m_editorCameraRot.y -= 0.05; break;
-            case DOWN_KEY:  m_editorCameraRot.x += 0.05; break;
-            case RIGHT_KEY: m_editorCameraRot.y += 0.05; break;
-        }
-    }
-    m_editorCameraPos += math::mat3x3::rotation(m_editorCameraRot) * dir.normalized() * 0.2;
-}
-
-Renderer::Camera EngineIntern::getEditorCamera()
-{
-    Renderer::Camera cam;
-
-    float zs = 10000.0F / (10000.0F - 0.01F);
-    float ys = 1.0F / std::tan((float)(60 * (PI / 180.0F)) * 0.5F);
-    float xs = ys; // (ys / aspectRatio)
-
-    cam.projectionMatrix = math::mat4x4(xs,  0,  0,           0,
-                                         0, ys,  0,           0,
-                                         0,  0, zs, -0.01F * zs,
-                                         0,  0,  1,           0);
-
-    cam.viewMatrix = (math::mat4x4::translation(m_editorCameraPos) * math::mat4x4::rotation(m_editorCameraRot)).inversed();
-    return cam;
 }
 
 void EngineIntern::updateVPFrameBuff()
@@ -199,25 +178,16 @@ void EngineIntern::updateVPFrameBuff()
     float xScale, yScale;
     m_mainWindow->getFrameBufferScaleFactor(&xScale, &yScale);
 
-    math::vec2f viewportPanelfBuffSize = math::vec2f(
-        (m_viewportPanelSize.x == 0 ? 1 : m_viewportPanelSize.x) * xScale,
-        (m_viewportPanelSize.y == 0 ? 1 : m_viewportPanelSize.y) * yScale
-    );
+    utils::uint32 newFrameBufferWidth = (utils::uint32)((float)m_viewportPanelSize.x * xScale);
+    utils::uint32 newFrameBufferHeight = (utils::uint32)((float)m_viewportPanelSize.y * yScale);
     
-    if (m_viewportFBuff)
-    {
-        utils::SharedPtr<gfx::Texture> fbColorTex = m_viewportFBuff->colorTexture();
-        if (fbColorTex->height() == viewportPanelfBuffSize.y && fbColorTex->width() == viewportPanelfBuffSize.x)
-            return;
-    }
-
     gfx::Texture::Descriptor colorTextureDescriptor;
-    colorTextureDescriptor.width = viewportPanelfBuffSize.x;
-    colorTextureDescriptor.height = viewportPanelfBuffSize.y;
+    colorTextureDescriptor.width = newFrameBufferWidth;
+    colorTextureDescriptor.height = newFrameBufferHeight;
     colorTextureDescriptor.pixelFormat = gfx::PixelFormat::BGRA;
     colorTextureDescriptor.usage = gfx::Texture::Usage::ShaderReadAndRenderTarget;
     
-    gfx::Texture::Descriptor depthTextureDescriptor = gfx::Texture::Descriptor::depthTextureDescriptor(viewportPanelfBuffSize.x, viewportPanelfBuffSize.y);
+    gfx::Texture::Descriptor depthTextureDescriptor = gfx::Texture::Descriptor::depthTextureDescriptor(newFrameBufferWidth, newFrameBufferHeight);
 
     gfx::FrameBuffer::Descriptor fBuffDesc;
     fBuffDesc.colorTexture = GPURessourceManager::shared().newTexture(colorTextureDescriptor);

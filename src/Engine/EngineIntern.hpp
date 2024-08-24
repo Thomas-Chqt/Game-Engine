@@ -10,6 +10,7 @@
 #ifndef EngineIntern_hpp
 #define EngineIntern_hpp
 
+#include "Engine/EditorCamera.hpp"
 #include "Game-Engine/Engine.hpp"
 #include "Game-Engine/Entity.hpp"
 #include "Graphics/FrameBuffer.hpp"
@@ -45,8 +46,6 @@ private:
     void onEvent(gfx::Event& event);
     void onImGuiRender();
 
-    void updateEditorCamera();
-    Renderer::Camera getEditorCamera();
     void updateVPFrameBuff();
 
     // ImGuiPanels
@@ -69,13 +68,12 @@ private:
     bool m_editorRunning = false;
 
     // Editor
+    EditorCamera m_editorCamera;
     Entity m_selectedEntity;
 
-    math::vec3f m_editorCameraPos;
-    math::vec3f m_editorCameraRot;
-
-    math::vec2f m_viewportPanelSize;
     utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
+    math::vec2f m_viewportPanelSize = {800, 600};
+    bool m_viewportPanelSizeIsDirty = true;
 
 public:
     EngineIntern& operator = (const EngineIntern&) = delete;

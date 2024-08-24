@@ -13,11 +13,9 @@
 namespace GE
 {
 
-void Game::onEvent(gfx::Event& event)
+void Game::onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&)
 {
-    if (event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& event) {
-        Engine::shared().terminateGame();
-    })) return;
+    Engine::shared().terminateGame();
 }
 
 }
