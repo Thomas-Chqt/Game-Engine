@@ -33,7 +33,7 @@ void Mapper<KeyboardButton, ActionInput>::onKeyDownEvent(gfx::KeyDownEvent& keyD
 {
     if (keyDownEvent.keyCode() == (int)m_button && keyDownEvent.isRepeat() == false)
     {
-        m_input.trigger();
+        m_input.triggered = true;
         keyDownEvent.markAsProcessed();
     }
 }
@@ -55,7 +55,7 @@ void Mapper<KeyboardButton, StateInput>::onKeyDownEvent(gfx::KeyDownEvent& keyDo
 {
     if (keyDownEvent.keyCode() == (int)m_button && keyDownEvent.isRepeat() == false)
     {
-        m_input.trigger();
+        m_input.triggered = true;
         keyDownEvent.markAsProcessed();
     }
 }
@@ -64,15 +64,15 @@ void Mapper<KeyboardButton, StateInput>::onKeyUpEvent(gfx::KeyUpEvent& keyUpEven
 {
     if (keyUpEvent.keyCode() == (int)m_button)
     {
-        m_input.unTrigger();
+        m_input.triggered = false;
         keyUpEvent.markAsProcessed();
     }
 }
 
 // KeyboardButton, RangeInput
 
-Mapper<KeyboardButton, RangeInput>::Mapper(KeyboardButton btn, RangeInput& ipt, float scale)
-    : m_button(btn), m_input(ipt), m_scale(scale)
+Mapper<KeyboardButton, RangeInput>::Mapper(const Descriptor& btn, RangeInput& ipt)
+    : m_button(btn.button),m_scale(btn.scale), m_input(ipt)
 {
 }
 
@@ -86,8 +86,8 @@ void Mapper<KeyboardButton, RangeInput>::onKeyDownEvent(gfx::KeyDownEvent& keyDo
 {
     if (keyDownEvent.keyCode() == (int)m_button && keyDownEvent.isRepeat() == false)
     {
-        m_input.setValue(m_scale);
-        m_input.trigger();
+        m_input.value = m_scale;
+        m_input.triggered = true;
         keyDownEvent.markAsProcessed();
     }
 }
@@ -96,16 +96,17 @@ void Mapper<KeyboardButton, RangeInput>::onKeyUpEvent(gfx::KeyUpEvent& keyUpEven
 {
     if (keyUpEvent.keyCode() == (int)m_button)
     {
-        m_input.unTrigger();
+        m_input.triggered = true;
         keyUpEvent.markAsProcessed();
     }
 }
 
 // KeyboardButton, Range2DInput
 
-Mapper<KeyboardButton, Range2DInput>::Mapper(const Descriptor& desc)
-    : m_xPos(desc.xPos), m_xNeg(desc.xNeg), m_yPos(desc.yPos), m_yNeg(desc.yNeg),
-      m_input(*desc.input), m_scale(desc.scale)
+Mapper<KeyboardButton, Range2DInput>::Mapper(const Descriptor& btn, Range2DInput& ipt)
+    : m_xPos(btn.xPos), m_xNeg(btn.xNeg), m_yPos(btn.yPos), m_yNeg(btn.yNeg),
+      m_scale(btn.scale),
+      m_input(ipt)
 {
 }
 
@@ -121,50 +122,42 @@ void Mapper<KeyboardButton, Range2DInput>::onKeyDownEvent(gfx::KeyDownEvent& key
         return;
 
     if (keyDownEvent.keyCode() == static_cast<int>(m_xPos))
-        m_input.setValue(m_input.value() + math::vec2f{m_scale.x, 0.0F});
+        m_input.value += math::vec2f{m_scale.x, 0.0F};
     else if (keyDownEvent.keyCode() == static_cast<int>(m_xNeg))
-        m_input.setValue(m_input.value() - math::vec2f{m_scale.x, 0.0F});
+        m_input.value -= math::vec2f{m_scale.x, 0.0F};
     else if (keyDownEvent.keyCode() == static_cast<int>(m_yPos))
-        m_input.setValue(m_input.value() + math::vec2f{0.0F, m_scale.y});
+        m_input.value += math::vec2f{0.0F, m_scale.y};
     else if (keyDownEvent.keyCode() == static_cast<int>(m_yNeg))
-        m_input.setValue(m_input.value() - math::vec2f{0.0F, m_scale.y});
+        m_input.value -= math::vec2f{0.0F, m_scale.y};
     
     if (keyDownEvent.keyCode() == static_cast<int>(m_xPos) ||
         keyDownEvent.keyCode() == static_cast<int>(m_xNeg) ||
         keyDownEvent.keyCode() == static_cast<int>(m_yPos) ||
         keyDownEvent.keyCode() == static_cast<int>(m_yNeg))
     {
+        m_input.triggered = m_input.value != math::vec2f{0.0F, 0.0F};
         keyDownEvent.markAsProcessed();
-
-        if (m_input.value() != math::vec2f{0,0})
-            m_input.trigger();
-        else
-            m_input.unTrigger();
     }
 }
 
 void Mapper<KeyboardButton, Range2DInput>::onKeyUpEvent(gfx::KeyUpEvent& keyUpEvent)
 {
     if (keyUpEvent.keyCode() == static_cast<int>(m_xPos))
-        m_input.setValue(m_input.value() - math::vec2f{m_scale.x, 0.0F});
+        m_input.value -= math::vec2f{m_scale.x, 0.0F};
     else if (keyUpEvent.keyCode() == static_cast<int>(m_xNeg))
-        m_input.setValue(m_input.value() + math::vec2f{m_scale.x, 0.0F});
+        m_input.value += math::vec2f{m_scale.x, 0.0F};
     else if (keyUpEvent.keyCode() == static_cast<int>(m_yPos))
-        m_input.setValue(m_input.value() - math::vec2f{0.0F, m_scale.y});
+        m_input.value -= math::vec2f{0.0F, m_scale.y};
     else if (keyUpEvent.keyCode() == static_cast<int>(m_yNeg))
-        m_input.setValue(m_input.value() + math::vec2f{0.0F, m_scale.y});
-
+        m_input.value += math::vec2f{0.0F, m_scale.y};
+    
     if (keyUpEvent.keyCode() == static_cast<int>(m_xPos) ||
         keyUpEvent.keyCode() == static_cast<int>(m_xNeg) ||
         keyUpEvent.keyCode() == static_cast<int>(m_yPos) ||
         keyUpEvent.keyCode() == static_cast<int>(m_yNeg))
     {
+        m_input.triggered = m_input.value != math::vec2f{0.0F, 0.0F};
         keyUpEvent.markAsProcessed();
-
-        if (m_input.value() == math::vec2f{0,0})
-            m_input.unTrigger();
-        else
-            m_input.trigger();
     }
 }
 

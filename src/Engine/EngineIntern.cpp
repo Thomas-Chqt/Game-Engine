@@ -8,16 +8,22 @@
  */
 
 #include "Engine/EngineIntern.hpp"
+#include "ECS/ECSView.hpp"
+#include "ECS/InternalComponents.hpp"
+#include "Engine/EditorCamera.hpp"
 #include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Engine.hpp"
 #include "Game-Engine/Game.hpp"
+#include "Game-Engine/Input.hpp"
+#include "Game-Engine/InputContext.hpp"
+#include "Game-Engine/Mapper.hpp"
+#include "Game-Engine/RawInput.hpp"
 #include "Graphics/Event.hpp"
 #include "Graphics/FrameBuffer.hpp"
 #include "Graphics/GraphicAPI.hpp"
 #include "Graphics/Platform.hpp"
 #include "GPURessourceManager.hpp"
 #include "Graphics/Texture.hpp"
-#include "InputManager/InputManagerIntern.hpp"
 #include "Math/Vector.hpp"
 #include "Renderer/Renderer.hpp"
 #include "UtilsCPP/Func.hpp"
@@ -42,14 +48,15 @@ void EngineIntern::runGame(utils::UniquePtr<Game>&& game)
     m_game = std::move(game);
 
     m_game->onSetup();
-    InputManagerIntern::shared().disableEditorInputs();
-    InputManagerIntern::shared().enableGameInputs();
+    ECSView<ScriptComponent>(m_game->activeScene()).onEach([](Entity, ScriptComponent& scriptComponent) {
+        scriptComponent.instance->onSetup();
+    });
 
     m_gameRunning = true;
     while (m_gameRunning)
     {
         gfx::Platform::shared().pollEvents();
-        InputManagerIntern::shared().dispatchInputs();
+        m_game->inputContext().dispatchInputs();
 
         m_game->onUpdate();
         scriptSystem();
@@ -70,21 +77,20 @@ void EngineIntern::editorForGame(utils::UniquePtr<Game>&& game)
 {
     m_game = std::move(game);
 
-    m_editorCamera.setupFreeCam();
-    InputManagerIntern::shared().disableGameInputs();
-    InputManagerIntern::shared().enableEditorInputs();
+    Renderer::shared().setOnImGuiRender(utils::Func<void()>(*this, &EngineIntern::onImGuiRender));
 
     m_editorRunning = true;
     while (m_editorRunning)
     {
         gfx::Platform::shared().pollEvents();
-        InputManagerIntern::shared().dispatchInputs();
-
         if (m_gameRunning)
-        {   
+        {
+            m_game->inputContext().dispatchInputs();
             m_game->onUpdate();
             scriptSystem();
         }
+        else
+            m_editorInputContext.dispatchInputs();
 
         if (m_viewportPanelSizeIsDirty)
         {
@@ -107,7 +113,6 @@ void EngineIntern::editorForGame(utils::UniquePtr<Game>&& game)
 
 EngineIntern::~EngineIntern()
 {
-    InputManagerIntern::terminate();
     AssetManager::terminate();
 
     Renderer::terminate();
@@ -129,16 +134,49 @@ EngineIntern::EngineIntern()
     GPURessourceManager::init(graphicAPI);
 
     Renderer::init();
-    Renderer::shared().setOnImGuiRender(utils::Func<void()>(*this, &EngineIntern::onImGuiRender));
 
     AssetManager::init();
-    InputManagerIntern::init();
+
+    ActionInput& quitEditorIpt = m_editorInputContext.newInput<ActionInput>("quit_editor");
+    quitEditorIpt.callback = [&](){ m_editorRunning = false; };
+    auto quitEditorIptMapper = utils::makeUnique<Mapper<KeyboardButton, ActionInput>>(KeyboardButton::esc, quitEditorIpt);
+    quitEditorIpt.mappers[0] = quitEditorIptMapper.staticCast<IMapper>();
+
+    Range2DInput& editorCamRotateIpt = m_editorInputContext.newInput<Range2DInput>("editor_cam_rotate");
+    editorCamRotateIpt.callback = utils::Func<void(math::vec2f)>(m_editorCamera, &EditorCamera::rotate);
+    Mapper<KeyboardButton, Range2DInput>::Descriptor inputMapperDesc;
+    inputMapperDesc.xPos = KeyboardButton::down;
+    inputMapperDesc.xNeg = KeyboardButton::up;
+    inputMapperDesc.yPos = KeyboardButton::right;
+    inputMapperDesc.yNeg = KeyboardButton::left;
+    auto editorCamRotateIptMapper = utils::makeUnique<Mapper<KeyboardButton, Range2DInput>>(inputMapperDesc, editorCamRotateIpt);
+    editorCamRotateIpt.mappers[0] = editorCamRotateIptMapper.staticCast<IMapper>();
+    
+    Range2DInput& editorCamMoveIpt = m_editorInputContext.newInput<Range2DInput>("editor_cam_move");
+    editorCamMoveIpt.callback = utils::Func<void(math::vec2f)>(m_editorCamera, &EditorCamera::move);
+    inputMapperDesc.xPos = KeyboardButton::d;
+    inputMapperDesc.xNeg = KeyboardButton::a;
+    inputMapperDesc.yPos = KeyboardButton::w;
+    inputMapperDesc.yNeg = KeyboardButton::s;
+    auto editorCamMoveIptMapper = utils::makeUnique<Mapper<KeyboardButton, Range2DInput>>(inputMapperDesc, editorCamMoveIpt);
+    editorCamMoveIpt.mappers[0] = editorCamMoveIptMapper.staticCast<IMapper>();
 }
 
 void EngineIntern::onEvent(gfx::Event& event)
 {
-    if (m_editorRunning)
+    if (m_gameRunning)
     {
+        if (event.dispatch(utils::Func<void(gfx::InputEvent&)>(m_game->inputContext(), &InputContext::onInputEvent)))
+            return;
+        if (event.dispatch(utils::Func<void(gfx::WindowResizeEvent&)>(*m_game, &Game::onWindowResizeEvent)))
+            return;
+        if (event.dispatch(utils::Func<void(gfx::WindowRequestCloseEvent&)>(*m_game, &Game::onWindowRequestCloseEvent)))
+            return;
+    }
+    else
+    {
+        if (event.dispatch(utils::Func<void(gfx::InputEvent&)>(m_editorInputContext, &InputContext::onInputEvent)))
+            return;
         if (event.dispatch<gfx::WindowResizeEvent>([&](gfx::WindowResizeEvent& windowResizeEvent){
             //
         })) return;
@@ -146,31 +184,16 @@ void EngineIntern::onEvent(gfx::Event& event)
             m_editorRunning = false;
         })) return;
     }
-    else
-    {
-        if (event.dispatch<gfx::WindowResizeEvent>([&](gfx::WindowResizeEvent& windowResizeEvent){
-            m_game->onWindowResizeEvent(windowResizeEvent);
-        })) return;
-        if (event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& windowRequestCloseEvent){
-            m_game->onWindowRequestCloseEvent(windowRequestCloseEvent);
-        })) return;
-    }
 }
 
 void EngineIntern::onImGuiRender()
 {
-    if (m_editorRunning)
-    {
-        ImGui::DockSpaceOverViewport();
-        
-        drawViewportPanel();
-        drawSceneGraphPanel();
-        drawEntityInspectorPanel();
-        drawFPSPanel();
-    }
-
-    if (m_gameRunning)
-        m_game->onImGuiRender();
+    ImGui::DockSpaceOverViewport();
+    
+    drawViewportPanel();
+    drawSceneGraphPanel();
+    drawEntityInspectorPanel();
+    drawFPSPanel();
 }
 
 void EngineIntern::updateVPFrameBuff()

@@ -13,7 +13,7 @@
 #include "Game-Engine/ECSWorld.hpp"
 #include "Game-Engine/Engine.hpp"
 #include "Graphics/Event.hpp"
-#include "UtilsCPP/Types.hpp"
+#include "Game-Engine/InputContext.hpp"
 
 namespace GE
 {
@@ -25,21 +25,20 @@ public:
     Game(Game&&)      = delete;
 
     inline ECSWorld& activeScene() { return *m_activeScene; }
+    inline InputContext& inputContext() { return m_inputContext; }
+
+    virtual void onWindowResizeEvent(gfx::WindowResizeEvent&) {}
+    inline virtual void onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&) { Engine::shared().terminateGame(); }
 
     inline virtual void onSetup() {}
     inline virtual void onUpdate() {}
-
-    virtual void onWindowResizeEvent(gfx::WindowResizeEvent&) {}
-    virtual void onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&);
-    virtual void onImGuiRender() {};
 
     virtual ~Game() = default;
 
 protected:
     Game() = default;
 
-    utils::uint32 m_windowWidth = 800;
-    utils::uint32 m_windowHeight = 600;
+    InputContext m_inputContext;
 
     ECSWorld m_defaultScene;
     ECSWorld* m_activeScene = &m_defaultScene;

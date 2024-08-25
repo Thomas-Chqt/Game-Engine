@@ -13,6 +13,7 @@
 #include "Engine/EditorCamera.hpp"
 #include "Game-Engine/Engine.hpp"
 #include "Game-Engine/Entity.hpp"
+#include "Game-Engine/InputContext.hpp"
 #include "Graphics/FrameBuffer.hpp"
 #include "Graphics/Window.hpp"
 #include "Math/Vector.hpp"
@@ -68,6 +69,7 @@ private:
     bool m_editorRunning = false;
 
     // Editor
+    InputContext m_editorInputContext;
     EditorCamera m_editorCamera;
     Entity m_selectedEntity;
 

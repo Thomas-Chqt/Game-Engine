@@ -13,35 +13,8 @@
 namespace GE
 {
 
-Input::Input(utils::String name) : m_name(name)
+Input::Input(utils::String name) : name(name)
 {
-}
-
-void Input::setMapper0(utils::UniquePtr<IMapper>&& map)
-{
-    m_mappers[0] = std::move(map);
-}
-
-void Input::setMapper1(utils::UniquePtr<IMapper>&& map)
-{
-    m_mappers[1] = std::move(map);
-}
-
-
-void Input::onInputEvent(gfx::InputEvent& event)
-{
-    if (hasCallback() == false)
-        return;
-    for (utils::uint8 i = 0; i < 2; i++)
-    {
-        if (m_mappers[i] == false)
-            continue;
-
-        m_mappers[i]->onInputEvent(event);
-
-        if (event.processed())
-            return;
-    }
 }
 
 Input::~Input()
@@ -50,11 +23,22 @@ Input::~Input()
 
 // ActionInput
 
+void ActionInput::dispatch()
+{
+    callback();
+    triggered = false;
+}
+
 ActionInput::ActionInput(utils::String name) : Input(name)
 {
 }
 
 // StateInput
+
+void StateInput::dispatch()
+{
+    callback();
+}
 
 StateInput::StateInput(utils::String name) : Input(name)
 {
@@ -62,11 +46,21 @@ StateInput::StateInput(utils::String name) : Input(name)
 
 // RangeInput
 
+void RangeInput::dispatch()
+{
+    callback(value);
+}
+
 RangeInput::RangeInput(utils::String name) : Input(name)
 {
 }
 
 // Range2DInput
+
+void Range2DInput::dispatch()
+{
+    callback(value);
+}
 
 Range2DInput::Range2DInput(utils::String name) : Input(name)
 {

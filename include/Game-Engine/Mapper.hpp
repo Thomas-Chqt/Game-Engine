@@ -34,11 +34,12 @@ public:
     Mapper(KeyboardButton btn, ActionInput& ipt);
 
     void onInputEvent(gfx::InputEvent&) override;
-    void onKeyDownEvent(gfx::KeyDownEvent&);
     
     ~Mapper() override = default;
 
 private:
+    void onKeyDownEvent(gfx::KeyDownEvent&);
+
     const KeyboardButton m_button;
     ActionInput& m_input;
 };
@@ -50,12 +51,13 @@ public:
     Mapper(KeyboardButton btn, StateInput& ipt);
 
     void onInputEvent(gfx::InputEvent&) override;
-    void onKeyDownEvent(gfx::KeyDownEvent&);
-    void onKeyUpEvent(gfx::KeyUpEvent&);
 
     ~Mapper() override = default;
 
 private:
+    void onKeyDownEvent(gfx::KeyDownEvent&);
+    void onKeyUpEvent(gfx::KeyUpEvent&);
+
     const KeyboardButton m_button;
     StateInput& m_input;
 };
@@ -64,18 +66,26 @@ template<>
 class Mapper<KeyboardButton, RangeInput> : public IMapper
 {
 public:
-    Mapper(KeyboardButton btn, RangeInput& ipt, float scale = 1.0F);
+    struct Descriptor
+    {
+        KeyboardButton button;
+        float scale = 1.0F;
+    };
+
+public:
+    Mapper(const Descriptor& btn, RangeInput& ipt);
 
     void onInputEvent(gfx::InputEvent& event) override;
-    void onKeyDownEvent(gfx::KeyDownEvent&);
-    void onKeyUpEvent(gfx::KeyUpEvent&);
 
     ~Mapper() override = default;
 
 private:
+    void onKeyDownEvent(gfx::KeyDownEvent&);
+    void onKeyUpEvent(gfx::KeyUpEvent&);
+
     const KeyboardButton m_button;
-    RangeInput& m_input;
     const float m_scale;
+    RangeInput& m_input;
 };
 
 template<>
@@ -88,30 +98,29 @@ public:
         KeyboardButton xNeg;
         KeyboardButton yPos;
         KeyboardButton yNeg;
-
-        Range2DInput* input;
         
         math::vec2f scale = {1.0F, 1.0F};
     };
 
 public:
-    Mapper(const Descriptor&);
+    Mapper(const Descriptor& btn, Range2DInput& ipt);
 
     void onInputEvent(gfx::InputEvent& event) override;
-    void onKeyDownEvent(gfx::KeyDownEvent&);
-    void onKeyUpEvent(gfx::KeyUpEvent&);
 
     ~Mapper() override = default;
 
 private:
+    void onKeyDownEvent(gfx::KeyDownEvent&);
+    void onKeyUpEvent(gfx::KeyUpEvent&);
+
     const KeyboardButton m_xPos;
     const KeyboardButton m_xNeg;
     const KeyboardButton m_yPos;
     const KeyboardButton m_yNeg;
 
-    Range2DInput& m_input;
-    
     const math::vec2f m_scale;
+
+    Range2DInput& m_input;
 };
 
 }

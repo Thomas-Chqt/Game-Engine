@@ -23,10 +23,11 @@ public:
     EditorCamera(const EditorCamera&) = delete;
     EditorCamera(EditorCamera&&)      = delete;
 
-    void setupFreeCam();
+    void rotate(math::vec2f);
+    void move(math::vec2f);
 
     Renderer::Camera getRendererCam();
-
+    
     ~EditorCamera();
 
 private:
