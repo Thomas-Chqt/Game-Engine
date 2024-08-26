@@ -13,6 +13,7 @@
 #include "Game-Engine/Game.hpp" // IWYU pragma: keep
 #include "Math/Constants.hpp"
 #include "ECS/InternalComponents.hpp"
+#include <imgui.h>
 #include <cstring>
 
 namespace GE
