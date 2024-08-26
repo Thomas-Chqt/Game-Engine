@@ -16,7 +16,7 @@
 #include "ECS/InternalComponents.hpp"
 #include "Math/Vector.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
-#include "imgui/imgui.h"
+#include <imgui.h>
 #include <cstring>
 
 namespace GE
