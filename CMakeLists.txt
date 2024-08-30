@@ -11,9 +11,11 @@ include(FetchContent)
 
 enable_testing()
 
-option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
-option(GE_BUILD_EXEMPLES "Build exemples" OFF)
-option(GE_BUILD_TESTS    "Build test executable" OFF)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build using shared libraries" FORCE)
+
+option(GE_BUILD_EXEMPLES "Build exemples"                     OFF)
+option(GE_BUILD_TESTS    "Build test executable"              OFF)
+option(GE_INSTALL        "Enable Game Engine install command" ON)
 
 if (APPLE)
     option(GE_BUILD_METAL  "Build with metal enable"  ON)
@@ -38,7 +40,7 @@ project(Game-Engine)
 enable_language(CXX)
 
 
-add_library(Game-Engine ${GE_LIBRARY_TYPE})
+add_library(Game-Engine)
 set_target_properties(Game-Engine PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 
 file(GLOB_RECURSE GAME_ENGINE_SRC "src/*" "include/*")
@@ -97,4 +99,19 @@ endif()
 
 if (GE_BUILD_TESTS)
     add_subdirectory(tests)
+endif()
+
+if(GE_INSTALL)
+    install(TARGETS Game-Engine
+        RUNTIME DESTINATION "bin"
+        LIBRARY DESTINATION "lib"
+        ARCHIVE DESTINATION "lib"
+    )
+    install(DIRECTORY "include/" DESTINATION "include")
+
+    install(TARGETS assimp
+        RUNTIME DESTINATION "bin"
+        LIBRARY DESTINATION "lib"
+        ARCHIVE DESTINATION "lib"
+    )
 endif()
