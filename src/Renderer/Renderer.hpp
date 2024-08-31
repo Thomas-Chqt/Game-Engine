@@ -11,14 +11,12 @@
 #define RENDERER_HPP
 
 #include "Graphics/Buffer.hpp"
-#include "Graphics/FrameBuffer.hpp"
 #include "Graphics/GraphicAPI.hpp"
-#include "Graphics/Window.hpp"
+#include "Graphics/RenderTarget.hpp"
 #include "Math/Matrix.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "Graphics/BufferInstance.hpp"
-#include "UtilsCPP/UniquePtr.hpp"
 
 namespace GE
 {
@@ -55,17 +53,15 @@ public:
     };
 
 public:
+    Renderer()                = delete;
     Renderer(const Renderer&) = delete;
     Renderer(Renderer&&)      = delete;
 
-    static inline void init() { s_sharedInstance = utils::UniquePtr<Renderer>(new Renderer()); }
-    static inline Renderer& shared() { return *s_sharedInstance; }
-    static inline void terminate() { s_sharedInstance.clear(); }
+    Renderer(const utils::SharedPtr<gfx::GraphicAPI>&);
     
     inline void setOnImGuiRender(const utils::Func<void(void)>& f) { m_onImGuiRender = f; }
 
-    void beginScene(const Renderer::Camera&, const gfx::Window&);
-    void beginScene(const Renderer::Camera&, const utils::SharedPtr<gfx::FrameBuffer>&);
+    void beginScene(const Renderer::Camera&, const utils::SharedPtr<gfx::RenderTarget>&);
 
     void addRenderable(const Renderer::Renderable&);
     void addPointLight(const Renderer::PointLight&);
@@ -84,22 +80,14 @@ private:
     };
 
 private:
-    Renderer();
+    utils::SharedPtr<gfx::GraphicAPI> m_graphicAPI;
+    utils::Func<void(void)> m_onImGuiRender;
+    utils::SharedPtr<gfx::GraphicPipeline> m_gfxPipeline; // temporary
 
-    static inline utils::UniquePtr<Renderer> s_sharedInstance;
-
-    utils::SharedPtr<gfx::GraphicPipeline> m_gfxPipeline;
-
-    gfx::GraphicAPI& m_graphicAPI;
-
-    utils::SharedPtr<gfx::FrameBuffer> m_frameBuffer;
-
+    utils::SharedPtr<gfx::RenderTarget> m_renderTarget;
     gfx::BufferInstance<math::mat4x4> m_vpMatrix;
     gfx::BufferInstance<LightsBuffer> m_lightsBuffer;
-
     utils::Array<Renderable> m_renderables;
-
-    utils::Func<void(void)> m_onImGuiRender;
 
 public:
     Renderer& operator = (const Renderer&) = delete;

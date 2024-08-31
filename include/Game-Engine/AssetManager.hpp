@@ -11,9 +11,12 @@
 #define ASSETMANAGER_HPP
 
 #include "Game-Engine/Mesh.hpp"
+#include "Graphics/GraphicAPI.hpp"
+// #include "Graphics/Texture.hpp"
 #include "UtilsCPP/Dictionary.hpp"
+#include "UtilsCPP/Set.hpp"
+// #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/String.hpp"
-#include "UtilsCPP/UniquePtr.hpp"
 
 namespace GE
 {
@@ -21,29 +24,35 @@ namespace GE
 class AssetManager
 {
 public:
+    AssetManager()                    = default;
     AssetManager(const AssetManager&) = delete;
-    AssetManager(AssetManager&&)      = delete;
+    AssetManager(AssetManager&&)      = default;
 
-    static inline void init() { s_sharedInstance = utils::UniquePtr<AssetManager>(new AssetManager()); }
-    static inline AssetManager& shared() { return *s_sharedInstance; }
-    static inline void terminate() { s_sharedInstance.clear(); }
+    inline void registerMesh(const utils::String& filepath) { m_registeredMeshes.insert(filepath); }
+    // inline void registerTexture(const utils::String& filepath) { m_registeredTexture.insert(filepath); }
+    // void registerMaterial(const utils::String& filepath);
 
-    Mesh getMesh(const utils::String& filepath);
+    void loadAssets(gfx::GraphicAPI&);
+    void unloadAssets();
 
     ~AssetManager() = default;
 
 private:
-    AssetManager() = default;
+    Mesh loadMesh(const utils::String& filepath, gfx::GraphicAPI&);
+    // utils::SharedPtr<gfx::Texture> loadTexture(const utils::String& filepath, gfx::GraphicAPI&);
+    // Material loadMaterial(const utils::String& filepath, gfx::GraphicAPI&);
 
-    Mesh loadMesh(const utils::String& filepath);
+    utils::Set<utils::String> m_registeredMeshes;
+    // utils::Set<utils::String> m_registeredTexture;
+    // utils::Set<utils::String> m_registeredMaterial;
 
-    inline static utils::UniquePtr<AssetManager> s_sharedInstance;
-
-    utils::Dictionary<utils::String, Mesh> m_cachedMeshes;
+    utils::Dictionary<utils::String, Mesh> m_loadedMeshes;
+    // utils::Dictionary<utils::String, utils::SharedPtr<gfx::Texture>> m_loadedTextures;
+    // utils::Dictionary<utils::String, Material> m_loadedMaterials;
 
 public:
     AssetManager& operator = (const AssetManager&) = delete;
-    AssetManager& operator = (AssetManager&&)      = delete;
+    AssetManager& operator = (AssetManager&&)      = default;
 
 };
 

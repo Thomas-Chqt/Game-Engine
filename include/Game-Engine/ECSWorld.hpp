@@ -42,7 +42,7 @@ private:
 public:
     ECSWorld();
     ECSWorld(const ECSWorld&) = delete;
-    ECSWorld(ECSWorld&&)      = delete;
+    ECSWorld(ECSWorld&&)      = default;
 
     Entity newEmptyEntity();
     Entity newEntity(const utils::String& name = "No name");
@@ -80,7 +80,7 @@ private:
     
 public:
     ECSWorld& operator = (const ECSWorld&) = delete;
-    ECSWorld& operator = (ECSWorld&&)      = delete;
+    ECSWorld& operator = (ECSWorld&&)      = default;
 };
 
 }

@@ -10,7 +10,6 @@
 #include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Mesh.hpp"
 #include "Math/Matrix.hpp"
-#include "GPURessourceManager.hpp"
 #include "Renderer/Renderer.hpp"
 #include "UtilsCPP/RuntimeError.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
@@ -33,16 +32,39 @@
 namespace GE
 {
 
-Mesh AssetManager::getMesh(const utils::String& filepath)
+void AssetManager::loadAssets(gfx::GraphicAPI& api)
 {
-    using Iterator = utils::Dictionary<utils::String, Mesh>::Iterator;
-    Iterator it = m_cachedMeshes.find(filepath);
-    if (it == m_cachedMeshes.end())
-        it = m_cachedMeshes.insert(filepath, loadMesh(filepath));
-    return it->val;
+    while (m_registeredMeshes.isEmpty() == false)
+    {
+        utils::String filepath = m_registeredMeshes.pop(m_registeredMeshes.begin());
+        m_loadedMeshes.insert(filepath, loadMesh(filepath, api));
+    }
+    // while (m_registeredTexture.isEmpty() == false)
+    // {
+    //     utils::String filepath = m_registeredTexture.pop(m_registeredTexture.begin());
+    //     m_loadedTextures.insert(filepath, loadTexture(filepath, api));
+    // }
+    // while (m_registeredMaterial.isEmpty() == false)
+    // {
+    //     utils::String filepath = m_registeredMaterial.pop(m_registeredMaterial.begin());
+    //     m_loadedMaterials.insert(filepath, loadMaterial(filepath));
+    // }
 }
 
-Mesh AssetManager::loadMesh(const utils::String& filepath)
+void AssetManager::unloadAssets()
+{
+    for (auto& [path, _] : m_loadedMeshes)
+        m_registeredMeshes.insert(path);
+    m_loadedMeshes.clear();
+    // for (auto& [path, _] : m_loadedTextures)
+    //     m_registeredTexture.insert(path);
+    // m_loadedTextures.clear();
+    // for (auto& [path, _] : m_loadedMaterials)
+    //     registerMaterial.insert(path);
+    // m_loadedMaterials.clear();
+}
+
+Mesh AssetManager::loadMesh(const utils::String& filepath, gfx::GraphicAPI& api)
 {
     Assimp::Importer importer;
 
@@ -62,15 +84,15 @@ Mesh AssetManager::loadMesh(const utils::String& filepath)
 
         gfx::Buffer::Descriptor bufferDescriptor;
         bufferDescriptor.size = aiMesh->mNumVertices * sizeof(Renderer::Vertex);
-        newSubMesh.vertexBuffer = GPURessourceManager::shared().newBuffer(bufferDescriptor);
+        newSubMesh.vertexBuffer = api.newBuffer(bufferDescriptor);
         auto* vertices = (Renderer::Vertex*)newSubMesh.vertexBuffer->mapContent();
 
         bufferDescriptor.size = aiMesh->mNumFaces * 3UL * sizeof(utils::uint32);
-        newSubMesh.indexBuffer = GPURessourceManager::shared().newBuffer(bufferDescriptor);
+        newSubMesh.indexBuffer = api.newBuffer(bufferDescriptor);
         auto* indices = (utils::uint32*)newSubMesh.indexBuffer->mapContent();
 
         bufferDescriptor.size = sizeof(math::mat4x4);
-        newSubMesh.modelMatrixBuffer = GPURessourceManager::shared().newBuffer(bufferDescriptor);
+        newSubMesh.modelMatrixBuffer = api.newBuffer(bufferDescriptor);
 
         for(utils::uint32 i = 0; i < aiMesh->mNumVertices; i++)
         {
@@ -149,5 +171,6 @@ Mesh AssetManager::loadMesh(const utils::String& filepath)
 
     return output;
 }
+
 
 }
