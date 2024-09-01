@@ -8,27 +8,59 @@
  */
 
 #include "Engine/Engine.hpp"
+#include "Game-Engine/Game.hpp"
+#include "Game/StarterContent.hpp"
+#include "Graphics/Event.hpp"
+#include "Graphics/KeyCodes.hpp"
 #include "Graphics/Platform.hpp"
-#include <utility>
+#include "UtilsCPP/Func.hpp"
+#include "UtilsCPP/UniquePtr.hpp"
 
 namespace GE
 {
 
-Engine::Engine(const utils::SharedPtr<gfx::Window>& win)
-    : m_window(win), m_renderer(gfx::Platform::shared().newGraphicAPI(m_window))
+void openProject(const utils::String& filepath)
 {
 }
 
-void Engine::runApplication(utils::UniquePtr<Application>&& app)
+void Engine::run()
 {
-    m_application = std::move(app);
-
-    m_application->onSetup();
-
-    while (m_application->shouldTerminate() == false)
+    m_running = true;
+    while (m_running)
     {
-        m_application->onUpdate();
+        gfx::Platform::shared().pollEvents();
     }
+}
+
+Engine::~Engine()
+{
+    m_renderer.setOnImGuiRender(utils::Func<void ()>());
+    gfx::Platform::shared().clearCallbacks(this);
+}
+
+Engine::Engine()
+    : m_window(gfx::Platform::shared().newWindow(1280, 720)),
+      m_renderer(gfx::Platform::shared().newGraphicAPI(m_window))
+{
+    m_game = utils::makeUnique<StarterContent>().staticCast<Game>();
+
+    gfx::Platform::shared().addEventCallBack(utils::Func<void(gfx::Event&)>(*this, &Engine::onEvent));
+    m_renderer.setOnImGuiRender(utils::Func<void()>(*this, &Engine::onImGuiRender));
+}
+
+void Engine::onEvent(gfx::Event& event)
+{
+    event.dispatch<gfx::KeyDownEvent>([&](gfx::KeyDownEvent& keyDownEvent) {
+        if (keyDownEvent.keyCode() == ESC_KEY)
+            m_running = false;
+    });
+    event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& windowRequestCloseEvent) {
+        m_running = false;
+    });
+}
+
+void Engine::onImGuiRender()
+{
 }
 
 }

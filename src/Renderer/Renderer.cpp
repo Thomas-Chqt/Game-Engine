@@ -14,6 +14,7 @@
 #include "Math/Matrix.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/Types.hpp"
+#include <cassert>
 
 namespace GE
 {
@@ -60,6 +61,7 @@ static utils::SharedPtr<gfx::GraphicPipeline> makeGraphicPipeline(gfx::GraphicAP
 Renderer::Renderer(const utils::SharedPtr<gfx::GraphicAPI>& api)
     : m_graphicAPI(api), m_gfxPipeline(makeGraphicPipeline(*m_graphicAPI))
 {
+    m_graphicAPI->initImgui();
     m_vpMatrix.alloc(*m_graphicAPI);
     m_lightsBuffer.alloc(*m_graphicAPI);
 }
@@ -77,9 +79,6 @@ void Renderer::beginScene(const Renderer::Camera& cam, const utils::SharedPtr<gf
     m_vpMatrix.unmap();
 
     m_lightsBuffer.map();
-    m_lightsBuffer.content().pointLightCount = 0;
-
-    m_renderables.clear();
 }
 
 void Renderer::addRenderable(const Renderer::Renderable& renderable)
@@ -89,6 +88,7 @@ void Renderer::addRenderable(const Renderer::Renderable& renderable)
 
 void Renderer::addPointLight(const Renderer::PointLight& pointLight)
 {
+    assert(m_lightsBuffer.content().pointLightCount < 32);
     utils::uint32 idx = m_lightsBuffer.content().pointLightCount++;
     m_lightsBuffer.content().pointLights[idx] = pointLight;
 }
@@ -131,6 +131,17 @@ void Renderer::render()
         }
     }
     m_graphicAPI->endFrame();
+}
+
+void Renderer::clearRenderState()
+{
+    m_renderables.clear();
+
+    m_lightsBuffer.map();
+    m_lightsBuffer.content().pointLightCount = 0;
+    m_lightsBuffer.unmap();
+
+    m_renderTarget.clear();
 }
 
 }

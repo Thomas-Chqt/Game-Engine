@@ -69,6 +69,7 @@ public:
     void endScene();
 
     void render();
+    void clearRenderState();
 
     ~Renderer() = default;
 

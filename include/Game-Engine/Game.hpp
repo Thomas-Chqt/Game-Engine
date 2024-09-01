@@ -26,6 +26,10 @@ public:
 
 protected:
     Game() = default;
+
+public:
+    Game& operator = (const Game&) = delete;
+    Game& operator = (Game&&)      = delete;
 };
 
 }
