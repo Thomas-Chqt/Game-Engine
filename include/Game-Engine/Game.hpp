@@ -13,6 +13,9 @@
 #include "Game-Engine/ECSWorld.hpp"
 #include "Graphics/Event.hpp"
 #include "Game-Engine/InputContext.hpp"
+#include "Game-Engine/Scene.hpp"
+#include "UtilsCPP/Dictionary.hpp"
+#include "UtilsCPP/String.hpp"
 
 namespace GE
 {
@@ -23,11 +26,12 @@ public:
     Game(const Game&) = delete;
     Game(Game&&)      = delete;
 
-    inline ECSWorld& activeScene() { return *m_activeScene; }
-    inline InputContext& inputContext() { return m_inputContext; }
+    inline Scene& activeScene() { return *m_activeScene; }
+
+    inline void onInputEvent(gfx::InputEvent& event) { m_inputContext.onInputEvent(event); }
 
     virtual void onWindowResizeEvent(gfx::WindowResizeEvent&) {}
-    inline virtual void onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&) { }
+    inline virtual void onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&) {}
 
     inline virtual void onSetup() {}
     inline virtual void onUpdate() {}
@@ -40,7 +44,10 @@ protected:
     InputContext m_inputContext;
 
     ECSWorld m_defaultScene;
-    ECSWorld* m_activeScene = &m_defaultScene;
+
+private:
+    Scene* m_activeScene;
+    utils::Dictionary<utils::String, Scene> m_scenes;
 };
 
 }
