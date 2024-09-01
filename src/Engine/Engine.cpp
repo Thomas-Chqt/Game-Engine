@@ -9,12 +9,14 @@
 
 #include "Engine/Engine.hpp"
 #include "Game-Engine/Game.hpp"
+#include "Game-Engine/Input.hpp"
+#include "Game-Engine/InputContext.hpp"
+#include "Game-Engine/Mapper.hpp"
+#include "Game-Engine/RawInput.hpp"
 #include "Game/StarterContent.hpp"
 #include "Graphics/Event.hpp"
-#include "Graphics/KeyCodes.hpp"
 #include "Graphics/Platform.hpp"
 #include "Graphics/RenderTarget.hpp"
-#include "Math/Constants.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include <cmath>
@@ -32,18 +34,22 @@ void Engine::run()
     while (m_editorRunning)
     {
         gfx::Platform::shared().pollEvents();
-
         if (m_gameRunning)
-        {   
+        {
+            m_game->inputContext().dispatchInputs();
             m_game->onUpdate();
             scriptSystem();
         }
         else
-            updateEditorCamera();
+            m_editorInputContext.dispatchInputs();
 
-        updateVPFrameBuff();
+        if (m_viewportPanelSizeIsDirty)
+        {
+            updateVPFrameBuff();
+            m_viewportPanelSizeIsDirty = false;
+        }        
 
-        Renderer::Camera camera = m_gameRunning ? getActiveCameraSystem() : getEditorCamera();
+        Renderer::Camera camera = m_gameRunning ? getActiveCameraSystem() : m_editorCamera.getRendererCam();
         m_renderer.beginScene(camera, m_viewportFBuff.staticCast<gfx::RenderTarget>());
         {
             addLightsSystem();
@@ -69,21 +75,55 @@ Engine::Engine()
 
     gfx::Platform::shared().addEventCallBack(utils::Func<void(gfx::Event&)>(*this, &Engine::onEvent));
     m_renderer.setOnImGuiRender(utils::Func<void()>(*this, &Engine::onImGuiRender));
+
+    ActionInput& quitEditorIpt = m_editorInputContext.newInput<ActionInput>("quit_editor");
+    quitEditorIpt.callback = [&](){ m_editorRunning = false; };
+    auto quitEditorIptMapper = utils::makeUnique<Mapper<KeyboardButton, ActionInput>>(KeyboardButton::esc, quitEditorIpt);
+    quitEditorIpt.mappers[0] = quitEditorIptMapper.staticCast<IMapper>();
+
+    Range2DInput& editorCamRotateIpt = m_editorInputContext.newInput<Range2DInput>("editor_cam_rotate");
+    editorCamRotateIpt.callback = utils::Func<void(math::vec2f)>(m_editorCamera, &EditorCamera::rotate);
+    Mapper<KeyboardButton, Range2DInput>::Descriptor inputMapperDesc;
+    inputMapperDesc.xPos = KeyboardButton::down;
+    inputMapperDesc.xNeg = KeyboardButton::up;
+    inputMapperDesc.yPos = KeyboardButton::right;
+    inputMapperDesc.yNeg = KeyboardButton::left;
+    auto editorCamRotateIptMapper = utils::makeUnique<Mapper<KeyboardButton, Range2DInput>>(inputMapperDesc, editorCamRotateIpt);
+    editorCamRotateIpt.mappers[0] = editorCamRotateIptMapper.staticCast<IMapper>();
+    
+    Range2DInput& editorCamMoveIpt = m_editorInputContext.newInput<Range2DInput>("editor_cam_move");
+    editorCamMoveIpt.callback = utils::Func<void(math::vec2f)>(m_editorCamera, &EditorCamera::move);
+    inputMapperDesc.xPos = KeyboardButton::d;
+    inputMapperDesc.xNeg = KeyboardButton::a;
+    inputMapperDesc.yPos = KeyboardButton::w;
+    inputMapperDesc.yNeg = KeyboardButton::s;
+    auto editorCamMoveIptMapper = utils::makeUnique<Mapper<KeyboardButton, Range2DInput>>(inputMapperDesc, editorCamMoveIpt);
+    editorCamMoveIpt.mappers[0] = editorCamMoveIptMapper.staticCast<IMapper>();
+
 }
 
 void Engine::onEvent(gfx::Event& event)
 {
-    event.dispatch<gfx::KeyDownEvent>([&](gfx::KeyDownEvent& event) {
-        if (event.isRepeat() == false)
-            m_pressedKeys.insert(event.keyCode());                     
-    });
-    
-    event.dispatch<gfx::KeyUpEvent>([&](gfx::KeyUpEvent& event) {
-        m_pressedKeys.remove(m_pressedKeys.find(event.keyCode()));
-    });
-
     if (m_gameRunning)
-        m_game->onEvent(event);
+    {
+        if (event.dispatch(utils::Func<void(gfx::InputEvent&)>(m_game->inputContext(), &InputContext::onInputEvent)))
+            return;
+        if (event.dispatch(utils::Func<void(gfx::WindowResizeEvent&)>(*m_game, &Game::onWindowResizeEvent)))
+            return;
+        if (event.dispatch(utils::Func<void(gfx::WindowRequestCloseEvent&)>(*m_game, &Game::onWindowRequestCloseEvent)))
+            return;
+    }
+    else
+    {
+        if (event.dispatch(utils::Func<void(gfx::InputEvent&)>(m_editorInputContext, &InputContext::onInputEvent)))
+            return;
+        if (event.dispatch<gfx::WindowResizeEvent>([&](gfx::WindowResizeEvent& windowResizeEvent){
+            //
+        })) return;
+        if (event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& windowRequestCloseEvent){
+            m_editorRunning = false;
+        })) return;
+    }
 }
 
 void Engine::onImGuiRender()
@@ -94,47 +134,6 @@ void Engine::onImGuiRender()
     drawSceneGraphPanel();
     drawEntityInspectorPanel();
     drawFPSPanel();
-
-    if (m_gameRunning)
-        m_game->onImGuiRender();
-}
-
-void Engine::updateEditorCamera()
-{
-    math::vec3f dir = { 0.0, 0.0, 0.0 };
-    for (const auto& key : m_pressedKeys)
-    {
-        switch (key)
-        {
-            case W_KEY: dir += math::vec3f{ 0, 0,  1}; break;
-            case A_KEY: dir += math::vec3f{-1, 0,  0}; break;
-            case S_KEY: dir += math::vec3f{ 0, 0, -1}; break;
-            case D_KEY: dir += math::vec3f{ 1, 0,  0}; break;
-
-            case UP_KEY:    m_editorCameraRot.x -= 0.05; break;
-            case LEFT_KEY:  m_editorCameraRot.y -= 0.05; break;
-            case DOWN_KEY:  m_editorCameraRot.x += 0.05; break;
-            case RIGHT_KEY: m_editorCameraRot.y += 0.05; break;
-        }
-    }
-    m_editorCameraPos += math::mat3x3::rotation(m_editorCameraRot) * dir.normalized() * 0.2;
-}
-
-Renderer::Camera Engine::getEditorCamera()
-{
-    Renderer::Camera cam;
-
-    float zs = 10000.0F / (10000.0F - 0.01F);
-    float ys = 1.0F / std::tan((float)(60 * (PI / 180.0F)) * 0.5F);
-    float xs = ys; // (ys / aspectRatio)
-
-    cam.projectionMatrix = math::mat4x4(xs,  0,  0,           0,
-                                         0, ys,  0,           0,
-                                         0,  0, zs, -0.01F * zs,
-                                         0,  0,  1,           0);
-
-    cam.viewMatrix = (math::mat4x4::translation(m_editorCameraPos) * math::mat4x4::rotation(m_editorCameraRot)).inversed();
-    return cam;
 }
 
 void Engine::updateVPFrameBuff()
@@ -142,25 +141,16 @@ void Engine::updateVPFrameBuff()
     float xScale, yScale;
     m_window->getFrameBufferScaleFactor(&xScale, &yScale);
 
-    math::vec2f viewportPanelfBuffSize = math::vec2f(
-        (m_viewportPanelSize.x == 0 ? 1 : m_viewportPanelSize.x) * xScale,
-        (m_viewportPanelSize.y == 0 ? 1 : m_viewportPanelSize.y) * yScale
-    );
+    utils::uint32 newFrameBufferWidth = (utils::uint32)((float)m_viewportPanelSize.x * xScale);
+    utils::uint32 newFrameBufferHeight = (utils::uint32)((float)m_viewportPanelSize.y * yScale);
     
-    if (m_viewportFBuff)
-    {
-        utils::SharedPtr<gfx::Texture> fbColorTex = m_viewportFBuff->colorTexture();
-        if (fbColorTex->height() == viewportPanelfBuffSize.y && fbColorTex->width() == viewportPanelfBuffSize.x)
-            return;
-    }
-
     gfx::Texture::Descriptor colorTextureDescriptor;
-    colorTextureDescriptor.width = viewportPanelfBuffSize.x;
-    colorTextureDescriptor.height = viewportPanelfBuffSize.y;
+    colorTextureDescriptor.width = newFrameBufferWidth;
+    colorTextureDescriptor.height = newFrameBufferHeight;
     colorTextureDescriptor.pixelFormat = gfx::PixelFormat::BGRA;
     colorTextureDescriptor.usage = gfx::Texture::Usage::ShaderReadAndRenderTarget;
     
-    gfx::Texture::Descriptor depthTextureDescriptor = gfx::Texture::Descriptor::depthTextureDescriptor(viewportPanelfBuffSize.x, viewportPanelfBuffSize.y);
+    gfx::Texture::Descriptor depthTextureDescriptor = gfx::Texture::Descriptor::depthTextureDescriptor(newFrameBufferWidth, newFrameBufferHeight);
 
     gfx::FrameBuffer::Descriptor fBuffDesc;
     fBuffDesc.colorTexture = m_renderer.graphicAPI().newTexture(colorTextureDescriptor);

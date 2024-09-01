@@ -10,9 +10,11 @@
 #ifndef ENGINE_HPP
 #define ENGINE_HPP
 
+#include "Engine/EditorCamera.hpp"
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Game.hpp"
-#include "Graphics/Event.hpp"
+#include "Game-Engine/InputContext.hpp"
+#include "Graphics/FrameBuffer.hpp"
 #include "Graphics/Window.hpp"
 #include "Renderer/Renderer.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
@@ -44,8 +46,6 @@ private:
     void onEvent(gfx::Event& event);
     void onImGuiRender();
 
-    void updateEditorCamera();
-    Renderer::Camera getEditorCamera();
     void updateVPFrameBuff();
 
     // ImGuiPanels
@@ -69,17 +69,14 @@ private:
     utils::UniquePtr<Game> m_game;
     bool m_gameRunning = false;
 
-    utils::Set<int> m_pressedKeys;
-
     // Editor
+    InputContext m_editorInputContext;
+    EditorCamera m_editorCamera;
     Entity m_selectedEntity;
 
-    math::vec3f m_editorCameraPos;
-    math::vec3f m_editorCameraRot;
-
-    math::vec2f m_viewportPanelSize;
     utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
-
+    math::vec2f m_viewportPanelSize = {800, 600};
+    bool m_viewportPanelSizeIsDirty = true;
 
 public:
     Engine& operator = (const Engine&) = delete;

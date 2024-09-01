@@ -69,6 +69,7 @@ public:
     Entity popChild();
     math::mat4x4 worldTransform();
 
+    virtual void onSetup() {}
     virtual void onUpdate() {}
 
     ~Entity() = default;
