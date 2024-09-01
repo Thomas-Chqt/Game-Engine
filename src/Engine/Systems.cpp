@@ -8,7 +8,7 @@
  */
 
 #include "ECS/ECSView.hpp"
-#include "Engine/EngineIntern.hpp"
+#include "Engine/Engine.hpp"
 #include "Game-Engine/Components.hpp"
 #include "Game-Engine/Mesh.hpp"
 #include "Renderer/Renderer.hpp"
@@ -18,14 +18,14 @@
 namespace GE
 {
 
-void EngineIntern::scriptSystem()
+void Engine::scriptSystem()
 {
     ECSView<ScriptComponent>(m_game->activeScene()).onEach([](Entity, ScriptComponent& scriptComponent) {
         scriptComponent.instance->onUpdate();
     });
 }
 
-Renderer::Camera EngineIntern::getActiveCameraSystem()
+Renderer::Camera Engine::getActiveCameraSystem()
 {
     Renderer::Camera rendererCam = { math::mat4x4(1.0), math::mat4x4(1.0) };
     ECSView<TransformComponent, CameraComponent, ActiveCameraComponent>(m_game->activeScene())
@@ -36,14 +36,14 @@ Renderer::Camera EngineIntern::getActiveCameraSystem()
     return rendererCam;
 }
 
-void EngineIntern::addLightsSystem()
+void Engine::addLightsSystem()
 {
     ECSView<TransformComponent, LightComponent>(m_game->activeScene())
         .onEach([&](Entity, TransformComponent& transform, LightComponent& light) {
             switch (light.type)
             {
             case LightComponent::Type::point:
-                Renderer::shared().addPointLight({transform.position, light.color, light.intentsity});
+                m_renderer.addPointLight({transform.position, light.color, light.intentsity});
                 break;
             default:
                 UNREACHABLE
@@ -51,7 +51,7 @@ void EngineIntern::addLightsSystem()
         });
 }
 
-void EngineIntern::addRenderableSystem()
+void Engine::addRenderableSystem()
 {
     ECSView<TransformComponent, MeshComponent>(m_game->activeScene())
         .onEach([&](Entity entity, TransformComponent& transform, MeshComponent& mesh) {
@@ -65,7 +65,7 @@ void EngineIntern::addRenderableSystem()
                 renderable.indexBuffer = subMesh.indexBuffer;
                 renderable.modelMatrix = subMesh.modelMatrixBuffer;
 
-                Renderer::shared().addRenderable(renderable);
+                m_renderer.addRenderable(renderable);
             };
 
             for (auto& subMesh : ((Mesh&)mesh).subMeshes)

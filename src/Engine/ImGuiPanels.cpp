@@ -8,7 +8,7 @@
  */
 
 #include "ECS/ECSView.hpp"
-#include "Editor/Editor.hpp"
+#include "Engine/Engine.hpp"
 #include "Game-Engine/Components.hpp"
 #include "Game-Engine/Game.hpp" // IWYU pragma: keep
 #include "Graphics/Texture.hpp"
@@ -22,7 +22,7 @@
 namespace GE
 {
 
-void Editor::drawViewportPanel()
+void Engine::drawViewportPanel()
 {
     ImGui::Begin("viewport");
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
@@ -32,7 +32,7 @@ void Editor::drawViewportPanel()
     ImGui::End();
 }
 
-void Editor::drawSceneGraphPanel()
+void Engine::drawSceneGraphPanel()
 {
     utils::Func<void(Entity)> sceneGraphEntityRow = [&](Entity entity) {
         bool node_open = false;
@@ -73,7 +73,7 @@ void Editor::drawSceneGraphPanel()
     ImGui::End();
 }
 
-void Editor::drawEntityInspectorPanel()
+void Engine::drawEntityInspectorPanel()
 {
     if (ImGui::Begin("Entity inspector"))
     {
@@ -147,7 +147,7 @@ void Editor::drawEntityInspectorPanel()
     ImGui::End();
 }
 
-void Editor::drawFPSPanel()
+void Engine::drawFPSPanel()
 {
     if (ImGui::Begin("FPS"))
         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);

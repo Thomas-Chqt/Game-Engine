@@ -10,6 +10,9 @@
 #ifndef GAME_HPP
 # define GAME_HPP
 
+#include "Game-Engine/ECSWorld.hpp"
+#include "Graphics/Event.hpp"
+
 namespace GE
 {
 
@@ -19,17 +22,21 @@ public:
     Game(const Game&) = delete;
     Game(Game&&)      = delete;
 
+    inline ECSWorld& activeScene() { return *m_activeScene; }
+
     inline virtual void onSetup() {}
     inline virtual void onUpdate() {}
+
+    virtual void onEvent(gfx::Event&);
+    virtual void onImGuiRender() {};
 
     virtual ~Game() = default;
 
 protected:
     Game() = default;
 
-public:
-    Game& operator = (const Game&) = delete;
-    Game& operator = (Game&&)      = delete;
+    ECSWorld m_defaultScene;
+    ECSWorld* m_activeScene = &m_defaultScene;
 };
 
 }

@@ -10,6 +10,7 @@
 #ifndef ENGINE_HPP
 #define ENGINE_HPP
 
+#include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Game.hpp"
 #include "Graphics/Event.hpp"
 #include "Graphics/Window.hpp"
@@ -40,17 +41,45 @@ public:
 private:
     Engine();
 
-    void onEvent(gfx::Event&);
+    void onEvent(gfx::Event& event);
     void onImGuiRender();
+
+    void updateEditorCamera();
+    Renderer::Camera getEditorCamera();
+    void updateVPFrameBuff();
+
+    // ImGuiPanels
+    void drawViewportPanel();
+    void drawSceneGraphPanel();
+    void drawEntityInspectorPanel();
+    void drawFPSPanel();
+
+    // Systems
+    void scriptSystem();
+    Renderer::Camera getActiveCameraSystem();
+    void addLightsSystem();
+    void addRenderableSystem();
 
     static utils::UniquePtr<Engine> s_sharedInstance;
 
     utils::SharedPtr<gfx::Window> m_window;
     Renderer m_renderer;
-
-    bool m_running = false;
+    bool m_editorRunning = false;
 
     utils::UniquePtr<Game> m_game;
+    bool m_gameRunning = false;
+
+    utils::Set<int> m_pressedKeys;
+
+    // Editor
+    Entity m_selectedEntity;
+
+    math::vec3f m_editorCameraPos;
+    math::vec3f m_editorCameraRot;
+
+    math::vec2f m_viewportPanelSize;
+    utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
+
 
 public:
     Engine& operator = (const Engine&) = delete;

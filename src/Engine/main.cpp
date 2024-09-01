@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
     gfx::Platform::init();
     GE::Engine::init();
 
-    
+    GE::Engine::shared().run();
 
     GE::Engine::terminate();
     gfx::Platform::terminate();

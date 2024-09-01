@@ -59,6 +59,7 @@ public:
 
     Renderer(const utils::SharedPtr<gfx::GraphicAPI>&);
     
+    inline gfx::GraphicAPI& graphicAPI() { return *m_graphicAPI; }
     inline void setOnImGuiRender(const utils::Func<void(void)>& f) { m_onImGuiRender = f; }
 
     void beginScene(const Renderer::Camera&, const utils::SharedPtr<gfx::RenderTarget>&);
