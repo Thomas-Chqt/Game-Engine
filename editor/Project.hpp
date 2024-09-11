@@ -20,25 +20,23 @@ namespace GE
 class Project
 {
 public:
-    Project()               = delete;
+    Project();
     Project(const Project&) = delete;
     Project(Project&&)      = default;
     
     Project(const utils::String& filepath);
 
     void reloadProject();
+    inline Game& game() { return *m_game; }
 
     ~Project() = default;
 
 private:
     utils::String m_path;
 
-    utils::String m_name;
+    utils::String m_projName;
 
     utils::UniquePtr<Game> m_game;
-
-    Scene* m_editedScene = nullptr;
-    
     
 public:
     Project& operator = (const Project&) = delete;

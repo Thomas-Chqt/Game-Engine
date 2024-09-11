@@ -21,15 +21,19 @@ class Game
 {
 public:
     Game()            = default;
-    Game(const Game&) = default;
-    Game(Game&&)      = default;
+    Game(const Game&) = delete;
+    Game(Game&&)      = delete;
     
     inline void addScene(const utils::String& name, Scene&& scene) { m_scenes.insert(name, std::move(scene)); };
     inline Scene& getScene(const utils::String& name) { return m_scenes[name]; }
     void deleteScene(const utils::String&);
+    inline const utils::Dictionary<utils::String, Scene>& scenes() { return m_scenes; }
 
     inline const utils::String& startSceneName() { return m_startSceneName; }
     void setStartScene(const utils::String& name);
+
+    virtual inline void onSetup() {};
+    virtual inline void onUpdate() {};
 
     virtual ~Game() = default;
 
@@ -38,8 +42,8 @@ private:
     utils::String m_startSceneName;
     
 public:
-    Game& operator = (const Game&) = default;
-    Game& operator = (Game&&)      = default;
+    Game& operator = (const Game&) = delete;
+    Game& operator = (Game&&)      = delete;
 };
 
 }

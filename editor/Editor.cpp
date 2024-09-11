@@ -9,18 +9,17 @@
 
 #include "Editor.hpp"
 #include "ECS/ECSView.hpp"
+#include "EditorCamera.hpp"
 #include "Graphics/Event.hpp"
 #include "InputManager/RawInput.hpp"
 #include "InputManager/Mapper.hpp"
-#include "StarterContent.hpp"
+#include "Scene.hpp"
 
 namespace GE
 {
 
 Editor::Editor()
 {
-    m_editedGame = utils::makeUnique<StarterContent>().staticCast<Game>();
-    m_editedScene = m_editedGame->startScene();
     resetEditorInputs();
 }
 
@@ -36,8 +35,11 @@ void Editor::onUpdate()
 
     m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
     {
-        m_renderer.addAllLights(m_editedScene->ecsWorld);
-        m_renderer.addAllRenderables(m_editedScene->ecsWorld);
+        if (m_editedScene)
+        {
+            m_renderer.addAllLights(m_editedScene->ecsWorld());
+            m_renderer.addAllRenderables(m_editedScene->ecsWorld());
+        }
     }
     m_renderer.endScene();
 }
@@ -50,6 +52,9 @@ void Editor::onImGuiRender()
     drawSceneGraphPanel();
     drawEntityInspectorPanel();
     drawFPSPanel();
+    drawScenePickerPanel();
+    if (m_editedScene)
+        drawSceneMeshPickerPanel();
 }
 
 void Editor::onEvent(gfx::Event& event)
@@ -113,6 +118,12 @@ void Editor::resetEditorInputs()
     inputMapperDesc.yNeg = KeyboardButton::s;
     auto editorCamMoveIptMapper = utils::makeUnique<Mapper<KeyboardButton, Range2DInput>>(inputMapperDesc, editorCamMoveIpt);
     editorCamMoveIpt.mappers[0] = editorCamMoveIptMapper.staticCast<IMapper>();
+}
+
+void Editor::editScene(Scene* scene)
+{
+    m_editedScene = scene;
+    m_editorCamera = EditorCamera();
 }
 
 }

@@ -17,11 +17,28 @@
 namespace GE
 {
 
-struct Scene
+class Scene
 {
-    ECSWorld ecsWorld;
-    Entity activeCamera;
-    AssetManager assetManager;
+public:
+    Scene()             = default;
+    Scene(const Scene&) = delete;
+    Scene(Scene&&)      = default;
+
+    inline ECSWorld& ecsWorld() { return m_ecsWorld; }
+
+    inline const Entity& activeCamera() { return m_activeCamera; }
+    inline void setActiveCamera(Entity e) { m_activeCamera = e; }
+
+    inline AssetManager& assetManager() { return m_assetManager; }
+
+private:
+    ECSWorld m_ecsWorld;
+    Entity m_activeCamera;
+    AssetManager m_assetManager;
+
+public:
+    Scene& operator = (const Scene&) = delete;
+    Scene& operator = (Scene&&)      = default;
 };
 
 }

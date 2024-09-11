@@ -35,6 +35,8 @@ public:
     void loadAssets(gfx::GraphicAPI&);
     void unloadAssets();
 
+    inline const utils::Dictionary<utils::String, Mesh>& loadedMeshes() { return m_loadedMeshes; }
+
     ~AssetManager() = default;
 
 private:
