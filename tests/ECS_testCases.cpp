@@ -9,11 +9,11 @@
 
 #include <gtest/gtest.h>
 
-#include "Game-Engine/Entity.hpp"
+#include "ECS/Entity.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Set.hpp"
 
-#include "Game-Engine/ECSWorld.hpp"
+#include "ECS/ECSWorld.hpp"
 #include "ECS/ECSView.hpp"
 
 TEST(ECSTest, entities)
