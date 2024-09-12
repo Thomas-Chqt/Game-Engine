@@ -13,4 +13,6 @@ set_target_properties(GE-Editor PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED
 file(GLOB_RECURSE GE_EDITOR_SRC "*.cpp" "*.hpp")
 target_sources(GE-Editor PRIVATE ${GE_EDITOR_SRC})
 
+target_compile_definitions(GE-Editor PRIVATE "RESSOURCES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/ressources\"")
+
 target_link_libraries(GE-Editor PRIVATE Game-Engine)

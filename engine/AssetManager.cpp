@@ -18,6 +18,7 @@
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
 #include "assimp/types.h"
+#include "crossguid/guid.hpp"
 
 #define POST_PROCESSING_FLAGS         \
     aiProcess_JoinIdenticalVertices | \
@@ -32,36 +33,38 @@
 namespace GE
 {
 
+xg::Guid AssetManager::registerMesh(const utils::String& name, const utils::String& filepath)
+{
+    xg::Guid newAssetID = xg::newGuid();
+    m_registeredMeshes.insert(newAssetID, RegisteredAsset{name, filepath});
+
+    if (m_isLoaded)
+        m_loadedMeshes.insert(newAssetID, loadMesh(filepath, *m_api));
+
+    return newAssetID;
+}
+
+utils::Dictionary<xg::Guid, utils::String> AssetManager::registeredMesh() const
+{
+    utils::Dictionary<xg::Guid, utils::String> output;
+    for (auto& [uuid, asset] : m_registeredMeshes)
+        output.insert(uuid, asset.name);
+    return output;
+}
+
 void AssetManager::loadAssets(gfx::GraphicAPI& api)
 {
-    while (m_registeredMeshes.isEmpty() == false)
-    {
-        utils::String filepath = m_registeredMeshes.pop(m_registeredMeshes.begin());
-        m_loadedMeshes.insert(filepath, loadMesh(filepath, api));
-    }
-    // while (m_registeredTexture.isEmpty() == false)
-    // {
-    //     utils::String filepath = m_registeredTexture.pop(m_registeredTexture.begin());
-    //     m_loadedTextures.insert(filepath, loadTexture(filepath, api));
-    // }
-    // while (m_registeredMaterial.isEmpty() == false)
-    // {
-    //     utils::String filepath = m_registeredMaterial.pop(m_registeredMaterial.begin());
-    //     m_loadedMaterials.insert(filepath, loadMaterial(filepath));
-    // }
+    m_isLoaded = true;
+    m_api = &api;
+    for (auto& [uuid, asset] : m_registeredMeshes)
+        m_loadedMeshes.insert(uuid, loadMesh(asset.path, api));
 }
 
 void AssetManager::unloadAssets()
 {
-    for (auto& [path, _] : m_loadedMeshes)
-        m_registeredMeshes.insert(path);
     m_loadedMeshes.clear();
-    // for (auto& [path, _] : m_loadedTextures)
-    //     m_registeredTexture.insert(path);
-    // m_loadedTextures.clear();
-    // for (auto& [path, _] : m_loadedMaterials)
-    //     registerMaterial.insert(path);
-    // m_loadedMaterials.clear();
+    m_api = nullptr;
+    m_isLoaded = false;
 }
 
 Mesh AssetManager::loadMesh(const utils::String& filepath, gfx::GraphicAPI& api)

@@ -14,9 +14,9 @@
 #include "Graphics/GraphicAPI.hpp"
 // #include "Graphics/Texture.hpp"
 #include "UtilsCPP/Dictionary.hpp"
-#include "UtilsCPP/Set.hpp"
 // #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/String.hpp"
+#include "crossguid/guid.hpp"
 
 namespace GE
 {
@@ -28,29 +28,33 @@ public:
     AssetManager(const AssetManager&) = delete;
     AssetManager(AssetManager&&)      = default;
 
-    inline void registerMesh(const utils::String& filepath) { m_registeredMeshes.insert(filepath); }
-    // inline void registerTexture(const utils::String& filepath) { m_registeredTexture.insert(filepath); }
-    // void registerMaterial(const utils::String& filepath);
+    xg::Guid registerMesh(const utils::String& name, const utils::String& filepath);
+    utils::Dictionary<xg::Guid, utils::String> registeredMesh() const;
+
+    utils::String getMeshName(xg::Guid id) { return id.isValid() ? m_registeredMeshes[id].name : "no mesh"; }
+    Mesh& getLoadedMesh(xg::Guid id) { return m_loadedMeshes[id]; }
 
     void loadAssets(gfx::GraphicAPI&);
     void unloadAssets();
-
-    inline const utils::Dictionary<utils::String, Mesh>& loadedMeshes() { return m_loadedMeshes; }
+    inline bool isLoaded() const { return m_isLoaded; }
 
     ~AssetManager() = default;
 
 private:
+    struct RegisteredAsset
+    {
+        utils::String name;
+        utils::String path;
+    };
+
     Mesh loadMesh(const utils::String& filepath, gfx::GraphicAPI&);
-    // utils::SharedPtr<gfx::Texture> loadTexture(const utils::String& filepath, gfx::GraphicAPI&);
-    // Material loadMaterial(const utils::String& filepath, gfx::GraphicAPI&);
 
-    utils::Set<utils::String> m_registeredMeshes;
-    // utils::Set<utils::String> m_registeredTexture;
-    // utils::Set<utils::String> m_registeredMaterial;
+    bool m_isLoaded = false;
+    gfx::GraphicAPI* m_api = nullptr;
 
-    utils::Dictionary<utils::String, Mesh> m_loadedMeshes;
-    // utils::Dictionary<utils::String, utils::SharedPtr<gfx::Texture>> m_loadedTextures;
-    // utils::Dictionary<utils::String, Material> m_loadedMaterials;
+    utils::Dictionary<xg::Guid, RegisteredAsset> m_registeredMeshes;
+
+    utils::Dictionary<xg::Guid, Mesh> m_loadedMeshes;
 
 public:
     AssetManager& operator = (const AssetManager&) = delete;

@@ -7,13 +7,12 @@
  * ---------------------------------------------------
  */
 
-#include "ECS/ECSView.hpp"
 #include "ECS/Components.hpp"
 #include "Graphics/Texture.hpp"
 #include "Math/Constants.hpp"
 #include "Math/Vector.hpp"
-#include "Renderer/Mesh.hpp"
 #include "Scene.hpp"
+#include "UtilsCPP/Array.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include <imgui.h>
 #include <cstring>
@@ -41,7 +40,7 @@ void Editor::drawViewportPanel()
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_DND"))
             {
                 IM_ASSERT(payload->DataSize == sizeof(Scene*));
-                m_editedScene = (Scene*)payload->Data;
+                editScene(*(Scene**)payload->Data);
             }
             ImGui::EndDragDropTarget();
         }
@@ -84,11 +83,10 @@ void Editor::drawSceneGraphPanel()
     {
         if (m_editedScene)
         {
-            ECSView<NameComponent>(m_editedScene->ecsWorld())
-                .onEach([&](Entity entity, NameComponent &) {
-                    if (entity.has<HierarchicalComponent>() == false || entity.parent() == false)
-                        sceneGraphEntityRow(entity);
-                });
+            m_editedScene->forEachNamedEntity([&](Entity entity, NameComponent&) {
+                if (entity.has<HierarchicalComponent>() == false || entity.parent() == false)
+                    sceneGraphEntityRow(entity);
+            });
         }
         else
         {
@@ -151,14 +149,56 @@ void Editor::drawEntityInspectorPanel()
             {
                 ImGui::SeparatorText("Mesh Component");
 
-                MeshComponent meshComponent = m_selectedEntity.get<MeshComponent>();
-                ImGui::Text("%s", (char*)meshComponent.mesh.name);
-                if (ImGui::TreeNode("Sub Meshes"))
+                MeshComponent& meshComponent = m_selectedEntity.get<MeshComponent>();
+                ImGui::Text("mesh: %s",(char*)m_editedScene->assetManager().getMeshName(meshComponent.meshID));
+                
+                if (ImGui::BeginDragDropTarget())
                 {
-                    for (auto& subMesh : meshComponent.mesh.subMeshes)
-                        ImGui::Text("%s", (char*)subMesh.name);
-                    ImGui::TreePop();
+                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("MESH_DND"))
+                    {
+                        IM_ASSERT(payload->DataSize == sizeof(xg::Guid));
+                        meshComponent.meshID = *(xg::Guid*)payload->Data;
+                    }
+                    ImGui::EndDragDropTarget();
                 }
+            }
+
+            utils::Array<utils::String> missingComponents;
+            if (m_selectedEntity.has<TransformComponent>() == false)
+                missingComponents.append("Transform component");
+            if (m_selectedEntity.has<CameraComponent>() == false)
+                missingComponents.append("Camera component");
+            if (m_selectedEntity.has<LightComponent>() == false)
+                missingComponents.append("Light component");
+            if (m_selectedEntity.has<MeshComponent>() == false)
+                missingComponents.append("Mesh component");
+            if (m_selectedEntity.has<ScriptComponent>() == false)
+                missingComponents.append("Script component");
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            if (ImGui::Button("Add component"))
+                ImGui::OpenPopup("ADD_COMP_POPUP");
+
+            if (ImGui::BeginPopup("ADD_COMP_POPUP"))
+            {
+                for (auto comp : missingComponents)
+                {
+                    if (ImGui::Selectable((char*)comp))
+                    {
+                        if (comp == utils::String("Transform component"))
+                            m_selectedEntity.emplace<TransformComponent>(math::vec3f{0,0,0},math::vec3f{0,0,0},math::vec3f{1,1,1});
+                        if (comp == utils::String("Camera component"))
+                            m_selectedEntity.emplace<GE::CameraComponent>((float)(60 * (PI / 180.0F)), 10000.0f, 0.01f);
+                        if (comp == utils::String("Light component"))
+                            m_selectedEntity.emplace<GE::LightComponent>(GE::LightComponent::Type::point, WHITE3, 1.0f);
+                        if (comp == utils::String("Mesh component"))
+                            m_selectedEntity.emplace<GE::MeshComponent>();
+                    }
+                }
+                ImGui::EndPopup();
             }
 
             ImGui::PopItemWidth();
@@ -185,7 +225,8 @@ void Editor::drawScenePickerPanel()
 
             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
             {
-                ImGui::SetDragDropPayload("SCENE_DND", &scene, sizeof(Scene*));
+                const void* data = &scene;
+                ImGui::SetDragDropPayload("SCENE_DND", &data, sizeof(Scene*));
                 ImGui::Text("%s", (const char*)name);
                 ImGui::EndDragDropSource();
             }
@@ -202,6 +243,9 @@ void Editor::drawScenePickerPanel()
             m_newSceneName = "new scene";
             ImGui::OpenPopup("NEW_SCENE_MODAL_POPUP");
         }
+
+        ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Always, ImVec2(0.5f,0.5f));
+        ImGui::SetNextWindowSize(ImVec2(0,0));
         if (ImGui::BeginPopupModal("NEW_SCENE_MODAL_POPUP", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove))
         {
             char buff[32];
@@ -231,13 +275,13 @@ void Editor::drawSceneMeshPickerPanel()
     if (ImGui::Begin("Meshes"))
     {
         float lineWith = 0.0F;
-        for (auto& [name, mesh] : m_editedScene->assetManager().loadedMeshes())
+        for (auto& [uuid, name] : m_editedScene->assetManager().registeredMesh())
         {
             ImGui::Button((const char*)name, ImVec2(120, 120));
 
             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
             {
-                ImGui::SetDragDropPayload("MESH_DND", &mesh, sizeof(Mesh*));
+                ImGui::SetDragDropPayload("MESH_DND", &uuid, sizeof(xg::Guid));
                 ImGui::Text("%s", (const char*)name);
                 ImGui::EndDragDropSource();
             }

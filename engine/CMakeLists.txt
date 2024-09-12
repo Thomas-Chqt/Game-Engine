@@ -35,6 +35,7 @@ endif()
 target_link_libraries(Game-Engine PUBLIC UtilsCPP)
 target_link_libraries(Game-Engine PUBLIC Math)
 target_link_libraries(Game-Engine PUBLIC Graphics)
+target_link_libraries(Game-Engine PUBLIC crossguid)
 
 target_link_libraries(Game-Engine PRIVATE assimp)
 

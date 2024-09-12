@@ -10,6 +10,7 @@ cmake_minimum_required(VERSION 3.16)
 include(FetchContent)
 
 enable_testing()
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build using shared libraries" FORCE)
 
@@ -56,6 +57,11 @@ set(ASSIMP_BUILD_FBX_IMPORTER ON)
 set(ASSIMP_BUILD_GLTF_IMPORTER ON)
 FetchContent_MakeAvailable(assimp)
 set_target_properties(assimp PROPERTIES FOLDER "dependencies")
+
+FetchContent_Declare(crossguid GIT_REPOSITORY https://github.com/graeme-hill/crossguid.git GIT_SHALLOW 1)
+set(CROSSGUID_TESTS OFF)
+FetchContent_MakeAvailable(crossguid)
+set_target_properties(crossguid PROPERTIES FOLDER "dependencies")
 
 add_subdirectory("engine")
 add_subdirectory("editor")

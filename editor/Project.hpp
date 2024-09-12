@@ -29,7 +29,7 @@ public:
     void reloadProject();
     inline Game& game() { return *m_game; }
 
-    ~Project() = default;
+    virtual ~Project() = default;
 
 private:
     utils::String m_path;

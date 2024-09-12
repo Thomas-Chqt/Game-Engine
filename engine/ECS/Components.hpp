@@ -12,9 +12,10 @@
 
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
-#include "Renderer/Mesh.hpp"
 #include <cmath>
 #include "ECS/Entity.hpp"
+#include "UtilsCPP/String.hpp"
+#include "crossguid/guid.hpp"
 
 namespace GE
 {
@@ -65,9 +66,7 @@ struct LightComponent
 
 struct MeshComponent
 {
-    Mesh mesh;
-
-    inline operator Mesh& () { return mesh; }
+    xg::Guid meshID;
 };
 
 struct ScriptComponent

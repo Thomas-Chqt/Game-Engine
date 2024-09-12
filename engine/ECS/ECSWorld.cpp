@@ -9,14 +9,12 @@
 
 #include "ECS/ECSWorld.hpp"
 #include "ECS/Archetype.hpp"
-#include "ECS/Components.hpp"
 #include "UtilsCPP/Dictionary.hpp"
 #include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include <utility>
 #include <cstring>
-#include "ECS/Entity.hpp"
 
 namespace GE
 {
@@ -34,7 +32,7 @@ ECSWorld::ECSWorld(ECSWorld&& mv)
 {
 }
 
-Entity ECSWorld::newEmptyEntity()
+ECSWorld::EntityID ECSWorld::newEntity()
 {
     utils::uint32 newEntityArchIdx = m_emptyArchetype->newIndex();
 
@@ -50,36 +48,8 @@ Entity ECSWorld::newEmptyEntity()
         new (&m_entityDatas[newEntityId]) EntityData{m_emptyArchetype, newEntityArchIdx};
     }
     *m_emptyArchetype->getEntityId(newEntityArchIdx) = newEntityId;
-    return Entity(*this, newEntityId);
+    return newEntityId;
 }
-
-Entity ECSWorld::newEntity(const utils::String& name)
-{
-    Entity newEntity = newEmptyEntity();
-
-    newEntity.emplace<NameComponent>(name);
-    newEntity.emplace<TransformComponent>(
-        math::vec3f{ 0.0F, 0.0F, 0.0F }, // position
-        math::vec3f{ 0.0F, 0.0F, 0.0F }, // rotation
-        math::vec3f{ 1.0F, 1.0F, 1.0F }  // scale
-    );
-
-    return newEntity;
-}
-
-utils::uint32 ECSWorld::componentCount()
-{
-    utils::uint32 output = 0;
-    for (auto& [id, arc] : m_archetypes) {
-        output += id.size() * arc->entityCount();
-    }
-    return output;
-}
-
-ECSWorld::~ECSWorld()
-{
-}
-
 
 void ECSWorld::deleteEntity(EntityID entityId)
 {
@@ -154,6 +124,19 @@ void* ECSWorld::get(EntityID entityId, ComponentID componentID)
 {
     EntityData& entityData = m_entityDatas[entityId];
     return entityData.archetype->getComponent(componentID, entityData.idx);
+}
+
+utils::uint32 ECSWorld::componentCount()
+{
+    utils::uint32 output = 0;
+    for (auto& [id, arc] : m_archetypes) {
+        output += id.size() * arc->entityCount();
+    }
+    return output;
+}
+
+ECSWorld::~ECSWorld()
+{
 }
 
 }

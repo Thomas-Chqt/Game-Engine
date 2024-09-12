@@ -98,41 +98,6 @@ void Renderer::addPointLight(const Renderer::PointLight& pointLight)
     m_lightsBuffer.content().pointLights[idx] = pointLight;
 }
 
-void Renderer::addAllRenderables(ECSView<TransformComponent, MeshComponent> view)
-{
-    view.onEach([&](Entity entity, TransformComponent& transform, MeshComponent& mesh) {
-        auto addSubMesh = [&](SubMesh& subMesh, const math::mat4x4& transform) {
-            math::mat4x4 modelMatrix = transform * subMesh.transform;
-            *static_cast<math::mat4x4*>(subMesh.modelMatrixBuffer->mapContent()) = modelMatrix;
-            subMesh.modelMatrixBuffer->unMapContent();
-
-            Renderer::Renderable renderable;
-            renderable.vertexBuffer = subMesh.vertexBuffer;
-            renderable.indexBuffer = subMesh.indexBuffer;
-            renderable.modelMatrix = subMesh.modelMatrixBuffer;
-
-            addRenderable(renderable);
-        };
-
-        for (auto& subMesh : ((Mesh&)mesh).subMeshes)
-            addSubMesh(subMesh, entity.worldTransform());
-    });
-}
-
-void Renderer::addAllLights(ECSView<TransformComponent, LightComponent> view)
-{
-    view.onEach([&](Entity, TransformComponent& transform, LightComponent& light) {
-        switch (light.type)
-        {
-        case LightComponent::Type::point:
-            addPointLight({transform.position, light.color, light.intentsity});
-            break;
-        default:
-            UNREACHABLE
-        }
-    });
-}
-
 void Renderer::endScene()
 {
     m_lightsBuffer.unmap();

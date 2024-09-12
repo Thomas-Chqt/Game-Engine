@@ -8,12 +8,15 @@
  */
 
 #include "Editor.hpp"
-#include "ECS/ECSView.hpp"
+#include "ECS/Entity.hpp"
 #include "EditorCamera.hpp"
+#include "Game.hpp"
 #include "Graphics/Event.hpp"
 #include "InputManager/RawInput.hpp"
 #include "InputManager/Mapper.hpp"
+#include "Math/Constants.hpp"
 #include "Scene.hpp"
+#include "UtilsCPP/UniquePtr.hpp"
 
 namespace GE
 {
@@ -21,6 +24,19 @@ namespace GE
 Editor::Editor()
 {
     resetEditorInputs();
+
+    m_project.game().addScene("default_scene", Scene());
+    m_project.game().setStartScene("default_scene");
+
+    Scene& defaultScene = m_project.game().getScene("default_scene");
+
+    defaultScene.assetManager().registerMesh("cube.glb", RESSOURCES_DIR"/cube.glb");
+    defaultScene.assetManager().registerMesh("chess_set.gltf", RESSOURCES_DIR"/chess_set/chess_set.gltf");
+
+    GE::Entity player = defaultScene.newEntity("player");
+    player.emplace<GE::CameraComponent>((float)(60 * (PI / 180.0F)), 10000.0f, 0.01f);
+    player.emplace<GE::LightComponent>(GE::LightComponent::Type::point, WHITE3, 1.0f);
+    
 }
 
 void Editor::onUpdate()
@@ -36,10 +52,7 @@ void Editor::onUpdate()
     m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
     {
         if (m_editedScene)
-        {
-            m_renderer.addAllLights(m_editedScene->ecsWorld());
-            m_renderer.addAllRenderables(m_editedScene->ecsWorld());
-        }
+            m_editedScene->submitForRendering(m_renderer);
     }
     m_renderer.endScene();
 }
@@ -122,8 +135,13 @@ void Editor::resetEditorInputs()
 
 void Editor::editScene(Scene* scene)
 {
+    if (m_editedScene)
+        m_editedScene->unload();
+    scene->load(m_renderer.graphicAPI());
     m_editedScene = scene;
+
     m_editorCamera = EditorCamera();
+    m_selectedEntity = Entity();
 }
 
 }

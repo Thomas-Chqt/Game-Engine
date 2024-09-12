@@ -14,7 +14,6 @@
 #include "UtilsCPP/Dictionary.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/Set.hpp"
-#include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include <climits>
@@ -29,13 +28,14 @@ class Entity;
 
 class ECSWorld
 {
-private:
+public:
     using EntityID = utils::uint64;
     using ComponentID = utils::uint32;
+
+private:
     using ArchetypeID = utils::Set<ComponentID>;
 
 private:
-    friend class Entity;
     friend class Archetype;
     template<typename ... Ts> friend class ECSView;
 
@@ -44,8 +44,19 @@ public:
     ECSWorld(const ECSWorld&) = delete;
     ECSWorld(ECSWorld&&)      ;
 
-    Entity newEmptyEntity();
-    Entity newEntity(const utils::String& name = "No name");
+    inline static ComponentID nextComponentID() { static ComponentID id = 0; return id++; };
+    template<typename T> inline static ComponentID componentID() { static ComponentID id = nextComponentID(); return id; }
+
+    EntityID newEntity();
+
+    void deleteEntity(EntityID);
+    bool isValid(EntityID id) { return m_entityDatas.length() > id && m_availableEntityIDs.contain(id) == false; }
+
+    void* emplace(EntityID, ComponentID, utils::uint32 size, const utils::Func<void(void*)>& constructor, const utils::Func<void(void*)>& destructor);
+    void remove(EntityID, ComponentID);
+
+    bool has(EntityID, ComponentID);
+    void* get(EntityID, ComponentID);
 
     inline utils::uint32 entityCount() { return m_entityDatas.length() - m_availableEntityIDs.size(); }
     inline utils::uint32 archetypeCount() { return m_archetypes.size(); }
@@ -59,18 +70,6 @@ private:
         Archetype* archetype = nullptr;
         utils::uint32 idx = 0;
     };
-
-    inline static ComponentID nextComponentID() { static ComponentID id = 0; return id++; };
-    template<typename T> inline static ComponentID componentID() { static ComponentID id = nextComponentID(); return id; }
-    
-    void deleteEntity(EntityID);
-    bool isValid(EntityID id) { return m_entityDatas.length() > id && m_availableEntityIDs.contain(id) == false; }
-
-    void* emplace(EntityID, ComponentID, utils::uint32 size, const utils::Func<void(void*)>& constructor, const utils::Func<void(void*)>& destructor);
-    void remove(EntityID, ComponentID);
-
-    bool has(EntityID, ComponentID);
-    void* get(EntityID, ComponentID);
 
     utils::Array<EntityData> m_entityDatas;
     utils::Set<EntityID> m_availableEntityIDs;

@@ -11,8 +11,12 @@
 #define SCENE_HPP
 
 #include "AssetManager.hpp"
+#include "ECS/Components.hpp"
 #include "ECS/ECSWorld.hpp"
 #include "ECS/Entity.hpp"
+#include "ECS/ECSView.hpp"
+#include "Renderer/Renderer.hpp"
+#include "UtilsCPP/String.hpp"
 
 namespace GE
 {
@@ -24,12 +28,20 @@ public:
     Scene(const Scene&) = delete;
     Scene(Scene&&)      = default;
 
-    inline ECSWorld& ecsWorld() { return m_ecsWorld; }
+    Entity newEntity(const utils::String& name = "No name");
+    inline void forEachNamedEntity(const utils::Func<void(Entity, NameComponent&)> &f) { ECSView<NameComponent>(m_ecsWorld).onEach(f); }
 
     inline const Entity& activeCamera() { return m_activeCamera; }
     inline void setActiveCamera(Entity e) { m_activeCamera = e; }
 
     inline AssetManager& assetManager() { return m_assetManager; }
+
+    inline void load(gfx::GraphicAPI& api) { m_assetManager.loadAssets(api); }
+    inline void unload() { m_assetManager.unloadAssets(); }
+
+    void submitMeshesForRendering(Renderer&);
+    void submitLightsForRendering(Renderer&);
+    void submitForRendering(Renderer&);
 
 private:
     ECSWorld m_ecsWorld;

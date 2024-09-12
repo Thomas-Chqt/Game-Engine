@@ -17,8 +17,6 @@
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "Graphics/BufferInstance.hpp"
-#include "ECS/Components.hpp"
-#include "ECS/ECSView.hpp"
 
 namespace GE
 {
@@ -69,9 +67,6 @@ public:
 
     void addRenderable(const Renderer::Renderable&);
     void addPointLight(const Renderer::PointLight&);
-
-    void addAllRenderables(ECSView<TransformComponent, MeshComponent>);
-    void addAllLights(ECSView<TransformComponent, LightComponent>);
 
     void endScene();
 
