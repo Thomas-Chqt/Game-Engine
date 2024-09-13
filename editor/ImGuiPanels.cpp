@@ -7,6 +7,7 @@
  * ---------------------------------------------------
  */
 
+#if 0
 #include "ECS/Components.hpp"
 #include "Graphics/Texture.hpp"
 #include "Math/Constants.hpp"
@@ -297,3 +298,4 @@ void Editor::drawSceneMeshPickerPanel()
 }
 
 }
+#endif

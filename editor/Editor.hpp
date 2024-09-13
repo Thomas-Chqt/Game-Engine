@@ -15,7 +15,8 @@
 #include "EditorCamera.hpp"
 #include "Project.hpp"
 #include "Scene.hpp"
-#include "UtilsCPP/String.hpp"
+#include "ECS/Entity.hpp"
+#include "imguiPanels/ViewportPanel.hpp"
 
 namespace GE
 {
@@ -34,30 +35,20 @@ private:
     void onImGuiRender() override;
     void onEvent(gfx::Event&) override;
 
-    // imgui panels
-    void drawViewportPanel();
-    void drawSceneGraphPanel();
-    void drawEntityInspectorPanel();
-    void drawFPSPanel();
-    void drawScenePickerPanel();
-    void drawSceneMeshPickerPanel();
-
     void updateVPFrameBuff();
     void resetEditorInputs();
     void editScene(Scene*);
 
-    Project m_project;
-    Scene* m_editedScene = nullptr;
-
+    utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
+    
     InputContext m_editorInputContext;
     EditorCamera m_editorCamera;
-    
-    Entity m_selectedEntity;
-    utils::String m_newSceneName; // TODO move to ScenePickerPanel struct
 
-    utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
-    math::vec2f m_viewportPanelSize = {800, 600};
-    bool m_viewportPanelSizeIsDirty = true;
+    Project m_project;
+    Scene* m_editedScene = nullptr;
+    Entity m_selectedEntity;
+
+    ViewportPanel m_viewportPanel;
 
 public:
     Editor& operator = (const Editor&) = delete;

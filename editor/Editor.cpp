@@ -17,37 +17,34 @@
 #include "Math/Constants.hpp"
 #include "Scene.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
+#include <utility>
+#include "imguiPanels/SceneGraphPanel.hpp"
+#include "imguiPanels/EntityInspectorPanel.hpp"
 
 namespace GE
 {
 
 Editor::Editor()
 {
-    resetEditorInputs();
-
-    m_project.game().addScene("default_scene", Scene());
-    m_project.game().setStartScene("default_scene");
-
-    Scene& defaultScene = m_project.game().getScene("default_scene");
-
+    Scene defaultScene;
     defaultScene.assetManager().registerMesh("cube.glb", RESSOURCES_DIR"/cube.glb");
     defaultScene.assetManager().registerMesh("chess_set.gltf", RESSOURCES_DIR"/chess_set/chess_set.gltf");
 
     GE::Entity player = defaultScene.newEntity("player");
     player.emplace<GE::CameraComponent>((float)(60 * (PI / 180.0F)), 10000.0f, 0.01f);
     player.emplace<GE::LightComponent>(GE::LightComponent::Type::point, WHITE3, 1.0f);
+
+    m_project.game().addScene("default_scene", std::move(defaultScene));
+    m_project.game().setStartScene("default_scene");
     
+    resetEditorInputs();
+
+    editScene(&m_project.game().getScene("default_scene"));
 }
 
 void Editor::onUpdate()
 {
-    if (m_viewportPanelSizeIsDirty)
-    {
-        updateVPFrameBuff();
-        m_viewportPanelSizeIsDirty = false;
-    }
-
-    m_editorInputContext.dispatchInputs();
+    updateVPFrameBuff();
 
     m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
     {
@@ -55,19 +52,22 @@ void Editor::onUpdate()
             m_editedScene->submitForRendering(m_renderer);
     }
     m_renderer.endScene();
+
+    m_editorInputContext.dispatchInputs();
 }
 
 void Editor::onImGuiRender()
 {
     ImGui::DockSpaceOverViewport();
     
-    drawViewportPanel();
-    drawSceneGraphPanel();
-    drawEntityInspectorPanel();
-    drawFPSPanel();
-    drawScenePickerPanel();
-    if (m_editedScene)
-        drawSceneMeshPickerPanel();
+    m_viewportPanel.render(m_viewportFBuff);
+
+    SceneGraphPanel(m_editedScene, m_selectedEntity)
+        .onEntitySelect([&](Entity entity){ m_selectedEntity = entity; })
+        .render();
+
+    EntityInspectorPanel(m_editedScene, m_selectedEntity)
+        .render();
 }
 
 void Editor::onEvent(gfx::Event& event)
@@ -87,9 +87,12 @@ void Editor::updateVPFrameBuff()
     float xScale, yScale;
     m_window->getFrameBufferScaleFactor(&xScale, &yScale);
 
-    utils::uint32 newFrameBufferWidth = (utils::uint32)((float)m_viewportPanelSize.x * xScale);
-    utils::uint32 newFrameBufferHeight = (utils::uint32)((float)m_viewportPanelSize.y * yScale);
+    utils::uint32 newFrameBufferWidth = (utils::uint32)(m_viewportPanel.contentRegionAvail().x * xScale);
+    utils::uint32 newFrameBufferHeight = (utils::uint32)(m_viewportPanel.contentRegionAvail().y * yScale);
     
+    if (m_viewportFBuff && newFrameBufferWidth == m_viewportFBuff->width() && newFrameBufferHeight == m_viewportFBuff->height())
+        return;
+
     gfx::Texture::Descriptor colorTextureDescriptor;
     colorTextureDescriptor.width = newFrameBufferWidth;
     colorTextureDescriptor.height = newFrameBufferHeight;
