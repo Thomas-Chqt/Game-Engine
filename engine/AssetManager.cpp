@@ -11,9 +11,11 @@
 #include "Renderer/Mesh.hpp"
 #include "Math/Matrix.hpp"
 #include "Renderer/Renderer.hpp"
+#include "UtilsCPP/Array.hpp"
 #include "UtilsCPP/RuntimeError.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/String.hpp"
+#include "UtilsCPP/Types.hpp"
 #include "assimp/Importer.hpp"
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
@@ -33,38 +35,46 @@
 namespace GE
 {
 
-xg::Guid AssetManager::registerMesh(const utils::String& name, const utils::String& filepath)
+utils::String AssetManager::assetShortPath(AssetID id, const utils::String& ressourceDirFullPath)
 {
-    xg::Guid newAssetID = xg::newGuid();
-    m_registeredMeshes.insert(newAssetID, RegisteredAsset{name, filepath});
+    utils::String fullPath = m_assetFullPaths[id];
+    utils::String shortPath;
+    utils::uint32 i = 0;
+    while (i < fullPath.length() && fullPath[i] == ressourceDirFullPath[i])
+        i++;
+    if (i == fullPath.length())
+        shortPath = fullPath;
+    else
+        shortPath = fullPath.substr(i + 1, fullPath.length() - i - 1);
+    return shortPath;
+}
 
-    if (m_isLoaded)
-        m_loadedMeshes.insert(newAssetID, loadMesh(filepath, *m_api));
+AssetID AssetManager::registerMesh(const utils::String& path)
+{
+    AssetID newAssetID = xg::newGuid();
+
+    m_assetFullPaths.insert(newAssetID, path);
+    m_registeredMeshes.insert(newAssetID);
+
+    if (isLoaded())
+        m_loadedMeshes.insert(newAssetID, loadMesh(path, *m_api));
 
     return newAssetID;
 }
 
-utils::Dictionary<xg::Guid, utils::String> AssetManager::registeredMesh() const
-{
-    utils::Dictionary<xg::Guid, utils::String> output;
-    for (auto& [uuid, asset] : m_registeredMeshes)
-        output.insert(uuid, asset.name);
-    return output;
-}
-
 void AssetManager::loadAssets(gfx::GraphicAPI& api)
 {
-    m_isLoaded = true;
     m_api = &api;
-    for (auto& [uuid, asset] : m_registeredMeshes)
-        m_loadedMeshes.insert(uuid, loadMesh(asset.path, api));
+
+    for (auto& id : m_registeredMeshes)
+        m_loadedMeshes.insert(id, loadMesh(m_assetFullPaths[id], api));
 }
 
 void AssetManager::unloadAssets()
 {
     m_loadedMeshes.clear();
+
     m_api = nullptr;
-    m_isLoaded = false;
 }
 
 Mesh AssetManager::loadMesh(const utils::String& filepath, gfx::GraphicAPI& api)

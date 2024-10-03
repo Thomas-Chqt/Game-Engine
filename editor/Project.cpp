@@ -21,8 +21,9 @@ Project::Project()
 }
 
 Project::Project(const utils::String& filepath)
-    : m_path(filepath)
+    : Project()
 {
+    m_path = filepath;
 }
 
 void Project::reloadProject()

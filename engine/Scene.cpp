@@ -48,7 +48,7 @@ void Scene::submitMeshesForRendering(Renderer& renderer)
 
         if (mesh.meshID.isValid())
         {
-            for (auto& subMesh : m_assetManager.getLoadedMesh(mesh.meshID).subMeshes)
+            for (auto& subMesh : m_assetManager.loadedMesh(mesh.meshID).subMeshes)
                 addSubMesh(subMesh, entity.worldTransform());
         }
     });

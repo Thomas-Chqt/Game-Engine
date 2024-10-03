@@ -12,14 +12,15 @@
 
 #include "Renderer/Mesh.hpp"
 #include "Graphics/GraphicAPI.hpp"
-// #include "Graphics/Texture.hpp"
 #include "UtilsCPP/Dictionary.hpp"
-// #include "UtilsCPP/SharedPtr.hpp"
+#include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/String.hpp"
 #include "crossguid/guid.hpp"
 
 namespace GE
 {
+
+using AssetID = xg::Guid;
 
 class AssetManager
 {
@@ -28,33 +29,29 @@ public:
     AssetManager(const AssetManager&) = delete;
     AssetManager(AssetManager&&)      = default;
 
-    xg::Guid registerMesh(const utils::String& name, const utils::String& filepath);
-    utils::Dictionary<xg::Guid, utils::String> registeredMesh() const;
+    utils::String assetShortPath(AssetID, const utils::String& ressourceDirFullPath);
 
-    utils::String getMeshName(xg::Guid id) { return id.isValid() ? m_registeredMeshes[id].name : "no mesh"; }
-    Mesh& getLoadedMesh(xg::Guid id) { return m_loadedMeshes[id]; }
+    AssetID registerMesh(const utils::String& fullPath);
+    inline const utils::Set<AssetID>& registeredMeshes() const { return m_registeredMeshes; }
+
+    inline Mesh& loadedMesh(AssetID id) { return m_loadedMeshes[id]; }
 
     void loadAssets(gfx::GraphicAPI&);
     void unloadAssets();
-    inline bool isLoaded() const { return m_isLoaded; }
+    inline bool isLoaded() const { return m_api != nullptr; }
 
     ~AssetManager() = default;
 
 private:
-    struct RegisteredAsset
-    {
-        utils::String name;
-        utils::String path;
-    };
-
     Mesh loadMesh(const utils::String& filepath, gfx::GraphicAPI&);
 
-    bool m_isLoaded = false;
     gfx::GraphicAPI* m_api = nullptr;
 
-    utils::Dictionary<xg::Guid, RegisteredAsset> m_registeredMeshes;
+    utils::Dictionary<AssetID, utils::String> m_assetFullPaths;
 
-    utils::Dictionary<xg::Guid, Mesh> m_loadedMeshes;
+    utils::Set<AssetID> m_registeredMeshes;
+
+    utils::Dictionary<AssetID, Mesh> m_loadedMeshes;
 
 public:
     AssetManager& operator = (const AssetManager&) = delete;

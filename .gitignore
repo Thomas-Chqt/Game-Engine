@@ -8,3 +8,4 @@ build_xcode.nosync/
 default.profraw
 **/imgui.ini
 graph.drawio.svg
+**/.DS_Store

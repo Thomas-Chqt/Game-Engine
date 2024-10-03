@@ -12,6 +12,7 @@
 
 #include "ECS/Entity.hpp"
 #include "Scene.hpp"
+#include "Project.hpp"
 
 namespace GE
 {
@@ -23,7 +24,7 @@ public:
     EntityInspectorPanel(const EntityInspectorPanel&) = delete;
     EntityInspectorPanel(EntityInspectorPanel&&)      = delete;
     
-    EntityInspectorPanel(Scene* scene, Entity selectedEntity);
+    EntityInspectorPanel(Project& project, Scene*& editedScene, Entity& selectedEntity);
 
     void render();
 
@@ -39,8 +40,9 @@ private:
     void meshComponentEditWidget();
     void addComponentPopup();
     
-    Scene* m_editedScene;
-    Entity m_selectedEntity;
+    Project& m_project;
+    Scene*& m_editedScene;
+    Entity& m_selectedEntity;
 
 public:
     EntityInspectorPanel& operator = (const EntityInspectorPanel&) = delete;

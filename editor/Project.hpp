@@ -29,12 +29,16 @@ public:
     void reloadProject();
     inline Game& game() { return *m_game; }
 
+    inline void setRessourceDir(const utils::String& s) { m_ressourcesDir = s; }
+    inline utils::String ressourceDirFullPath() const { return m_path + "/" + m_ressourcesDir; }
+
     virtual ~Project() = default;
 
 private:
     utils::String m_path;
 
     utils::String m_projName;
+    utils::String m_ressourcesDir;
 
     utils::UniquePtr<Game> m_game;
     
