@@ -9,22 +9,30 @@
 
 #include "imguiPanels/ViewportPanel.hpp"
 #include "Scene.hpp"
+#include "UtilsCPP/Types.hpp"
 #include <imgui.h>
 
 namespace GE
 {
 
-void ViewportPanel::render(const utils::SharedPtr<gfx::FrameBuffer>& fb)
+ViewportPanel::ViewportPanel(ViewportFrameBuffer& viewportFBuff)
+    : m_viewportFBuff(viewportFBuff)
+{
+}
+
+void ViewportPanel::render()
 {
     if (ImGui::Begin("viewport"))
     {
-        ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-        viewportSize.x = viewportSize.x == 0 ? 1 : viewportSize.x;
-        viewportSize.y = viewportSize.y == 0 ? 1 : viewportSize.y;
-        m_contentRegionAvail = math::vec2f{viewportSize.x, viewportSize.y};
+        ImVec2 contentRegionAvai = ImGui::GetContentRegionAvail();
+        contentRegionAvai.x = contentRegionAvai.x == 0 ? 1 : contentRegionAvai.x;
+        contentRegionAvai.y = contentRegionAvai.y == 0 ? 1 : contentRegionAvai.y;
 
-        utils::SharedPtr<gfx::Texture> colorTexture = fb->colorTexture();
-        ImGui::Image(colorTexture->imguiTextureId(), viewportSize, colorTexture->imguiUV0(), colorTexture->imguiUV1());
+        if (m_onResize && (contentRegionAvai.x != m_viewportFBuff.width() || contentRegionAvai.y != m_viewportFBuff.height()))
+            m_onResize((utils::uint32)contentRegionAvai.x, (utils::uint32)contentRegionAvai.y);
+
+        utils::SharedPtr<gfx::Texture> colorTexture = m_viewportFBuff.colorTexture();
+        ImGui::Image(colorTexture->imguiTextureId(), contentRegionAvai, colorTexture->imguiUV0(), colorTexture->imguiUV1());
         
         if (m_onSceneDrop && ImGui::BeginDragDropTarget())
         {

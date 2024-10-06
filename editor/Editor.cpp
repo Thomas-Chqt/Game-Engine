@@ -19,8 +19,10 @@
 #include "Scene.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include <utility>
+#include "ViewportFrameBuffer.hpp"
 #include "imguiPanels/SceneGraphPanel.hpp"
 #include "imguiPanels/EntityInspectorPanel.hpp"
+#include "imguiPanels/ViewportPanel.hpp"
 
 namespace GE
 {
@@ -48,9 +50,9 @@ Editor::Editor()
 
 void Editor::onUpdate()
 {
-    updateVPFrameBuff();
+    m_viewportFBuff.update(*m_window, m_renderer.graphicAPI());
 
-    m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
+    m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.getAsRenderTarget());
     {
         if (m_editedScene)
             m_editedScene->submitForRendering(m_renderer);
@@ -64,7 +66,9 @@ void Editor::onImGuiRender()
 {
     ImGui::DockSpaceOverViewport();
     
-    m_viewportPanel.render(m_viewportFBuff);
+    ViewportPanel(m_viewportFBuff)
+        .onResize(utils::Func<void (utils::uint32, utils::uint32)>(m_viewportFBuff, &ViewportFrameBuffer::resize))
+        .render();
 
     SceneGraphPanel(m_editedScene, m_selectedEntity)
         .onEntitySelect([&](Entity entity){ m_selectedEntity = entity; })
@@ -84,31 +88,6 @@ void Editor::onEvent(gfx::Event& event)
     if (event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& windowRequestCloseEvent) {
         terminate();
     })) return;
-}
-
-void Editor::updateVPFrameBuff()
-{
-    float xScale, yScale;
-    m_window->getFrameBufferScaleFactor(&xScale, &yScale);
-
-    utils::uint32 newFrameBufferWidth = (utils::uint32)(m_viewportPanel.contentRegionAvail().x * xScale);
-    utils::uint32 newFrameBufferHeight = (utils::uint32)(m_viewportPanel.contentRegionAvail().y * yScale);
-    
-    if (m_viewportFBuff && newFrameBufferWidth == m_viewportFBuff->width() && newFrameBufferHeight == m_viewportFBuff->height())
-        return;
-
-    gfx::Texture::Descriptor colorTextureDescriptor;
-    colorTextureDescriptor.width = newFrameBufferWidth;
-    colorTextureDescriptor.height = newFrameBufferHeight;
-    colorTextureDescriptor.pixelFormat = gfx::PixelFormat::BGRA;
-    colorTextureDescriptor.usage = gfx::Texture::Usage::ShaderReadAndRenderTarget;
-    
-    gfx::Texture::Descriptor depthTextureDescriptor = gfx::Texture::Descriptor::depthTextureDescriptor(newFrameBufferWidth, newFrameBufferHeight);
-
-    gfx::FrameBuffer::Descriptor fBuffDesc;
-    fBuffDesc.colorTexture = m_renderer.graphicAPI().newTexture(colorTextureDescriptor);
-    fBuffDesc.depthTexture = m_renderer.graphicAPI().newTexture(depthTextureDescriptor);
-    m_viewportFBuff = m_renderer.graphicAPI().newFrameBuffer(fBuffDesc);
 }
 
 void Editor::resetEditorInputs()

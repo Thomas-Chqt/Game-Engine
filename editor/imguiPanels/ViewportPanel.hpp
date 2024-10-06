@@ -10,11 +10,10 @@
 #ifndef VIEWPORTPANEL_HPP
 #define VIEWPORTPANEL_HPP
 
-#include "UtilsCPP/SharedPtr.hpp"
-#include "Graphics/FrameBuffer.hpp"
-#include "Math/Vector.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "Scene.hpp"
+#include "UtilsCPP/Types.hpp"
+#include "ViewportFrameBuffer.hpp"
 
 namespace GE
 {
@@ -22,21 +21,22 @@ namespace GE
 class ViewportPanel
 {
 public:
-    ViewportPanel()                     = default;
+    ViewportPanel()                     = delete;
     ViewportPanel(const ViewportPanel&) = delete;
     ViewportPanel(ViewportPanel&&)      = delete;
 
-    void render(const utils::SharedPtr<gfx::FrameBuffer>&);
+    ViewportPanel(ViewportFrameBuffer&);
 
-    inline math::vec2f contentRegionAvail() { return m_contentRegionAvail; }
-
-    inline void setOnSceneDrop(const utils::Func<void(Scene*)>& f) { m_onSceneDrop = f; }
+    inline ViewportPanel& onResize(const utils::Func<void(utils::uint32, utils::uint32)>& f) { return m_onResize = f, *this; }
+    inline ViewportPanel& setOnSceneDrop(const utils::Func<void(Scene*)>& f) { return m_onSceneDrop = f, *this; }
+    void render();
 
     ~ViewportPanel() = default;
 
 private:
-    math::vec2f m_contentRegionAvail = {800, 600};
+    ViewportFrameBuffer& m_viewportFBuff; 
 
+    utils::Func<void(utils::uint32, utils::uint32)> m_onResize;
     utils::Func<void(Scene*)> m_onSceneDrop;
 
 public:

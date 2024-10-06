@@ -16,7 +16,7 @@
 #include "Project.hpp"
 #include "Scene.hpp"
 #include "ECS/Entity.hpp"
-#include "imguiPanels/ViewportPanel.hpp"
+#include "ViewportFrameBuffer.hpp"
 
 namespace GE
 {
@@ -35,11 +35,10 @@ private:
     void onImGuiRender() override;
     void onEvent(gfx::Event&) override;
 
-    void updateVPFrameBuff();
     void resetEditorInputs();
     void editScene(Scene*);
 
-    utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
+    ViewportFrameBuffer m_viewportFBuff;
     
     InputContext m_editorInputContext;
     EditorCamera m_editorCamera;
@@ -47,8 +46,6 @@ private:
     Project m_project;
     Scene* m_editedScene = nullptr;
     Entity m_selectedEntity;
-
-    ViewportPanel m_viewportPanel;
 
 public:
     Editor& operator = (const Editor&) = delete;
