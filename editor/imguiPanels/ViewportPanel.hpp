@@ -13,7 +13,6 @@
 #include "UtilsCPP/Func.hpp"
 #include "Scene.hpp"
 #include "UtilsCPP/Types.hpp"
-#include "ViewportFrameBuffer.hpp"
 
 namespace GE
 {
@@ -25,16 +24,16 @@ public:
     ViewportPanel(const ViewportPanel&) = delete;
     ViewportPanel(ViewportPanel&&)      = delete;
 
-    ViewportPanel(ViewportFrameBuffer&);
+    ViewportPanel(const utils::SharedPtr<gfx::Texture>& image);
 
-    inline ViewportPanel& onResize(const utils::Func<void(utils::uint32, utils::uint32)>& f) { return m_onResize = f, *this; }
+    inline ViewportPanel& onResize(const utils::Func<void(utils::uint32 w, utils::uint32 h)>& f) { return m_onResize = f, *this; }
     inline ViewportPanel& setOnSceneDrop(const utils::Func<void(Scene*)>& f) { return m_onSceneDrop = f, *this; }
     void render();
 
     ~ViewportPanel() = default;
 
 private:
-    ViewportFrameBuffer& m_viewportFBuff; 
+    utils::SharedPtr<gfx::Texture> m_image; 
 
     utils::Func<void(utils::uint32, utils::uint32)> m_onResize;
     utils::Func<void(Scene*)> m_onSceneDrop;

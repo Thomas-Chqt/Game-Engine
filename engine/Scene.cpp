@@ -7,13 +7,18 @@
  * ---------------------------------------------------
  */
 
-#include "Scene.hpp" // IWYU pragma: keep
+#include "Scene.hpp"
 #include "ECS/Components.hpp"
 #include "ECS/ECSView.hpp"
 #include "Renderer/Renderer.hpp"
 
 namespace GE
 {
+
+Scene::Scene(const utils::String& name)
+    : m_name(name)
+{
+}
 
 Entity Scene::newEntity(const utils::String& name)
 {

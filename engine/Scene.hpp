@@ -24,9 +24,13 @@ namespace GE
 class Scene
 {
 public:
-    Scene()             = default;
+    Scene()             = delete;
     Scene(const Scene&) = delete;
     Scene(Scene&&)      = default;
+
+    Scene(const utils::String& name);
+
+    inline const utils::String& name() const { return m_name; }
 
     Entity newEntity(const utils::String& name = "No name");
     inline void forEachNamedEntity(const utils::Func<void(Entity, NameComponent&)> &f) { ECSView<NameComponent>(m_ecsWorld).onEach(f); }
@@ -44,6 +48,7 @@ public:
     void submitForRendering(Renderer&);
 
 private:
+    utils::String m_name;
     ECSWorld m_ecsWorld;
     Entity m_activeCamera;
     AssetManager m_assetManager;
@@ -51,6 +56,12 @@ private:
 public:
     Scene& operator = (const Scene&) = delete;
     Scene& operator = (Scene&&)      = default;
+
+    bool operator  < (const Scene& rhs) const { return m_name  < rhs.m_name; }
+    bool operator == (const Scene& rhs) const { return m_name == rhs.m_name; }
+
+    bool operator  < (const utils::String& name) const { return m_name  < name; }
+    bool operator == (const utils::String& name) const { return m_name == name; }
 };
 
 }

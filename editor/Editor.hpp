@@ -16,7 +16,9 @@
 #include "Project.hpp"
 #include "Scene.hpp"
 #include "ECS/Entity.hpp"
-#include "ViewportFrameBuffer.hpp"
+#include "UtilsCPP/SharedPtr.hpp"
+#include "Graphics/FrameBuffer.hpp"
+#include "UtilsCPP/Types.hpp"
 
 namespace GE
 {
@@ -35,15 +37,20 @@ private:
     void onImGuiRender() override;
     void onEvent(gfx::Event&) override;
 
+    void updateVPFrameBuff();
     void resetEditorInputs();
     void editScene(Scene*);
 
-    ViewportFrameBuffer m_viewportFBuff;
+    Project m_project;
+    
+    utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
+    utils::uint32 m_viewportFBuffW = 800;
+    utils::uint32 m_viewportFBuffH = 600;
+    bool m_viewportFBuffSizeIsDirty = true;
     
     InputContext m_editorInputContext;
     EditorCamera m_editorCamera;
 
-    Project m_project;
     Scene* m_editedScene = nullptr;
     Entity m_selectedEntity;
 

@@ -10,49 +10,35 @@
 #include "Editor.hpp"
 #include "ECS/Entity.hpp"
 #include "EditorCamera.hpp"
-#include "Game.hpp"
 #include "Graphics/Event.hpp"
+#include "Graphics/RenderTarget.hpp"
 #include "InputManager/RawInput.hpp"
 #include "InputManager/Mapper.hpp"
-#include "Math/Constants.hpp"
 #include "Project.hpp"
 #include "Scene.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
-#include <utility>
-#include "ViewportFrameBuffer.hpp"
 #include "imguiPanels/SceneGraphPanel.hpp"
 #include "imguiPanels/EntityInspectorPanel.hpp"
 #include "imguiPanels/ViewportPanel.hpp"
+#include "tinyfiledialogs.hpp"
 
 namespace GE
 {
 
 Editor::Editor()
 {
-    Scene defaultScene;
-    defaultScene.assetManager().registerMesh(RESSOURCES_DIR"/cube.glb");
-    defaultScene.assetManager().registerMesh(RESSOURCES_DIR"/chess_set/chess_set.gltf");
-
-    GE::Entity player = defaultScene.newEntity("player");
-    player.emplace<GE::CameraComponent>((float)(60 * (PI / 180.0F)), 10000.0f, 0.01f);
-    player.emplace<GE::LightComponent>(GE::LightComponent::Type::point, WHITE3, 1.0f);
-
-    m_project = Project("/Users/thomas/Library/Mobile Documents/com~apple~CloudDocs/Visual Studio Code/C++/Projects/Game-Engine/editor");
-    m_project.setRessourceDir("ressources");
-    
-    m_project.game().addScene("default_scene", std::move(defaultScene));
-    m_project.game().setStartScene("default_scene");
-    
     resetEditorInputs();
-
-    editScene(&m_project.game().getScene("default_scene"));
 }
 
 void Editor::onUpdate()
 {
-    m_viewportFBuff.update(*m_window, m_renderer.graphicAPI());
-
-    m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.getAsRenderTarget());
+    if (m_viewportFBuffSizeIsDirty)
+    {
+        updateVPFrameBuff();
+        m_viewportFBuffSizeIsDirty = false;
+    }
+        
+    m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
     {
         if (m_editedScene)
             m_editedScene->submitForRendering(m_renderer);
@@ -65,9 +51,69 @@ void Editor::onUpdate()
 void Editor::onImGuiRender()
 {
     ImGui::DockSpaceOverViewport();
-    
-    ViewportPanel(m_viewportFBuff)
-        .onResize(utils::Func<void (utils::uint32, utils::uint32)>(m_viewportFBuff, &ViewportFrameBuffer::resize))
+
+    static bool showDemoWindow = false;
+    static bool showProjectProperties = false;
+
+    if (ImGui::BeginMainMenuBar())
+    {
+        if (ImGui::BeginMenu("File"))
+        {
+            if (ImGui::MenuItem("Open", "Ctrl+O"))
+            {
+                if (char* path = tinyfd_openFileDialog("", "", 0, nullptr, nullptr, 0))
+                    m_project = Project(path);
+            }
+
+            if (ImGui::MenuItem("Save", "Ctrl+S"))
+            {
+                if (m_project.path().isEmpty())
+                {
+                    if (char* path = tinyfd_saveFileDialog("", m_project.name() + ".json", 0, nullptr, nullptr))
+                    {
+                        m_project.setPath(path);
+                        m_project.saveProject();
+                    }
+                }
+                else 
+                    m_project.saveProject();
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Project"))
+        {
+            if (ImGui::MenuItem("Properties"))
+                showProjectProperties = true;
+
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Debug"))
+        {
+            
+            if (ImGui::MenuItem("Demo window"))
+                showDemoWindow = true;
+            ImGui::EndMenu();
+        }
+            
+        ImGui::EndMainMenuBar();
+    }
+
+    if (showProjectProperties)
+        ImGui::OpenPopup("Project properties");
+    if (ImGui::BeginPopupModal("Project properties", &showProjectProperties))
+    {
+        ImGui::Text("%s", (const char*)m_project.name());
+        ImGui::EndPopup();
+    }
+
+    ViewportPanel(m_viewportFBuff->colorTexture())
+        .onResize([&](utils::uint32 w , utils::uint32 h){
+            m_viewportFBuffW = w;
+            m_viewportFBuffH = h;
+            m_viewportFBuffSizeIsDirty = true;
+        })
         .render();
 
     SceneGraphPanel(m_editedScene, m_selectedEntity)
@@ -76,6 +122,9 @@ void Editor::onImGuiRender()
 
     EntityInspectorPanel(m_project, m_editedScene, m_selectedEntity)
         .render();
+
+    if (showDemoWindow)
+        ImGui::ShowDemoWindow(&showDemoWindow);
 }
 
 void Editor::onEvent(gfx::Event& event)
@@ -88,6 +137,28 @@ void Editor::onEvent(gfx::Event& event)
     if (event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& windowRequestCloseEvent) {
         terminate();
     })) return;
+}
+
+void Editor::updateVPFrameBuff()
+{
+    float xScale, yScale;
+    m_window->getFrameBufferScaleFactor(&xScale, &yScale);
+
+    utils::uint32 newFrameBufferWidth = (utils::uint32)((float)m_viewportFBuffW * xScale);
+    utils::uint32 newFrameBufferHeight = (utils::uint32)((float)m_viewportFBuffH * yScale);
+    
+    gfx::Texture::Descriptor colorTextureDescriptor;
+    colorTextureDescriptor.width = newFrameBufferWidth;
+    colorTextureDescriptor.height = newFrameBufferHeight;
+    colorTextureDescriptor.pixelFormat = gfx::PixelFormat::BGRA;
+    colorTextureDescriptor.usage = gfx::Texture::Usage::ShaderReadAndRenderTarget;
+    
+    gfx::Texture::Descriptor depthTextureDescriptor = gfx::Texture::Descriptor::depthTextureDescriptor(newFrameBufferWidth, newFrameBufferHeight);
+
+    gfx::FrameBuffer::Descriptor fBuffDesc;
+    fBuffDesc.colorTexture = m_renderer.graphicAPI().newTexture(colorTextureDescriptor);
+    fBuffDesc.depthTexture = m_renderer.graphicAPI().newTexture(depthTextureDescriptor);
+    m_viewportFBuff = m_renderer.graphicAPI().newFrameBuffer(fBuffDesc);
 }
 
 void Editor::resetEditorInputs()

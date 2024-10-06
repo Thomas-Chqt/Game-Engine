@@ -14,6 +14,7 @@
 #include "imgui.h"
 #include "ECS/Components.hpp"
 #include "Math/Constants.hpp"
+#include <cstring>
 
 namespace GE
 {
