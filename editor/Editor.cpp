@@ -20,7 +20,7 @@
 #include "imguiPanels/SceneGraphPanel.hpp"
 #include "imguiPanels/EntityInspectorPanel.hpp"
 #include "imguiPanels/ViewportPanel.hpp"
-#include "tinyfiledialogs.hpp"
+#include "TFD/tinyfiledialogs.h"
 
 namespace GE
 {
