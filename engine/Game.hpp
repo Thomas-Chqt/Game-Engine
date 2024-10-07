@@ -11,7 +11,6 @@
 #define GAME_HPP
 
 #include "UtilsCPP/Set.hpp"
-#include "UtilsCPP/String.hpp"
 #include "Scene.hpp"
 
 namespace GE
@@ -29,17 +28,13 @@ public:
     virtual inline void onSetup() {};
     virtual inline void onUpdate() {};
 
-    inline void addScene(const utils::String& name, Scene&& scene) { m_scenes.insert(std::move(scene)); };
-    void deleteScene(const utils::String&);
-
-    void setStartScene(const utils::String& name);
-
+    void setActiveScene(Scene& s);
 
     virtual ~Game() = default;
 
 private:
     utils::Set<Scene>& m_scenes;
-    Scene* m_startScene;
+    Scene* m_activeScene;
     
 public:
     Game& operator = (const Game&) = delete;

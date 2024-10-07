@@ -8,6 +8,7 @@
  */
 
 #include "Game.hpp"
+#include "Scene.hpp"
 #include <cassert>
 
 namespace GE
@@ -18,16 +19,10 @@ Game::Game(utils::Set<Scene>& scenes)
 {
 }
 
-void Game::deleteScene(const utils::String& name)
+void Game::setActiveScene(Scene& scene)
 {
-    assert(name != m_startScene->name());
-    m_scenes.remove(m_scenes.find(name));
-}
-
-void Game::setStartScene(const utils::String& name)
-{
-    assert(m_scenes.contain(name));
-    m_startScene = &*m_scenes.find(name);
+    assert(scene.isLoaded());
+    m_activeScene = &scene;
 }
 
 }

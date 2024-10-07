@@ -17,6 +17,7 @@
 #include "Project.hpp"
 #include "Scene.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
+#include "imguiPanels/ProjectPropertiesPanel.hpp"
 #include "imguiPanels/SceneGraphPanel.hpp"
 #include "imguiPanels/EntityInspectorPanel.hpp"
 #include "imguiPanels/ViewportPanel.hpp"
@@ -37,7 +38,10 @@ void Editor::onUpdate()
         updateVPFrameBuff();
         m_viewportFBuffSizeIsDirty = false;
     }
-        
+
+    if (m_project.iniSettingsNeedLoad())
+        m_project.loadIniSettings();
+
     m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
     {
         if (m_editedScene)
@@ -101,11 +105,10 @@ void Editor::onImGuiRender()
     }
 
     if (showProjectProperties)
-        ImGui::OpenPopup("Project properties");
-    if (ImGui::BeginPopupModal("Project properties", &showProjectProperties))
     {
-        ImGui::Text("%s", (const char*)m_project.name());
-        ImGui::EndPopup();
+        ProjectPropertiesPanel(m_project)
+            .onClose([&](){ showProjectProperties = false; })
+            .render();
     }
 
     ViewportPanel(m_viewportFBuff->colorTexture())

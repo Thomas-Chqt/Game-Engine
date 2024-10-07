@@ -17,6 +17,7 @@
 #include "ECS/ECSView.hpp"
 #include "Renderer/Renderer.hpp"
 #include "UtilsCPP/String.hpp"
+#include <nlohmann/json.hpp>
 
 namespace GE
 {
@@ -24,7 +25,7 @@ namespace GE
 class Scene
 {
 public:
-    Scene()             = delete;
+    Scene()             = default;
     Scene(const Scene&) = delete;
     Scene(Scene&&)      = default;
 
@@ -42,6 +43,7 @@ public:
 
     inline void load(gfx::GraphicAPI& api) { m_assetManager.loadAssets(api); }
     inline void unload() { m_assetManager.unloadAssets(); }
+    inline bool isLoaded() const { return m_assetManager.isLoaded(); }
 
     void submitMeshesForRendering(Renderer&);
     void submitLightsForRendering(Renderer&);
@@ -62,6 +64,9 @@ public:
 
     bool operator  < (const utils::String& name) const { return m_name  < name; }
     bool operator == (const utils::String& name) const { return m_name == name; }
+
+    friend void to_json(nlohmann::json&, const Scene&);
+    friend void from_json(const nlohmann::json&, Scene&);
 };
 
 }

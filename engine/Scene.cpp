@@ -11,6 +11,8 @@
 #include "ECS/Components.hpp"
 #include "ECS/ECSView.hpp"
 #include "Renderer/Renderer.hpp"
+#include "UtilsCPP/String.hpp"
+#include <string>
 
 namespace GE
 {
@@ -79,6 +81,16 @@ void Scene::submitForRendering(Renderer& renderer)
 {
     submitMeshesForRendering(renderer);
     submitLightsForRendering(renderer);
+}
+
+void to_json(nlohmann::json& jsn, const Scene& scene)
+{
+    jsn["name"] = std::string(scene.name());
+}
+
+void from_json(const nlohmann::json& jsn, Scene& scene)
+{
+    scene.m_name = utils::String(jsn["name"].template get<std::string>().c_str());
 }
 
 }

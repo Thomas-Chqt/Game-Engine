@@ -8,9 +8,8 @@
  */
 
 #include "Project.hpp"
-#include "Game.hpp"
+#include "Scene.hpp"
 #include "UtilsCPP/String.hpp"
-#include "UtilsCPP/UniquePtr.hpp"
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -21,43 +20,75 @@ namespace GE
 {
 
 Project::Project()
-    : m_projName("new_project"),
-      m_ressourcesDir("/"),
-      m_scenes(),
-      m_game(utils::makeUnique<Game>(m_scenes))
 {
+    ImGui::GetIO().IniFilename = nullptr;
+    m_iniSettingsNeedLoad = true;
 }
 
 Project::Project(const utils::String& filepath)
+    : m_path(filepath)
 {
-    m_path = filepath;
+    ImGui::GetIO().IniFilename = nullptr;
     reloadProject();
 }
 
 void Project::reloadProject()
 {
     std::ifstream f(m_path);
-    Project reloadedProject = json::parse(f);
-    reloadedProject.m_path = m_path;
-    *this = std::move(reloadedProject);
+    json jsn = json::parse(f);
+
+    auto nameIt = jsn.find("name");
+    if (nameIt != jsn.end())
+        m_projName = utils::String(nameIt->template get<std::string>().c_str());
+
+    auto ressourcesDirIt = jsn.find("ressourcesDir");
+    if (ressourcesDirIt != jsn.end())
+        m_ressourcesDir = utils::String(ressourcesDirIt->template get<std::string>().c_str());
+
+    auto imguiIniIt = jsn.find("imguiIni");
+    if (imguiIniIt != jsn.end())
+        m_imguiIni = utils::String(imguiIniIt->template get<std::string>().c_str());
+
+    auto scenesIt = jsn.find("scenes");
+    if (scenesIt != jsn.end())
+    {
+        for (auto& scene : *scenesIt)
+            m_scenes.insert(scene.template get<Scene>());
+    }
+
+    auto startSceneIt = jsn.find("startScene");
+    if (startSceneIt != jsn.end())  
+        utils::String startSceneName = utils::String(startSceneIt->template get<std::string>().c_str());
+
+    m_iniSettingsNeedLoad = true;
 }
 
 void Project::saveProject()
 {
+    m_imguiIni = ImGui::SaveIniSettingsToMemory();
+
+    json jsn;
+
+    jsn["name"] = std::string(m_projName);
+    jsn["ressourcesDir"] = std::string(m_ressourcesDir);
+    jsn["imguiIni"] = std::string(m_imguiIni);
+
+    json scenesJsn = json::array();
+    for (auto& scene : m_scenes)
+        scenesJsn.emplace_back(scene);
+
+    jsn["scenes"] = scenesJsn;
+
+
+
     std::ofstream f(m_path);
-    f << ((json)*this).dump(4);
+    f << (jsn).dump(4);
 }
 
-void to_json(nlohmann::json& json, const Project& project)
+void Project::loadIniSettings()
 {
-    json["name"] = std::string(project.m_projName);
-    json["ressourcesDir"] = std::string(project.m_ressourcesDir);
-}
-
-void from_json(const nlohmann::json& json, Project& project)
-{
-    project.m_projName = utils::String(json["name"].template get<std::string>().c_str());
-    project.m_ressourcesDir = utils::String(json["ressourcesDir"].template get<std::string>().c_str());
+    ImGui::LoadIniSettingsFromMemory((const char*)m_imguiIni);
+    m_iniSettingsNeedLoad = false;
 }
 
 }
