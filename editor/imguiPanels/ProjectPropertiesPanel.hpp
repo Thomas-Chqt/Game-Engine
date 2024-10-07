@@ -32,6 +32,7 @@ public:
 
 private:
     void projectNameEdit();
+    void resourceDirEdit();
 
     Project& m_project;
 

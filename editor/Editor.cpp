@@ -39,8 +39,8 @@ void Editor::onUpdate()
         m_viewportFBuffSizeIsDirty = false;
     }
 
-    if (m_project.iniSettingsNeedLoad())
-        m_project.loadIniSettings();
+    if (m_project.imguiSettingsHasChanged())
+        m_project.loadimguiSettings();
 
     m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
     {
@@ -63,30 +63,43 @@ void Editor::onImGuiRender()
     {
         if (ImGui::BeginMenu("File"))
         {
-            if (ImGui::MenuItem("Open", "Ctrl+O"))
+            if (ImGui::MenuItem("New project"))
             {
-                if (char* path = tinyfd_openFileDialog("", "", 0, nullptr, nullptr, 0))
+                
+            }
+
+            if (ImGui::MenuItem("Open project"))
+            {
+                if (char* path = tinyfd_openFileDialog("Open project", "", 0, nullptr, nullptr, 0))
                     m_project = Project(path);
             }
 
-            if (ImGui::MenuItem("Save", "Ctrl+S"))
+            if (ImGui::MenuItem("Save"))
             {
-                if (m_project.path().isEmpty())
-                {
-                    if (char* path = tinyfd_saveFileDialog("", m_project.name() + ".json", 0, nullptr, nullptr))
-                    {
-                        m_project.setPath(path);
-                        m_project.saveProject();
-                    }
-                }
+                if (m_project.projectFilePath().isEmpty())
+                    goto save_as;
                 else 
                     m_project.saveProject();
             }
+
+            if (ImGui::MenuItem("Save as"))
+            {
+                save_as:
+                if (char* path = tinyfd_saveFileDialog("Save project", m_project.name() + ".json", 0, nullptr, nullptr))
+                {
+                    m_project.setProjectFilePath(path);
+                    m_project.saveProject();
+                }
+            }
+
             ImGui::EndMenu();
         }
 
         if (ImGui::BeginMenu("Project"))
         {
+            if (!m_project.projectFilePath().isEmpty() &&  ImGui::MenuItem("Reload project"))
+                m_project.reloadProject();
+
             if (ImGui::MenuItem("Properties"))
                 showProjectProperties = true;
 

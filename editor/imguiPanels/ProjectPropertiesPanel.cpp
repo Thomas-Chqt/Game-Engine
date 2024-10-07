@@ -23,12 +23,16 @@ void ProjectPropertiesPanel::render()
     ImGui::OpenPopup("Project properties");
     if (ImGui::BeginPopupModal("Project properties", &showProjectProperties))
     {
+        ImGui::PushItemWidth(-140);
+
         projectNameEdit();
+        resourceDirEdit();
+
+        ImGui::PopItemWidth();
         ImGui::EndPopup();
     }
     if (showProjectProperties == false && m_onClose)
         m_onClose();
-        
 }
 
 void ProjectPropertiesPanel::projectNameEdit()
@@ -37,6 +41,14 @@ void ProjectPropertiesPanel::projectNameEdit()
     std::strncpy(buff, m_project.name(), sizeof(buff));
     ImGui::InputText("Name", buff, sizeof(buff));
     m_project.setName(utils::String(buff));
+}
+
+void ProjectPropertiesPanel::resourceDirEdit()
+{
+    char buff[32];
+    std::strncpy(buff, m_project.ressourcesDir(), sizeof(buff));
+    ImGui::InputText("Ressource directory", buff, sizeof(buff));
+    m_project.setRessourceDir(utils::String(buff));
 }
 
 }
