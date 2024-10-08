@@ -73,6 +73,7 @@ Editor::Editor()
 {
     ImGui::GetIO().IniFilename = nullptr;
     ImGui::LoadIniSettingsFromMemory(DEFAULT_IMGUI_INI);
+
     resetEditorInputs();
 }
 
@@ -84,18 +85,21 @@ void Editor::onUpdate()
         m_viewportFBuffSizeIsDirty = false;
     }
 
-    if (m_uiStates.imguiSettingsNeedReload)
+    if (m_projectNeedReload)
     {
         ImGui::LoadIniSettingsFromMemory(m_project.imguiSettings);
         m_uiStates.imguiSettingsNeedReload = false;
     }
 
-    m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
+    if (m_project.editedScene)
     {
-        if (m_editedScene)
-            m_editedScene->submitForRendering(m_renderer);
+        EditorCamera& editorCamera;
+        m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
+        {
+                m_project.editedScene->submitForRendering(m_renderer);
+        }
+        m_renderer.endScene();
     }
-    m_renderer.endScene();
 
     if (ImGui::GetIO().WantSaveIniSettings)
     {
@@ -103,7 +107,7 @@ void Editor::onUpdate()
         ImGui::GetIO().WantSaveIniSettings = false;
     }
 
-    m_editorInputContext.dispatchInputs();
+    m_project.editorInputContext.dispatchInputs();
 }
 
 void Editor::onImGuiRender()
@@ -194,41 +198,43 @@ void Editor::onEvent(gfx::Event& event)
     })) return;
 }
 
-void Editor::newProject(const utils::String& name, const utils::String& path)
+void Editor::newProject(const utils::String& dir, const utils::String& projectName)
 {
-    m_openProjFilePath = path + "/" + name + ".geproj";
-    m_openProjBaseDir = path;
+    Project newProject;
+    newProject.name = projectName;
+    newProject.imguiSettings = ImGui::SaveIniSettingsToMemory();
 
-    m_project = Project();
-    m_project.name = name;
-    m_project.imguiSettings = ImGui::SaveIniSettingsToMemory();
-
-    saveProject();
+    utils::String newProjectFilePath = dir + "/" + projectName + ".geproj";
+    std::ofstream(newProjectFilePath) << json(newProject).dump(4);
+    openProject(newProjectFilePath);
 }
 
 void Editor::openProject(const utils::String& filePath)
 {
-    m_openProjFilePath = filePath;
-    m_openProjBaseDir = filePath.substr(0, filePath.lastIndexOf('/'));
-
-    std::ifstream f(m_openProjFilePath);
-    m_project = json::parse(f);
-
-    m_uiStates.imguiSettingsNeedReload = true;
+    m_projFilePath = filePath;
+    reloadProject();
 }
 
 void Editor::saveProject()
 {
-    std::ofstream f(m_openProjFilePath);
+    std::ofstream f(m_projFilePath);
     f << json(m_project).dump(4);
+}
+
+void Editor::reloadProject()
+{
+    std::ifstream f(m_projFilePath);
+    m_project = std::move(json::parse(f));
+
+    m_uiStates.imguiSettingsNeedReload = true;
 }
 
 void Editor::editScene(Scene* scene)
 {
-    if (m_editedScene)
-        m_editedScene->unload();
+    if (m_project.editedScene)
+        m_project.editedScene->unload();
     scene->load(m_renderer.graphicAPI());
-    m_editedScene = scene;
+    m_project.editedScene = scene;
 
     m_editorCamera = EditorCamera();
     m_selectedEntity = Entity();

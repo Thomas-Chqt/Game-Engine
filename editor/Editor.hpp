@@ -47,8 +47,8 @@ private:
     void onImGuiRender() override;
     void onEvent(gfx::Event&) override;
 
-    void newProject(const utils::String& name, const utils::String& path);
-    void openProject(const utils::String& filePath);
+    void newProject(const utils::String& dir, const utils::String& projectName);
+    void openProject(const utils::String& path);
     void saveProject();
 
     void newScene();
@@ -58,7 +58,17 @@ private:
     void resetEditorInputs();
 
     utils::String m_projFilePath;
-    Project m_project;
+    utils::String m_projName;
+    utils::String m_projRessourcesDir;
+    utils::String m_projImguiSettings;
+    utils::Set<Scene> m_projScenes;
+
+    bool m_projectNeedReload;
+
+    Scene* editedScene = nullptr;
+    Entity selectedEntity;
+
+    InputContext editorInputContext;
         
     utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
     utils::uint32 m_viewportFBuffW = 800;

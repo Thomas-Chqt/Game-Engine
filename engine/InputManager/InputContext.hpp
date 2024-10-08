@@ -23,8 +23,8 @@ class InputContext
 {
 public:
     InputContext()                    = default;
-    InputContext(const InputContext&) = delete;
-    InputContext(InputContext&&)      = delete;
+    InputContext(const InputContext&) = default;
+    InputContext(InputContext&&)      = default;
 
     template<typename T>
     T& newInput(const utils::String& name);
@@ -45,8 +45,8 @@ private:
     utils::Dictionary<utils::String, utils::UniquePtr<Input>> m_inputs;
 
 public:
-    InputContext& operator = (const InputContext&) = delete;
-    InputContext& operator = (InputContext&&)      = delete;
+    InputContext& operator = (const InputContext&) = default;
+    InputContext& operator = (InputContext&&)      = default;
 };
 
 template<typename T>
