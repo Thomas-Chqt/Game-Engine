@@ -10,7 +10,10 @@
 #ifndef PROJECT_HPP
 #define PROJECT_HPP
 
+#include "EditorCamera.hpp"
+#include "InputManager/InputContext.hpp"
 #include "Scene.hpp"
+#include "UtilsCPP/Dictionary.hpp"
 #include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/String.hpp"
 #include <nlohmann/json.hpp>
@@ -18,54 +21,24 @@
 namespace GE
 {
 
-class Project
+struct Project
 {
-public:
-    Project();
-    Project(const Project&) = delete;
-    Project(Project&&)      = default;
+    utils::String name;
+    utils::String ressourcesDir;
+    Scene* startScene = nullptr;
+    InputContext editorInputContext;
+    utils::String imguiSettings;
+
+    utils::Set<Scene> scenes;
+    utils::Dictionary<utils::String, EditorCamera> editorCameras;
     
-    Project(const utils::String&);
+    Scene* editedScene = nullptr;
 
-    // Getters / Setters
-    inline const utils::String& projectFilePath() const { return m_projFilePath; }
-    inline void setProjectFilePath(const utils::String& path) { m_projFilePath = path; }
-
-    inline const utils::String& name() const { return m_name; }
-    inline void setName(const utils::String& name) { m_name = name; }
-    
-    inline const utils::String& ressourcesDir() const { return m_ressourcesDir; }
-    inline void setRessourceDir(const utils::String& s) { m_ressourcesDir = s; }
-
-    //Utils
-    inline utils::String baseDir() const { return m_projFilePath.isEmpty() ? "" : m_projFilePath.substr(0, m_projFilePath.lastIndexOf('/')); }
-    inline utils::String ressourceDirFullPath() const { return baseDir() + "/" + m_ressourcesDir; }
-
-    // Other
-    void reloadProject();
-    void saveProject();
-
-    inline bool imguiSettingsHasChanged() const { return m_imguiSettingsHasChanged; }
-    void loadimguiSettings();
-
-    virtual ~Project() = default;
-
-private:
-    utils::String m_projFilePath;
-
-    utils::String m_name;
-    utils::String m_ressourcesDir;
-
-    utils::String m_imguiSettings;
-    bool m_imguiSettingsHasChanged = false;
-
-    utils::Set<Scene> m_scenes;
-    Scene* m_startScene = nullptr;
-    
-public:
-    Project& operator = (const Project&) = delete;
-    Project& operator = (Project&&)      = default;
+    Entity selectedEntity;
 };
+
+void to_json(nlohmann::json&, const Project&);
+void from_json(const nlohmann::json&, Project&);
 
 }
 

@@ -7,7 +7,7 @@
  * ---------------------------------------------------
  */
 
-#include "imguiPanels/SceneGraphPanel.hpp"
+#include "imgui/SceneGraphPanel.hpp"
 
 namespace GE
 {

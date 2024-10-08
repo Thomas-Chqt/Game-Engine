@@ -16,18 +16,63 @@
 #include "InputManager/Mapper.hpp"
 #include "Project.hpp"
 #include "Scene.hpp"
+#include "UtilsCPP/String.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
-#include "imguiPanels/ProjectPropertiesPanel.hpp"
-#include "imguiPanels/SceneGraphPanel.hpp"
-#include "imguiPanels/EntityInspectorPanel.hpp"
-#include "imguiPanels/ViewportPanel.hpp"
+#include "imgui/NewProjectPopupModal.hpp"
+#include "imgui/ProjectPropertiesPopupModal.hpp"
+#include "imgui/SceneGraphPanel.hpp"
+#include "imgui/EntityInspectorPanel.hpp"
+#include "imgui/ViewportPanel.hpp"
 #include "TFD/tinyfiledialogs.h"
+#include <fstream>
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
+
+#define DEFAULT_IMGUI_INI\
+    "[Window][WindowOverViewport_11111111]\n"\
+    "Pos=0,19\n"\
+    "Size=1280,701\n"\
+    "Collapsed=0\n"\
+    "\n"\
+    "[Window][Debug##Default]\n"\
+    "Pos=60,60\n"\
+    "Size=400,400\n"\
+    "Collapsed=0\n"\
+    "\n"\
+    "[Window][Entity inspector]\n"\
+    "Pos=999,494\n"\
+    "Size=281,226\n"\
+    "Collapsed=0\n"\
+    "DockId=0x00000004,0\n"\
+    "\n"\
+    "[Window][Scene graph]\n"\
+    "Pos=999,19\n"\
+    "Size=281,473\n"\
+    "Collapsed=0\n"\
+    "DockId=0x00000003,0\n"\
+    "\n"\
+    "[Window][viewport]\n"\
+    "Pos=0,19\n"\
+    "Size=997,701\n"\
+    "Collapsed=0\n"\
+    "DockId=0x00000001,0\n"\
+    "\n"\
+    "[Docking][Data]\n"\
+    "DockSpace ID=0x7C6B3D9B Window=0xA87D555D Pos=942,394 Size=1280,701 Split=X Selected=0x0BA3B4F3\n"\
+    "DockNode  ID=0x00000001 Parent=0x7C6B3D9B SizeRef=1185,701 CentralNode=1 Selected=0x0BA3B4F3\n"\
+    "DockNode  ID=0x00000002 Parent=0x7C6B3D9B SizeRef=281,701 Split=Y Selected=0xF5BE1C77\n"\
+    "DockNode  ID=0x00000003 Parent=0x00000002 SizeRef=168,473 Selected=0xF5BE1C77\n"\
+    "DockNode  ID=0x00000004 Parent=0x00000002 SizeRef=168,226 Selected=0xD3D12213\n"
+
 
 namespace GE
 {
 
 Editor::Editor()
 {
+    ImGui::GetIO().IniFilename = nullptr;
+    ImGui::LoadIniSettingsFromMemory(DEFAULT_IMGUI_INI);
     resetEditorInputs();
 }
 
@@ -39,8 +84,11 @@ void Editor::onUpdate()
         m_viewportFBuffSizeIsDirty = false;
     }
 
-    if (m_project.imguiSettingsHasChanged())
-        m_project.loadimguiSettings();
+    if (m_uiStates.imguiSettingsNeedReload)
+    {
+        ImGui::LoadIniSettingsFromMemory(m_project.imguiSettings);
+        m_uiStates.imguiSettingsNeedReload = false;
+    }
 
     m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
     {
@@ -49,6 +97,12 @@ void Editor::onUpdate()
     }
     m_renderer.endScene();
 
+    if (ImGui::GetIO().WantSaveIniSettings)
+    {
+        m_project.imguiSettings = ImGui::SaveIniSettingsToMemory();
+        ImGui::GetIO().WantSaveIniSettings = false;
+    }
+
     m_editorInputContext.dispatchInputs();
 }
 
@@ -56,72 +110,46 @@ void Editor::onImGuiRender()
 {
     ImGui::DockSpaceOverViewport();
 
-    static bool showDemoWindow = false;
-    static bool showProjectProperties = false;
-
     if (ImGui::BeginMainMenuBar())
     {
         if (ImGui::BeginMenu("File"))
         {
             if (ImGui::MenuItem("New project"))
             {
-                
+                m_uiStates.newProjectName = "new_project";
+                m_uiStates.newProjectPath = "";
+                m_uiStates.showNewProjectPopupModal = true;
             }
 
-            if (ImGui::MenuItem("Open project"))
+            if (ImGui::MenuItem("Open"))
             {
                 if (char* path = tinyfd_openFileDialog("Open project", "", 0, nullptr, nullptr, 0))
-                    m_project = Project(path);
+                    openProject(path);
             }
 
-            if (ImGui::MenuItem("Save"))
-            {
-                if (m_project.projectFilePath().isEmpty())
-                    goto save_as;
-                else 
-                    m_project.saveProject();
-            }
-
-            if (ImGui::MenuItem("Save as"))
-            {
-                save_as:
-                if (char* path = tinyfd_saveFileDialog("Save project", m_project.name() + ".json", 0, nullptr, nullptr))
-                {
-                    m_project.setProjectFilePath(path);
-                    m_project.saveProject();
-                }
-            }
+            if (ImGui::MenuItem("Save", nullptr, false, m_openProjFilePath.isEmpty() == false))
+                saveProject();
 
             ImGui::EndMenu();
         }
 
         if (ImGui::BeginMenu("Project"))
         {
-            if (!m_project.projectFilePath().isEmpty() &&  ImGui::MenuItem("Reload project"))
-                m_project.reloadProject();
-
-            if (ImGui::MenuItem("Properties"))
-                showProjectProperties = true;
+            if (ImGui::MenuItem("Properties", nullptr, false, m_openProjFilePath.isEmpty() == false))
+                m_uiStates.showProjectProperties = true;
 
             ImGui::EndMenu();
         }
 
         if (ImGui::BeginMenu("Debug"))
         {
-            
-            if (ImGui::MenuItem("Demo window"))
-                showDemoWindow = true;
+            if (ImGui::MenuItem("Show demo window"))
+                m_uiStates.showDemoWindow = true;
+
             ImGui::EndMenu();
         }
             
         ImGui::EndMainMenuBar();
-    }
-
-    if (showProjectProperties)
-    {
-        ProjectPropertiesPanel(m_project)
-            .onClose([&](){ showProjectProperties = false; })
-            .render();
     }
 
     ViewportPanel(m_viewportFBuff->colorTexture())
@@ -139,8 +167,19 @@ void Editor::onImGuiRender()
     EntityInspectorPanel(m_project, m_editedScene, m_selectedEntity)
         .render();
 
-    if (showDemoWindow)
-        ImGui::ShowDemoWindow(&showDemoWindow);
+    NewProjectPopupModal(m_uiStates.showNewProjectPopupModal, m_uiStates.newProjectName, m_uiStates.newProjectPath)
+        .onCreatePressed([&](){ 
+            newProject(m_uiStates.newProjectName, m_uiStates.newProjectPath);
+            m_uiStates.showNewProjectPopupModal = false;
+        })
+        .render();
+
+    ProjectPropertiesPopupModal(m_uiStates.showProjectProperties, m_project)
+        .onClose([&](){m_uiStates.showProjectProperties = false; })
+        .render();
+
+    if (m_uiStates.showDemoWindow)
+        ImGui::ShowDemoWindow(&m_uiStates.showDemoWindow);
 }
 
 void Editor::onEvent(gfx::Event& event)
@@ -153,6 +192,46 @@ void Editor::onEvent(gfx::Event& event)
     if (event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& windowRequestCloseEvent) {
         terminate();
     })) return;
+}
+
+void Editor::newProject(const utils::String& name, const utils::String& path)
+{
+    m_openProjFilePath = path + "/" + name + ".geproj";
+    m_openProjBaseDir = path;
+
+    m_project = Project();
+    m_project.name = name;
+    m_project.imguiSettings = ImGui::SaveIniSettingsToMemory();
+
+    saveProject();
+}
+
+void Editor::openProject(const utils::String& filePath)
+{
+    m_openProjFilePath = filePath;
+    m_openProjBaseDir = filePath.substr(0, filePath.lastIndexOf('/'));
+
+    std::ifstream f(m_openProjFilePath);
+    m_project = json::parse(f);
+
+    m_uiStates.imguiSettingsNeedReload = true;
+}
+
+void Editor::saveProject()
+{
+    std::ofstream f(m_openProjFilePath);
+    f << json(m_project).dump(4);
+}
+
+void Editor::editScene(Scene* scene)
+{
+    if (m_editedScene)
+        m_editedScene->unload();
+    scene->load(m_renderer.graphicAPI());
+    m_editedScene = scene;
+
+    m_editorCamera = EditorCamera();
+    m_selectedEntity = Entity();
 }
 
 void Editor::updateVPFrameBuff()
@@ -204,17 +283,6 @@ void Editor::resetEditorInputs()
     inputMapperDesc.yNeg = KeyboardButton::s;
     auto editorCamMoveIptMapper = utils::makeUnique<Mapper<KeyboardButton, Range2DInput>>(inputMapperDesc, editorCamMoveIpt);
     editorCamMoveIpt.mappers[0] = editorCamMoveIptMapper.staticCast<IMapper>();
-}
-
-void Editor::editScene(Scene* scene)
-{
-    if (m_editedScene)
-        m_editedScene->unload();
-    scene->load(m_renderer.graphicAPI());
-    m_editedScene = scene;
-
-    m_editorCamera = EditorCamera();
-    m_selectedEntity = Entity();
 }
 
 }

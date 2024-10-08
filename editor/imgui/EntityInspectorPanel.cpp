@@ -7,7 +7,7 @@
  * ---------------------------------------------------
  */
 
-#include "imguiPanels/EntityInspectorPanel.hpp"
+#include "imgui/EntityInspectorPanel.hpp"
 #include "AssetManager.hpp"
 #include "ECS/Entity.hpp"
 #include "UtilsCPP/String.hpp"
@@ -136,12 +136,12 @@ void EntityInspectorPanel::meshComponentEditWidget()
     if (componentEditHeader<MeshComponent>("Mesh component"))
     {
         MeshComponent& meshComponent = m_selectedEntity.get<MeshComponent>();
-        if (ImGui::BeginCombo("mesh", meshComponent.meshID.isValid() ? m_editedScene->assetManager().assetShortPath(meshComponent.meshID, m_project.ressourceDirFullPath()) : ""))
+        if (ImGui::BeginCombo("mesh", meshComponent.meshID.isValid() ? m_editedScene->assetManager().assetShortPath(meshComponent.meshID, m_project.ressourcesDir) : ""))
         {
             for (auto& id : m_editedScene->assetManager().registeredMeshes())
             {
                 const bool isSelected = (meshComponent.meshID == id);
-                if (ImGui::Selectable(m_editedScene->assetManager().assetShortPath(id, m_project.ressourceDirFullPath()), isSelected))
+                if (ImGui::Selectable(m_editedScene->assetManager().assetShortPath(id, m_project.ressourcesDir), isSelected))
                     meshComponent.meshID = id;
                 if (isSelected)
                     ImGui::SetItemDefaultFocus();

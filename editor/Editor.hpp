@@ -11,13 +11,11 @@
 #define EDITOR_HPP
 
 #include "Application.hpp"
-#include "InputManager/InputContext.hpp"
-#include "EditorCamera.hpp"
 #include "Project.hpp"
 #include "Scene.hpp"
-#include "ECS/Entity.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "Graphics/FrameBuffer.hpp"
+#include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Types.hpp"
 
 namespace GE
@@ -33,26 +31,41 @@ public:
     ~Editor() = default;
 
 private:
+    struct UIStates
+    {
+        bool showDemoWindow = false;
+
+        bool showNewProjectPopupModal = false; 
+        utils::String newProjectName;
+        utils::String newProjectPath;
+
+        bool showProjectProperties = false;
+        bool imguiSettingsNeedReload = false;
+    };
+
     void onUpdate() override;
     void onImGuiRender() override;
     void onEvent(gfx::Event&) override;
 
-    void updateVPFrameBuff();
-    void resetEditorInputs();
+    void newProject(const utils::String& name, const utils::String& path);
+    void openProject(const utils::String& filePath);
+    void saveProject();
+
+    void newScene();
     void editScene(Scene*);
 
+    void updateVPFrameBuff();
+    void resetEditorInputs();
+
+    utils::String m_projFilePath;
     Project m_project;
-    
+        
     utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
     utils::uint32 m_viewportFBuffW = 800;
     utils::uint32 m_viewportFBuffH = 600;
     bool m_viewportFBuffSizeIsDirty = true;
-    
-    InputContext m_editorInputContext;
-    EditorCamera m_editorCamera;
 
-    Scene* m_editedScene = nullptr;
-    Entity m_selectedEntity;
+    UIStates m_uiStates;
 
 public:
     Editor& operator = (const Editor&) = delete;

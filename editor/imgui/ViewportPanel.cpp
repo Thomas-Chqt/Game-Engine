@@ -7,7 +7,7 @@
  * ---------------------------------------------------
  */
 
-#include "imguiPanels/ViewportPanel.hpp"
+#include "ViewportPanel.hpp"
 #include "Scene.hpp"
 #include "UtilsCPP/Types.hpp"
 #include <imgui.h>
