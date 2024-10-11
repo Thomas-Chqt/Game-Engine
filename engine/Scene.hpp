@@ -32,6 +32,7 @@ public:
     Scene(const utils::String& name);
 
     inline const utils::String& name() const { return m_name; }
+    void setName(const utils::String& s) { m_name = s; }
 
     Entity newEntity(const utils::String& name = "No name");
     inline void forEachNamedEntity(const utils::Func<void(Entity, NameComponent&)> &f) { ECSView<NameComponent>(m_ecsWorld).onEach(f); }

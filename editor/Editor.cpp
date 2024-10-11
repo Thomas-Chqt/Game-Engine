@@ -14,16 +14,9 @@
 #include "Graphics/RenderTarget.hpp"
 #include "InputManager/RawInput.hpp"
 #include "InputManager/Mapper.hpp"
-#include "Project.hpp"
 #include "Scene.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
-#include "imgui/NewProjectPopupModal.hpp"
-#include "imgui/ProjectPropertiesPopupModal.hpp"
-#include "imgui/SceneGraphPanel.hpp"
-#include "imgui/EntityInspectorPanel.hpp"
-#include "imgui/ViewportPanel.hpp"
-#include "TFD/tinyfiledialogs.h"
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -65,125 +58,56 @@ using json = nlohmann::json;
     "DockNode  ID=0x00000003 Parent=0x00000002 SizeRef=168,473 Selected=0xF5BE1C77\n"\
     "DockNode  ID=0x00000004 Parent=0x00000002 SizeRef=168,226 Selected=0xD3D12213\n"
 
-
 namespace GE
 {
 
 Editor::Editor()
 {
+    ActionInput& quitEditorIpt = m_editorInputContext.newInput<ActionInput>("quit_editor");
+    quitEditorIpt.callback = utils::Func<void()>(*(Application*)this, &Application::terminate);
+    Range2DInput& editorCamMoveIpt = m_editorInputContext.newInput<Range2DInput>("editor_cam_move");
+    editorCamMoveIpt.callback = utils::Func<void(math::vec2f)>(m_editorCamera, &EditorCamera::move);
+    Range2DInput& editorCamRotateIpt = m_editorInputContext.newInput<Range2DInput>("editor_cam_rotate");
+    editorCamRotateIpt.callback = utils::Func<void(math::vec2f)>(m_editorCamera, &EditorCamera::rotate);
+
     ImGui::GetIO().IniFilename = nullptr;
-    ImGui::LoadIniSettingsFromMemory(DEFAULT_IMGUI_INI);
+
+    m_projectName = "new_project";
+    m_imguiSettings = DEFAULT_IMGUI_INI;
+    m_imguiSettingsNeedReload = true;
+
+    auto& defautScene = *m_scenes.insert(Scene("default_scene"));
+    defautScene.newEntity("cube");
+
+    editScene(&defautScene);
 
     resetEditorInputs();
 }
 
 void Editor::onUpdate()
 {
-    if (m_viewportFBuffSizeIsDirty)
+    if (m_imguiSettingsNeedReload)
     {
-        updateVPFrameBuff();
-        m_viewportFBuffSizeIsDirty = false;
+        ImGui::LoadIniSettingsFromMemory(m_imguiSettings);
+        m_imguiSettingsNeedReload = false;
     }
 
-    if (m_projectNeedReload)
-    {
-        ImGui::LoadIniSettingsFromMemory(m_project.imguiSettings);
-        m_uiStates.imguiSettingsNeedReload = false;
-    }
+    updateVPFrameBuff();
 
-    if (m_project.editedScene)
+    m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
     {
-        EditorCamera& editorCamera;
-        m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
-        {
-                m_project.editedScene->submitForRendering(m_renderer);
-        }
-        m_renderer.endScene();
+        if (m_editedScene)
+            m_editedScene->submitForRendering(m_renderer);
     }
+    m_renderer.endScene();
 
     if (ImGui::GetIO().WantSaveIniSettings)
     {
-        m_project.imguiSettings = ImGui::SaveIniSettingsToMemory();
+        m_imguiSettings = ImGui::SaveIniSettingsToMemory();
         ImGui::GetIO().WantSaveIniSettings = false;
     }
 
-    m_project.editorInputContext.dispatchInputs();
-}
-
-void Editor::onImGuiRender()
-{
-    ImGui::DockSpaceOverViewport();
-
-    if (ImGui::BeginMainMenuBar())
-    {
-        if (ImGui::BeginMenu("File"))
-        {
-            if (ImGui::MenuItem("New project"))
-            {
-                m_uiStates.newProjectName = "new_project";
-                m_uiStates.newProjectPath = "";
-                m_uiStates.showNewProjectPopupModal = true;
-            }
-
-            if (ImGui::MenuItem("Open"))
-            {
-                if (char* path = tinyfd_openFileDialog("Open project", "", 0, nullptr, nullptr, 0))
-                    openProject(path);
-            }
-
-            if (ImGui::MenuItem("Save", nullptr, false, m_openProjFilePath.isEmpty() == false))
-                saveProject();
-
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Project"))
-        {
-            if (ImGui::MenuItem("Properties", nullptr, false, m_openProjFilePath.isEmpty() == false))
-                m_uiStates.showProjectProperties = true;
-
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Debug"))
-        {
-            if (ImGui::MenuItem("Show demo window"))
-                m_uiStates.showDemoWindow = true;
-
-            ImGui::EndMenu();
-        }
-            
-        ImGui::EndMainMenuBar();
-    }
-
-    ViewportPanel(m_viewportFBuff->colorTexture())
-        .onResize([&](utils::uint32 w , utils::uint32 h){
-            m_viewportFBuffW = w;
-            m_viewportFBuffH = h;
-            m_viewportFBuffSizeIsDirty = true;
-        })
-        .render();
-
-    SceneGraphPanel(m_editedScene, m_selectedEntity)
-        .onEntitySelect([&](Entity entity){ m_selectedEntity = entity; })
-        .render();
-
-    EntityInspectorPanel(m_project, m_editedScene, m_selectedEntity)
-        .render();
-
-    NewProjectPopupModal(m_uiStates.showNewProjectPopupModal, m_uiStates.newProjectName, m_uiStates.newProjectPath)
-        .onCreatePressed([&](){ 
-            newProject(m_uiStates.newProjectName, m_uiStates.newProjectPath);
-            m_uiStates.showNewProjectPopupModal = false;
-        })
-        .render();
-
-    ProjectPropertiesPopupModal(m_uiStates.showProjectProperties, m_project)
-        .onClose([&](){m_uiStates.showProjectProperties = false; })
-        .render();
-
-    if (m_uiStates.showDemoWindow)
-        ImGui::ShowDemoWindow(&m_uiStates.showDemoWindow);
+    m_editorInputContext.dispatchInputs();
 }
 
 void Editor::onEvent(gfx::Event& event)
@@ -198,55 +122,16 @@ void Editor::onEvent(gfx::Event& event)
     })) return;
 }
 
-void Editor::newProject(const utils::String& dir, const utils::String& projectName)
-{
-    Project newProject;
-    newProject.name = projectName;
-    newProject.imguiSettings = ImGui::SaveIniSettingsToMemory();
-
-    utils::String newProjectFilePath = dir + "/" + projectName + ".geproj";
-    std::ofstream(newProjectFilePath) << json(newProject).dump(4);
-    openProject(newProjectFilePath);
-}
-
-void Editor::openProject(const utils::String& filePath)
-{
-    m_projFilePath = filePath;
-    reloadProject();
-}
-
-void Editor::saveProject()
-{
-    std::ofstream f(m_projFilePath);
-    f << json(m_project).dump(4);
-}
-
-void Editor::reloadProject()
-{
-    std::ifstream f(m_projFilePath);
-    m_project = std::move(json::parse(f));
-
-    m_uiStates.imguiSettingsNeedReload = true;
-}
-
-void Editor::editScene(Scene* scene)
-{
-    if (m_project.editedScene)
-        m_project.editedScene->unload();
-    scene->load(m_renderer.graphicAPI());
-    m_project.editedScene = scene;
-
-    m_editorCamera = EditorCamera();
-    m_selectedEntity = Entity();
-}
-
 void Editor::updateVPFrameBuff()
 {
     float xScale, yScale;
     m_window->getFrameBufferScaleFactor(&xScale, &yScale);
 
-    utils::uint32 newFrameBufferWidth = (utils::uint32)((float)m_viewportFBuffW * xScale);
-    utils::uint32 newFrameBufferHeight = (utils::uint32)((float)m_viewportFBuffH * yScale);
+    utils::uint32 newFrameBufferWidth = (utils::uint32)((float)m_viewportPanelW * xScale);
+    utils::uint32 newFrameBufferHeight = (utils::uint32)((float)m_viewportPanelH * yScale);
+
+    if (m_viewportFBuff && (m_viewportFBuff->width() == newFrameBufferWidth && m_viewportFBuff->height() == newFrameBufferHeight))
+        return;
     
     gfx::Texture::Descriptor colorTextureDescriptor;
     colorTextureDescriptor.width = newFrameBufferWidth;
@@ -262,33 +147,103 @@ void Editor::updateVPFrameBuff()
     m_viewportFBuff = m_renderer.graphicAPI().newFrameBuffer(fBuffDesc);
 }
 
+void Editor::openProject(const utils::String& filePath)
+{
+    m_projectFilePath = filePath;
+
+    std::ifstream f(m_projectFilePath);
+    json jsn = json::parse(f);
+
+    auto nameIt = jsn.find("name");
+    m_projectName = nameIt != jsn.end() ? utils::String(nameIt->template get<std::string>().c_str()) : "";
+
+    auto ressDirIt = jsn.find("ressourcesDir");
+    m_projectRessourcesDir = ressDirIt != jsn.end() ? utils::String(ressDirIt->template get<std::string>().c_str()) : "";
+
+    auto imguiSettIt = jsn.find("imguiSettings");
+    if (imguiSettIt != jsn.end())
+    {
+        m_imguiSettings = utils::String(imguiSettIt->template get<std::string>().c_str());
+        m_imguiSettingsNeedReload = true;
+    }
+
+    m_scenes.clear();
+    auto scenesIt = jsn.find("scenes");
+    if (scenesIt != jsn.end())
+    {
+        for (auto& scene : *scenesIt)
+            m_scenes.insert(scene.template get<Scene>());
+    }
+
+    auto startSceneNameIt = jsn.find("startScene");
+    if (startSceneNameIt != jsn.end())  
+    {
+        auto startSceneIt = m_scenes.find(utils::String(startSceneNameIt->template get<std::string>().c_str()));
+        m_startScene = startSceneIt != m_scenes.end() ? &*startSceneIt : nullptr;
+    }
+    else
+        m_startScene = nullptr;
+
+    m_editedScene = nullptr;
+    m_selectedEntity = Entity();
+    m_editorCamera = EditorCamera();
+}
+
+void Editor::saveProject()
+{
+    json jsn;
+
+    jsn["name"] = std::string(m_projectName);
+    jsn["ressourcesDir"] = std::string(m_projectRessourcesDir);
+    jsn["imguiSettings"] = std::string(m_imguiSettings);
+
+    json scenesJsn = json::array();
+    for (auto& scene : m_scenes)
+        scenesJsn.emplace_back(scene);
+    jsn["scenes"] = scenesJsn;
+
+    jsn["startScene"] = m_startScene ? m_startScene->name() : "";
+    
+    std::ofstream(m_projectFilePath) << json(jsn).dump(4);
+}
+
+void Editor::editScene(Scene* scene)
+{
+    if (m_editedScene)
+        m_editedScene->unload();
+    scene->load(m_renderer.graphicAPI());
+
+    m_editedScene = scene;
+    m_selectedEntity = Entity();
+    m_editorCamera = EditorCamera();
+}
+
 void Editor::resetEditorInputs()
 {
-    m_editorInputContext.clear();
+    Mapper<KeyboardButton, Range2DInput>::Descriptor inputMapperDesc;
 
-    ActionInput& quitEditorIpt = m_editorInputContext.newInput<ActionInput>("quit_editor");
-    quitEditorIpt.callback = utils::Func<void()>(*(Application*)this, &Application::terminate);
+    ActionInput& quitEditorIpt = m_editorInputContext.getInput<ActionInput>("quit_editor");
     auto quitEditorIptMapper = utils::makeUnique<Mapper<KeyboardButton, ActionInput>>(KeyboardButton::esc, quitEditorIpt);
     quitEditorIpt.mappers[0] = quitEditorIptMapper.staticCast<IMapper>();
+    quitEditorIpt.mappers[1].clear();
 
-    Range2DInput& editorCamRotateIpt = m_editorInputContext.newInput<Range2DInput>("editor_cam_rotate");
-    editorCamRotateIpt.callback = utils::Func<void(math::vec2f)>(m_editorCamera, &EditorCamera::rotate);
-    Mapper<KeyboardButton, Range2DInput>::Descriptor inputMapperDesc;
-    inputMapperDesc.xPos = KeyboardButton::down;
-    inputMapperDesc.xNeg = KeyboardButton::up;
-    inputMapperDesc.yPos = KeyboardButton::right;
-    inputMapperDesc.yNeg = KeyboardButton::left;
-    auto editorCamRotateIptMapper = utils::makeUnique<Mapper<KeyboardButton, Range2DInput>>(inputMapperDesc, editorCamRotateIpt);
-    editorCamRotateIpt.mappers[0] = editorCamRotateIptMapper.staticCast<IMapper>();
-    
-    Range2DInput& editorCamMoveIpt = m_editorInputContext.newInput<Range2DInput>("editor_cam_move");
-    editorCamMoveIpt.callback = utils::Func<void(math::vec2f)>(m_editorCamera, &EditorCamera::move);
+    Range2DInput& editorCamMoveIpt = m_editorInputContext.getInput<Range2DInput>("editor_cam_move");
     inputMapperDesc.xPos = KeyboardButton::d;
     inputMapperDesc.xNeg = KeyboardButton::a;
     inputMapperDesc.yPos = KeyboardButton::w;
     inputMapperDesc.yNeg = KeyboardButton::s;
     auto editorCamMoveIptMapper = utils::makeUnique<Mapper<KeyboardButton, Range2DInput>>(inputMapperDesc, editorCamMoveIpt);
     editorCamMoveIpt.mappers[0] = editorCamMoveIptMapper.staticCast<IMapper>();
+    editorCamMoveIpt.mappers[1].clear();
+
+    Range2DInput& editorCamRotateIpt = m_editorInputContext.getInput<Range2DInput>("editor_cam_rotate");
+    inputMapperDesc.xPos = KeyboardButton::down;
+    inputMapperDesc.xNeg = KeyboardButton::up;
+    inputMapperDesc.yPos = KeyboardButton::right;
+    inputMapperDesc.yNeg = KeyboardButton::left;
+    auto editorCamRotateIptMapper = utils::makeUnique<Mapper<KeyboardButton, Range2DInput>>(inputMapperDesc, editorCamRotateIpt);
+    editorCamRotateIpt.mappers[0] = editorCamRotateIptMapper.staticCast<IMapper>();
+    editorCamRotateIpt.mappers[1].clear();
 }
 
 }

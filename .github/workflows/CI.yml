@@ -63,7 +63,7 @@ jobs:
           -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
           -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
           -DGLFW_BUILD_WAYLAND=OFF
-          -DGE_BUILD_EXEMPLES=ON
+          -DGE_BUILD_EXAMPLES=ON
           -DGE_BUILD_TESTS=ON
           
       - name: Build

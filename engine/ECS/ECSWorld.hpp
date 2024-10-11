@@ -42,7 +42,7 @@ private:
 public:
     ECSWorld();
     ECSWorld(const ECSWorld&) = delete;
-    ECSWorld(ECSWorld&&)      ;
+    ECSWorld(ECSWorld&&);
 
     inline static ComponentID nextComponentID() { static ComponentID id = 0; return id++; };
     template<typename T> inline static ComponentID componentID() { static ComponentID id = nextComponentID(); return id; }

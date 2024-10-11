@@ -11,7 +11,8 @@
 #define EDITOR_HPP
 
 #include "Application.hpp"
-#include "Project.hpp"
+#include "EditorCamera.hpp"
+#include "InputManager/InputContext.hpp"
 #include "Scene.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "Graphics/FrameBuffer.hpp"
@@ -31,51 +32,39 @@ public:
     ~Editor() = default;
 
 private:
-    struct UIStates
-    {
-        bool showDemoWindow = false;
-
-        bool showNewProjectPopupModal = false; 
-        utils::String newProjectName;
-        utils::String newProjectPath;
-
-        bool showProjectProperties = false;
-        bool imguiSettingsNeedReload = false;
-    };
-
     void onUpdate() override;
     void onImGuiRender() override;
     void onEvent(gfx::Event&) override;
 
-    void newProject(const utils::String& dir, const utils::String& projectName);
+    void updateVPFrameBuff();
+
     void openProject(const utils::String& path);
     void saveProject();
 
-    void newScene();
     void editScene(Scene*);
 
-    void updateVPFrameBuff();
     void resetEditorInputs();
 
-    utils::String m_projFilePath;
-    utils::String m_projName;
-    utils::String m_projRessourcesDir;
-    utils::String m_projImguiSettings;
-    utils::Set<Scene> m_projScenes;
+    utils::String m_projectFilePath;
+    utils::String m_projectName;
+    utils::String m_projectRessourcesDir;
 
-    bool m_projectNeedReload;
+    utils::String m_imguiSettings;
+    bool m_imguiSettingsNeedReload = false;
 
-    Scene* editedScene = nullptr;
-    Entity selectedEntity;
+    utils::Set<Scene> m_scenes;
+    Scene* m_startScene = nullptr;
 
-    InputContext editorInputContext;
-        
+    Scene* m_editedScene = nullptr;
+    Entity m_selectedEntity;
+    EditorCamera m_editorCamera;
+
+    InputContext m_editorInputContext;
+
     utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
-    utils::uint32 m_viewportFBuffW = 800;
-    utils::uint32 m_viewportFBuffH = 600;
-    bool m_viewportFBuffSizeIsDirty = true;
 
-    UIStates m_uiStates;
+    utils::uint32 m_viewportPanelW = 800;
+    utils::uint32 m_viewportPanelH = 600;
 
 public:
     Editor& operator = (const Editor&) = delete;
