@@ -16,6 +16,10 @@
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Types.hpp"
 #include <TFD/tinyfiledialogs.h>
+#include <cassert>
+#include <cstring>
+#include <filesystem>
+#include <string>
 
 namespace GE
 {
@@ -220,6 +224,73 @@ void Editor::onImGuiRender()
             }
         }
         ImGui::PopItemWidth();
+    }
+    ImGui::End();
+
+    if (ImGui::Begin("File explorer"))
+    {
+        assert(m_fileExplorerPath.is_absolute());
+        assert(std::filesystem::is_directory(m_fileExplorerPath));
+
+        std::filesystem::path curr;
+        
+        auto pathIt = m_fileExplorerPath.begin();
+        curr /= *pathIt;
+        if (ImGui::Button(pathIt->c_str()))
+            m_fileExplorerPath = curr;
+
+        ++pathIt;
+        for (; pathIt != m_fileExplorerPath.end(); ++pathIt) {
+            curr /= *pathIt;
+            ImGui::SameLine();
+            if (ImGui::Button(pathIt->c_str()))
+                m_fileExplorerPath = curr;
+        }
+
+        if (ImGui::BeginChild("file_explorer_files"))
+        {
+            float lineWith = 0.0F;
+            for (auto const& dir_entry : std::filesystem::directory_iterator(m_fileExplorerPath)) 
+            {
+                if (ImGui::BeginChild(dir_entry.path().filename().c_str(), ImVec2(60, 60 + ImGui::GetFrameHeightWithSpacing())))
+                {
+                    std::string id = dir_entry.path().string();
+                    std::string extension = dir_entry.path().filename().extension();
+                    std::string fileName = dir_entry.path().filename();
+
+                    if (dir_entry.is_directory())
+                    {
+                        ImGui::Button(("dir##" + id).c_str(), ImVec2(60, 60));
+                        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+                            m_fileExplorerPath = dir_entry.path();
+                    }
+                    else
+                    {
+                        if (dir_entry.path().has_extension())
+                            ImGui::Button((extension + "##" + id).c_str(), ImVec2(60, 60));    
+                        else
+                            ImGui::Button((fileName + "##" + id).c_str(), ImVec2(60, 60));
+
+                        if (ImGui::BeginDragDropSource())
+                        {
+                            ImGui::SetDragDropPayload("dnd_file", dir_entry.path().c_str(), strlen(dir_entry.path().c_str()));
+                            ImGui::Text("%s", dir_entry.path().c_str());
+                            ImGui::EndDragDropSource();
+                        }
+                    }
+
+                    ImGui::Text("%s", dir_entry.path().filename().c_str());
+                }
+                ImGui::EndChild();
+
+                lineWith += 67.5F;
+                if (lineWith < ImGui::GetContentRegionAvail().x - 60.0f)
+                    ImGui::SameLine();
+                else
+                    lineWith = 0.0F;
+            }
+        }
+        ImGui::EndChild();
     }
     ImGui::End();
 

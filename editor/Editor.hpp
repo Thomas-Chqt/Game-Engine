@@ -18,6 +18,7 @@
 #include "Graphics/FrameBuffer.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Types.hpp"
+#include <filesystem>
 
 namespace GE
 {
@@ -65,6 +66,7 @@ private:
 
     utils::uint32 m_viewportPanelW = 800;
     utils::uint32 m_viewportPanelH = 600;
+    std::filesystem::path m_fileExplorerPath;
 
 public:
     Editor& operator = (const Editor&) = delete;

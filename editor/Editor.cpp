@@ -17,46 +17,29 @@
 #include "Scene.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
+#include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <string>
 
 using json = nlohmann::json;
 
-#define DEFAULT_IMGUI_INI\
-    "[Window][WindowOverViewport_11111111]\n"\
-    "Pos=0,19\n"\
-    "Size=1280,701\n"\
-    "Collapsed=0\n"\
-    "\n"\
-    "[Window][Debug##Default]\n"\
-    "Pos=60,60\n"\
-    "Size=400,400\n"\
-    "Collapsed=0\n"\
-    "\n"\
-    "[Window][Entity inspector]\n"\
-    "Pos=999,494\n"\
-    "Size=281,226\n"\
-    "Collapsed=0\n"\
-    "DockId=0x00000004,0\n"\
-    "\n"\
-    "[Window][Scene graph]\n"\
-    "Pos=999,19\n"\
-    "Size=281,473\n"\
-    "Collapsed=0\n"\
-    "DockId=0x00000003,0\n"\
-    "\n"\
-    "[Window][viewport]\n"\
-    "Pos=0,19\n"\
-    "Size=997,701\n"\
-    "Collapsed=0\n"\
-    "DockId=0x00000001,0\n"\
-    "\n"\
-    "[Docking][Data]\n"\
-    "DockSpace ID=0x7C6B3D9B Window=0xA87D555D Pos=942,394 Size=1280,701 Split=X Selected=0x0BA3B4F3\n"\
-    "DockNode  ID=0x00000001 Parent=0x7C6B3D9B SizeRef=1185,701 CentralNode=1 Selected=0x0BA3B4F3\n"\
-    "DockNode  ID=0x00000002 Parent=0x7C6B3D9B SizeRef=281,701 Split=Y Selected=0xF5BE1C77\n"\
-    "DockNode  ID=0x00000003 Parent=0x00000002 SizeRef=168,473 Selected=0xF5BE1C77\n"\
-    "DockNode  ID=0x00000004 Parent=0x00000002 SizeRef=168,226 Selected=0xD3D12213\n"
+#define DEFAULT_IMGUI_INI \
+    "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1280,701\nCollapsed=0\n\n"                       \
+    "[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n"                                    \
+    "[Window][Entity inspector]\nPos=1015,405\nSize=265,315\nCollapsed=0\n"                                 \
+    "DockId=0x00000004,0\n\n[Window][Scene graph]\nPos=1015,19\nSize=265,384\n"                             \
+    "Collapsed=0\nDockId=0x00000003,0\n\n[Window][viewport]\nPos=0,19\nSize=1013,523\n"                     \
+    "Collapsed=0\nDockId=0x00000005,0\n\n[Window][File explorer]\nPos=0,544\nSize=1013,176\n"               \
+    "Collapsed=0\nDockId=0x00000006,0\n\n[Window][Project properties]\nPos=435,288\nSize=361,77\n"          \
+    "Collapsed=0\n\n[Window][Scenes]\nPos=445,309\nSize=268,102\nCollapsed=0\n\n[Docking][Data]\n"          \
+    "DockSpace     ID=0x7C6B3D9B Window=0xA87D555D Pos=712,423 Size=1280,701 Split=X Selected=0x0BA3B4F3\n" \
+    "  DockNode    ID=0x00000001 Parent=0x7C6B3D9B SizeRef=1428,701 Split=Y Selected=0x0BA3B4F3\n"          \
+    "    DockNode  ID=0x00000005 Parent=0x00000001 SizeRef=1013,523 CentralNode=1 Selected=0x0BA3B4F3\n"    \
+    "    DockNode  ID=0x00000006 Parent=0x00000001 SizeRef=1013,176 Selected=0xD2F73F3F\n"                  \
+    "  DockNode    ID=0x00000002 Parent=0x7C6B3D9B SizeRef=265,701 Split=Y Selected=0xF5BE1C77\n"           \
+    "    DockNode  ID=0x00000003 Parent=0x00000002 SizeRef=168,583 Selected=0xF5BE1C77\n"                   \
+    "    DockNode  ID=0x00000004 Parent=0x00000002 SizeRef=168,479 Selected=0xD3D12213\n\n"
 
 namespace GE
 {
@@ -75,6 +58,7 @@ Editor::Editor()
     m_projectName = "new_project";
     m_imguiSettings = DEFAULT_IMGUI_INI;
     m_imguiSettingsNeedReload = true;
+    m_fileExplorerPath = std::filesystem::current_path();
 
     auto& defautScene = *m_scenes.insert(Scene("default_scene"));
     defautScene.newEntity("cube");
@@ -187,6 +171,14 @@ void Editor::openProject(const utils::String& filePath)
     m_editedScene = nullptr;
     m_selectedEntity = Entity();
     m_editorCamera = EditorCamera();
+
+    if (m_projectRessourcesDir.length() > 0 && std::filesystem::path(std::string(m_projectRessourcesDir)).is_absolute())
+        m_fileExplorerPath = std::string(m_projectRessourcesDir);
+    else
+    {
+        m_fileExplorerPath = std::filesystem::path(std::string(m_projectFilePath)).remove_filename();
+        m_fileExplorerPath /= std::filesystem::path(std::string(m_projectRessourcesDir));
+    }
 }
 
 void Editor::saveProject()
