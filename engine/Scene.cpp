@@ -24,7 +24,7 @@ Scene::Scene(const utils::String& name)
 
 Entity Scene::newEntity(const utils::String& name)
 {
-    Entity newEntity(m_ecsWorld, m_ecsWorld.newEntity());
+    Entity newEntity(m_ecsWorld, m_ecsWorld.newEntityID());
 
     newEntity.emplace<NameComponent>(name);
     newEntity.emplace<TransformComponent>(

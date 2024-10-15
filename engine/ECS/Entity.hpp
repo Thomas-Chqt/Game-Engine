@@ -37,9 +37,11 @@ public:
     T& emplace(Args&& ... args)
     {
         utils::uint32 size = sizeof(T);
-        auto constructor = [&](void* ptr){ new (ptr) T{std::forward<Args>(args)...}; };
-        auto destructor = [](void* ptr){ ((T*)ptr)->~T(); };
-        return *(T*)m_world->emplace(m_entityId, ECSWorld::componentID<T>(), size, constructor, destructor);
+        auto constructor     = [&](void* ptr)           { new (ptr) T{std::forward<Args>(args)...}; };
+        auto copyConstructor = [](void* src, void* dst) { new (dst) T(*(T*)src); };
+        auto moveConstructor = [](void* src, void* dst) { new (dst) T(std::move(*(T*)src)); };
+        auto destructor      = [](void* ptr)            { ((T*)ptr)->~T(); };
+        return *(T*)m_world->emplace(m_entityId, ECSWorld::componentID<T>(), size, constructor, copyConstructor, moveConstructor, destructor);
     }
 
     template<typename T> inline void remove() { m_world->remove(m_entityId, ECSWorld::componentID<T>()); }
@@ -48,7 +50,7 @@ public:
     
     void destroy()
     {
-        m_world->deleteEntity(m_entityId);
+        m_world->deleteEntityID(m_entityId);
         m_world = nullptr;
         m_entityId = INVALID_ENTITY_ID;
     }
@@ -91,7 +93,7 @@ public:
     Entity& operator = (const Entity&) = default;
     Entity& operator = (Entity&&)      = default;
 
-    inline operator bool () { return m_world != nullptr && m_world->isValid(m_entityId); }
+    inline operator bool () { return m_world != nullptr && m_world->isValidEntityID(m_entityId); }
     inline bool operator == (const Entity& rhs) const { return m_world == rhs.m_world && m_entityId == rhs.m_entityId; }
     inline bool operator != (const Entity& rhs) const { return !(*this == rhs); }
 };
