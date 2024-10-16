@@ -15,7 +15,6 @@
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/Types.hpp"
-#include "ECS/Archetype.hpp" // IWYU pragma: keep
 
 namespace GE
 {
@@ -31,6 +30,7 @@ public:
     ECSView(ECSWorld& world) : m_world(world), m_predicate(makePredicate<Ts...>()) {}
 
     utils::uint32 count();
+
     void onFirst(const utils::Func<void(Entity, Ts& ...)>&);
     void onEach(const utils::Func<void(Entity, Ts& ...)>&);
 
@@ -56,52 +56,6 @@ public:
     ECSView& operator = (const ECSView&) = delete;
     ECSView& operator = (ECSView&&)      = delete;
 };
-
-template<typename ... Ts>
-utils::uint32 ECSView<Ts...>::count()
-{
-    utils::uint32 output = 0;
-    for (auto& [archetypeId, archetype] : m_world.m_archetypes) {
-        if (archetypeId.contain(m_predicate))
-            output += archetype->entityCount();
-    }
-    return output;
-}
-
-template<typename ... Ts>
-void ECSView<Ts...>::onFirst(const utils::Func<void(Entity, Ts& ...)>& func)
-{
-    for (auto& [archetypeId, archetype] : m_world.m_archetypes)
-    {
-        if (archetypeId.contain(m_predicate))
-        {
-            for (utils::uint32 idx = 0; idx < archetype->maxIdx(); idx++)
-            {
-                if (archetype->isValidIdx(idx))
-                {
-                    func(Entity(m_world, *archetype->getEntityId(idx)), *(Ts*)archetype->getComponent(ECSWorld::componentID<Ts>(), idx) ...);
-                    return;
-                }
-            }
-        }
-    }
-}
-
-template<typename ... Ts>
-void ECSView<Ts...>::onEach(const utils::Func<void(Entity, Ts& ...)>& func)
-{
-    for (auto& [archetypeId, archetype] : m_world.m_archetypes)
-    {
-        if (archetypeId.contain(m_predicate))
-        {
-            for (utils::uint32 idx = 0; idx < archetype->maxIdx(); idx++)
-            {
-                if (archetype->isValidIdx(idx))
-                    func(Entity(m_world, *archetype->getEntityId(idx)), *(Ts*)archetype->getComponent(ECSWorld::componentID<Ts>(), idx) ...);
-            }
-        }
-    }
-}
 
 }
 

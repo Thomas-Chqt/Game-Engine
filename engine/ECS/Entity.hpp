@@ -16,7 +16,6 @@
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include <type_traits>
-#include <utility>
 #include <type_traits>
 
 namespace GE
@@ -36,17 +35,26 @@ public:
     template<typename T, typename ... Args>
     T& emplace(Args&& ... args)
     {
-        utils::uint32 size = sizeof(T);
-        auto constructor     = [&](void* ptr)           { new (ptr) T{std::forward<Args>(args)...}; };
-        auto copyConstructor = [](void* src, void* dst) { new (dst) T(*(T*)src); };
-        auto moveConstructor = [](void* src, void* dst) { new (dst) T(std::move(*(T*)src)); };
-        auto destructor      = [](void* ptr)            { ((T*)ptr)->~T(); };
-        return *(T*)m_world->emplace(m_entityId, ECSWorld::componentID<T>(), size, constructor, copyConstructor, moveConstructor, destructor);
+        return m_world->emplace<T>(args...);
     }
 
-    template<typename T> inline void remove() { m_world->remove(m_entityId, ECSWorld::componentID<T>()); }
-    template<typename T> inline bool has() { return m_world->has(m_entityId, ECSWorld::componentID<T>()); }
-    template<typename T> inline T& get() { return *(T*)m_world->get(m_entityId, ECSWorld::componentID<T>()); }
+    template<typename T>
+    void remove()
+    {
+        m_world->remove<T>(m_entityId);
+    }
+
+    template<typename T>
+    bool has()
+    {
+        return m_world->has<T>(m_entityId);
+    }
+
+    template<typename T>
+    T& get()
+    {
+        return m_world->get<T>(m_entityId);
+    }
     
     void destroy()
     {
