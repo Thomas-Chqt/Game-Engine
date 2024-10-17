@@ -12,9 +12,12 @@
 
 #include "UtilsCPP/Array.hpp"
 #include "UtilsCPP/Dictionary.hpp"
+#include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/Types.hpp"
+#include <cassert>
 #include <climits>
+#include <utility>
 
 #define INVALID_ENTITY_ID ULONG_MAX
 
@@ -38,12 +41,13 @@ private:
 
 public:
     ECSWorld();
-    ECSWorld(const ECSWorld&);
-    ECSWorld(ECSWorld&&);
+    ECSWorld(const ECSWorld&) = default;
+    ECSWorld(ECSWorld&&)      = default;
 
     EntityID newEntityID();
 
     void deleteEntityID(EntityID);
+
     inline bool isValidEntityID(EntityID id) const { return m_entityDatas.length() > id && m_availableEntityIDs.contain(id) == false; }
 
     template<typename T, typename ... Args>
@@ -76,9 +80,9 @@ private:
     static ComponentID nextComponentID();
     template<typename T> static ComponentID componentID();
     template<typename T> static utils::uint64 componentSize();
-    template<typename T> static const CopyConstructor& componentCopyConstructor();
-    template<typename T> static const MoveConstructor& componentMoveConstructor();
-    template<typename T> static const Destructor& componentDestructor();
+    template<typename T> static CopyConstructor componentCopyConstructor();
+    template<typename T> static MoveConstructor componentMoveConstructor();
+    template<typename T> static Destructor componentDestructor();
 
     utils::Array<EntityData> m_entityDatas;
     utils::Set<EntityID> m_availableEntityIDs;
@@ -86,9 +90,100 @@ private:
     utils::Dictionary<ArchetypeID, Archetype> m_archetypes;
     
 public:
-    ECSWorld& operator = (const ECSWorld&);
-    ECSWorld& operator = (ECSWorld&&);
+    ECSWorld& operator = (const ECSWorld&) = default;
+    ECSWorld& operator = (ECSWorld&&)      = default;
 };
+
+template<typename T, typename ... Args>
+T& ECSWorld::emplace(EntityID entityId, Args&& ... args)
+{
+    assert(isValidEntityID(entityId));
+    assert(has<T>(entityId) == false);
+    
+    ArchetypeID& entityArchID = m_entityDatas[entityId].archetypeId;
+    Archetype& entityArch = m_archetypes[entityArchID];
+    utils::uint64& entityIdx = m_entityDatas[entityId].idx;
+    
+    ArchetypeID dstArchID = entityArchID + componentID<T>();
+    auto it = m_archetypes.find(dstArchID);
+    if (it == m_archetypes.end())
+    {
+        Archetype newArchetype = entityArch.duplicateRowTypes();
+        newArchetype.addRowType<T>();
+        it = m_archetypes.insert(dstArchID, std::move(newArchetype));
+    }
+    Archetype& dstArchetype = it->val;
+    utils::uint64 dstIdx = dstArchetype.allocateCollum();
+
+    Archetype::moveComponents(entityArch, entityIdx, dstArchetype, dstIdx);
+
+    m_entityDatas[entityArch.getEntityID(entityArch.size() - 1)].idx = entityIdx;
+    
+    entityArch.destructCollum(entityIdx);
+    Archetype::moveComponents(entityArch, entityArch.size() - 1, entityArch, entityIdx);
+    entityArch.destructCollum(entityArch.size() - 1);
+    entityArch.freeLastCollum();
+
+    entityArchID = dstArchID;
+    entityIdx = dstIdx;
+
+    T* componentPtr = m_archetypes[entityArchID].getComponentPointer<T>(entityIdx);
+    new (componentPtr) T(std::forward<Args>(args)...);
+    return *componentPtr;
+}
+
+template<typename T>
+void ECSWorld::remove(EntityID entityId)
+{
+    assert(isValidEntityID(entityId));
+    assert(has<T>(entityId));
+   
+    ArchetypeID& entityArchID = m_entityDatas[entityId].archetypeId;
+    Archetype& entityArch = m_archetypes[entityArchID];
+    utils::uint64& entityIdx = m_entityDatas[entityId].idx;
+
+    ArchetypeID dstArchID = entityArchID - componentID<T>();
+    auto it = m_archetypes.find(dstArchID);
+    if (it == m_archetypes.end())
+    {
+        Archetype newArchetype = entityArch.duplicateRowTypes();
+        newArchetype.rmvRowType<T>();
+        it = m_archetypes.insert(dstArchID, std::move(newArchetype));
+    }
+    Archetype& dstArchetype = it->val;
+    utils::uint64 dstIdx = dstArchetype.allocateCollum();
+
+    Archetype::moveComponents(entityArch, entityIdx, dstArchetype, dstIdx);
+
+    m_entityDatas[entityArch.getEntityID(entityArch.size() - 1)].idx = entityIdx;
+    
+    entityArch.destructCollum(entityIdx);
+    Archetype::moveComponents(entityArch, entityArch.size() - 1, entityArch, entityIdx);
+    entityArch.destructCollum(entityArch.size() - 1);
+    entityArch.freeLastCollum();
+
+    entityArchID = dstArchID;
+    entityIdx = dstIdx;
+}
+
+template<typename T>
+bool ECSWorld::has(EntityID entityId)
+{
+    assert(isValidEntityID(entityId));
+    return m_entityDatas[entityId].archetypeId.contain(componentID<T>());
+}
+
+template<typename T>
+T& ECSWorld::get(EntityID entityId)
+{
+    assert(isValidEntityID(entityId));
+    assert(has<T>(entityId));
+
+    Archetype& entityArch = m_archetypes[m_entityDatas[entityId].archetypeId];
+    utils::uint64& entityIdx = m_entityDatas[entityId].idx;
+
+    return *entityArch.getComponentPointer<T>(entityIdx);
+}
 
 template<typename T>
 ECSWorld::ComponentID ECSWorld::componentID()
@@ -100,27 +195,28 @@ ECSWorld::ComponentID ECSWorld::componentID()
 template<typename T>
 utils::uint64 ECSWorld::componentSize()
 {
-    static utils::uint64 size = sizeof(T); return size;
+    utils::uint64 size = sizeof(T);
+    return size;
 }
 
 template<typename T>
-const ECSWorld::CopyConstructor& ECSWorld::componentCopyConstructor()
+ECSWorld::CopyConstructor ECSWorld::componentCopyConstructor()
 {
-    static auto fn = [](void* src, void* dst) { new (dst) T(*(T*)src); };
+    auto fn = [](void* src, void* dst) { new (dst) T(*(T*)src); };
     return fn;
 }
 
 template<typename T>
-const ECSWorld::MoveConstructor& ECSWorld::componentMoveConstructor()
+ECSWorld::MoveConstructor ECSWorld::componentMoveConstructor()
 {
-    static auto fn = [](void* src, void* dst) { new (dst) T(std::move(*(T*)src)); };
+    auto fn = [](void* src, void* dst) { new (dst) T(std::move(*(T*)src)); };
     return fn;
 }
 
 template<typename T>
-const ECSWorld::Destructor& ECSWorld::componentDestructor()
+ECSWorld::Destructor ECSWorld::componentDestructor()
 {
-    static auto fn = [](void* ptr) { ((T*)ptr)->~T(); };
+    auto fn = [](void* ptr) { ((T*)ptr)->~T(); };
     return fn;
 }
 

@@ -11,13 +11,13 @@
     #include "UtilsCPP/Dictionary.hpp"
     #include "UtilsCPP/Types.hpp"
 
-    class ECSWorld;
-    class CopyConstructor;
-    class MoveConstructor;
-    class Destructor;
-
+    using EntityID = utils::uint64;
     using ComponentID = utils::uint32;
     using ArchetypeID = utils::Set<ComponentID>;
+
+    using CopyConstructor = utils::Func<void(void* src, void* dst)>;
+    using MoveConstructor = utils::Func<void(void* src, void* dst)>;
+    using Destructor      = utils::Func<void(void* ptr)>;
 
     template<typename T> ComponentID componentID();
     template<typename T> utils::uint64 componentSize();
@@ -30,16 +30,17 @@ class Archetype
 {
 public:
     Archetype();
-    Archetype(const Archetype&);
+    Archetype(const Archetype&); // copy constructor make no sense inside the same ECSWorld. ment to be used only when copying the ECSWorld
     Archetype(Archetype&&);
 
     utils::uint64 size() const { return m_size; }
 
+    // must be use on empty achetype that are not inserted `ECSWorld::m_archetypes`
     template<typename T>
     void addRowType()
     {
-        m_rows.insert(componentID<T>(), {
-            operator new (m_capacity),
+        m_rows.insert(componentID<T>(), Row{
+            operator new (componentSize<T>() * m_capacity),
             componentSize<T>(),
             componentCopyConstructor<T>(),
             componentMoveConstructor<T>(),
@@ -47,12 +48,17 @@ public:
         });
     }
 
+    // must be use on empty achetype that are not inserted `ECSWorld::m_archetypes`
     template<typename T>
     void rmvRowType()
     {
         m_rows.remove(componentID<T>());
     }
 
+    // only duplicate the component infos (no component duplicated)
+    Archetype duplicateRowTypes();
+
+    // only extend the size (and capacity if needed) and return last index
     utils::uint64 allocateCollum();
 
     template<typename T>
@@ -61,8 +67,11 @@ public:
         Row& row = m_rows[componentID<T>()];
         return static_cast<T*>(row.buffer) + idx;
     }
+    
+    EntityID& getEntityID(utils::uint64 idx);
 
     // destination should be garbage memory
+    // only call the move constructor
     static void moveComponents(Archetype& arcSrc, utils::uint64 idxSrc, Archetype& arcDst, utils::uint64 idxDst);
 
     // only call the destructor
@@ -71,14 +80,16 @@ public:
     // only reduce the size (and capacity if needed)
     void freeLastCollum();
 
+    ~Archetype();
+
 private:
     struct Row
     {
         void* buffer = nullptr;
         const utils::uint64 componentSize;
-        const CopyConstructor& copyConstructor;
-        const MoveConstructor& moveConstructor;
-        const Destructor& destructor;
+        const CopyConstructor copyConstructor;
+        const MoveConstructor moveConstructor;
+        const Destructor destructor;
     };
 
     utils::Dictionary<ComponentID, Row> m_rows;
