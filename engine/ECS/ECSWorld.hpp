@@ -31,6 +31,7 @@ public:
 
 private:
     template<typename ... Ts> friend class ECSView;
+    template<typename ... Ts> friend class const_ECSView;
 
     using ComponentID = utils::uint32;
     using ArchetypeID = utils::Set<ComponentID>;

@@ -81,7 +81,7 @@ void Editor::onUpdate()
     m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
     {
         if (m_editedScene)
-            m_editedScene->submitForRendering(m_renderer);
+            m_renderer.addScene(*m_editedScene);
     }
     m_renderer.endScene();
 
@@ -202,8 +202,8 @@ void Editor::saveProject()
 void Editor::editScene(Scene* scene)
 {
     if (m_editedScene)
-        m_editedScene->unload();
-    scene->load(m_renderer.graphicAPI());
+        m_editedScene->assetManager().unloadAssets();
+    scene->assetManager().loadAssets(m_renderer.graphicAPI());
 
     m_editedScene = scene;
     m_selectedEntity = Entity();

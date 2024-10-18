@@ -67,8 +67,16 @@ public:
         Row& row = m_rows[componentID<T>()];
         return static_cast<T*>(row.buffer) + idx;
     }
+
+    template<typename T>
+    const T* getComponentPointer(utils::uint64 idx) const
+    {
+        const Row& row = m_rows[componentID<T>()];
+        return static_cast<T*>(row.buffer) + idx;
+    }
     
     EntityID& getEntityID(utils::uint64 idx);
+    const EntityID& getEntityID(utils::uint64 idx) const;
 
     // destination should be garbage memory
     // only call the move constructor

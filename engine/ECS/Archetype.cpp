@@ -97,6 +97,11 @@ ECSWorld::EntityID& ECSWorld::Archetype::getEntityID(utils::uint64 idx)
     return static_cast<EntityID*>(m_rows[0].buffer)[idx];
 }
 
+const ECSWorld::EntityID& ECSWorld::Archetype::getEntityID(utils::uint64 idx) const
+{
+    return static_cast<const EntityID*>(m_rows[0].buffer)[idx];
+}
+
 void ECSWorld::Archetype::moveComponents(Archetype& arcSrc, utils::uint64 idxSrc, Archetype& arcDst, utils::uint64 idxDst)
 {
     for (auto& [id, row] : arcSrc.m_rows)

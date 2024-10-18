@@ -8,6 +8,8 @@
  */
 
 #include "Renderer/Renderer.hpp"
+#include "ECS/Components.hpp"
+#include "ECS/ECSView.hpp"
 #include "Graphics/Enums.hpp"
 #include "Graphics/GraphicAPI.hpp"
 #include "Graphics/GraphicPipeline.hpp"
@@ -96,6 +98,42 @@ void Renderer::addPointLight(const Renderer::PointLight& pointLight)
     assert(m_lightsBuffer.content().pointLightCount < 32);
     utils::uint32 idx = m_lightsBuffer.content().pointLightCount++;
     m_lightsBuffer.content().pointLights[idx] = pointLight;
+}
+
+void Renderer::addScene(const Scene& scene)
+{
+    // ECSView<TransformComponent, MeshComponent> view(m_ecsWorld);
+    // view.onEach([&](Entity entity, TransformComponent& transform, MeshComponent& mesh) {
+    //     auto addSubMesh = [&](SubMesh& subMesh, const math::mat4x4& transform) {
+    //         math::mat4x4 modelMatrix = transform * subMesh.transform;
+    //         *static_cast<math::mat4x4*>(subMesh.modelMatrixBuffer->mapContent()) = modelMatrix;
+    //         subMesh.modelMatrixBuffer->unMapContent();
+
+    //         Renderer::Renderable renderable;
+    //         renderable.vertexBuffer = subMesh.vertexBuffer;
+    //         renderable.indexBuffer = subMesh.indexBuffer;
+    //         renderable.modelMatrix = subMesh.modelMatrixBuffer;
+
+    //         renderer.addRenderable(renderable);
+    //     };
+
+    //     if (mesh.meshID.isValid())
+    //     {
+    //         for (auto& subMesh : m_assetManager.loadedMesh(mesh.meshID).subMeshes)
+    //             addSubMesh(subMesh, entity.worldTransform());
+    //     }
+    // });
+    const_ECSView<TransformComponent, LightComponent> view(scene.ecsWorld());
+    view.onEach([&](const Entity, const TransformComponent& transform, const LightComponent& light) {
+        switch (light.type)
+        {
+        case LightComponent::Type::point:
+            addPointLight({transform.position, light.color, light.intentsity});
+            break;
+        default:
+            UNREACHABLE
+        }
+    });
 }
 
 void Renderer::endScene()

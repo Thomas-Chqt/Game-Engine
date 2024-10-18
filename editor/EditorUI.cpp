@@ -7,6 +7,8 @@
  * ---------------------------------------------------
  */
 
+#include "ECS/Components.hpp"
+#include "ECS/ECSView.hpp"
 #include "ECS/Entity.hpp"
 #include "Editor.hpp"
 #include "Math/Constants.hpp"
@@ -105,7 +107,7 @@ void Editor::onImGuiRender()
                 if (m_selectedEntity == entity)
                     flags |= ImGuiTreeNodeFlags_Selected;
 
-                if (entity.has<HierarchicalComponent>() == true && entity.firstChild())
+                if (entity.has<HierarchyComponent>() == true && entity.firstChild())
                     node_open = ImGui::TreeNodeEx(entity.imGuiID(), flags, "%s", (const char*)entity.name());
                 else
                 {
@@ -124,8 +126,8 @@ void Editor::onImGuiRender()
                 }
             };
 
-            m_editedScene->forEachNamedEntity([&](Entity entity, NameComponent&) {
-                if (entity.has<HierarchicalComponent>() == false || entity.parent() == false)
+            ECSView<NameComponent>(m_editedScene->ecsWorld()).onEach([&](Entity entity, NameComponent&) {
+                if (entity.has<HierarchyComponent>() == false || entity.parent() == false)
                     renderRow(entity);
             });
         }
@@ -216,9 +218,6 @@ void Editor::onImGuiRender()
 
                 if (m_selectedEntity.has<LightComponent>() == false && ImGui::Selectable("Light component"))
                     m_selectedEntity.emplace<LightComponent>(LightComponent::Type::point, WHITE3, 1.0f);
-
-                if (m_selectedEntity.has<MeshComponent>() == false && ImGui::Selectable("Mesh component"))
-                    m_selectedEntity.emplace<MeshComponent>();
 
                 ImGui::EndPopup();
             }

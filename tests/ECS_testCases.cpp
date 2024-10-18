@@ -23,6 +23,7 @@ struct Component1
     int value = 0;
 
     int& val() { return value; }
+    const int& val() const { return value; }
 
     Component1() = default;
     Component1(int v) : value(v) {}
@@ -33,6 +34,7 @@ struct Component2
     int* value;
 
     int& val() { return *value; }
+    const int& val() const { return *value; }
 
     Component2() : value(new int(0)) {}
     Component2(int v) : value(new int(v)) {}
@@ -296,6 +298,76 @@ TEST(ECSTest, view)
             utils::Set<int> values2;
 
             view.onEach([&](GE::Entity entity, Component1& comp1, Component2& comp2){ 
+                entities.insert(entity.entityID());
+                values1.insert(comp1.val());
+                values2.insert(comp2.val());
+            });
+
+            EXPECT_EQ(entities.size(), 1);
+            EXPECT_EQ(values1.size(), 1);
+            EXPECT_EQ(values2.size(), 1);
+        });
+    }
+}
+
+TEST(ECSTest, constView)
+{
+    GE::ECSWorld world;
+
+    EntityID entity1 = world.newEntityID();
+    world.emplace<Component1>(entity1, 1);
+
+    EntityID entity2 = world.newEntityID();
+    world.emplace<Component2>(entity2, 2);
+
+    EntityID entity3 = world.newEntityID();
+    world.emplace<Component1>(entity3, 3);
+    world.emplace<Component2>(entity3, 3);
+
+    {
+        GE::const_ECSView<Component1> view(const_cast<const GE::ECSWorld&>(world));
+        EXPECT_EQ(view.count(), 2);
+
+        EXPECT_NO_THROW({
+            utils::Set<EntityID> entities;
+            utils::Set<int> values;
+
+            view.onEach([&](const GE::Entity entity, const Component1& comp){ 
+                entities.insert(entity.entityID());
+                values.insert(comp.val());
+            });
+
+            EXPECT_EQ(entities.size(), 2);
+            EXPECT_EQ(values.size(), 2);
+        });
+    }
+    {
+        GE::const_ECSView<Component2> view(const_cast<const GE::ECSWorld&>(world));
+        EXPECT_EQ(view.count(), 2);
+
+        EXPECT_NO_THROW({
+            utils::Set<EntityID> entities;
+            utils::Set<int> values;
+
+            view.onEach([&](const GE::Entity entity, const Component2& comp){ 
+                entities.insert(entity.entityID());
+                values.insert(comp.val());
+            });
+
+            EXPECT_EQ(entities.size(), 2);
+            EXPECT_EQ(values.size(), 2);
+        });
+    }
+    {
+        GE::const_ECSView<Component1, Component2> view(const_cast<const GE::ECSWorld&>(world));
+        EXPECT_EQ(view.count(), 1);
+
+        EXPECT_NO_THROW({
+            utils::Set<EntityID> entities;
+            utils::Set<int> values1;
+            utils::Set<int> values2;
+
+            view.onEach([&](const GE::Entity entity, const Component1& comp1, const Component2& comp2){ 
                 entities.insert(entity.entityID());
                 values1.insert(comp1.val());
                 values2.insert(comp2.val());

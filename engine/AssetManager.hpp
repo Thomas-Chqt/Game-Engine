@@ -26,7 +26,7 @@ class AssetManager
 {
 public:
     AssetManager()                    = default;
-    AssetManager(const AssetManager&) = delete;
+    AssetManager(const AssetManager&) = default;
     AssetManager(AssetManager&&)      = default;
 
     utils::String assetShortPath(AssetID, const utils::String& ressourceDirFullPath);
@@ -54,7 +54,7 @@ private:
     utils::Dictionary<AssetID, Mesh> m_loadedMeshes;
 
 public:
-    AssetManager& operator = (const AssetManager&) = delete;
+    AssetManager& operator = (const AssetManager&) = default;
     AssetManager& operator = (AssetManager&&)      = default;
 
 };

@@ -11,6 +11,9 @@
 #define ENTITY_HPP
 
 #include "ECS/ECSWorld.hpp"
+#include "Math/Matrix.hpp"
+#include "Math/Vector.hpp"
+#include "UtilsCPP/String.hpp"
 
 namespace GE
 {
@@ -70,6 +73,23 @@ public:
         m_world = nullptr;
         m_entityId = INVALID_ENTITY_ID;
     }
+
+    utils::String& name();
+    inline const utils::String& name() const { return const_cast<Entity*>(this)->name(); };
+
+    Entity parent();
+    Entity firstChild();
+    Entity nextChild();
+    Entity lastChild();
+
+    void addChild(Entity);
+    void addChild(Entity child, Entity after);
+    void removeChild(Entity);
+
+    math::mat4x4 transform();
+    math::vec3f& position();
+    math::vec3f& rotation();
+    math::vec3f& scale();
 
     ~Entity() = default;
 

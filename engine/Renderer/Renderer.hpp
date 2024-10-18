@@ -14,6 +14,7 @@
 #include "Graphics/GraphicAPI.hpp"
 #include "Graphics/RenderTarget.hpp"
 #include "Math/Matrix.hpp"
+#include "Scene.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "Graphics/BufferInstance.hpp"
@@ -67,6 +68,8 @@ public:
 
     void addRenderable(const Renderer::Renderable&);
     void addPointLight(const Renderer::PointLight&);
+
+    void addScene(const Scene&);
 
     void endScene();
 

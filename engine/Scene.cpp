@@ -9,8 +9,6 @@
 
 #include "Scene.hpp"
 #include "ECS/Components.hpp"
-#include "ECS/ECSView.hpp"
-#include "Renderer/Renderer.hpp"
 #include "UtilsCPP/String.hpp"
 #include <string>
 
@@ -34,53 +32,6 @@ Entity Scene::newEntity(const utils::String& name)
     );
 
     return newEntity;
-}
-
-void Scene::submitMeshesForRendering(Renderer& renderer)
-{
-    ECSView<TransformComponent, MeshComponent> view(m_ecsWorld);
-    view.onEach([&](Entity entity, TransformComponent& transform, MeshComponent& mesh) {
-        auto addSubMesh = [&](SubMesh& subMesh, const math::mat4x4& transform) {
-            math::mat4x4 modelMatrix = transform * subMesh.transform;
-            *static_cast<math::mat4x4*>(subMesh.modelMatrixBuffer->mapContent()) = modelMatrix;
-            subMesh.modelMatrixBuffer->unMapContent();
-
-            Renderer::Renderable renderable;
-            renderable.vertexBuffer = subMesh.vertexBuffer;
-            renderable.indexBuffer = subMesh.indexBuffer;
-            renderable.modelMatrix = subMesh.modelMatrixBuffer;
-
-            renderer.addRenderable(renderable);
-        };
-
-        if (mesh.meshID.isValid())
-        {
-            for (auto& subMesh : m_assetManager.loadedMesh(mesh.meshID).subMeshes)
-                addSubMesh(subMesh, entity.worldTransform());
-        }
-    });
-}
-
-void Scene::submitLightsForRendering(Renderer& renderer)
-{
-    ECSView<TransformComponent, LightComponent> view(m_ecsWorld);
-    view.onEach([&](Entity, TransformComponent& transform, LightComponent& light) {
-        switch (light.type)
-        {
-        case LightComponent::Type::point:
-            renderer.addPointLight({transform.position, light.color, light.intentsity});
-            break;
-        default:
-            UNREACHABLE
-        }
-    });
-
-}
-
-void Scene::submitForRendering(Renderer& renderer)
-{
-    submitMeshesForRendering(renderer);
-    submitLightsForRendering(renderer);
 }
 
 void to_json(nlohmann::json& jsn, const Scene& scene)

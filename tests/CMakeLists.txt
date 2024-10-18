@@ -16,16 +16,7 @@ set_target_properties(ECS_test PROPERTIES
     FOLDER "tests"
 )
 
-target_sources(ECS_test PRIVATE
-    "ECS_testCases.cpp"
-    "${CMAKE_SOURCE_DIR}/engine/ECS/ECSWorld.hpp"
-    "${CMAKE_SOURCE_DIR}/engine/ECS/ECSWorld.cpp"
-    "${CMAKE_SOURCE_DIR}/engine/ECS/Archetype.hpp"
-    "${CMAKE_SOURCE_DIR}/engine/ECS/Archetype.cpp"
-    "${CMAKE_SOURCE_DIR}/engine/ECS/ECSWorld.hpp"
-    "${CMAKE_SOURCE_DIR}/engine/ECS/Entity.hpp"
-    "${CMAKE_SOURCE_DIR}/engine/ECS/Entity.cpp"
-)
+target_sources(ECS_test PRIVATE "ECS_testCases.cpp")
 
 target_include_directories(ECS_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} "${CMAKE_SOURCE_DIR}/engine")
 
@@ -41,7 +32,6 @@ FetchContent_MakeAvailable(googletest)
 set_target_properties(gtest PROPERTIES FOLDER "dependencies")
 set_target_properties(gtest_main PROPERTIES FOLDER "dependencies")
 target_link_libraries(ECS_test PRIVATE GTest::gtest_main)
-target_link_libraries(ECS_test PRIVATE UtilsCPP)
-target_link_libraries(ECS_test PRIVATE Math)
+target_link_libraries(ECS_test PRIVATE Game-Engine)
 
 gtest_discover_tests(ECS_test)
