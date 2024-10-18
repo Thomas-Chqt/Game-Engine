@@ -11,12 +11,6 @@
 #define ENTITY_HPP
 
 #include "ECS/ECSWorld.hpp"
-#include "Math/Matrix.hpp"
-#include "Math/Vector.hpp"
-#include "UtilsCPP/String.hpp"
-#include "UtilsCPP/UniquePtr.hpp"
-#include <type_traits>
-#include <type_traits>
 
 namespace GE
 {
@@ -30,12 +24,14 @@ public:
     
     Entity(ECSWorld&, ECSWorld::EntityID);
 
-    inline void* imGuiID() { return (void*)m_entityId; }
+    inline const ECSWorld& ecsWorld() const { return *m_world; }
+    inline ECSWorld::EntityID entityID() const { return m_entityId; }
+    inline void* imGuiID() const { return (void*)entityID(); }
 
     template<typename T, typename ... Args>
     T& emplace(Args&& ... args)
     {
-        return m_world->emplace<T>(args...);
+        return m_world->emplace<T>(m_entityId, args...);
     }
 
     template<typename T>
@@ -51,7 +47,19 @@ public:
     }
 
     template<typename T>
+    bool has() const
+    {
+        return m_world->has<T>(m_entityId);
+    }
+
+    template<typename T>
     T& get()
+    {
+        return m_world->get<T>(m_entityId);
+    }
+
+    template<typename T>
+    const T& get() const
     {
         return m_world->get<T>(m_entityId);
     }
@@ -63,39 +71,11 @@ public:
         m_entityId = INVALID_ENTITY_ID;
     }
 
-    utils::String& name();
-
-    math::mat4x4 transform();
-    math::vec3f& position();
-    math::vec3f& rotation();
-    math::vec3f& scale();
-    
-    Entity parent();
-    Entity firstChild();
-    Entity nextChild();
-    
-    template<typename T>
-    void setScriptInstance()
-    {
-        static_assert(std::is_base_of<Entity, T>::value);
-        utils::UniquePtr<T> instance = utils::makeUnique<T>(*m_world, m_entityId);
-        setScriptInstance(instance.template staticCast<Entity>());
-    }
-
-    void pushChild(Entity);
-    Entity popChild();
-    math::mat4x4 worldTransform();
-
-    virtual void onSetup() {}
-    virtual void onUpdate() {}
-
     ~Entity() = default;
 
 private:
     ECSWorld* m_world = nullptr;
     ECSWorld::EntityID m_entityId = INVALID_ENTITY_ID;
-
-    void setScriptInstance(utils::UniquePtr<Entity>&&);
 
 public:
     Entity& operator = (const Entity&) = default;

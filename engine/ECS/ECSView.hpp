@@ -57,6 +57,46 @@ public:
     ECSView& operator = (ECSView&&)      = delete;
 };
 
+template<typename ... Ts>
+utils::uint32 ECSView<Ts...>::count()
+{
+    utils::uint32 output = 0;
+    for (auto& [archetypeId, archetype] : m_world.m_archetypes) {
+        if (archetypeId.contain(m_predicate))
+            output += archetype.size();
+    }
+    return output;
+}
+
+template<typename ... Ts>
+void ECSView<Ts...>::onFirst(const utils::Func<void(Entity, Ts& ...)>& func)
+{
+    for (auto& [archetypeId, archetype] : m_world.m_archetypes)
+    {
+        if (archetypeId.contain(m_predicate))
+        {
+            for (utils::uint32 idx = 0; idx < archetype.size(); idx++)
+            {
+                func(Entity(m_world, archetype.getEntityID(idx)), *(Ts*)archetype.template getComponentPointer<Ts>(idx) ...);
+                return;
+            }
+        }
+    }
+}
+
+template<typename ... Ts>
+void ECSView<Ts...>::onEach(const utils::Func<void(Entity, Ts& ...)>& func)
+{
+    for (auto& [archetypeId, archetype] : m_world.m_archetypes)
+    {
+        if (archetypeId.contain(m_predicate))
+        {
+            for (utils::uint32 idx = 0; idx < archetype.size(); idx++)
+                func(Entity(m_world, archetype.getEntityID(idx)), *(Ts*)archetype.template getComponentPointer<Ts>(idx) ...);
+        }
+    }
+}
+
 }
 
 #endif // ECSVIEW_HPP

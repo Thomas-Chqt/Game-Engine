@@ -57,10 +57,13 @@ public:
     void remove(EntityID);
 
     template<typename T>
-    bool has(EntityID);
+    bool has(EntityID) const;
 
     template<typename T>
     T& get(EntityID);
+
+    template<typename T>
+    const T& get(EntityID) const;
 
     inline utils::uint32 entityCount() { return m_entityDatas.length() - m_availableEntityIDs.size(); }
     inline utils::uint32 archetypeCount() { return m_archetypes.size(); }
@@ -167,7 +170,7 @@ void ECSWorld::remove(EntityID entityId)
 }
 
 template<typename T>
-bool ECSWorld::has(EntityID entityId)
+bool ECSWorld::has(EntityID entityId) const
 {
     assert(isValidEntityID(entityId));
     return m_entityDatas[entityId].archetypeId.contain(componentID<T>());
@@ -181,6 +184,18 @@ T& ECSWorld::get(EntityID entityId)
 
     Archetype& entityArch = m_archetypes[m_entityDatas[entityId].archetypeId];
     utils::uint64& entityIdx = m_entityDatas[entityId].idx;
+
+    return *entityArch.getComponentPointer<T>(entityIdx);
+}
+
+template<typename T>
+const T& ECSWorld::get(EntityID entityId) const
+{
+    assert(isValidEntityID(entityId));
+    assert(has<T>(entityId));
+
+    const Archetype& entityArch = m_archetypes[m_entityDatas[entityId].archetypeId];
+    const utils::uint64& entityIdx = m_entityDatas[entityId].idx;
 
     return *entityArch.getComponentPointer<T>(entityIdx);
 }
