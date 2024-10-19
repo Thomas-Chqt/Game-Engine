@@ -14,6 +14,7 @@
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
 #include "UtilsCPP/String.hpp"
+#include <cmath>
 
 namespace GE
 {

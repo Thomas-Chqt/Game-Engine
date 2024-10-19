@@ -52,6 +52,15 @@ public:
     template<typename T>
     void rmvRowType()
     {
+        {
+            Row& row = m_rows[componentID<T>()];
+            if (row.buffer != nullptr)
+            {
+                for (utils::uint64 i = 0; i < m_size; i++)
+                    row.destructor(static_cast<utils::byte*>(row.buffer) + (row.componentSize * i));
+                operator delete (row.buffer);
+            }            
+        }
         m_rows.remove(componentID<T>());
     }
 
