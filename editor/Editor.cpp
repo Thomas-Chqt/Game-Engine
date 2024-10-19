@@ -63,6 +63,8 @@ Editor::Editor()
     auto& defautScene = *m_scenes.insert(Scene("default_scene"));
     defautScene.newEntity("cube");
 
+    m_startScene = &defautScene;
+    
     editScene(&defautScene);
 
     resetEditorInputs();
@@ -177,7 +179,8 @@ void Editor::openProject(const utils::String& filePath)
     else
     {
         m_fileExplorerPath = std::filesystem::path(std::string(m_projectFilePath)).remove_filename();
-        m_fileExplorerPath /= std::filesystem::path(std::string(m_projectRessourcesDir));
+        if (m_projectRessourcesDir.length() > 0)
+            m_fileExplorerPath /= std::filesystem::path(std::string(m_projectRessourcesDir));
     }
 }
 
@@ -201,9 +204,9 @@ void Editor::saveProject()
 
 void Editor::editScene(Scene* scene)
 {
-    if (m_editedScene)
-        m_editedScene->assetManager().unloadAssets();
-    scene->assetManager().loadAssets(m_renderer.graphicAPI());
+    // if (m_editedScene)
+    //     m_editedScene->assetManager().unloadAssets();
+    // scene->assetManager().loadAssets(m_renderer.graphicAPI());
 
     m_editedScene = scene;
     m_selectedEntity = Entity();

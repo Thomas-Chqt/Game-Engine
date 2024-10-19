@@ -75,7 +75,6 @@ public:
     }
 
     utils::String& name();
-    inline const utils::String& name() const { return const_cast<Entity*>(this)->name(); };
 
     Entity parent();
     Entity firstChild();
@@ -101,7 +100,7 @@ public:
     Entity& operator = (const Entity&) = default;
     Entity& operator = (Entity&&)      = default;
 
-    inline operator bool () { return m_world != nullptr && m_world->isValidEntityID(m_entityId); }
+    inline operator bool () const { return m_world != nullptr && m_world->isValidEntityID(m_entityId); }
     inline bool operator == (const Entity& rhs) const { return m_world == rhs.m_world && m_entityId == rhs.m_entityId; }
     inline bool operator != (const Entity& rhs) const { return !(*this == rhs); }
 };

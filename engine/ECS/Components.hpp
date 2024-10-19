@@ -14,7 +14,9 @@
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
 #include "UtilsCPP/String.hpp"
+#include "UtilsCPP/Types.hpp"
 #include <cmath>
+#include <nlohmann/json.hpp>
 
 namespace GE
 {
@@ -75,7 +77,7 @@ struct CameraComponent
 
 struct LightComponent
 {
-    enum class Type { point } type;
+    enum class Type : utils::uint8 { point = 0 } type;
     math::rgb color;
     float intentsity;
 

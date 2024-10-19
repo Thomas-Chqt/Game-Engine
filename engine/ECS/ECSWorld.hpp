@@ -18,6 +18,7 @@
 #include <cassert>
 #include <climits>
 #include <utility>
+#include <nlohmann/json.hpp>
 
 #define INVALID_ENTITY_ID ULONG_MAX
 
@@ -28,6 +29,8 @@ class ECSWorld
 {
 public:
     using EntityID = utils::uint64;
+
+    class Iterator;
 
 private:
     template<typename ... Ts> friend class ECSView;
@@ -49,7 +52,7 @@ public:
 
     void deleteEntityID(EntityID);
 
-    inline bool isValidEntityID(EntityID id) const { return m_entityDatas.length() > id && m_availableEntityIDs.contain(id) == false; }
+    inline bool isValidEntityID(EntityID id) const { return id < m_entityDatas.length() && m_availableEntityIDs.contain(id) == false; }
 
     template<typename T, typename ... Args>
     T& emplace(EntityID entityId, Args&& ... args);
@@ -69,6 +72,9 @@ public:
     inline utils::uint32 entityCount() { return m_entityDatas.length() - m_availableEntityIDs.size(); }
     inline utils::uint32 archetypeCount() { return m_archetypes.size(); }
     utils::uint32 componentCount();
+
+    Iterator begin() const;
+    Iterator end() const;
 
     ~ECSWorld() = default;
 
@@ -96,6 +102,44 @@ private:
 public:
     ECSWorld& operator = (const ECSWorld&) = default;
     ECSWorld& operator = (ECSWorld&&)      = default;
+
+    friend void to_json(nlohmann::json&, const ECSWorld&);
+    friend void from_json(const nlohmann::json&, ECSWorld&);
+
+public:
+    class Iterator
+    {
+    private:
+        friend class ECSWorld;
+
+    public:
+        Iterator()                   = default;
+        Iterator(const Iterator& cp) = default;
+        Iterator(Iterator&& mv)      = default;
+
+        ~Iterator() = default;
+
+    private:
+        Iterator(const ECSWorld& world, EntityID id) : m_world(&world), m_id(id) {}
+
+        const ECSWorld* m_world = nullptr;
+        EntityID m_id = INVALID_ENTITY_ID;
+
+    public:
+        Iterator& operator = (const Iterator& cp) = default;
+        Iterator& operator = (Iterator&& mv)      = default;
+
+        inline EntityID operator * () const { return m_id; }
+
+        inline Iterator& operator ++ ()    { do { ++m_id; } while (m_world->m_availableEntityIDs.contain(m_id)); return *this; }
+        inline Iterator  operator ++ (int) { Iterator temp(*this); ++(*this); return temp; }
+
+        inline Iterator& operator -- ()    { do { --m_id; } while (m_world->m_availableEntityIDs.contain(m_id)); return *this; }
+        inline Iterator  operator -- (int) { Iterator temp(*this); --(*this); return temp; }
+
+        inline bool operator == (const Iterator& rhs) const { return m_world == rhs.m_world && m_id == rhs.m_id; }
+        inline bool operator != (const Iterator& rhs) const { return !(*this == rhs); }
+    };
 };
 
 template<typename T, typename ... Args>

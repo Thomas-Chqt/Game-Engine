@@ -69,23 +69,12 @@ void Editor::onImGuiRender()
         if (ImGui::BeginMenu("File"))
         {
             if (ImGui::MenuItem("Open"))
-            {
-                // if (char* path = tinyfd_openFileDialog("Open project", "", 0, nullptr, nullptr, 0))
-                //     openProject(path);
                 openProjectFileDialog.present();
-            }
 
             if (ImGui::MenuItem("Save"))
             {
                 if (m_projectFilePath.isEmpty())
-                {
-                    // if (char* path = tinyfd_saveFileDialog("Choose destination", m_projectName + ".geproj", 0, nullptr, nullptr))
-                    // {
-                    //     m_projectFilePath = path;
-                    //     saveProject();
-                    // }
                     saveProjectFileDialog.present(m_projectName);
-                }
                 else
                     saveProject();
             }
@@ -272,10 +261,13 @@ void Editor::onImGuiRender()
 
         ++pathIt;
         for (; pathIt != m_fileExplorerPath.end(); ++pathIt) {
-            curr /= *pathIt;
-            ImGui::SameLine();
-            if (ImGui::Button(pathIt->c_str()))
-                m_fileExplorerPath = curr;
+            if (pathIt->string().length() > 0)
+            {
+                curr /= *pathIt;
+                ImGui::SameLine();
+                if (ImGui::Button(pathIt->c_str()))
+                    m_fileExplorerPath = curr;
+            }
         }
 
         if (ImGui::BeginChild("file_explorer_files"))

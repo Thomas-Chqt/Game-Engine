@@ -10,7 +10,7 @@
 #ifndef SCENE_HPP
 #define SCENE_HPP
 
-#include "AssetManager.hpp"
+// #include "AssetManager.hpp"
 #include "ECS/ECSWorld.hpp"
 #include "ECS/Entity.hpp"
 #include "UtilsCPP/String.hpp"
@@ -34,19 +34,19 @@ public:
     inline ECSWorld& ecsWorld() { return m_ecsWorld; }
     inline const ECSWorld& ecsWorld() const { return m_ecsWorld; }
 
-    inline const Entity& activeCamera() { return m_activeCamera; }
-    inline void setActiveCamera(Entity e) { m_activeCamera = e; }
+    Entity activeCamera();
+    void setActiveCamera(const Entity& e);
 
-    inline AssetManager& assetManager() { return m_assetManager; }
-    inline const AssetManager& assetManager() const { return m_assetManager; }
+    // inline AssetManager& assetManager() { return m_assetManager; }
+    // inline const AssetManager& assetManager() const { return m_assetManager; }
 
     Entity newEntity(const utils::String& name);
 
 private:
     utils::String m_name;
     ECSWorld m_ecsWorld;
-    Entity m_activeCamera;
-    AssetManager m_assetManager;
+    ECSWorld::EntityID m_activeCamera;
+    // AssetManager m_assetManager;
 
 public:
     Scene& operator = (const Scene&) = default;
