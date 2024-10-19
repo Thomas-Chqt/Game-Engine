@@ -41,11 +41,6 @@ Entity Scene::newEntity(const utils::String& name)
     Entity newEntity(m_ecsWorld, m_ecsWorld.newEntityID());
 
     newEntity.emplace<NameComponent>(name);
-    newEntity.emplace<TransformComponent>(
-        math::vec3f{ 0.0F, 0.0F, 0.0F }, // position
-        math::vec3f{ 0.0F, 0.0F, 0.0F }, // rotation
-        math::vec3f{ 1.0F, 1.0F, 1.0F }  // scale
-    );
 
     return newEntity;
 }

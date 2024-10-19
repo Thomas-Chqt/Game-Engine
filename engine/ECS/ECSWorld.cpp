@@ -192,16 +192,16 @@ void from_json(const nlohmann::json& jsn, ECSWorld& world)
         world.m_entityDatas[entityId] = ECSWorld::EntityData{newEntityArcId, newEntityIdx};
         newEntityArchetype.getEntityID(newEntityIdx) = entityId;
         
-        auto nameComponentIt = jsn.find("nameComponent");
-        if (nameComponentIt != jsn.end())
+        auto nameComponentIt = entity.find("nameComponent");
+        if (nameComponentIt != entity.end())
         {
             world.emplace<NameComponent>(entityId,
                 (*nameComponentIt)["name"].template get<std::string>().c_str()
             );
         }
 
-        auto hierarchyComponentIt = jsn.find("hierarchyComponent");
-        if (hierarchyComponentIt != jsn.end())
+        auto hierarchyComponentIt = entity.find("hierarchyComponent");
+        if (hierarchyComponentIt != entity.end())
         {
             HierarchyComponent& comp = world.emplace<HierarchyComponent>(entityId);
             comp.parent = Entity(world, (*hierarchyComponentIt)["parent"].template get<ECSWorld::EntityID>());
@@ -209,8 +209,8 @@ void from_json(const nlohmann::json& jsn, ECSWorld& world)
             comp.nextChild = Entity(world, (*hierarchyComponentIt)["nextChild"].template get<ECSWorld::EntityID>());
         }
 
-        auto transformComponentIt = jsn.find("transformComponent");
-        if (hierarchyComponentIt != jsn.end())
+        auto transformComponentIt = entity.find("transformComponent");
+        if (hierarchyComponentIt != entity.end())
         {
             world.emplace<TransformComponent>(entityId,
                 math::vec3f(
@@ -231,8 +231,8 @@ void from_json(const nlohmann::json& jsn, ECSWorld& world)
             );
         }
 
-        auto cameraComponentIt = jsn.find("cameraComponent");
-        if (cameraComponentIt != jsn.end())
+        auto cameraComponentIt = entity.find("cameraComponent");
+        if (cameraComponentIt != entity.end())
         {
             world.emplace<CameraComponent>(entityId,
                 (*cameraComponentIt)["fov"].template get<float>(),
@@ -241,8 +241,8 @@ void from_json(const nlohmann::json& jsn, ECSWorld& world)
             );
         }
 
-        auto lightComponentIt = jsn.find("lightComponent");
-        if (lightComponentIt != jsn.end())
+        auto lightComponentIt = entity.find("lightComponent");
+        if (lightComponentIt != entity.end())
         {
             world.emplace<LightComponent>(entityId,
                 (LightComponent::Type)((*lightComponentIt)["type"].template get<utils::uint8>()),

@@ -9,6 +9,7 @@
 
 #include "ECS/Components.hpp"
 #include "ECS/ECSView.hpp"
+#include "ECS/ECSWorld.hpp"
 #include "ECS/Entity.hpp"
 #include "Editor.hpp"
 #include "Math/Constants.hpp"
@@ -92,6 +93,19 @@ void Editor::onImGuiRender()
             ImGui::EndMenu();
         }
 
+        ImGui::BeginDisabled(m_editedScene == nullptr);
+        if (ImGui::BeginMenu("Scene"))
+        {
+            if (ImGui::BeginMenu("New"))
+            {
+                if (ImGui::MenuItem("Empty entity"))
+                    m_editedScene->newEntity("new_entity");
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::EndDisabled();
+
         if (ImGui::BeginMenu("Debug"))
         {
             if (ImGui::MenuItem("Show demo window"))
@@ -134,6 +148,29 @@ void Editor::onImGuiRender()
                 {
                     flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
                     ImGui::TreeNodeEx(entity.imGuiID(), flags, "%s", (const char*)entity.name());
+                }
+
+                if (ImGui::BeginDragDropSource())
+                {
+                    ImGui::SetDragDropPayload("dnd_entity", &entity, sizeof(Entity));
+                    ImGui::Text("%s", (char*)entity.name());
+                    ImGui::EndDragDropSource();
+                }
+
+                if (ImGui::BeginDragDropTarget())
+                {
+                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_entity"))
+                    {
+                        assert(payload->DataSize == sizeof(Entity));
+                        Entity dragEntity = *(Entity*)payload->Data;
+                        assert(&dragEntity.ecsWorld() == &entity.ecsWorld());
+                        if (entity != dragEntity && dragEntity.isParentOf(entity) == false)
+                        {
+                            dragEntity.removeParent();
+                            entity.addChild(dragEntity);
+                        }
+                    }
+                    ImGui::EndDragDropTarget();
                 }
 
                 if (ImGui::IsItemClicked())
@@ -228,7 +265,6 @@ void Editor::onImGuiRender()
 
             if (ImGui::Button("Add component"))
                 ImGui::OpenPopup("ADD_COMP_POPUP");
-
             if (ImGui::BeginPopup("ADD_COMP_POPUP"))
             {
                 if (m_selectedEntity.has<TransformComponent>() == false && ImGui::Selectable("Transform component"))
@@ -242,6 +278,15 @@ void Editor::onImGuiRender()
 
                 ImGui::EndPopup();
             }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Delete enitity"))
+            {
+                m_selectedEntity.destroy();
+                m_selectedEntity = Entity();
+            }
+                
         }
         ImGui::PopItemWidth();
     }

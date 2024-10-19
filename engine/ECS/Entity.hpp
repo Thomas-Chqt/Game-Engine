@@ -14,6 +14,7 @@
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
 #include "UtilsCPP/String.hpp"
+#include "UtilsCPP/Types.hpp"
 
 namespace GE
 {
@@ -67,23 +68,29 @@ public:
         return m_world->get<T>(m_entityId);
     }
     
-    void destroy()
-    {
-        m_world->deleteEntityID(m_entityId);
-        m_world = nullptr;
-        m_entityId = INVALID_ENTITY_ID;
-    }
+    void destroy();
 
     utils::String& name();
 
-    Entity parent();
-    Entity firstChild();
-    Entity nextChild();
+    Entity& parent();
+    const Entity& parent() const;
+
+    Entity& firstChild();
+    const Entity& firstChild() const;
+
+    Entity& nextChild();
+    const Entity& nextChild() const;
+
+    bool hasParent() const;
+    utils::uint32 childCount() const;
     Entity lastChild();
+    const Entity& lastChild() const;
+    bool isParentOf(const Entity&) const; // or grand parent ect
 
     void addChild(Entity);
     void addChild(Entity child, Entity after);
     void removeChild(Entity);
+    void removeParent();
 
     math::mat4x4 transform();
     math::vec3f& position();
