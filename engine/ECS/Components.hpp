@@ -10,12 +10,12 @@
 #ifndef COMPONENTS_HPP
 #define COMPONENTS_HPP
 
-#include "ECS/Entity.hpp"
+#include "ECS/ECSWorld.hpp"
+#include "Math/Constants.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Types.hpp"
-#include <cmath>
 #include <nlohmann/json.hpp>
 
 namespace GE
@@ -25,18 +25,22 @@ struct NameComponent
 {
     utils::String name;
 
-    NameComponent(const utils::String& n) : name(n) {};
-
+    NameComponent() = default;
+    NameComponent(const utils::String&);
     inline operator utils::String& () { return name; }
+    friend void to_json(nlohmann::json&, const NameComponent&);
+    friend void from_json(const nlohmann::json&, NameComponent&);
 };
 
 struct HierarchyComponent
 {
-    Entity parent;
-    Entity firstChild;
-    Entity nextChild;
+    ECSWorld::EntityID parent;
+    ECSWorld::EntityID firstChild;
+    ECSWorld::EntityID nextChild;
 
     HierarchyComponent() = default;
+    friend void to_json(nlohmann::json&, const HierarchyComponent&);
+    friend void from_json(const nlohmann::json&, HierarchyComponent&);
 };
 
 struct TransformComponent
@@ -45,44 +49,37 @@ struct TransformComponent
     math::vec3f rotation;
     math::vec3f scale;
 
-    TransformComponent(const math::vec3f& p, const math::vec3f& r, const math::vec3f& s)
-        : position(p), rotation(r), scale(s) {}
-
+    TransformComponent() = default;
+    TransformComponent(const math::vec3f& position, const math::vec3f& rotation, const math::vec3f& scale);
     inline math::mat4x4 transform() { return math::mat4x4::translation(position) * math::mat4x4::rotation(rotation) * math::mat4x4::scale(scale); }
-
     inline operator math::mat4x4 () { return transform(); }
+    friend void to_json(nlohmann::json&, const TransformComponent&);
+    friend void from_json(const nlohmann::json&, TransformComponent&);
 };
 
 struct CameraComponent
 {
-    float fov;
-    float zFar;
-    float zNear;
+    float fov = (float)(60 * (PI / 180.0F));
+    float zFar = 10000.0F;
+    float zNear = 0.01F;
 
-    CameraComponent(float f, float zf, float zn)
-        : fov(f), zFar(zf), zNear(zn) {}
-
-    math::mat4x4 projectionMatrix()
-    {
-        float zs = zFar / (zFar - zNear);
-        float ys = 1.0F / std::tan(fov * 0.5F);
-        float xs = ys; // (ys / aspectRatio)
-
-        return math::mat4x4(xs,  0,  0,           0,
-                             0, ys,  0,           0,
-                             0,  0, zs, -zNear * zs,
-                             0,  0,  1,           0);
-    }
+    CameraComponent() = default;
+    CameraComponent(float fov, float zFar, float zNear);
+    math::mat4x4 projectionMatrix();
+    friend void to_json(nlohmann::json&, const CameraComponent&);
+    friend void from_json(const nlohmann::json&, CameraComponent&);
 };
 
 struct LightComponent
 {
-    enum class Type : utils::uint8 { point = 0 } type;
-    math::rgb color;
-    float intentsity;
+    enum class Type : utils::uint8 { point = 0 } type = LightComponent::Type::point;
+    math::rgb color = WHITE3;
+    float intentsity = 1.0F;
 
-    LightComponent(Type t, math::rgb c, float i)
-        : type(t), color(c), intentsity(i) {}
+    LightComponent() = default;
+    LightComponent(Type t, math::rgb c, float i);
+    friend void to_json(nlohmann::json&, const LightComponent&);
+    friend void from_json(const nlohmann::json&, LightComponent&);
 };
 
 }

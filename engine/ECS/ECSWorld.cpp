@@ -9,13 +9,10 @@
 
 #include "ECS/ECSWorld.hpp"
 #include "ECS/Components.hpp"
-#include "ECS/Entity.hpp"
-#include "Math/Vector.hpp"
 #include "UtilsCPP/Array.hpp"
 #include "UtilsCPP/Types.hpp"
 #include <cassert>
 #include <nlohmann/json.hpp>
-#include <string>
 
 using json = nlohmann::json;
 
@@ -107,68 +104,19 @@ void to_json(nlohmann::json& jsn, const ECSWorld& world)
         entityJsn["id"] = id;
 
         if (world.has<NameComponent>(id))
-        {
-            const NameComponent& comp = world.get<NameComponent>(id);
-            entityJsn["nameComponent"] = {
-                {"name", comp.name}
-            };
-        }
+            entityJsn["nameComponent"] = world.get<NameComponent>(id);
 
         if (world.has<HierarchyComponent>(id))
-        {
-            const HierarchyComponent& comp = world.get<HierarchyComponent>(id);
-            entityJsn["hierarchyComponent"] = {
-                { "parent", comp.parent.entityID() },
-                { "firstChild", comp.firstChild.entityID() },
-                { "nextChild", comp.nextChild.entityID() }
-            };
-        }
+            entityJsn["hierarchyComponent"] = world.get<HierarchyComponent>(id);
 
         if (world.has<TransformComponent>(id))
-        {
-            const TransformComponent& comp = world.get<TransformComponent>(id);
-            entityJsn["transformComponent"] = {
-                { "position", {
-                    {"x", comp.position.x },
-                    {"y", comp.position.y },
-                    {"z", comp.position.z }
-                }},
-                { "rotation", {
-                    {"x", comp.rotation.x },
-                    {"y", comp.rotation.y },
-                    {"z", comp.rotation.z }
-                }},
-                { "scale", {
-                    {"x", comp.scale.x },
-                    {"y", comp.scale.y },
-                    {"z", comp.scale.z }
-                }}
-            };
-        }
+            entityJsn["transformComponent"] = world.get<TransformComponent>(id);
 
         if (world.has<CameraComponent>(id))
-        {
-            const CameraComponent& comp = world.get<CameraComponent>(id);
-            entityJsn["cameraComponent"] = {
-                { "fov", comp.fov },
-                { "zFar", comp.zFar },
-                { "zNear", comp.zNear }
-            };
-        }
+            entityJsn["cameraComponent"] = world.get<CameraComponent>(id);
 
         if (world.has<LightComponent>(id))
-        {
-            const LightComponent& comp = world.get<LightComponent>(id);
-            entityJsn["lightComponent"] = {
-                { "type", (utils::uint8)comp.type },
-                { "color", {
-                    {"r", comp.color.r },
-                    {"g", comp.color.g },
-                    {"b", comp.color.b }
-                }},
-                { "intentsity", comp.intentsity }
-            };
-        }
+            entityJsn["lightComponent"] = world.get<LightComponent>(id);
 
         jsn["entities"].emplace_back(entityJsn);
     }
@@ -194,66 +142,23 @@ void from_json(const nlohmann::json& jsn, ECSWorld& world)
         
         auto nameComponentIt = entity.find("nameComponent");
         if (nameComponentIt != entity.end())
-        {
-            world.emplace<NameComponent>(entityId,
-                (*nameComponentIt)["name"].template get<std::string>().c_str()
-            );
-        }
+            world.emplace<NameComponent>(entityId) = nameComponentIt->template get<NameComponent>();
 
         auto hierarchyComponentIt = entity.find("hierarchyComponent");
         if (hierarchyComponentIt != entity.end())
-        {
-            HierarchyComponent& comp = world.emplace<HierarchyComponent>(entityId);
-            comp.parent = Entity(world, (*hierarchyComponentIt)["parent"].template get<ECSWorld::EntityID>());
-            comp.firstChild = Entity(world, (*hierarchyComponentIt)["firstChild"].template get<ECSWorld::EntityID>());
-            comp.nextChild = Entity(world, (*hierarchyComponentIt)["nextChild"].template get<ECSWorld::EntityID>());
-        }
+            world.emplace<HierarchyComponent>(entityId) = hierarchyComponentIt->template get<HierarchyComponent>();
 
         auto transformComponentIt = entity.find("transformComponent");
-        if (hierarchyComponentIt != entity.end())
-        {
-            world.emplace<TransformComponent>(entityId,
-                math::vec3f(
-                    (*transformComponentIt)["position"]["x"].template get<float>(),
-                    (*transformComponentIt)["position"]["y"].template get<float>(),
-                    (*transformComponentIt)["position"]["z"].template get<float>()
-                ),
-                math::vec3f(
-                    (*transformComponentIt)["rotation"]["x"].template get<float>(),
-                    (*transformComponentIt)["rotation"]["y"].template get<float>(),
-                    (*transformComponentIt)["rotation"]["z"].template get<float>()
-                ),
-                math::vec3f(
-                    (*transformComponentIt)["scale"]["x"].template get<float>(),
-                    (*transformComponentIt)["scale"]["y"].template get<float>(),
-                    (*transformComponentIt)["scale"]["z"].template get<float>()
-                )
-            );
-        }
+        if (transformComponentIt != entity.end())
+            world.emplace<TransformComponent>(entityId) = transformComponentIt->template get<TransformComponent>();
 
         auto cameraComponentIt = entity.find("cameraComponent");
         if (cameraComponentIt != entity.end())
-        {
-            world.emplace<CameraComponent>(entityId,
-                (*cameraComponentIt)["fov"].template get<float>(),
-                (*cameraComponentIt)["zFar"].template get<float>(),
-                (*cameraComponentIt)["zNear"].template get<float>()
-            );
-        }
+            world.emplace<CameraComponent>(entityId) = cameraComponentIt->template get<CameraComponent>();
 
         auto lightComponentIt = entity.find("lightComponent");
         if (lightComponentIt != entity.end())
-        {
-            world.emplace<LightComponent>(entityId,
-                (LightComponent::Type)((*lightComponentIt)["type"].template get<utils::uint8>()),
-                math::rgb(
-                    (*transformComponentIt)["color"]["r"].template get<float>(),
-                    (*transformComponentIt)["color"]["g"].template get<float>(),
-                    (*transformComponentIt)["color"]["b"].template get<float>()
-                ),
-                (*lightComponentIt)["intentsity"].template get<float>()
-            );
-        }
+            world.emplace<LightComponent>(entityId) = lightComponentIt->template get<LightComponent>();
     }
 
     for (auto& id : jsn["availableEntityIDJsn"])

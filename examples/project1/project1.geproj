@@ -4,67 +4,6 @@
     "ressourcesDir": "ressources",
     "scenes": [
         {
-            "ecsWorld": {
-                "availableEntityIDJsn": [],
-                "entities": [
-                    {
-                        "hierarchyComponent": {
-                            "firstChild": 1,
-                            "nextChild": 18446744073709551615,
-                            "parent": 18446744073709551615
-                        },
-                        "id": 0,
-                        "nameComponent": {
-                            "name": "cube"
-                        },
-                        "transformComponent": {
-                            "position": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "rotation": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "scale": {
-                                "x": 1.0,
-                                "y": 1.0,
-                                "z": 1.0
-                            }
-                        }
-                    },
-                    {
-                        "hierarchyComponent": {
-                            "firstChild": 18446744073709551615,
-                            "nextChild": 18446744073709551615,
-                            "parent": 0
-                        },
-                        "id": 1,
-                        "nameComponent": {
-                            "name": "chess_set"
-                        },
-                        "transformComponent": {
-                            "position": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "rotation": {
-                                "x": 0.0,
-                                "y": 0.0,
-                                "z": 0.0
-                            },
-                            "scale": {
-                                "x": 1.0,
-                                "y": 1.0,
-                                "z": 1.0
-                            }
-                        }
-                    }
-                ]
-            },
             "name": "scene1"
         }
     ],

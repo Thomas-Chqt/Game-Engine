@@ -72,19 +72,19 @@ public:
 
     utils::String& name();
 
-    Entity& parent();
-    const Entity& parent() const;
+    Entity parent();
+    const Entity parent() const;
 
-    Entity& firstChild();
-    const Entity& firstChild() const;
+    Entity firstChild();
+    const Entity firstChild() const;
 
-    Entity& nextChild();
-    const Entity& nextChild() const;
+    Entity nextChild();
+    const Entity nextChild() const;
 
     bool hasParent() const;
     utils::uint32 childCount() const;
     Entity lastChild();
-    const Entity& lastChild() const;
+    const Entity lastChild() const;
     bool isParentOf(const Entity&) const; // or grand parent ect
 
     void addChild(Entity);

@@ -43,34 +43,34 @@ utils::String& Entity::name()
     return get<NameComponent>();
 }
 
-Entity& Entity::parent()
+Entity Entity::parent()
 {
-    return get<HierarchyComponent>().parent;
+    return Entity(*m_world, get<HierarchyComponent>().parent);
 }
 
-const Entity& Entity::parent() const
+const Entity Entity::parent() const
 {
-    return get<HierarchyComponent>().parent;
+    return Entity(*m_world, get<HierarchyComponent>().parent);
 }
 
-Entity& Entity::firstChild()
+Entity Entity::firstChild()
 {
-    return get<HierarchyComponent>().firstChild;
+    return Entity(*m_world, get<HierarchyComponent>().firstChild);
 }
 
-const Entity& Entity::firstChild() const
+const Entity Entity::firstChild() const
 {
-    return get<HierarchyComponent>().firstChild;
+    return Entity(*m_world, get<HierarchyComponent>().firstChild);
 }
 
-Entity& Entity::nextChild()
+Entity Entity::nextChild()
 {
-    return get<HierarchyComponent>().nextChild;
+    return Entity(*m_world, get<HierarchyComponent>().nextChild);
 }
 
-const Entity& Entity::nextChild() const
+const Entity Entity::nextChild() const
 {
-    return get<HierarchyComponent>().nextChild;
+    return Entity(*m_world, get<HierarchyComponent>().nextChild);
 }
 
 bool Entity::hasParent() const
@@ -85,41 +85,41 @@ utils::uint32 Entity::childCount() const
     if (has<HierarchyComponent>() == false)
         return 0;
     utils::uint32 count = 0;
-    const Entity* curr = &firstChild();
-    while (*curr)
+    Entity curr = firstChild();
+    while (curr)
     {
         count++;
-        curr = &curr->nextChild();
+        curr = curr.nextChild();
     }
     return count;
 }
 
 Entity Entity::lastChild()
 {
-    Entity* curr = &firstChild();
-    while (*curr && curr->nextChild())
-        curr = &curr->nextChild();
-    return *curr;
+    Entity curr = firstChild();
+    while (curr && curr.nextChild())
+        curr = curr.nextChild();
+    return curr;
 }
 
-const Entity& Entity::lastChild() const
+const Entity Entity::lastChild() const
 {
-    const Entity* curr = &firstChild();
-    while (*curr && curr->nextChild())
-        curr = &curr->nextChild();
-    return *curr;
+    Entity curr = firstChild();
+    while (curr && curr.nextChild())
+        curr = curr.nextChild();
+    return curr;
 }
 
 bool Entity::isParentOf(const Entity& entity) const
 {
     if (entity.hasParent())
     {
-        const Entity* curr = &entity.parent();
-        while (*curr)
+        Entity curr = entity.parent();
+        while (curr)
         {
-            if (*curr == *this)
+            if (curr == *this)
                 return true;
-            curr = &curr->nextChild();
+            curr = curr.nextChild();
         }
     }
     return false;    
@@ -148,19 +148,23 @@ void Entity::addChild(Entity child, Entity after)
     if (child.has<HierarchyComponent>() == false)
         child.emplace<HierarchyComponent>();
 
+    HierarchyComponent& thisComp = this->get<HierarchyComponent>();
+    HierarchyComponent& childComp = child.get<HierarchyComponent>();
+    HierarchyComponent& afterComp = after.get<HierarchyComponent>();
+
     assert(child.parent() == false);
     assert((!after && !firstChild()) || (after && firstChild())); // ensure we not asking to add the child after a certain entity if there is no child
 
-    child.parent() = *this;
+    childComp.parent = m_entityId;
     if (!after && !firstChild())
     {
-        child.nextChild() = Entity();
-        firstChild() = child;
+        childComp.nextChild = INVALID_ENTITY_ID;
+        thisComp.firstChild = child.entityID();
     }
     else
     {
-        child.nextChild() = after.nextChild();
-        after.nextChild() = child;
+        childComp.nextChild = after.nextChild();
+        afterComp.nextChild = child.entityID();
     }
 }
 
@@ -168,18 +172,22 @@ void Entity::removeChild(Entity child)
 {
     assert(m_world == &child.ecsWorld());
 
+    HierarchyComponent& thisComp = this->get<HierarchyComponent>();
+    HierarchyComponent& childComp = child.get<HierarchyComponent>();
+
     if (child == firstChild())
-        firstChild() = firstChild().nextChild();
+        thisComp.firstChild = firstChild().nextChild();
     else
     {
         Entity curr = firstChild();
+        HierarchyComponent& currComp = child.get<HierarchyComponent>();
         while (curr.nextChild() != child)
             curr = curr.nextChild();
-        curr.nextChild() = curr.nextChild().nextChild();
+        currComp.nextChild = curr.nextChild().nextChild();
     }
 
-    child.parent() = Entity();
-    child.nextChild() = Entity();
+    childComp.parent = Entity();
+    childComp.nextChild = Entity();
 }
 
 void Entity::removeParent()
