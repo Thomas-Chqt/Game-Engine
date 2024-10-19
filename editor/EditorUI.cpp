@@ -19,20 +19,50 @@
 #include "UtilsCPP/Types.hpp"
 #include <TFD/tinyfiledialogs.h>
 #include <cassert>
+#include <chrono>
 #include <cstring>
 #include <filesystem>
+#include <future>
 #include <string>
 
 namespace GE
 {
+
+struct OpenProjectFileDialog
+{
+    bool isPresented = false;
+    std::future<char*> result;
+
+    void present()
+    {
+        isPresented = true;
+        result = std::async(tinyfd_openFileDialog, "Open project", "", 0, nullptr, nullptr, 0);
+    }
+};
+
+struct SaveProjectFileDialog
+{
+    bool isPresented = false;
+    std::future<char*> result;
+
+    void present(const utils::String& projectName)
+    {
+        isPresented = true;
+        result = std::async(tinyfd_saveFileDialog, "Choose destination", projectName + ".geproj", 0, nullptr, nullptr);
+    }
+};
 
 void Editor::onImGuiRender()
 {
     static bool showProjectProperties = false;
     static bool showProjectScenes = false;
     static bool showDemoWindow = false;
+    static OpenProjectFileDialog openProjectFileDialog;
+    static SaveProjectFileDialog saveProjectFileDialog;
 
     ImGui::DockSpaceOverViewport();
+
+    ImGui::BeginDisabled(openProjectFileDialog.isPresented || saveProjectFileDialog.isPresented);
 
     if (ImGui::BeginMainMenuBar())
     {
@@ -40,19 +70,21 @@ void Editor::onImGuiRender()
         {
             if (ImGui::MenuItem("Open"))
             {
-                if (char* path = tinyfd_openFileDialog("Open project", "", 0, nullptr, nullptr, 0))
-                    openProject(path);
+                // if (char* path = tinyfd_openFileDialog("Open project", "", 0, nullptr, nullptr, 0))
+                //     openProject(path);
+                openProjectFileDialog.present();
             }
 
             if (ImGui::MenuItem("Save"))
             {
                 if (m_projectFilePath.isEmpty())
                 {
-                    if (char* path = tinyfd_saveFileDialog("Choose destination", m_projectName + ".geproj", 0, nullptr, nullptr))
-                    {
-                        m_projectFilePath = path;
-                        saveProject();
-                    }
+                    // if (char* path = tinyfd_saveFileDialog("Choose destination", m_projectName + ".geproj", 0, nullptr, nullptr))
+                    // {
+                    //     m_projectFilePath = path;
+                    //     saveProject();
+                    // }
+                    saveProjectFileDialog.present(m_projectName);
                 }
                 else
                     saveProject();
@@ -374,6 +406,33 @@ void Editor::onImGuiRender()
 
     if (showDemoWindow)
         ImGui::ShowDemoWindow(&showDemoWindow);
+
+    ImGui::EndDisabled();
+
+    if (openProjectFileDialog.isPresented)
+    {
+        if (openProjectFileDialog.result.wait_for(std::chrono::nanoseconds(1)) == std::future_status::ready)
+        {
+            if (char* path = openProjectFileDialog.result.get())
+                openProject(path);
+            openProjectFileDialog.isPresented = false;
+        }
+            
+    }
+    if (saveProjectFileDialog.isPresented)
+    {
+        if (saveProjectFileDialog.result.wait_for(std::chrono::nanoseconds(1)) == std::future_status::ready)
+        {
+            if (char* path = saveProjectFileDialog.result.get())
+            {
+                m_projectFilePath = path;
+                saveProject();
+
+            }
+            saveProjectFileDialog.isPresented = false;
+        }
+            
+    }
 }
 
 }
