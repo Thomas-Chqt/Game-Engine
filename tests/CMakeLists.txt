@@ -11,9 +11,9 @@ include(GoogleTest)
 add_executable(ECS_test)
 
 set_target_properties(ECS_test PROPERTIES
-    CXX_STANDARD 17
+    CXX_STANDARD          20
     CXX_STANDARD_REQUIRED ON
-    FOLDER "tests"
+    FOLDER                "tests"
 )
 
 target_sources(ECS_test PRIVATE "ECS_testCases.cpp")

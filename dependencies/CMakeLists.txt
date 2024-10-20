@@ -31,3 +31,51 @@ if(NOT TARGET Graphics)
     add_subdirectory(Graphics)
 endif()
 set_target_properties(Graphics PROPERTIES FOLDER "dependencies")
+
+FetchContent_Declare(assimp
+    GIT_REPOSITORY https://github.com/assimp/assimp.git
+    GIT_TAG        v5.4.1
+    GIT_SHALLOW    1
+)
+set(ASSIMP_BUILD_TESTS OFF)
+set(ASSIMP_INSTALL OFF)
+set(ASSIMP_NO_EXPORT OFF)
+set(ASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT OFF)
+set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF)
+set(ASSIMP_BUILD_OBJ_IMPORTER ON)
+set(ASSIMP_BUILD_FBX_IMPORTER ON)
+set(ASSIMP_BUILD_GLTF_IMPORTER ON)
+FetchContent_MakeAvailable(assimp)
+set_target_properties(assimp PROPERTIES FOLDER "dependencies")
+
+
+FetchContent_Declare(json
+GIT_REPOSITORY https://github.com/nlohmann/json.git
+GIT_TAG        v3.11.3
+GIT_SHALLOW    1
+)
+set(JSON_BuildTests OFF)
+set(JSON_Install OFF)
+FetchContent_MakeAvailable(json)
+
+FetchContent_Declare(tinyfiledialogs
+GIT_REPOSITORY https://github.com/Thomas-Chqt/tinyfiledialogs.git
+GIT_TAG        0806552c78bf70658628e0ca4e3b962ca163ac70
+)
+set(TFD_BUILD_EXAMPLES OFF)
+set(TFD_INSTALL OFF)
+FetchContent_MakeAvailable(tinyfiledialogs)
+set_target_properties(tinyfiledialogs PROPERTIES FOLDER "dependencies")
+
+FetchContent_Declare(stduuid
+    GIT_REPOSITORY https://github.com/mariusbancila/stduuid.git
+    GIT_TAG        v1.2.3
+    GIT_SHALLOW    1
+)
+set(UUID_BUILD_TESTS      OFF)
+set(UUID_SYSTEM_GENERATOR OFF)
+set(UUID_TIME_GENERATOR   OFF)
+set(UUID_USING_CXX20_SPAN ON)
+set(UUID_ENABLE_INSTALL   OFF)
+FetchContent_MakeAvailable(stduuid)
+set_target_properties(stduuid PROPERTIES FOLDER "dependencies")

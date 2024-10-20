@@ -17,12 +17,14 @@
 #include "Scene.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
+#include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
 
 using json = nlohmann::json;
+using fspath = std::filesystem::path;
 
 #define DEFAULT_IMGUI_INI \
     "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1280,701\nCollapsed=0\n\n"                       \
@@ -53,12 +55,13 @@ Editor::Editor()
     Range2DInput& editorCamRotateIpt = m_editorInputContext.newInput<Range2DInput>("editor_cam_rotate");
     editorCamRotateIpt.callback = utils::Func<void(math::vec2f)>(m_editorCamera, &EditorCamera::rotate);
 
-    ImGui::GetIO().IniFilename = nullptr;
+    resetEditorInputs();
 
     m_projectName = "new_project";
+
+    ImGui::GetIO().IniFilename = nullptr;
     m_imguiSettings = DEFAULT_IMGUI_INI;
     m_imguiSettingsNeedReload = true;
-    m_fileExplorerPath = std::filesystem::current_path();
 
     auto& defautScene = *m_scenes.insert(Scene("default_scene"));
     defautScene.newEntity("cube");
@@ -66,8 +69,8 @@ Editor::Editor()
     m_startScene = &defautScene;
     
     editScene(&defautScene);
-
-    resetEditorInputs();
+    
+    m_fileExplorerPath = std::filesystem::current_path();
 }
 
 void Editor::onUpdate()
@@ -133,8 +136,10 @@ void Editor::updateVPFrameBuff()
     m_viewportFBuff = m_renderer.graphicAPI().newFrameBuffer(fBuffDesc);
 }
 
-void Editor::openProject(const utils::String& filePath)
+void Editor::openProject(const fspath& filePath)
 {
+    assert(std::filesystem::is_regular_file(filePath));
+
     m_projectFilePath = filePath;
 
     std::ifstream f(m_projectFilePath);
@@ -144,7 +149,7 @@ void Editor::openProject(const utils::String& filePath)
     m_projectName = nameIt != jsn.end() ? utils::String(nameIt->template get<std::string>().c_str()) : "";
 
     auto ressDirIt = jsn.find("ressourcesDir");
-    m_projectRessourcesDir = ressDirIt != jsn.end() ? utils::String(ressDirIt->template get<std::string>().c_str()) : "";
+    m_projectRessourcesDir = ressDirIt != jsn.end() ? ressDirIt->template get<fspath>() : fspath();
 
     auto imguiSettIt = jsn.find("imguiSettings");
     if (imguiSettIt != jsn.end())
@@ -154,6 +159,7 @@ void Editor::openProject(const utils::String& filePath)
     }
 
     m_scenes.clear();
+    m_editedScene = nullptr;
     auto scenesIt = jsn.find("scenes");
     if (scenesIt != jsn.end())
     {
@@ -174,18 +180,18 @@ void Editor::openProject(const utils::String& filePath)
     m_selectedEntity = Entity();
     m_editorCamera = EditorCamera();
 
-    if (m_projectRessourcesDir.length() > 0 && std::filesystem::path(std::string(m_projectRessourcesDir)).is_absolute())
+    if (m_projectRessourcesDir.is_absolute() && std::filesystem::is_directory(m_projectRessourcesDir))
         m_fileExplorerPath = std::string(m_projectRessourcesDir);
+    else if (std::filesystem::is_directory(fspath(m_projectFilePath).remove_filename() / m_projectRessourcesDir))
+        m_fileExplorerPath = fspath(m_projectFilePath).remove_filename() / m_projectRessourcesDir;
     else
-    {
-        m_fileExplorerPath = std::filesystem::path(std::string(m_projectFilePath)).remove_filename();
-        if (m_projectRessourcesDir.length() > 0)
-            m_fileExplorerPath /= std::filesystem::path(std::string(m_projectRessourcesDir));
-    }
+        m_fileExplorerPath = fspath(m_projectFilePath).remove_filename();
 }
 
 void Editor::saveProject()
 {
+    assert(std::filesystem::is_regular_file(m_projectFilePath));
+
     json jsn;
 
     jsn["name"] = std::string(m_projectName);
@@ -204,9 +210,13 @@ void Editor::saveProject()
 
 void Editor::editScene(Scene* scene)
 {
-    // if (m_editedScene)
-    //     m_editedScene->assetManager().unloadAssets();
-    // scene->assetManager().loadAssets(m_renderer.graphicAPI());
+    if (m_editedScene)
+        m_editedScene->assetManager().unloadAssets();
+
+    if (m_projectFilePath.empty() || std::filesystem::is_directory(fspath(m_projectFilePath).remove_filename()/m_projectRessourcesDir) == false)
+        scene->assetManager().loadAssets(m_renderer.graphicAPI(), fspath());
+    else
+        scene->assetManager().loadAssets(m_renderer.graphicAPI(), fspath(m_projectFilePath).remove_filename()/m_projectRessourcesDir);
 
     m_editedScene = scene;
     m_selectedEntity = Entity();

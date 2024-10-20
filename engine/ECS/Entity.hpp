@@ -92,10 +92,11 @@ public:
     void removeChild(Entity);
     void removeParent();
 
-    math::mat4x4 transform();
     math::vec3f& position();
     math::vec3f& rotation();
     math::vec3f& scale();
+    math::mat4x4 transform() const;
+    math::mat4x4 worldTransform() const;
 
     ~Entity() = default;
 

@@ -102,29 +102,28 @@ void Renderer::addPointLight(const Renderer::PointLight& pointLight)
 
 void Renderer::addScene(const Scene& scene)
 {
-    // ECSView<TransformComponent, MeshComponent> view(m_ecsWorld);
-    // view.onEach([&](Entity entity, TransformComponent& transform, MeshComponent& mesh) {
-    //     auto addSubMesh = [&](SubMesh& subMesh, const math::mat4x4& transform) {
-    //         math::mat4x4 modelMatrix = transform * subMesh.transform;
-    //         *static_cast<math::mat4x4*>(subMesh.modelMatrixBuffer->mapContent()) = modelMatrix;
-    //         subMesh.modelMatrixBuffer->unMapContent();
+    const_ECSView<TransformComponent, MeshComponent>(scene.ecsWorld()).onEach([&](const Entity entity, const TransformComponent& transform, const MeshComponent& mesh) {
+        auto addSubMesh = [&](const SubMesh& subMesh, const math::mat4x4& transform) {
+            math::mat4x4 modelMatrix = transform * subMesh.transform;
+            *static_cast<math::mat4x4*>(subMesh.modelMatrixBuffer->mapContent()) = modelMatrix;
+            subMesh.modelMatrixBuffer->unMapContent();
 
-    //         Renderer::Renderable renderable;
-    //         renderable.vertexBuffer = subMesh.vertexBuffer;
-    //         renderable.indexBuffer = subMesh.indexBuffer;
-    //         renderable.modelMatrix = subMesh.modelMatrixBuffer;
+            Renderer::Renderable renderable;
+            renderable.vertexBuffer = subMesh.vertexBuffer;
+            renderable.indexBuffer = subMesh.indexBuffer;
+            renderable.modelMatrix = subMesh.modelMatrixBuffer;
 
-    //         renderer.addRenderable(renderable);
-    //     };
+            addRenderable(renderable);
+        };
 
-    //     if (mesh.meshID.isValid())
-    //     {
-    //         for (auto& subMesh : m_assetManager.loadedMesh(mesh.meshID).subMeshes)
-    //             addSubMesh(subMesh, entity.worldTransform());
-    //     }
-    // });
-    const_ECSView<TransformComponent, LightComponent> view(scene.ecsWorld());
-    view.onEach([&](const Entity, const TransformComponent& transform, const LightComponent& light) {
+        if (mesh.assetId.is_nil() == false)
+        {
+            for (auto& subMesh : scene.assetManager().loadedMesh(mesh).subMeshes)
+                addSubMesh(subMesh, entity.worldTransform());
+        }
+    });
+
+    const_ECSView<TransformComponent, LightComponent>(scene.ecsWorld()).onEach([&](const Entity, const TransformComponent& transform, const LightComponent& light) {
         switch (light.type)
         {
         case LightComponent::Type::point:

@@ -10,6 +10,7 @@
 #ifndef COMPONENTS_HPP
 #define COMPONENTS_HPP
 
+#include "AssetManager.hpp"
 #include "ECS/ECSWorld.hpp"
 #include "Math/Constants.hpp"
 #include "Math/Matrix.hpp"
@@ -51,8 +52,8 @@ struct TransformComponent
 
     TransformComponent() = default;
     TransformComponent(const math::vec3f& position, const math::vec3f& rotation, const math::vec3f& scale);
-    inline math::mat4x4 transform() { return math::mat4x4::translation(position) * math::mat4x4::rotation(rotation) * math::mat4x4::scale(scale); }
-    inline operator math::mat4x4 () { return transform(); }
+    inline math::mat4x4 transform() const { return math::mat4x4::translation(position) * math::mat4x4::rotation(rotation) * math::mat4x4::scale(scale); }
+    inline operator math::mat4x4 () const { return transform(); }
     friend void to_json(nlohmann::json&, const TransformComponent&);
     friend void from_json(const nlohmann::json&, TransformComponent&);
 };
@@ -80,6 +81,18 @@ struct LightComponent
     LightComponent(Type t, math::rgb c, float i);
     friend void to_json(nlohmann::json&, const LightComponent&);
     friend void from_json(const nlohmann::json&, LightComponent&);
+};
+
+struct MeshComponent
+{
+    AssetID assetId;
+
+    MeshComponent() = default;
+    MeshComponent(AssetID id);
+    inline operator const AssetID& () const { return assetId; }
+    inline operator AssetID& () { return assetId; }
+    friend void to_json(nlohmann::json&, const MeshComponent&);
+    friend void from_json(const nlohmann::json&, MeshComponent&);
 };
 
 }

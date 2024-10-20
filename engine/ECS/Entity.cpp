@@ -82,14 +82,15 @@ bool Entity::hasParent() const
 
 utils::uint32 Entity::childCount() const
 {
-    if (has<HierarchyComponent>() == false)
-        return 0;
     utils::uint32 count = 0;
-    Entity curr = firstChild();
-    while (curr)
+    if (has<HierarchyComponent>())
     {
-        count++;
-        curr = curr.nextChild();
+        Entity curr = firstChild();
+        while (curr)
+        {
+            count++;
+            curr = curr.nextChild();
+        }
     }
     return count;
 }
@@ -198,11 +199,6 @@ void Entity::removeParent()
     parent().removeChild(*this);
 }
 
-math::mat4x4 Entity::transform()
-{
-    return get<TransformComponent>();
-}
-
 math::vec3f& Entity::position()
 {
     return get<TransformComponent>().position;
@@ -216,6 +212,18 @@ math::vec3f& Entity::rotation()
 math::vec3f& Entity::scale()
 {
     return get<TransformComponent>().scale;
+}
+
+math::mat4x4 Entity::transform() const
+{
+    return get<TransformComponent>();
+}
+
+math::mat4x4 Entity::worldTransform() const
+{
+    if (hasParent())
+        return parent().worldTransform() * transform();
+    return transform();
 }
 
 }

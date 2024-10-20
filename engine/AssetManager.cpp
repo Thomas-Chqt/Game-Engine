@@ -20,7 +20,17 @@
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
 #include "assimp/types.h"
-#include "crossguid/guid.hpp"
+#include "uuid.h"
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <filesystem>
+#include <iterator>
+#include <random>
+#include <string>
+
+using json = nlohmann::json;
+using fspath = std::filesystem::path;
 
 #define POST_PROCESSING_FLAGS         \
     aiProcess_JoinIdenticalVertices | \
@@ -35,26 +45,27 @@
 namespace GE
 {
 
-utils::String AssetManager::assetShortPath(AssetID id, const utils::String& ressourceDirFullPath)
+AssetID AssetManager::registerMesh(const fspath& path)
 {
-    utils::String fullPath = m_assetFullPaths[id];
-    utils::String shortPath;
-    utils::uint32 i = 0;
-    while (i < fullPath.length() && fullPath[i] == ressourceDirFullPath[i])
-        i++;
-    if (i == fullPath.length())
-        shortPath = fullPath;
+    std::random_device rd;
+    auto seed_data = std::array<int, std::mt19937::state_size> {};
+    std::generate(std::begin(seed_data), std::end(seed_data), std::ref(rd));
+    std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
+    std::mt19937 generator(seq);
+    uuids::uuid_random_generator gen{generator};
+
+    AssetID newAssetID;
+    if (m_registeredMeshes.contain(path))
+        newAssetID = m_registeredMeshes[path];
     else
-        shortPath = fullPath.substr(i + 1, fullPath.length() - i - 1);
-    return shortPath;
-}
-
-AssetID AssetManager::registerMesh(const utils::String& path)
-{
-    AssetID newAssetID = xg::newGuid();
-
-    m_assetFullPaths.insert(newAssetID, path);
-    m_registeredMeshes.insert(newAssetID);
+    {
+        newAssetID = gen();
+        assert(!newAssetID.is_nil());
+        assert(newAssetID.as_bytes().size() == 16);
+        assert(newAssetID.version() == uuids::uuid_version::random_number_based);
+        assert(newAssetID.variant() == uuids::uuid_variant::rfc);
+        m_registeredMeshes.insert(path,newAssetID);
+    }
 
     if (isLoaded())
         m_loadedMeshes.insert(newAssetID, loadMesh(path, *m_api));
@@ -62,12 +73,28 @@ AssetID AssetManager::registerMesh(const utils::String& path)
     return newAssetID;
 }
 
-void AssetManager::loadAssets(gfx::GraphicAPI& api)
+fspath AssetManager::registeredMeshPath(AssetID searched) const
+{
+    for (auto& [path, id] : m_registeredMeshes)
+    {
+        if (id == searched)
+            return path;
+    }
+    return fspath();
+}
+
+void AssetManager::loadAssets(gfx::GraphicAPI& api, const fspath& baseDir)
 {
     m_api = &api;
+    m_baseDir = baseDir;
 
-    for (auto& id : m_registeredMeshes)
-        m_loadedMeshes.insert(id, loadMesh(m_assetFullPaths[id], api));
+    for (auto& [path, id] : m_registeredMeshes)
+    {
+        if (m_baseDir.empty())
+            m_loadedMeshes.insert(id, loadMesh(path, api));
+        else
+            m_loadedMeshes.insert(id, loadMesh(m_baseDir/path, api));
+    }
 }
 
 void AssetManager::unloadAssets()
@@ -75,13 +102,17 @@ void AssetManager::unloadAssets()
     m_loadedMeshes.clear();
 
     m_api = nullptr;
+    m_baseDir.clear();
 }
 
-Mesh AssetManager::loadMesh(const utils::String& filepath, gfx::GraphicAPI& api)
+Mesh AssetManager::loadMesh(const fspath& filepath, gfx::GraphicAPI& api)
 {
+    assert(std::filesystem::exists(filepath));
+    assert(std::filesystem::is_regular_file(filepath));
+
     Assimp::Importer importer;
 
-    const aiScene* scene = importer.ReadFile(filepath, POST_PROCESSING_FLAGS);
+    const aiScene* scene = importer.ReadFile(filepath.string(), POST_PROCESSING_FLAGS);
     if (scene == nullptr)
         throw utils::RuntimeError("fail to load the model using assimp");
 
@@ -183,6 +214,31 @@ Mesh AssetManager::loadMesh(const utils::String& filepath, gfx::GraphicAPI& api)
         addNode(scene->mRootNode->mChildren[i], math::mat4x4(1.0F));
 
     return output;
+}
+
+void to_json(json& jsn, const AssetManager& assetManager)
+{
+    if (assetManager.m_registeredMeshes.isEmpty() == false)
+    {
+        json registeredMeshesJsn;
+        for (auto& [path, id] : assetManager.m_registeredMeshes)
+            registeredMeshesJsn[path.string()] = uuids::to_string(id);
+        jsn["registeredMeshes"] = registeredMeshesJsn;
+    }
+}
+
+void from_json(const json& jsn, AssetManager& assetManager)
+{
+    auto registeredMeshesIt = jsn.find("registeredMeshes");
+    if (registeredMeshesIt != jsn.end())
+    {
+        for (auto& el : registeredMeshesIt->items())
+        {
+            auto id = uuids::uuid::from_string(el.value().get<std::string>());
+            if (id.has_value())
+                assetManager.m_registeredMeshes.insert(fspath(el.key()), id.value());
+        }
+    }   
 }
 
 }

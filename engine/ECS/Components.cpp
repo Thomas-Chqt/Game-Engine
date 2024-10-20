@@ -8,6 +8,7 @@
  */
 
 #include "Components.hpp"
+#include "AssetManager.hpp"
 #include "ECS/ECSWorld.hpp"
 #include "UtilsCPP/String.hpp"
 #include <nlohmann/json.hpp>
@@ -35,7 +36,7 @@ void from_json(const json& jsn, NameComponent& comp)
         comp.name = nameIt->template get<std::string>().c_str();
 }
 
-void to_json(nlohmann::json& jsn, const HierarchyComponent& comp)
+void to_json(json& jsn, const HierarchyComponent& comp)
 {
     if (comp.parent != INVALID_ENTITY_ID)
         jsn["parent"] = comp.parent;
@@ -45,7 +46,7 @@ void to_json(nlohmann::json& jsn, const HierarchyComponent& comp)
         jsn["nextChild"] = comp.nextChild;
 }
 
-void from_json(const nlohmann::json& jsn, HierarchyComponent& comp)
+void from_json(const json& jsn, HierarchyComponent& comp)
 {
     auto parentIt = jsn.find("parent");
     if (parentIt != jsn.end())
@@ -129,9 +130,9 @@ math::mat4x4 CameraComponent::projectionMatrix()
     float xs = ys; // (ys / aspectRatio)
 
     return math::mat4x4(xs,  0,  0,           0,
-                            0, ys,  0,           0,
-                            0,  0, zs, -zNear * zs,
-                            0,  0,  1,           0);
+                         0, ys,  0,           0,
+                         0,  0, zs, -zNear * zs,
+                         0,  0,  1,           0);
 }
 
 void to_json(json& jsn, const CameraComponent& comp)
@@ -161,7 +162,7 @@ LightComponent::LightComponent(Type t, math::rgb c, float i)
 {
 }
 
-void to_json(nlohmann::json& jsn, const LightComponent& comp)
+void to_json(json& jsn, const LightComponent& comp)
 {
     jsn = {
         { "type", (utils::uint8)comp.type },
@@ -174,7 +175,7 @@ void to_json(nlohmann::json& jsn, const LightComponent& comp)
     };
 }
 
-void from_json(const nlohmann::json& jsn, LightComponent& comp)
+void from_json(const json& jsn, LightComponent& comp)
 {
     auto typeIt = jsn.find("type");
     if (typeIt != jsn.end())
@@ -190,7 +191,25 @@ void from_json(const nlohmann::json& jsn, LightComponent& comp)
     }
     auto intentsityIt = jsn.find("intentsity");
     if (intentsityIt != jsn.end())
-        comp.intentsity = intentsityIt->template get<utils::uint8>();
+        comp.intentsity = intentsityIt->template get<float>();
+}
+
+MeshComponent::MeshComponent(AssetID id)
+    : assetId(id)
+{
+}
+
+void to_json(json& jsn, const MeshComponent& comp)
+{
+    if (comp.assetId.is_nil() == false)
+        jsn["assetId"] = uuids::to_string(comp.assetId);
+}
+
+void from_json(const json& jsn, MeshComponent& comp)
+{
+    auto assetIdIt = jsn.find("assetId");
+    if (assetIdIt != jsn.end())
+        comp.assetId = uuids::uuid::from_string(assetIdIt->template get<std::string>()).value_or(AssetID());
 }
 
 }

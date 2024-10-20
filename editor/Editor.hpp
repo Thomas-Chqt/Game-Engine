@@ -39,16 +39,16 @@ private:
 
     void updateVPFrameBuff();
 
-    void openProject(const utils::String& path);
+    void openProject(const std::filesystem::path&);
     void saveProject();
 
     void editScene(Scene*);
 
     void resetEditorInputs();
 
-    utils::String m_projectFilePath;
+    std::filesystem::path m_projectFilePath;
     utils::String m_projectName;
-    utils::String m_projectRessourcesDir;
+    std::filesystem::path m_projectRessourcesDir;
 
     utils::String m_imguiSettings;
     bool m_imguiSettingsNeedReload = false;

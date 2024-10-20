@@ -118,6 +118,9 @@ void to_json(nlohmann::json& jsn, const ECSWorld& world)
         if (world.has<LightComponent>(id))
             entityJsn["lightComponent"] = world.get<LightComponent>(id);
 
+        if (world.has<MeshComponent>(id))
+            entityJsn["meshComponent"] = world.get<MeshComponent>(id);
+
         jsn["entities"].emplace_back(entityJsn);
     }
 
@@ -167,6 +170,10 @@ void from_json(const nlohmann::json& jsn, ECSWorld& world)
         auto lightComponentIt = entity.find("lightComponent");
         if (lightComponentIt != entity.end())
             world.emplace<LightComponent>(entityId) = lightComponentIt->template get<LightComponent>();
+
+        auto meshComponenIt = entity.find("meshComponent");
+        if (meshComponenIt != entity.end())
+            world.emplace<MeshComponent>(entityId) = meshComponenIt->template get<MeshComponent>();
     }
 
     for (auto& id : jsn["availableEntityID"])

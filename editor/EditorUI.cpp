@@ -26,6 +26,8 @@
 #include <future>
 #include <string>
 
+using fspath = std::filesystem::path;
+
 namespace GE
 {
 
@@ -74,7 +76,7 @@ void Editor::onImGuiRender()
 
             if (ImGui::MenuItem("Save"))
             {
-                if (m_projectFilePath.isEmpty())
+                if (m_projectFilePath.empty())
                     saveProjectFileDialog.present(m_projectName);
                 else
                     saveProject();
@@ -144,7 +146,7 @@ void Editor::onImGuiRender()
                     if (m_selectedEntity == entity)
                         flags |= ImGuiTreeNodeFlags_Selected;
 
-                    if (entity.has<HierarchyComponent>() == true && entity.firstChild())
+                    if (entity.childCount() > 0)
                         node_open = ImGui::TreeNodeEx(entity.imGuiID(), flags, "%s", (const char*)entity.name());
                     else
                     {
@@ -178,7 +180,7 @@ void Editor::onImGuiRender()
                     if (ImGui::IsItemClicked())
                         m_selectedEntity = entity;
 
-                    if (node_open)
+                    if (node_open && entity.childCount() > 0)
                     {
                         for (Entity curr = entity.firstChild(); curr; curr = curr.nextChild() )
                             renderRow(curr);
@@ -187,7 +189,7 @@ void Editor::onImGuiRender()
                 };
 
                 ECSView<NameComponent>(m_editedScene->ecsWorld()).onEach([&](Entity entity, NameComponent&) {
-                    if (entity.has<HierarchyComponent>() == false || entity.parent() == false)
+                    if (entity.hasParent() == false)
                         renderRow(entity);
                 });
 
@@ -274,6 +276,39 @@ void Editor::onImGuiRender()
                 }
             }
 
+            if (m_selectedEntity.has<MeshComponent>())
+            {
+                bool isOpen = ImGui::CollapsingHeader("Mesh component", ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_DefaultOpen);
+                ImGui::SameLine(0, 30);
+                if (ImGui::Button("remove##MeshComponent"))
+                    m_selectedEntity.remove<MeshComponent>();
+                else if (isOpen)
+                {
+                    MeshComponent& meshComponent = m_selectedEntity.get<MeshComponent>();
+                    if (ImGui::BeginCombo("Mesh", m_editedScene->assetManager().registeredMeshPath(meshComponent.assetId).c_str()))
+                    {
+                        for (auto& [path, id] : m_editedScene->assetManager().registeredMeshes())
+                        {
+                            const bool is_selected = (meshComponent == id);
+                            if (ImGui::Selectable(m_editedScene->assetManager().registeredMeshPath(id).c_str(), is_selected))
+                                meshComponent.assetId = id;
+                            if (is_selected)
+                                ImGui::SetItemDefaultFocus();
+                        }
+                        ImGui::EndCombo();
+                    }          
+                    if (ImGui::BeginDragDropTarget())
+                    {
+                        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_file"))
+                        {
+                            fspath path = (char*)payload->Data;
+                            meshComponent.assetId = m_editedScene->assetManager().registerMesh(path);
+                        }
+                        ImGui::EndDragDropTarget();
+                    }     
+                }
+            }
+
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
@@ -290,6 +325,9 @@ void Editor::onImGuiRender()
 
                 if (m_selectedEntity.has<LightComponent>() == false && ImGui::Selectable("Light component"))
                     m_selectedEntity.emplace<LightComponent>(LightComponent::Type::point, WHITE3, 1.0f);
+                
+                if (m_selectedEntity.has<MeshComponent>() == false && ImGui::Selectable("Mesh component"))
+                    m_selectedEntity.emplace<MeshComponent>();
 
                 ImGui::EndPopup();
             }
@@ -356,8 +394,13 @@ void Editor::onImGuiRender()
 
                         if (ImGui::BeginDragDropSource())
                         {
-                            ImGui::SetDragDropPayload("dnd_file", dir_entry.path().c_str(), strlen(dir_entry.path().c_str()));
-                            ImGui::Text("%s", dir_entry.path().c_str());
+                            fspath relativePath;
+                            if (m_projectFilePath.empty() || std::filesystem::is_directory(fspath(m_projectFilePath).remove_filename() / m_projectRessourcesDir) == false)
+                                relativePath = dir_entry.path();
+                            else
+                                relativePath = std::filesystem::relative(dir_entry.path(), fspath(m_projectFilePath).remove_filename() / m_projectRessourcesDir);
+                            ImGui::SetDragDropPayload("dnd_file", relativePath.c_str(), strlen(relativePath.c_str()) + 1);
+                            ImGui::Text("%s", relativePath.c_str());
                             ImGui::EndDragDropSource();
                         }
                     }
@@ -387,9 +430,9 @@ void Editor::onImGuiRender()
         m_projectName = utils::String(projectNameBuff);
 
         char resDirBuff[1024];
-        std::strncpy(resDirBuff, m_projectRessourcesDir, sizeof(resDirBuff));
+        std::strncpy(resDirBuff, m_projectRessourcesDir.c_str(), sizeof(resDirBuff));
         ImGui::InputText("Ressource directory##ProjectRessourceDir", resDirBuff, sizeof(resDirBuff));
-        m_projectRessourcesDir = utils::String(resDirBuff);
+        m_projectRessourcesDir = resDirBuff;
 
         ImGui::EndPopup();
     }
