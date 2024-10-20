@@ -1,9 +1,66 @@
 {
-    "imguiSettings": "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1280,701\nCollapsed=0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][Entity inspector]\nPos=1015,405\nSize=265,315\nCollapsed=0\nDockId=0x00000004,0\n\n[Window][Scene graph]\nPos=1015,19\nSize=265,384\nCollapsed=0\nDockId=0x00000003,0\n\n[Window][viewport]\nPos=0,19\nSize=1013,523\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][File explorer]\nPos=0,544\nSize=1013,176\nCollapsed=0\nDockId=0x00000006,0\n\n[Window][Project properties]\nPos=435,288\nSize=361,77\nCollapsed=0\n\n[Window][Scenes]\nPos=445,309\nSize=268,102\nCollapsed=0\n\n[Docking][Data]\nDockSpace     ID=0x7C6B3D9B Window=0xA87D555D Pos=1295,442 Size=1280,701 Split=X Selected=0x0BA3B4F3\n  DockNode    ID=0x00000001 Parent=0x7C6B3D9B SizeRef=1428,701 Split=Y Selected=0x0BA3B4F3\n    DockNode  ID=0x00000005 Parent=0x00000001 SizeRef=1013,523 CentralNode=1 Selected=0x0BA3B4F3\n    DockNode  ID=0x00000006 Parent=0x00000001 SizeRef=1013,176 Selected=0xD2F73F3F\n  DockNode    ID=0x00000002 Parent=0x7C6B3D9B SizeRef=265,701 Split=Y Selected=0xF5BE1C77\n    DockNode  ID=0x00000003 Parent=0x00000002 SizeRef=168,583 Selected=0xF5BE1C77\n    DockNode  ID=0x00000004 Parent=0x00000002 SizeRef=168,479 Selected=0xD3D12213\n\n",
+    "imguiSettings": "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1280,701\nCollapsed=0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][Entity inspector]\nPos=1015,405\nSize=265,315\nCollapsed=0\nDockId=0x00000004,0\n\n[Window][Scene graph]\nPos=1015,19\nSize=265,384\nCollapsed=0\nDockId=0x00000003,0\n\n[Window][viewport]\nPos=0,19\nSize=1013,523\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][File explorer]\nPos=0,544\nSize=1013,176\nCollapsed=0\nDockId=0x00000006,0\n\n[Window][Project properties]\nPos=435,288\nSize=361,77\nCollapsed=0\n\n[Window][Scenes]\nPos=445,309\nSize=268,102\nCollapsed=0\n\n[Docking][Data]\nDockSpace     ID=0x7C6B3D9B Window=0xA87D555D Pos=713,685 Size=1280,701 Split=X Selected=0x0BA3B4F3\n  DockNode    ID=0x00000001 Parent=0x7C6B3D9B SizeRef=1428,701 Split=Y Selected=0x0BA3B4F3\n    DockNode  ID=0x00000005 Parent=0x00000001 SizeRef=1013,523 CentralNode=1 Selected=0x0BA3B4F3\n    DockNode  ID=0x00000006 Parent=0x00000001 SizeRef=1013,176 Selected=0xD2F73F3F\n  DockNode    ID=0x00000002 Parent=0x7C6B3D9B SizeRef=265,701 Split=Y Selected=0xF5BE1C77\n    DockNode  ID=0x00000003 Parent=0x00000002 SizeRef=168,583 Selected=0xF5BE1C77\n    DockNode  ID=0x00000004 Parent=0x00000002 SizeRef=168,479 Selected=0xD3D12213\n\n",
     "name": "project1",
     "ressourcesDir": "ressources",
     "scenes": [
         {
+            "ecsWorld": {
+                "availableEntityID": [],
+                "entities": [
+                    {
+                        "hierarchyComponent": {
+                            "firstChild": 1
+                        },
+                        "id": 0,
+                        "nameComponent": {
+                            "name": "cube"
+                        },
+                        "transformComponent": {
+                            "position": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "rotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "scale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            }
+                        }
+                    },
+                    {
+                        "hierarchyComponent": {
+                            "parent": 0
+                        },
+                        "id": 1,
+                        "nameComponent": {
+                            "name": "chess_set"
+                        },
+                        "transformComponent": {
+                            "position": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "rotation": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "z": 0.0
+                            },
+                            "scale": {
+                                "x": 1.0,
+                                "y": 1.0,
+                                "z": 1.0
+                            }
+                        }
+                    }
+                ]
+            },
             "name": "scene1"
         }
     ],

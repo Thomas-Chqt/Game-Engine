@@ -34,9 +34,9 @@ struct NameComponent
 
 struct HierarchyComponent
 {
-    ECSWorld::EntityID parent;
-    ECSWorld::EntityID firstChild;
-    ECSWorld::EntityID nextChild;
+    ECSWorld::EntityID parent = INVALID_ENTITY_ID;
+    ECSWorld::EntityID firstChild = INVALID_ENTITY_ID;
+    ECSWorld::EntityID nextChild = INVALID_ENTITY_ID;
 
     HierarchyComponent() = default;
     friend void to_json(nlohmann::json&, const HierarchyComponent&);

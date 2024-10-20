@@ -99,7 +99,7 @@ void Editor::onImGuiRender()
             if (ImGui::BeginMenu("New"))
             {
                 if (ImGui::MenuItem("Empty entity"))
-                    m_editedScene->newEntity("new_entity");
+                    m_selectedEntity = m_editedScene->newEntity("new_entity");
                 ImGui::EndMenu();
             }
             ImGui::EndMenu();
@@ -130,68 +130,83 @@ void Editor::onImGuiRender()
 
     if (ImGui::Begin("Scene graph"))
     {
-        if (m_editedScene)
+        if (ImGui::BeginChild("scene_graph_child"))
         {
-            utils::Func<void(Entity)> renderRow = [&](Entity entity){
-                bool node_open = false;
-                ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow        |
-                                            ImGuiTreeNodeFlags_OpenOnDoubleClick |
-                                            ImGuiTreeNodeFlags_SpanAvailWidth    |
-                                            ImGuiTreeNodeFlags_DefaultOpen;
+            if (m_editedScene)
+            {
+                utils::Func<void(Entity)> renderRow = [&](Entity entity){
+                    bool node_open = false;
+                    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow        |
+                                                ImGuiTreeNodeFlags_OpenOnDoubleClick |
+                                                ImGuiTreeNodeFlags_SpanAvailWidth    |
+                                                ImGuiTreeNodeFlags_DefaultOpen;
 
-                if (m_selectedEntity == entity)
-                    flags |= ImGuiTreeNodeFlags_Selected;
+                    if (m_selectedEntity == entity)
+                        flags |= ImGuiTreeNodeFlags_Selected;
 
-                if (entity.has<HierarchyComponent>() == true && entity.firstChild())
-                    node_open = ImGui::TreeNodeEx(entity.imGuiID(), flags, "%s", (const char*)entity.name());
-                else
-                {
-                    flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-                    ImGui::TreeNodeEx(entity.imGuiID(), flags, "%s", (const char*)entity.name());
-                }
-
-                if (ImGui::BeginDragDropSource())
-                {
-                    ImGui::SetDragDropPayload("dnd_entity", &entity, sizeof(Entity));
-                    ImGui::Text("%s", (char*)entity.name());
-                    ImGui::EndDragDropSource();
-                }
-
-                if (ImGui::BeginDragDropTarget())
-                {
-                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_entity"))
+                    if (entity.has<HierarchyComponent>() == true && entity.firstChild())
+                        node_open = ImGui::TreeNodeEx(entity.imGuiID(), flags, "%s", (const char*)entity.name());
+                    else
                     {
-                        assert(payload->DataSize == sizeof(Entity));
-                        Entity dragEntity = *(Entity*)payload->Data;
-                        assert(&dragEntity.ecsWorld() == &entity.ecsWorld());
-                        if (entity != dragEntity && dragEntity.isParentOf(entity) == false)
-                        {
-                            dragEntity.removeParent();
-                            entity.addChild(dragEntity);
-                        }
+                        flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+                        ImGui::TreeNodeEx(entity.imGuiID(), flags, "%s", (const char*)entity.name());
                     }
-                    ImGui::EndDragDropTarget();
-                }
 
-                if (ImGui::IsItemClicked())
-                    m_selectedEntity = entity;
+                    if (ImGui::BeginDragDropSource())
+                    {
+                        ImGui::SetDragDropPayload("dnd_entity", &entity, sizeof(Entity));
+                        ImGui::Text("%s", (char*)entity.name());
+                        ImGui::EndDragDropSource();
+                    }
 
-                if (node_open)
-                {
-                    for (Entity curr = entity.firstChild(); curr; curr = curr.nextChild() )
-                        renderRow(curr);
-                    ImGui::TreePop();
-                }
-            };
+                    if (ImGui::BeginDragDropTarget())
+                    {
+                        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_entity"))
+                        {
+                            assert(payload->DataSize == sizeof(Entity));
+                            Entity dragEntity = *(Entity*)payload->Data;
+                            assert(&dragEntity.ecsWorld() == &entity.ecsWorld());
+                            if (entity != dragEntity && dragEntity.isParentOf(entity) == false)
+                            {
+                                dragEntity.removeParent();
+                                entity.addChild(dragEntity);
+                            }
+                        }
+                        ImGui::EndDragDropTarget();
+                    }
 
-            ECSView<NameComponent>(m_editedScene->ecsWorld()).onEach([&](Entity entity, NameComponent&) {
-                if (entity.has<HierarchyComponent>() == false || entity.parent() == false)
-                    renderRow(entity);
-            });
+                    if (ImGui::IsItemClicked())
+                        m_selectedEntity = entity;
+
+                    if (node_open)
+                    {
+                        for (Entity curr = entity.firstChild(); curr; curr = curr.nextChild() )
+                            renderRow(curr);
+                        ImGui::TreePop();
+                    }
+                };
+
+                ECSView<NameComponent>(m_editedScene->ecsWorld()).onEach([&](Entity entity, NameComponent&) {
+                    if (entity.has<HierarchyComponent>() == false || entity.parent() == false)
+                        renderRow(entity);
+                });
+
+            }
+            else
+            {
+                ImGui::Text("No scene edited");
+            }
+            ImGui::EndChild();
         }
-        else
+        if (ImGui::BeginDragDropTarget())
         {
-            ImGui::Text("No scene edited");
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_entity"))
+            {
+                assert(payload->DataSize == sizeof(Entity));
+                Entity dragEntity = *(Entity*)payload->Data;
+                dragEntity.removeParent();
+            }
+            ImGui::EndDragDropTarget();
         }
     }
     ImGui::End();

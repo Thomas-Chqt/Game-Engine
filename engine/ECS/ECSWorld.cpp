@@ -121,15 +121,23 @@ void to_json(nlohmann::json& jsn, const ECSWorld& world)
         jsn["entities"].emplace_back(entityJsn);
     }
 
-    jsn["availableEntityIDJsn"] = json::array();
+    jsn["availableEntityID"] = json::array();
 
     for (auto id : world.m_availableEntityIDs)
-        jsn["availableEntityIDJsn"].emplace_back(id);
+        jsn["availableEntityID"].emplace_back(id);
 }
 
 void from_json(const nlohmann::json& jsn, ECSWorld& world)
 {
-    world.m_entityDatas = utils::Array<ECSWorld::EntityData>(jsn["entities"].size() + jsn["availableEntityIDJsn"].size());
+    auto entitiesIt = jsn.find("entities");
+    auto availableEntityIDIt = jsn.find("availableEntityID");
+    utils::uint64 entityDatasCount = 0;
+    if (entitiesIt != jsn.end())
+        entityDatasCount += jsn["entities"].size();
+    if (availableEntityIDIt != jsn.end())
+        entityDatasCount += jsn["availableEntityID"].size();
+
+    world.m_entityDatas = utils::Array<ECSWorld::EntityData>(entityDatasCount);
 
     for (auto& entity : jsn["entities"])
     {
@@ -161,7 +169,7 @@ void from_json(const nlohmann::json& jsn, ECSWorld& world)
             world.emplace<LightComponent>(entityId) = lightComponentIt->template get<LightComponent>();
     }
 
-    for (auto& id : jsn["availableEntityIDJsn"])
+    for (auto& id : jsn["availableEntityID"])
         world.m_availableEntityIDs.insert(id);
 }
 

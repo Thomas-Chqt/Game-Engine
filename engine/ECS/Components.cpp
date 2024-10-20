@@ -30,9 +30,9 @@ void to_json(json& jsn, const NameComponent& comp)
 
 void from_json(const json& jsn, NameComponent& comp)
 {
-    auto nameIt = jsn.find("nameComponent");
+    auto nameIt = jsn.find("name");
     if (nameIt != jsn.end())
-        comp.name = (*nameIt)["name"].template get<std::string>().c_str();
+        comp.name = nameIt->template get<std::string>().c_str();
 }
 
 void to_json(nlohmann::json& jsn, const HierarchyComponent& comp)
@@ -50,6 +50,14 @@ void from_json(const nlohmann::json& jsn, HierarchyComponent& comp)
     auto parentIt = jsn.find("parent");
     if (parentIt != jsn.end())
         comp.parent = parentIt->template get<ECSWorld::EntityID>();
+
+    auto firstChildIt = jsn.find("firstChild");
+    if (firstChildIt != jsn.end())
+        comp.firstChild = firstChildIt->template get<ECSWorld::EntityID>();
+
+    auto nextChildIt = jsn.find("nextChild");
+    if (nextChildIt != jsn.end())
+        comp.nextChild = nextChildIt->template get<ECSWorld::EntityID>();
 }
 
 TransformComponent::TransformComponent(const math::vec3f& p, const math::vec3f& r, const math::vec3f& s)

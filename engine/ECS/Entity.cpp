@@ -141,6 +141,7 @@ void Entity::addChild(Entity child)
 void Entity::addChild(Entity child, Entity after)
 {
     assert(m_world == &child.ecsWorld());
+    assert(child.hasParent() == false);
     assert(child.isParentOf(*this) == false);
 
     if (has<HierarchyComponent>() == false)
@@ -150,9 +151,7 @@ void Entity::addChild(Entity child, Entity after)
 
     HierarchyComponent& thisComp = this->get<HierarchyComponent>();
     HierarchyComponent& childComp = child.get<HierarchyComponent>();
-    HierarchyComponent& afterComp = after.get<HierarchyComponent>();
 
-    assert(child.parent() == false);
     assert((!after && !firstChild()) || (after && firstChild())); // ensure we not asking to add the child after a certain entity if there is no child
 
     childComp.parent = m_entityId;
@@ -163,7 +162,8 @@ void Entity::addChild(Entity child, Entity after)
     }
     else
     {
-        childComp.nextChild = after.nextChild();
+        HierarchyComponent& afterComp = after.get<HierarchyComponent>();
+        childComp.nextChild = after.nextChild().entityID();
         afterComp.nextChild = child.entityID();
     }
 }
@@ -175,27 +175,27 @@ void Entity::removeChild(Entity child)
     HierarchyComponent& thisComp = this->get<HierarchyComponent>();
     HierarchyComponent& childComp = child.get<HierarchyComponent>();
 
-    if (child == firstChild())
-        thisComp.firstChild = firstChild().nextChild();
+    if (thisComp.firstChild == child.entityID())
+        thisComp.firstChild = child.nextChild().entityID();
     else
     {
         Entity curr = firstChild();
-        HierarchyComponent& currComp = child.get<HierarchyComponent>();
-        while (curr.nextChild() != child)
+        HierarchyComponent& currComp = curr.get<HierarchyComponent>();
+        while (currComp.nextChild != child.entityID())
             curr = curr.nextChild();
-        currComp.nextChild = curr.nextChild().nextChild();
+        currComp.nextChild = curr.nextChild().nextChild().entityID();
     }
 
-    childComp.parent = Entity();
-    childComp.nextChild = Entity();
+    childComp.parent = INVALID_ENTITY_ID;
+    childComp.nextChild = INVALID_ENTITY_ID;
 }
 
 void Entity::removeParent()
 {
     if (hasParent() == false)
         return;
+    HierarchyComponent& comp = get<HierarchyComponent>();
     parent().removeChild(*this);
-    parent() = Entity();
 }
 
 math::mat4x4 Entity::transform()

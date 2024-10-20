@@ -170,7 +170,7 @@ void Editor::openProject(const utils::String& filePath)
     else
         m_startScene = nullptr;
 
-    m_editedScene = nullptr;
+    editScene(m_startScene);
     m_selectedEntity = Entity();
     m_editorCamera = EditorCamera();
 
