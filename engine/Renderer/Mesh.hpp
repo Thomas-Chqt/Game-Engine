@@ -22,17 +22,16 @@ namespace GE
 
 struct SubMesh
 {
-    utils::String name;
-    math::mat4x4 transform = math::mat4x4(1.0F);
-    utils::SharedPtr<gfx::Buffer> vertexBuffer;
-    utils::SharedPtr<gfx::Buffer> indexBuffer;
-    utils::SharedPtr<gfx::Buffer> modelMatrixBuffer;
+    const utils::String name;
+    const math::mat4x4 transform = math::mat4x4(1.0F);
+    const utils::SharedPtr<gfx::Buffer> vertexBuffer;
+    const utils::SharedPtr<gfx::Buffer> indexBuffer;
 };
 
 struct Mesh
 {
-    utils::String name;
-    utils::Array<SubMesh> subMeshes;
+    const utils::String name;
+    const utils::Array<SubMesh> subMeshes;
 };
 
 }

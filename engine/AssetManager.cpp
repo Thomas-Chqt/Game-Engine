@@ -121,27 +121,20 @@ Mesh AssetManager::loadMesh(const fspath& filepath, gfx::GraphicAPI& api)
     if (scene == nullptr)
         throw utils::RuntimeError("fail to load the model using assimp");
 
-    utils::Array<SubMesh> allMeshes;
+    utils::Array<SubMesh> flatSubMeshes;
 
     for(utils::uint32 meshIndex = 0; meshIndex < scene->mNumMeshes; meshIndex++)
     {
         aiMesh* aiMesh = scene->mMeshes[meshIndex];
 
-        SubMesh newSubMesh;
-
-        newSubMesh.name = aiMesh->mName.C_Str();
-
         gfx::Buffer::Descriptor bufferDescriptor;
         bufferDescriptor.size = aiMesh->mNumVertices * sizeof(Renderer::Vertex);
-        newSubMesh.vertexBuffer = api.newBuffer(bufferDescriptor);
-        auto* vertices = (Renderer::Vertex*)newSubMesh.vertexBuffer->mapContent();
+        utils::SharedPtr<gfx::Buffer> vertexBuffer = api.newBuffer(bufferDescriptor);
+        auto* vertices = (Renderer::Vertex*)vertexBuffer->mapContent();
 
         bufferDescriptor.size = aiMesh->mNumFaces * 3UL * sizeof(utils::uint32);
-        newSubMesh.indexBuffer = api.newBuffer(bufferDescriptor);
-        auto* indices = (utils::uint32*)newSubMesh.indexBuffer->mapContent();
-
-        bufferDescriptor.size = sizeof(math::mat4x4);
-        newSubMesh.modelMatrixBuffer = api.newBuffer(bufferDescriptor);
+        utils::SharedPtr<gfx::Buffer> indexBuffer = api.newBuffer(bufferDescriptor);
+        auto* indices = (utils::uint32*)indexBuffer->mapContent();
 
         for(utils::uint32 i = 0; i < aiMesh->mNumVertices; i++)
         {
@@ -182,13 +175,18 @@ Mesh AssetManager::loadMesh(const fspath& filepath, gfx::GraphicAPI& api)
             indices[i * 3 + 2] = aiMesh->mFaces[i].mIndices[2];
         }
 
-        newSubMesh.vertexBuffer->unMapContent();
-        newSubMesh.indexBuffer->unMapContent();
+        vertexBuffer->unMapContent();
+        indexBuffer->unMapContent();
 
-        allMeshes.append(newSubMesh);
+        flatSubMeshes.append(SubMesh{
+            aiMesh->mName.C_Str(),
+            math::mat4x4(1.0F),
+            vertexBuffer,
+            indexBuffer
+        });
     }
 
-    Mesh output;
+    utils::Array<SubMesh> transformedSubMeshes;
 
     utils::Func<void(aiNode*, math::mat4x4)> addNode = [&](aiNode* aiNode, math::mat4x4 additionalTransform) {
 
@@ -201,24 +199,29 @@ Mesh AssetManager::loadMesh(const fspath& filepath, gfx::GraphicAPI& api)
 
         for (utils::uint32 i = 0; i < aiNode->mNumMeshes; i++)
         {
-            SubMesh& subMesh = allMeshes[aiNode->mMeshes[i]];
-            subMesh.transform = transform;
-            output.subMeshes.append(subMesh);
+            SubMesh& flatSubMeshe = flatSubMeshes[aiNode->mMeshes[i]];
+            transformedSubMeshes.append(SubMesh{
+                flatSubMeshe.name,
+                transform,
+                flatSubMeshe.vertexBuffer,
+                flatSubMeshe.indexBuffer
+            });
         }
 
         for (utils::uint32 i = 0; i < aiNode->mNumChildren; i++)
             addNode(aiNode->mChildren[i], transform);
     };
 
-    output.name = scene->mRootNode->mName.C_Str();
-
     for (utils::uint32 i = 0; i < scene->mRootNode->mNumMeshes; i++)
-        output.subMeshes.append(allMeshes[scene->mRootNode->mMeshes[i]]);
+        transformedSubMeshes.append(flatSubMeshes[scene->mRootNode->mMeshes[i]]);
 
     for (utils::uint32 i = 0; i < scene->mRootNode->mNumChildren; i++)
         addNode(scene->mRootNode->mChildren[i], math::mat4x4(1.0F));
 
-    return output;
+    return Mesh{
+        scene->mRootNode->mName.C_Str(),
+        transformedSubMeshes
+    };
 }
 
 void to_json(json& jsn, const AssetManager& assetManager)

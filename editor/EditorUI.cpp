@@ -60,6 +60,7 @@ void Editor::onImGuiRender()
     static bool showProjectProperties = false;
     static bool showProjectScenes = false;
     static bool showDemoWindow = false;
+    static bool showMetricsWindow = false;
     static OpenProjectFileDialog openProjectFileDialog;
     static SaveProjectFileDialog saveProjectFileDialog;
 
@@ -112,6 +113,8 @@ void Editor::onImGuiRender()
         {
             if (ImGui::MenuItem("Show demo window"))
                 showDemoWindow = true;
+            if (ImGui::MenuItem("show metrics window"))
+                showMetricsWindow = true;
 
             ImGui::EndMenu();
         }
@@ -501,6 +504,9 @@ void Editor::onImGuiRender()
 
     if (showDemoWindow)
         ImGui::ShowDemoWindow(&showDemoWindow);
+
+    if (showMetricsWindow)
+        ImGui::ShowMetricsWindow(&showMetricsWindow);
 
     ImGui::EndDisabled();
 

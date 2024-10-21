@@ -28,10 +28,7 @@ layout (std140) uniform vpMatrixBuffer
     mat4 vpMatrix;
 };
 
-layout (std140) uniform modelMatrixBuffer
-{
-    mat4 modelMatrix;
-};
+uniform mat4 modelMatrix;
 
 void main()
 {

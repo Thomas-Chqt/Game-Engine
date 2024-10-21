@@ -35,7 +35,7 @@ public:
     {
         utils::SharedPtr<gfx::Buffer> vertexBuffer;
         utils::SharedPtr<gfx::Buffer> indexBuffer;
-        utils::SharedPtr<gfx::Buffer> modelMatrix;
+        math::mat4x4 modelMatrix;
     };
 
     struct PointLight

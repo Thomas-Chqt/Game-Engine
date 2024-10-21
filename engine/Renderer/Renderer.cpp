@@ -103,23 +103,16 @@ void Renderer::addPointLight(const Renderer::PointLight& pointLight)
 void Renderer::addScene(const Scene& scene)
 {
     const_ECSView<TransformComponent, MeshComponent>(scene.ecsWorld()).onEach([&](const Entity entity, const TransformComponent& transform, const MeshComponent& mesh) {
-        auto addSubMesh = [&](const SubMesh& subMesh, const math::mat4x4& transform) {
-            math::mat4x4 modelMatrix = transform * subMesh.transform;
-            *static_cast<math::mat4x4*>(subMesh.modelMatrixBuffer->mapContent()) = modelMatrix;
-            subMesh.modelMatrixBuffer->unMapContent();
-
-            Renderer::Renderable renderable;
-            renderable.vertexBuffer = subMesh.vertexBuffer;
-            renderable.indexBuffer = subMesh.indexBuffer;
-            renderable.modelMatrix = subMesh.modelMatrixBuffer;
-
-            addRenderable(renderable);
-        };
-
         if (mesh.assetId.is_nil() == false)
         {
             for (auto& subMesh : scene.assetManager().loadedMesh(mesh).subMeshes)
-                addSubMesh(subMesh, entity.worldTransform());
+            {
+                addRenderable(Renderer::Renderable{
+                    subMesh.vertexBuffer, subMesh.indexBuffer,
+                    entity.worldTransform() * subMesh.transform,
+                });
+
+            }
         }
     });
 
@@ -154,8 +147,7 @@ void Renderer::render()
 
             for (auto& renderable : m_renderables)
             {
-                m_graphicAPI->setVertexBuffer(renderable.modelMatrix, m_gfxPipeline->getVertexBufferIndex("modelMatrixBuffer"));
-
+                m_graphicAPI->setVertexUniform(renderable.modelMatrix, m_gfxPipeline->getVertexUniformIndex("modelMatrix"));
                 m_graphicAPI->setVertexBuffer(renderable.vertexBuffer, 0);
                 m_graphicAPI->drawIndexedVertices(renderable.indexBuffer);
             }
