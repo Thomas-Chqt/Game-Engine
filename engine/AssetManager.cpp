@@ -68,7 +68,12 @@ AssetID AssetManager::registerMesh(const fspath& path)
     }
 
     if (isLoaded())
-        m_loadedMeshes.insert(newAssetID, loadMesh(path, *m_api));
+    {
+        if (m_baseDir.empty())
+            m_loadedMeshes.insert(newAssetID, loadMesh(path, *m_api));
+        else
+            m_loadedMeshes.insert(newAssetID, loadMesh(m_baseDir/path, *m_api));
+    }
 
     return newAssetID;
 }
