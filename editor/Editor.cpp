@@ -22,6 +22,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
+#include "ECS/Components.hpp"
 
 using json = nlohmann::json;
 using fspath = std::filesystem::path;
@@ -64,7 +65,13 @@ Editor::Editor()
     m_imguiSettingsNeedReload = true;
 
     auto& defautScene = *m_scenes.insert(Scene("default_scene"));
-    defautScene.newEntity("cube");
+    auto cube = defautScene.newEntity("cube");
+    cube.emplace<TransformComponent>();
+    cube.emplace<MeshComponent>(BUILT_IN_CUBE_ASSET_ID);
+
+    auto light = defautScene.newEntity("light");
+    light.emplace<TransformComponent>(math::vec3f{-1.5, 1.5, -1.5}, math::vec3f{0, 0, 0}, math::vec3f{0, 0, 0});
+    light.emplace<LightComponent>();
 
     m_startScene = &defautScene;
     
