@@ -7,6 +7,7 @@
  * ---------------------------------------------------
  */
 
+#include "AssetManager.hpp"
 #include "ECS/Components.hpp"
 #include "ECS/ECSView.hpp"
 #include "ECS/ECSWorld.hpp"
@@ -103,6 +104,18 @@ void Editor::onImGuiRender()
             {
                 if (ImGui::MenuItem("Empty entity"))
                     m_selectedEntity = m_editedScene->newEntity("new_entity");
+                if (ImGui::MenuItem("Cube"))
+                {
+                    m_selectedEntity = m_editedScene->newEntity("cube");
+                    m_selectedEntity.emplace<TransformComponent>();
+                    m_selectedEntity.emplace<MeshComponent>(BUILT_IN_CUBE_ASSET_ID);
+                }
+                if (ImGui::MenuItem("Light"))
+                {
+                    m_selectedEntity = m_editedScene->newEntity("light");
+                    m_selectedEntity.emplace<TransformComponent>();
+                    m_selectedEntity.emplace<LightComponent>();
+                }
                 ImGui::EndMenu();
             }
             ImGui::EndMenu();
@@ -288,12 +301,12 @@ void Editor::onImGuiRender()
                 else if (isOpen)
                 {
                     MeshComponent& meshComponent = m_selectedEntity.get<MeshComponent>();
-                    if (ImGui::BeginCombo("Mesh", m_editedScene->assetManager().registeredMeshPath(meshComponent.assetId).c_str()))
+                    if (ImGui::BeginCombo("Mesh", meshComponent.assetId.is_nil() ? "" : m_editedScene->assetManager().loadedMeshes()[meshComponent.assetId].name))
                     {
-                        for (auto& [path, id] : m_editedScene->assetManager().registeredMeshes())
+                        for (auto& [id, mesh] : m_editedScene->assetManager().loadedMeshes())
                         {
                             const bool is_selected = (meshComponent == id);
-                            if (ImGui::Selectable(m_editedScene->assetManager().registeredMeshPath(id).c_str(), is_selected))
+                            if (ImGui::Selectable(mesh.name, is_selected))
                                 meshComponent.assetId = id;
                             if (is_selected)
                                 ImGui::SetItemDefaultFocus();
@@ -321,13 +334,13 @@ void Editor::onImGuiRender()
             if (ImGui::BeginPopup("ADD_COMP_POPUP"))
             {
                 if (m_selectedEntity.has<TransformComponent>() == false && ImGui::Selectable("Transform component"))
-                    m_selectedEntity.emplace<TransformComponent>(math::vec3f{0, 0, 0}, math::vec3f{0, 0, 0}, math::vec3f{1, 1, 1});
+                    m_selectedEntity.emplace<TransformComponent>();
 
                 if (m_selectedEntity.has<CameraComponent>() == false && ImGui::Selectable("Camera component"))
-                    m_selectedEntity.emplace<CameraComponent>((float)(60 * (PI / 180.0F)), 10000.0f, 0.01f);
+                    m_selectedEntity.emplace<CameraComponent>();
 
                 if (m_selectedEntity.has<LightComponent>() == false && ImGui::Selectable("Light component"))
-                    m_selectedEntity.emplace<LightComponent>(LightComponent::Type::point, WHITE3, 1.0f);
+                    m_selectedEntity.emplace<LightComponent>();
                 
                 if (m_selectedEntity.has<MeshComponent>() == false && ImGui::Selectable("Mesh component"))
                     m_selectedEntity.emplace<MeshComponent>();
@@ -403,7 +416,7 @@ void Editor::onImGuiRender()
                             else
                                 relativePath = std::filesystem::relative(dir_entry.path(), fspath(m_projectFilePath).remove_filename() / m_projectRessourcesDir);
                             ImGui::SetDragDropPayload("dnd_file", relativePath.c_str(), strlen(relativePath.c_str()) + 1);
-                            ImGui::Text("%s", relativePath.c_str());
+                            ImGui::Text("%s", relativePath.filename().c_str());
                             ImGui::EndDragDropSource();
                         }
                     }

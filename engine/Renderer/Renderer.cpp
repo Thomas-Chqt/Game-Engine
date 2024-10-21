@@ -106,7 +106,7 @@ void Renderer::addScene(const Scene& scene)
         if (mesh.assetId.is_nil() == false)
         {
             math::mat4x4 entityWorldTransform = entity.worldTransform();
-            for (auto& subMesh : scene.assetManager().loadedMesh(mesh).subMeshes)
+            for (auto& subMesh : scene.assetManager().loadedMeshes()[mesh.assetId].subMeshes)
             {
                 addRenderable(Renderer::Renderable{
                     subMesh.vertexBuffer, subMesh.indexBuffer,

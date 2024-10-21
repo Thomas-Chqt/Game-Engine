@@ -46,9 +46,9 @@ struct HierarchyComponent
 
 struct TransformComponent
 {
-    math::vec3f position;
-    math::vec3f rotation;
-    math::vec3f scale;
+    math::vec3f position = {0.0F, 0.0F, 0.0F};
+    math::vec3f rotation = {0.0F, 0.0F, 0.0F};
+    math::vec3f scale    = {1.0F, 1.0F, 1.0F};
 
     TransformComponent() = default;
     TransformComponent(const math::vec3f& position, const math::vec3f& rotation, const math::vec3f& scale);

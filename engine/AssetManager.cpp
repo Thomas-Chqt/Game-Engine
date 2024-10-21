@@ -8,6 +8,7 @@
  */
 
 #include "AssetManager.hpp"
+#include "Graphics/Buffer.hpp"
 #include "Renderer/Mesh.hpp"
 #include "Math/Matrix.hpp"
 #include "Renderer/Renderer.hpp"
@@ -78,16 +79,6 @@ AssetID AssetManager::registerMesh(const fspath& path)
     return newAssetID;
 }
 
-fspath AssetManager::registeredMeshPath(AssetID searched) const
-{
-    for (auto& [path, id] : m_registeredMeshes)
-    {
-        if (id == searched)
-            return path;
-    }
-    return fspath();
-}
-
 void AssetManager::loadAssets(gfx::GraphicAPI& api, const fspath& baseDir)
 {
     m_api = &api;
@@ -100,6 +91,7 @@ void AssetManager::loadAssets(gfx::GraphicAPI& api, const fspath& baseDir)
         else
             m_loadedMeshes.insert(id, loadMesh(m_baseDir/path, api));
     }
+    m_loadedMeshes.insert(BUILT_IN_CUBE_ASSET_ID, loadBuiltInCube());
 }
 
 void AssetManager::unloadAssets()
@@ -221,6 +213,56 @@ Mesh AssetManager::loadMesh(const fspath& filepath, gfx::GraphicAPI& api)
     return Mesh{
         scene->mRootNode->mName.C_Str(),
         transformedSubMeshes
+    };
+}
+
+Mesh AssetManager::loadBuiltInCube()
+{
+    Renderer::Vertex vertices[] = {
+        { {-1, -1, -1}, {0, 1}, {-1,  0,  0}, { 0,  1,  0} },
+        { {-1,  1, -1}, {1, 1}, {-1,  0,  0}, { 0,  1,  0} },
+        { {-1,  1,  1}, {1, 0}, {-1,  0,  0}, { 0,  1,  0} },
+        { {-1, -1,  1}, {0, 0}, {-1,  0,  0}, { 0,  1,  0} },
+        { {-1, -1,  1}, {0, 1}, { 0,  0,  1}, { 0,  1,  1} },
+        { {-1,  1,  1}, {1, 1}, { 0,  0,  1}, { 0,  1,  1} },
+        { { 1,  1,  1}, {1, 0}, { 0,  0,  1}, { 0,  1,  1} },
+        { { 1, -1,  1}, {0, 0}, { 0,  0,  1}, { 0,  1,  1} },
+        { { 1, -1,  1}, {0, 1}, { 1,  0,  0}, { 0,  1,  0} },
+        { { 1,  1,  1}, {1, 1}, { 1,  0,  0}, { 0,  1,  0} },
+        { { 1,  1, -1}, {1, 0}, { 1,  0,  0}, { 0,  1,  0} },
+        { { 1, -1, -1}, {0, 0}, { 1,  0,  0}, { 0,  1,  0} },
+        { { 1, -1, -1}, {1, 0}, { 0,  0, -1}, { 0, -1, -1} },
+        { { 1,  1, -1}, {0, 0}, { 0,  0, -1}, { 0, -1, -1} },
+        { {-1,  1, -1}, {0, 1}, { 0,  0, -1}, { 0, -1, -1} },
+        { {-1, -1, -1}, {1, 1}, { 0,  0, -1}, { 0, -1, -1} },
+        { {-1, -1,  1}, {0, 1}, { 0, -1,  0}, { 1,  0,  0} },
+        { { 1, -1,  1}, {1, 1}, { 0, -1,  0}, { 1,  0,  0} },
+        { { 1, -1, -1}, {1, 0}, { 0, -1,  0}, { 1,  0,  0} },
+        { {-1, -1, -1}, {0, 0}, { 0, -1,  0}, { 1,  0,  0} },
+        { { 1,  1,  1}, {0, 1}, { 0,  1,  0}, {-1,  0,  0} },
+        { {-1,  1,  1}, {1, 1}, { 0,  1,  0}, {-1,  0,  0} },
+        { {-1,  1, -1}, {1, 0}, { 0,  1,  0}, {-1,  0,  0} },
+        { { 1,  1, -1}, {0, 0}, { 0,  1,  0}, {-1,  0,  0} },    
+    };
+
+    utils::uint32 indices[] = 
+    {
+        0, 1, 3, 3, 1, 2,
+        1, 5, 2, 2, 5, 6,
+        5, 4, 6, 6, 4, 7,
+        4, 0, 7, 7, 0, 3,
+        3, 2, 7, 7, 2, 6,
+        4, 5, 0, 0, 5, 1
+    };
+
+    return Mesh {
+        "built_in_cube",
+        utils::Array<SubMesh> {{
+            "built_in_cube_submesh",
+            math::mat4x4(1.0F),
+            m_api->newBuffer(gfx::Buffer::Descriptor(sizeof(vertices) / sizeof(vertices[0]), vertices)),
+            m_api->newBuffer(gfx::Buffer::Descriptor(sizeof(indices) / sizeof(indices[0]), indices)),
+        }}
     };
 }
 

@@ -17,6 +17,8 @@
 #include <filesystem>
 #include <nlohmann/json.hpp>
 
+#define BUILT_IN_CUBE_ASSET_ID uuids::uuid::from_string("47183823-2574-4bfd-b411-99ed177d3e43").value()
+
 namespace GE
 {
 
@@ -30,10 +32,9 @@ public:
     AssetManager(AssetManager&&)      = default;
 
     AssetID registerMesh(const std::filesystem::path& relativePath);
-    std::filesystem::path registeredMeshPath(AssetID id) const;
     inline const utils::Dictionary<std::filesystem::path, AssetID>& registeredMeshes() const { return m_registeredMeshes; }
 
-    inline const Mesh& loadedMesh(AssetID id) const { return m_loadedMeshes[id]; }
+    inline const utils::Dictionary<AssetID, Mesh>& loadedMeshes() const { return m_loadedMeshes; }
 
     void loadAssets(gfx::GraphicAPI&, const std::filesystem::path& baseDir);
     void unloadAssets();
@@ -44,6 +45,7 @@ public:
 
 private:
     Mesh loadMesh(const std::filesystem::path&, gfx::GraphicAPI&);
+    Mesh loadBuiltInCube();
 
     gfx::GraphicAPI* m_api = nullptr;
     std::filesystem::path m_baseDir;
