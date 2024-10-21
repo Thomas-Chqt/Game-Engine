@@ -105,13 +105,13 @@ void Renderer::addScene(const Scene& scene)
     const_ECSView<TransformComponent, MeshComponent>(scene.ecsWorld()).onEach([&](const Entity entity, const TransformComponent& transform, const MeshComponent& mesh) {
         if (mesh.assetId.is_nil() == false)
         {
+            math::mat4x4 entityWorldTransform = entity.worldTransform();
             for (auto& subMesh : scene.assetManager().loadedMesh(mesh).subMeshes)
             {
                 addRenderable(Renderer::Renderable{
                     subMesh.vertexBuffer, subMesh.indexBuffer,
-                    entity.worldTransform() * subMesh.transform,
+                    entityWorldTransform * subMesh.transform,
                 });
-
             }
         }
     });
