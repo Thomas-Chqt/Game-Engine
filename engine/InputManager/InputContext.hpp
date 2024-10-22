@@ -36,6 +36,7 @@ public:
 
     void onInputEvent(gfx::InputEvent&);
     void dispatchInputs();
+    void resetInputs();
 
     inline void clear() { m_inputs.clear(); }
     

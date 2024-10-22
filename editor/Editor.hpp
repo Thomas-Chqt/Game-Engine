@@ -49,6 +49,7 @@ private:
     std::filesystem::path m_projectFilePath;
     utils::String m_projectName;
     std::filesystem::path m_projectRessourcesDir;
+    std::filesystem::path m_projectScriptLib;
 
     utils::String m_imguiSettings;
     bool m_imguiSettingsNeedReload = false;

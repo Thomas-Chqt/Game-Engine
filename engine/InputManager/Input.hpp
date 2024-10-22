@@ -27,6 +27,7 @@ struct Input
     utils::UniquePtr<IMapper> mappers[2];
 
     virtual void dispatch() = 0;
+    virtual void reset() = 0;
 
     Input(utils::String name);
     virtual ~Input();
@@ -37,6 +38,7 @@ struct ActionInput : public Input
     utils::Func<void()> callback;
 
     void dispatch() override;
+    void reset() override;
 
     ActionInput(utils::String name);
     ~ActionInput() override = default;
@@ -47,6 +49,7 @@ struct StateInput : public Input
     utils::Func<void()> callback;
 
     void dispatch() override;
+    void reset() override;
 
     StateInput(utils::String name);
     ~StateInput() override = default;
@@ -58,6 +61,7 @@ struct RangeInput : public Input
     float value = 0.0F;
 
     void dispatch() override;
+    void reset() override;
 
     RangeInput(utils::String name);
     ~RangeInput() override = default;
@@ -69,6 +73,7 @@ struct Range2DInput : public Input
     math::vec2f value = { 0.0F, 0.0F };
 
     void dispatch() override;
+    void reset() override;
 
     Range2DInput(utils::String name);
     ~Range2DInput() override = default;

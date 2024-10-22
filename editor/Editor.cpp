@@ -23,6 +23,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 #include "ECS/Components.hpp"
+#include "imgui.h"
 
 using json = nlohmann::json;
 using fspath = std::filesystem::path;
@@ -103,7 +104,10 @@ void Editor::onUpdate()
         ImGui::GetIO().WantSaveIniSettings = false;
     }
 
-    m_editorInputContext.dispatchInputs();
+    if (ImGui::GetIO().WantCaptureKeyboard == false)
+        m_editorInputContext.dispatchInputs();
+    else
+        m_editorInputContext.resetInputs();
 }
 
 void Editor::onEvent(gfx::Event& event)

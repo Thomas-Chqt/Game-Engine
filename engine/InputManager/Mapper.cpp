@@ -72,7 +72,7 @@ void Mapper<KeyboardButton, StateInput>::onKeyUpEvent(gfx::KeyUpEvent& keyUpEven
 // KeyboardButton, RangeInput
 
 Mapper<KeyboardButton, RangeInput>::Mapper(const Descriptor& btn, RangeInput& ipt)
-    : m_button(btn.button),m_scale(btn.scale), m_input(ipt)
+    : m_button(btn.button), m_scale(btn.scale), m_input(ipt)
 {
 }
 
@@ -142,13 +142,13 @@ void Mapper<KeyboardButton, Range2DInput>::onKeyDownEvent(gfx::KeyDownEvent& key
 
 void Mapper<KeyboardButton, Range2DInput>::onKeyUpEvent(gfx::KeyUpEvent& keyUpEvent)
 {
-    if (keyUpEvent.keyCode() == static_cast<int>(m_xPos))
+    if (keyUpEvent.keyCode() == static_cast<int>(m_xPos) && m_input.value.x > 0)
         m_input.value -= math::vec2f{m_scale.x, 0.0F};
-    else if (keyUpEvent.keyCode() == static_cast<int>(m_xNeg))
+    else if (keyUpEvent.keyCode() == static_cast<int>(m_xNeg) && m_input.value.x < 0)
         m_input.value += math::vec2f{m_scale.x, 0.0F};
-    else if (keyUpEvent.keyCode() == static_cast<int>(m_yPos))
+    else if (keyUpEvent.keyCode() == static_cast<int>(m_yPos) && m_input.value.y > 0)
         m_input.value -= math::vec2f{0.0F, m_scale.y};
-    else if (keyUpEvent.keyCode() == static_cast<int>(m_yNeg))
+    else if (keyUpEvent.keyCode() == static_cast<int>(m_yNeg) && m_input.value.y < 0)
         m_input.value += math::vec2f{0.0F, m_scale.y};
     
     if (keyUpEvent.keyCode() == static_cast<int>(m_xPos) ||

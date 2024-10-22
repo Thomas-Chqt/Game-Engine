@@ -19,6 +19,7 @@
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Types.hpp"
+#include "imgui.h"
 #include <TFD/tinyfiledialogs.h>
 #include <cassert>
 #include <chrono>
@@ -59,6 +60,9 @@ struct SaveProjectFileDialog
 void Editor::onImGuiRender()
 {
     static bool showProjectProperties = false;
+    static char projectNameBuff[32];
+    static char projectRessourceDirBuff[1024];
+    static char projectScriptLibBuff[1024];
     static bool showProjectScenes = false;
     static bool showDemoWindow = false;
     static bool showMetricsWindow = false;
@@ -90,7 +94,12 @@ void Editor::onImGuiRender()
         if (ImGui::BeginMenu("Project"))
         {
             if (ImGui::MenuItem("Properties"))
+            {
+                std::strncpy(projectNameBuff, m_projectName, sizeof(projectNameBuff));
+                std::strncpy(projectRessourceDirBuff, m_projectRessourcesDir.c_str(), sizeof(projectRessourceDirBuff));
+                std::strncpy(projectScriptLibBuff, m_projectScriptLib.c_str(), sizeof(projectScriptLibBuff));
                 showProjectProperties = true;
+            }
             if (ImGui::MenuItem("Scene"))
                 showProjectScenes = true;
 
@@ -325,6 +334,18 @@ void Editor::onImGuiRender()
                 }
             }
 
+            if (m_selectedEntity.has<ScriptComponent>())
+            {
+                bool isOpen = ImGui::CollapsingHeader("Script component", ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_DefaultOpen);
+                ImGui::SameLine(0, 30);
+                if (ImGui::Button("remove##ScriptComponent"))
+                    m_selectedEntity.remove<ScriptComponent>();
+                else if (isOpen)
+                {
+                    ImGui::Text("%s", (const char*)m_selectedEntity.get<ScriptComponent>().name);
+                }
+            }
+
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
@@ -344,6 +365,9 @@ void Editor::onImGuiRender()
                 
                 if (m_selectedEntity.has<MeshComponent>() == false && ImGui::Selectable("Mesh component"))
                     m_selectedEntity.emplace<MeshComponent>();
+
+                if (m_selectedEntity.has<ScriptComponent>() == false && ImGui::Selectable("Script component"))
+                    m_selectedEntity.emplace<ScriptComponent>();
 
                 ImGui::EndPopup();
             }
@@ -440,16 +464,46 @@ void Editor::onImGuiRender()
         ImGui::OpenPopup("Project properties");
     if (ImGui::BeginPopupModal("Project properties", &showProjectProperties, ImGuiWindowFlags_AlwaysAutoResize))
     {
-        char projectNameBuff[32];
-        std::strncpy(projectNameBuff, m_projectName, sizeof(projectNameBuff));
         ImGui::InputText("Name##ProjectName", projectNameBuff, sizeof(projectNameBuff));
-        m_projectName = utils::String(projectNameBuff);
+        ImGui::InputText("Ressource directory##ProjectRessourceDir", projectRessourceDirBuff, sizeof(projectRessourceDirBuff));
+        ImGui::InputText("Script library##ProjectScriptLib", projectScriptLibBuff, sizeof(projectScriptLibBuff));
 
-        char resDirBuff[1024];
-        std::strncpy(resDirBuff, m_projectRessourcesDir.c_str(), sizeof(resDirBuff));
-        ImGui::InputText("Ressource directory##ProjectRessourceDir", resDirBuff, sizeof(resDirBuff));
-        m_projectRessourcesDir = resDirBuff;
+        if (ImGui::Button("Cancel"))
+        {
+            showProjectProperties = false;
+            ImGui::CloseCurrentPopup();
+        }
 
+        ImGui::SameLine();
+        const bool projectRessourceDirIsValid = 
+            fspath(projectRessourceDirBuff).empty() ||
+            fspath(projectRessourceDirBuff).is_absolute() && std::filesystem::is_directory(fspath(projectRessourceDirBuff)) ||
+            (
+                m_projectFilePath.empty() == false &&
+                (fspath(m_projectFilePath).remove_filename() / fspath(projectRessourceDirBuff)).is_absolute() &&
+                std::filesystem::is_directory(fspath(m_projectFilePath).remove_filename() / fspath(projectRessourceDirBuff))
+            );
+
+        const bool projectScriptLibIsValid = 
+            fspath(projectScriptLibBuff).empty() ||
+            fspath(projectScriptLibBuff).is_absolute() && std::filesystem::is_regular_file(fspath(projectScriptLibBuff)) ||
+            (
+                m_projectFilePath.empty() == false &&
+                (fspath(m_projectFilePath).remove_filename() / fspath(projectScriptLibBuff)).is_absolute() &&
+                std::filesystem::is_regular_file(fspath(m_projectFilePath).remove_filename() / fspath(projectScriptLibBuff))
+            );
+
+        ImGui::BeginDisabled(!projectRessourceDirIsValid || !projectScriptLibIsValid);
+        if (ImGui::Button("Ok"))
+        {
+            m_projectName = projectNameBuff;
+            m_projectRessourcesDir = projectRessourceDirBuff;
+            m_projectScriptLib = projectScriptLibBuff;
+
+            showProjectProperties = false;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndDisabled();
         ImGui::EndPopup();
     }
 

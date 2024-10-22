@@ -29,6 +29,11 @@ void ActionInput::dispatch()
     triggered = false;
 }
 
+void ActionInput::reset()
+{
+    triggered = false;
+}
+
 ActionInput::ActionInput(utils::String name) : Input(name)
 {
 }
@@ -38,6 +43,11 @@ ActionInput::ActionInput(utils::String name) : Input(name)
 void StateInput::dispatch()
 {
     callback();
+}
+
+void StateInput::reset()
+{
+    triggered = false;
 }
 
 StateInput::StateInput(utils::String name) : Input(name)
@@ -51,6 +61,12 @@ void RangeInput::dispatch()
     callback(value);
 }
 
+void RangeInput::reset()
+{
+    value = 0.0F;
+    triggered = false;
+}
+
 RangeInput::RangeInput(utils::String name) : Input(name)
 {
 }
@@ -60,6 +76,12 @@ RangeInput::RangeInput(utils::String name) : Input(name)
 void Range2DInput::dispatch()
 {
     callback(value);
+}
+
+void Range2DInput::reset()
+{
+    value = { 0.0F, 0.0F };
+    triggered = false;
 }
 
 Range2DInput::Range2DInput(utils::String name) : Input(name)

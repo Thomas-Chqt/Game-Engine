@@ -95,6 +95,13 @@ struct MeshComponent
     friend void from_json(const nlohmann::json&, MeshComponent&);
 };
 
+struct ScriptComponent
+{
+    utils::String name;
+
+    ScriptComponent() = default;
+};
+
 }
 
 #endif // COMPONENTS_HPP

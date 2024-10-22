@@ -38,4 +38,11 @@ void InputContext::dispatchInputs()
     }
 }
 
+void InputContext::resetInputs()
+{
+    for (auto& [_, input] : m_inputs) {
+        input->reset();
+    }
+}
+
 }
