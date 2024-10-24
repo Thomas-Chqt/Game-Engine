@@ -19,3 +19,5 @@ target_include_directories(GE-Editor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(GE-Editor PRIVATE Game-Engine)
 target_link_libraries(GE-Editor PRIVATE tinyfiledialogs)
+
+target_link_options(GE-Editor PRIVATE "-rdynamic")

@@ -15,6 +15,7 @@
 #include "Editor.hpp"
 #include "Math/Constants.hpp"
 #include "Scene.hpp"
+#include "Script.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/String.hpp"
@@ -27,6 +28,7 @@
 #include <filesystem>
 #include <future>
 #include <string>
+#include <dlfcn.h>
 
 using fspath = std::filesystem::path;
 
@@ -97,7 +99,7 @@ void Editor::onImGuiRender()
             {
                 std::strncpy(projectNameBuff, m_projectName, sizeof(projectNameBuff));
                 std::strncpy(projectRessourceDirBuff, m_projectRessourcesDir.c_str(), sizeof(projectRessourceDirBuff));
-                std::strncpy(projectScriptLibBuff, m_projectScriptLib.c_str(), sizeof(projectScriptLibBuff));
+                std::strncpy(projectScriptLibBuff, m_projectScriptLibPath.c_str(), sizeof(projectScriptLibBuff));
                 showProjectProperties = true;
             }
             if (ImGui::MenuItem("Scene"))
@@ -342,7 +344,19 @@ void Editor::onImGuiRender()
                     m_selectedEntity.remove<ScriptComponent>();
                 else if (isOpen)
                 {
-                    ImGui::Text("%s", (const char*)m_selectedEntity.get<ScriptComponent>().name);
+                    ScriptComponent& scriptComponent = m_selectedEntity.get<ScriptComponent>();
+                    ImGui::Button("Script name");
+                    if (ImGui::BeginDragDropTarget())
+                    {
+                        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_script"))
+                        {
+                            auto scriptName = (char*)payload->Data;
+                            scriptComponent.instance = utils::SharedPtr<Script>(((Script* (*)())dlsym(m_scriptLibHandle, "getScript"))());
+                            assert(scriptComponent.instance);
+                            scriptComponent.instance->setEntity(m_selectedEntity);
+                        }
+                        ImGui::EndDragDropTarget();
+                    }
                 }
             }
 
@@ -460,6 +474,30 @@ void Editor::onImGuiRender()
     }
     ImGui::End();
 
+    if (ImGui::Begin("Content explorer"))
+    {
+        if (m_scriptLibHandle != nullptr)
+        {
+            if (ImGui::BeginChild("scriptID", ImVec2(60, 60 + ImGui::GetFrameHeightWithSpacing())))
+            {
+                ImGui::Button("scriptName", ImVec2(60, 60));
+                if (ImGui::BeginDragDropSource())
+                {
+                    utils::String scriptName = "scriptName";
+                    ImGui::SetDragDropPayload("dnd_script", "scriptName", scriptName.length());
+                    ImGui::Text("script");
+                    ImGui::EndDragDropSource();
+                }
+
+                ImGui::Text("scriptName");
+            }
+            ImGui::EndChild();
+        }
+        else
+            ImGui::Text("lib script lib");
+    }
+    ImGui::End();
+
     if (showProjectProperties)
         ImGui::OpenPopup("Project properties");
     if (ImGui::BeginPopupModal("Project properties", &showProjectProperties, ImGuiWindowFlags_AlwaysAutoResize))
@@ -498,7 +536,8 @@ void Editor::onImGuiRender()
         {
             m_projectName = projectNameBuff;
             m_projectRessourcesDir = projectRessourceDirBuff;
-            m_projectScriptLib = projectScriptLibBuff;
+            m_projectScriptLibPath = projectScriptLibBuff;
+            reloadScript();
 
             showProjectProperties = false;
             ImGui::CloseCurrentPopup();

@@ -14,8 +14,9 @@ set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build using shared libraries" FORCE)
 
-option(GE_BUILD_TESTS "Build test executable"              OFF)
-option(GE_INSTALL     "Enable Game Engine install command" ON)
+option(GE_BUILD_TESTS    "Build test executable"              OFF)
+option(GE_BUILD_EXAMPLES "Build examples projects"            OFF)
+option(GE_INSTALL        "Enable Game Engine install command" ON)
 
 if (APPLE)
     option(GE_BUILD_METAL  "Build with metal enable"  ON)
@@ -46,6 +47,10 @@ endif()
 add_subdirectory("dependencies")
 add_subdirectory("engine")
 add_subdirectory("editor")
+
+if (GE_BUILD_EXAMPLES)
+    add_subdirectory("examples")
+endif()
 
 if (GE_BUILD_TESTS)
     add_subdirectory("tests")

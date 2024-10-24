@@ -40,6 +40,7 @@ private:
     void updateVPFrameBuff();
 
     void openProject(const std::filesystem::path&);
+    void reloadScript();
     void saveProject();
 
     void editScene(Scene*);
@@ -49,7 +50,7 @@ private:
     std::filesystem::path m_projectFilePath;
     utils::String m_projectName;
     std::filesystem::path m_projectRessourcesDir;
-    std::filesystem::path m_projectScriptLib;
+    std::filesystem::path m_projectScriptLibPath;
 
     utils::String m_imguiSettings;
     bool m_imguiSettingsNeedReload = false;
@@ -68,6 +69,7 @@ private:
     utils::uint32 m_viewportPanelW = 800;
     utils::uint32 m_viewportPanelH = 600;
     std::filesystem::path m_fileExplorerPath;
+    void* m_scriptLibHandle = nullptr;
 
 public:
     Editor& operator = (const Editor&) = delete;

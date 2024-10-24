@@ -8,6 +8,7 @@
  */
 
 #include "Editor.hpp"
+#include "ECS/ECSView.hpp"
 #include "ECS/Entity.hpp"
 #include "EditorCamera.hpp"
 #include "Graphics/Event.hpp"
@@ -18,6 +19,7 @@
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include <cassert>
+#include <dlfcn.h>
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -60,6 +62,7 @@ Editor::Editor()
     resetEditorInputs();
 
     m_projectName = "new_project";
+    m_projectScriptLibPath = "/home/tchoquet/Documents/Game-Engine/build/lib/libproject1d.so";
 
     ImGui::GetIO().IniFilename = nullptr;
     m_imguiSettings = DEFAULT_IMGUI_INI;
@@ -79,6 +82,7 @@ Editor::Editor()
     editScene(&defautScene);
     
     m_fileExplorerPath = std::filesystem::current_path();
+    reloadScript();
 }
 
 void Editor::onUpdate()
@@ -87,6 +91,14 @@ void Editor::onUpdate()
     {
         ImGui::LoadIniSettingsFromMemory(m_imguiSettings);
         m_imguiSettingsNeedReload = false;
+    }
+
+    if (m_editedScene)
+    {
+        ECSView<ScriptComponent>(m_editedScene->ecsWorld()).onEach([](Entity, ScriptComponent& scriptComponent){
+            if (scriptComponent.instance)
+                scriptComponent.instance->onUpdate();
+        });
     }
 
     updateVPFrameBuff();
@@ -197,6 +209,16 @@ void Editor::openProject(const fspath& filePath)
         m_fileExplorerPath = fspath(m_projectFilePath).remove_filename() / m_projectRessourcesDir;
     else
         m_fileExplorerPath = fspath(m_projectFilePath).remove_filename();
+    
+    reloadScript();
+}
+
+void Editor::reloadScript()
+{
+    if (m_scriptLibHandle != nullptr)
+        dlclose(m_scriptLibHandle);
+    m_scriptLibHandle = dlopen(m_projectScriptLibPath.c_str(), RTLD_NOW | RTLD_GLOBAL);
+    assert(m_scriptLibHandle != nullptr);
 }
 
 void Editor::saveProject()

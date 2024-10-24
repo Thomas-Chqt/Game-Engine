@@ -15,6 +15,8 @@
 #include "Math/Constants.hpp"
 #include "Math/Matrix.hpp"
 #include "Math/Vector.hpp"
+#include "Script.hpp"
+#include "UtilsCPP/SharedPtr.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Types.hpp"
 #include <nlohmann/json.hpp>
@@ -98,6 +100,7 @@ struct MeshComponent
 struct ScriptComponent
 {
     utils::String name;
+    utils::SharedPtr<Script> instance;
 
     ScriptComponent() = default;
 };
