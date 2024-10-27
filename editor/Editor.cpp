@@ -17,6 +17,7 @@
 #include "InputManager/Mapper.hpp"
 #include "Scene.hpp"
 #include "UtilsCPP/String.hpp"
+#include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include <cassert>
 #include <dlfcn.h>
@@ -62,7 +63,10 @@ Editor::Editor()
     resetEditorInputs();
 
     m_projectName = "new_project";
-    m_projectScriptLibPath = "/home/tchoquet/Documents/Game-Engine/build/lib/libproject1d.so";
+    m_projectBuildDir = std::filesystem::temp_directory_path() / (const char*)(m_projectName + "_build");
+    utils::uint32 i = 2;
+    while (std::filesystem::exists(m_projectBuildDir))
+        m_projectBuildDir = std::filesystem::temp_directory_path() / (const char*)(m_projectName + "_build_" + utils::String::fromUInt(i++));
 
     ImGui::GetIO().IniFilename = nullptr;
     m_imguiSettings = DEFAULT_IMGUI_INI;
@@ -82,7 +86,6 @@ Editor::Editor()
     editScene(&defautScene);
     
     m_fileExplorerPath = std::filesystem::current_path();
-    reloadScript();
 }
 
 void Editor::onUpdate()
@@ -93,11 +96,11 @@ void Editor::onUpdate()
         m_imguiSettingsNeedReload = false;
     }
 
-    if (m_editedScene)
+    if (m_isSceneRunning)
     {
-        ECSView<ScriptComponent>(m_editedScene->ecsWorld()).onEach([](Entity, ScriptComponent& scriptComponent){
-            if (scriptComponent.instance)
-                scriptComponent.instance->onUpdate();
+        ECSView<ScriptComponent>(m_runningScene.ecsWorld()).onEach([](Entity, ScriptComponent& scriptComponent){
+            assert(scriptComponent.instance);
+            scriptComponent.instance->onUpdate();
         });
     }
 
@@ -105,7 +108,9 @@ void Editor::onUpdate()
 
     m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
     {
-        if (m_editedScene)
+        if (m_isSceneRunning)
+            m_renderer.addScene(m_runningScene);
+        else if (m_editedScene)
             m_renderer.addScene(*m_editedScene);
     }
     m_renderer.endScene();
@@ -174,6 +179,12 @@ void Editor::openProject(const fspath& filePath)
     auto ressDirIt = jsn.find("ressourcesDir");
     m_projectRessourcesDir = ressDirIt != jsn.end() ? ressDirIt->template get<fspath>() : fspath();
 
+    auto scriptDirIt = jsn.find("scriptsDir");
+    m_projectScriptsDir = scriptDirIt != jsn.end() ? scriptDirIt->template get<fspath>() : fspath();
+
+    auto buildDirIt = jsn.find("buildDir");
+    m_projectBuildDir = buildDirIt != jsn.end() ? buildDirIt->template get<fspath>() : fspath();
+
     auto imguiSettIt = jsn.find("imguiSettings");
     if (imguiSettIt != jsn.end())
     {
@@ -209,16 +220,19 @@ void Editor::openProject(const fspath& filePath)
         m_fileExplorerPath = fspath(m_projectFilePath).remove_filename() / m_projectRessourcesDir;
     else
         m_fileExplorerPath = fspath(m_projectFilePath).remove_filename();
-    
-    reloadScript();
-}
 
-void Editor::reloadScript()
-{
     if (m_scriptLibHandle != nullptr)
+    {
         dlclose(m_scriptLibHandle);
-    m_scriptLibHandle = dlopen(m_projectScriptLibPath.c_str(), RTLD_NOW | RTLD_GLOBAL);
-    assert(m_scriptLibHandle != nullptr);
+        m_scriptLibHandle = nullptr;
+    }
+    fspath buildDirAbs = m_projectBuildDir.is_absolute() ? m_projectBuildDir : fspath(m_projectFilePath).remove_filename() / m_projectBuildDir;
+    fspath scriptLib = buildDirAbs / (const char*)(m_projectName + "_scriptLib");
+    if (std::filesystem::is_regular_file(scriptLib))
+    {
+        m_scriptLibHandle = dlopen(scriptLib.c_str(), RTLD_NOW | RTLD_GLOBAL);
+        assert(m_scriptLibHandle != nullptr);
+    }
 }
 
 void Editor::saveProject()
@@ -229,6 +243,8 @@ void Editor::saveProject()
 
     jsn["name"] = std::string(m_projectName);
     jsn["ressourcesDir"] = std::string(m_projectRessourcesDir);
+    jsn["scriptsDir"] = std::string(m_projectScriptsDir);
+    jsn["buildDir"] = std::string(m_projectBuildDir);
     jsn["imguiSettings"] = std::string(m_imguiSettings);
 
     json scenesJsn = json::array();

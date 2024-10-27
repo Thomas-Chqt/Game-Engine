@@ -40,7 +40,6 @@ private:
     void updateVPFrameBuff();
 
     void openProject(const std::filesystem::path&);
-    void reloadScript();
     void saveProject();
 
     void editScene(Scene*);
@@ -50,7 +49,8 @@ private:
     std::filesystem::path m_projectFilePath;
     utils::String m_projectName;
     std::filesystem::path m_projectRessourcesDir;
-    std::filesystem::path m_projectScriptLibPath;
+    std::filesystem::path m_projectScriptsDir;
+    std::filesystem::path m_projectBuildDir;
 
     utils::String m_imguiSettings;
     bool m_imguiSettingsNeedReload = false;
@@ -61,6 +61,8 @@ private:
     Scene* m_editedScene = nullptr;
     Entity m_selectedEntity;
     EditorCamera m_editorCamera;
+    bool m_isSceneRunning = false;
+    Scene m_runningScene;
 
     InputContext m_editorInputContext;
 

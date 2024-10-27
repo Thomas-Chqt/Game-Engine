@@ -62,12 +62,15 @@ struct SaveProjectFileDialog
 void Editor::onImGuiRender()
 {
     static bool showProjectProperties = false;
-    static char projectNameBuff[32];
-    static char projectRessourceDirBuff[1024];
-    static char projectScriptLibBuff[1024];
     static bool showProjectScenes = false;
     static bool showDemoWindow = false;
     static bool showMetricsWindow = false;
+
+    static char projectNameBuff[32];
+    static char projectRessourceDirBuff[1024];
+    static char projectScriptsDirBuff[1024];
+    static char projectBuildDirBuff[1024];
+
     static OpenProjectFileDialog openProjectFileDialog;
     static SaveProjectFileDialog saveProjectFileDialog;
 
@@ -79,6 +82,11 @@ void Editor::onImGuiRender()
     {
         if (ImGui::BeginMenu("File"))
         {
+            ImGui::BeginDisabled();
+            if (ImGui::MenuItem("New"))
+                ;
+            ImGui::EndDisabled();
+
             if (ImGui::MenuItem("Open"))
                 openProjectFileDialog.present();
 
@@ -97,13 +105,22 @@ void Editor::onImGuiRender()
         {
             if (ImGui::MenuItem("Properties"))
             {
-                std::strncpy(projectNameBuff, m_projectName, sizeof(projectNameBuff));
+                std::strncpy(projectNameBuff,         (const char*)m_projectName,     sizeof(projectNameBuff));
                 std::strncpy(projectRessourceDirBuff, m_projectRessourcesDir.c_str(), sizeof(projectRessourceDirBuff));
-                std::strncpy(projectScriptLibBuff, m_projectScriptLibPath.c_str(), sizeof(projectScriptLibBuff));
+                std::strncpy(projectScriptsDirBuff,   m_projectScriptsDir.c_str(),    sizeof(projectScriptsDirBuff));
+                std::strncpy(projectBuildDirBuff,     m_projectBuildDir.c_str(),      sizeof(projectBuildDirBuff));
                 showProjectProperties = true;
             }
             if (ImGui::MenuItem("Scene"))
                 showProjectScenes = true;
+            
+            ImGui::BeginDisabled();
+            if (ImGui::MenuItem("Run"))
+                ;
+
+            if (ImGui::MenuItem("Stop"))
+                ;
+            ImGui::EndDisabled();
 
             ImGui::EndMenu();
         }
@@ -139,7 +156,28 @@ void Editor::onImGuiRender()
                 showDemoWindow = true;
             if (ImGui::MenuItem("show metrics window"))
                 showMetricsWindow = true;
+            ImGui::BeginDisabled(m_scriptLibHandle == nullptr || m_editedScene == nullptr);
+            if (ImGui::MenuItem("start edited scene"))
+            {
+                using makeScriptInstanceFunc = GE::Script* (*)(char*);
 
+                m_runningScene = *m_editedScene;
+                ECSView<ScriptComponent>(m_runningScene.ecsWorld()).onEach([&](Entity entt, ScriptComponent& scriptComponent){
+                    auto makeScriptInstance = (makeScriptInstanceFunc)dlsym(m_scriptLibHandle, "makeScriptInstance");
+                    assert(makeScriptInstance);
+                    scriptComponent.instance = utils::SharedPtr<Script>(makeScriptInstance(scriptComponent.name));
+                    scriptComponent.instance->setEntity(entt);
+                });
+                m_isSceneRunning = true;
+            }
+            ImGui::EndDisabled();
+            ImGui::BeginDisabled(m_scriptLibHandle == nullptr || m_editedScene == nullptr || m_isSceneRunning == false);
+            if (ImGui::MenuItem("stop edited scene"))
+            {
+                m_runningScene = Scene();
+                m_isSceneRunning = false;
+            }
+            ImGui::EndDisabled();
             ImGui::EndMenu();
         }
             
@@ -345,16 +383,11 @@ void Editor::onImGuiRender()
                 else if (isOpen)
                 {
                     ScriptComponent& scriptComponent = m_selectedEntity.get<ScriptComponent>();
-                    ImGui::Button("Script name");
+                    ImGui::Text("%s", scriptComponent.name.isEmpty() ? "no script" : (const char*)scriptComponent.name);
                     if (ImGui::BeginDragDropTarget())
                     {
                         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_script"))
-                        {
-                            auto scriptName = (char*)payload->Data;
-                            scriptComponent.instance = utils::SharedPtr<Script>(((Script* (*)())dlsym(m_scriptLibHandle, "getScript"))());
-                            assert(scriptComponent.instance);
-                            scriptComponent.instance->setEntity(m_selectedEntity);
-                        }
+                            scriptComponent.name = (char*)payload->Data;
                         ImGui::EndDragDropTarget();
                     }
                 }
@@ -478,20 +511,34 @@ void Editor::onImGuiRender()
     {
         if (m_scriptLibHandle != nullptr)
         {
-            if (ImGui::BeginChild("scriptID", ImVec2(60, 60 + ImGui::GetFrameHeightWithSpacing())))
-            {
-                ImGui::Button("scriptName", ImVec2(60, 60));
-                if (ImGui::BeginDragDropSource())
-                {
-                    utils::String scriptName = "scriptName";
-                    ImGui::SetDragDropPayload("dnd_script", "scriptName", scriptName.length());
-                    ImGui::Text("script");
-                    ImGui::EndDragDropSource();
-                }
+            using getScriptNamesFunc = void (*)(char***, unsigned long*);
+            char** scriptNames;
+            utils::uint64 scriptCount;
+            auto getScriptNames = (getScriptNamesFunc)dlsym(m_scriptLibHandle, "getScriptNames");
+            getScriptNames(&scriptNames, &scriptCount);
 
-                ImGui::Text("scriptName");
+            float lineWith = 0.0F;
+            for (utils::uint64 i = 0; i < scriptCount; i++)
+            {
+                if (ImGui::BeginChild(scriptNames[i], ImVec2(60, 60 + ImGui::GetFrameHeightWithSpacing())))
+                {
+                    ImGui::Button("script", ImVec2(60, 60));
+                    if (ImGui::BeginDragDropSource())
+                    {
+                        ImGui::SetDragDropPayload("dnd_script", scriptNames[i], strlen(scriptNames[i]));
+                        ImGui::Text("%s", scriptNames[i]);
+                        ImGui::EndDragDropSource();
+                    }
+                    ImGui::Text("%s", scriptNames[i]);
+                }
+                ImGui::EndChild();
+
+                lineWith += 67.5F;
+                if (lineWith < ImGui::GetContentRegionAvail().x - 60.0f)
+                    ImGui::SameLine();
+                else
+                    lineWith = 0.0F;
             }
-            ImGui::EndChild();
         }
         else
             ImGui::Text("lib script lib");
@@ -502,9 +549,10 @@ void Editor::onImGuiRender()
         ImGui::OpenPopup("Project properties");
     if (ImGui::BeginPopupModal("Project properties", &showProjectProperties, ImGuiWindowFlags_AlwaysAutoResize))
     {
-        ImGui::InputText("Name##ProjectName", projectNameBuff, sizeof(projectNameBuff));
-        ImGui::InputText("Ressource directory##ProjectRessourceDir", projectRessourceDirBuff, sizeof(projectRessourceDirBuff));
-        ImGui::InputText("Script library##ProjectScriptLib", projectScriptLibBuff, sizeof(projectScriptLibBuff));
+        ImGui::InputText("Name##projectName", projectNameBuff, sizeof(projectNameBuff));
+        ImGui::InputText("Ressource directory##projectRessourcesDir", projectRessourceDirBuff, sizeof(projectRessourceDirBuff));
+        ImGui::InputText("Script directory##projectScriptsDir", projectScriptsDirBuff, sizeof(projectScriptsDirBuff));
+        ImGui::InputText("Build directory##projectBuildDir", projectBuildDirBuff, sizeof(projectBuildDirBuff));
 
         if (ImGui::Button("Cancel"))
         {
@@ -512,32 +560,28 @@ void Editor::onImGuiRender()
             ImGui::CloseCurrentPopup();
         }
 
+        bool isAllDirValid = true;
+        for (char* dir : { projectRessourceDirBuff, projectScriptsDirBuff })
+        {
+            isAllDirValid &= (fspath(dir).empty() || (
+                    fspath(dir).is_absolute() &&
+                    std::filesystem::is_directory(fspath(dir))
+                ) || (
+                    m_projectFilePath.empty() == false &&
+                    (fspath(m_projectFilePath).remove_filename() / fspath(dir)).is_absolute() &&
+                    std::filesystem::is_directory(fspath(m_projectFilePath).remove_filename() / fspath(dir))
+                )
+            );
+        }
+
         ImGui::SameLine();
-        const bool projectRessourceDirIsValid = 
-            fspath(projectRessourceDirBuff).empty() ||
-            fspath(projectRessourceDirBuff).is_absolute() && std::filesystem::is_directory(fspath(projectRessourceDirBuff)) ||
-            (
-                m_projectFilePath.empty() == false &&
-                (fspath(m_projectFilePath).remove_filename() / fspath(projectRessourceDirBuff)).is_absolute() &&
-                std::filesystem::is_directory(fspath(m_projectFilePath).remove_filename() / fspath(projectRessourceDirBuff))
-            );
-
-        const bool projectScriptLibIsValid = 
-            fspath(projectScriptLibBuff).empty() ||
-            fspath(projectScriptLibBuff).is_absolute() && std::filesystem::is_regular_file(fspath(projectScriptLibBuff)) ||
-            (
-                m_projectFilePath.empty() == false &&
-                (fspath(m_projectFilePath).remove_filename() / fspath(projectScriptLibBuff)).is_absolute() &&
-                std::filesystem::is_regular_file(fspath(m_projectFilePath).remove_filename() / fspath(projectScriptLibBuff))
-            );
-
-        ImGui::BeginDisabled(!projectRessourceDirIsValid || !projectScriptLibIsValid);
+        ImGui::BeginDisabled(!isAllDirValid);
         if (ImGui::Button("Ok"))
         {
             m_projectName = projectNameBuff;
             m_projectRessourcesDir = projectRessourceDirBuff;
-            m_projectScriptLibPath = projectScriptLibBuff;
-            reloadScript();
+            m_projectScriptsDir = projectScriptsDirBuff;
+            m_projectBuildDir = projectBuildDirBuff;
 
             showProjectProperties = false;
             ImGui::CloseCurrentPopup();
@@ -616,29 +660,20 @@ void Editor::onImGuiRender()
 
     ImGui::EndDisabled();
 
-    if (openProjectFileDialog.isPresented)
+    if (openProjectFileDialog.isPresented && openProjectFileDialog.result.wait_for(std::chrono::nanoseconds(1)) == std::future_status::ready)
     {
-        if (openProjectFileDialog.result.wait_for(std::chrono::nanoseconds(1)) == std::future_status::ready)
-        {
-            if (char* path = openProjectFileDialog.result.get())
-                openProject(path);
-            openProjectFileDialog.isPresented = false;
-        }
-            
+        if (char* path = openProjectFileDialog.result.get())
+            openProject(path);
+        openProjectFileDialog.isPresented = false;
     }
-    if (saveProjectFileDialog.isPresented)
+    if (saveProjectFileDialog.isPresented && saveProjectFileDialog.result.wait_for(std::chrono::nanoseconds(1)) == std::future_status::ready)
     {
-        if (saveProjectFileDialog.result.wait_for(std::chrono::nanoseconds(1)) == std::future_status::ready)
+        if (char* path = saveProjectFileDialog.result.get())
         {
-            if (char* path = saveProjectFileDialog.result.get())
-            {
-                m_projectFilePath = path;
-                saveProject();
-
-            }
-            saveProjectFileDialog.isPresented = false;
+            m_projectFilePath = path;
+            saveProject();
         }
-            
+        saveProjectFileDialog.isPresented = false;
     }
 }
 

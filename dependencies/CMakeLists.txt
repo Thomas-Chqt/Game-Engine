@@ -37,33 +37,32 @@ FetchContent_Declare(assimp
     GIT_TAG        v5.4.1
     GIT_SHALLOW    1
 )
-set(ASSIMP_BUILD_TESTS OFF)
-set(ASSIMP_INSTALL OFF)
-set(ASSIMP_NO_EXPORT OFF)
-set(ASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT OFF)
+set(ASSIMP_BUILD_TESTS                    OFF)
+set(ASSIMP_INSTALL                        OFF)
+set(ASSIMP_NO_EXPORT                      ON)
 set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF)
-set(ASSIMP_BUILD_OBJ_IMPORTER ON)
-set(ASSIMP_BUILD_FBX_IMPORTER ON)
-set(ASSIMP_BUILD_GLTF_IMPORTER ON)
+set(ASSIMP_BUILD_OBJ_IMPORTER             ON)
+set(ASSIMP_BUILD_FBX_IMPORTER             ON)
+set(ASSIMP_BUILD_GLTF_IMPORTER            ON)
 FetchContent_MakeAvailable(assimp)
 set_target_properties(assimp PROPERTIES FOLDER "dependencies")
 
 
 FetchContent_Declare(json
-GIT_REPOSITORY https://github.com/nlohmann/json.git
-GIT_TAG        v3.11.3
-GIT_SHALLOW    1
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.11.3
+    GIT_SHALLOW    1
 )
 set(JSON_BuildTests OFF)
-set(JSON_Install OFF)
+set(JSON_Install    OFF)
 FetchContent_MakeAvailable(json)
 
 FetchContent_Declare(tinyfiledialogs
-GIT_REPOSITORY https://github.com/Thomas-Chqt/tinyfiledialogs.git
-GIT_TAG        0806552c78bf70658628e0ca4e3b962ca163ac70
+    GIT_REPOSITORY https://github.com/Thomas-Chqt/tinyfiledialogs.git
+    GIT_TAG        0806552c78bf70658628e0ca4e3b962ca163ac70
 )
 set(TFD_BUILD_EXAMPLES OFF)
-set(TFD_INSTALL OFF)
+set(TFD_INSTALL        OFF)
 FetchContent_MakeAvailable(tinyfiledialogs)
 set_target_properties(tinyfiledialogs PROPERTIES FOLDER "dependencies")
 

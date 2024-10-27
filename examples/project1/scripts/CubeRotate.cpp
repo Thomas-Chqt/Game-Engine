@@ -1,16 +1,14 @@
 /*
  * ---------------------------------------------------
- * rotating.cpp
+ * CubeRotate.cpp
  *
  * Author: Thomas Choquet <semoir.dense-0h@icloud.com>
  * Date: 2024/10/24 12:13:30
  * ---------------------------------------------------
  */
 
-#include "Script.hpp" // IWYU pragma: keep
+#include "Script.hpp"
 #include "ScriptLib.hpp"
-
-
 
 class CubeRotate : public GE::Script
 {
@@ -21,7 +19,7 @@ public:
 
     void onUpdate() override
     {
-        
+        m_entity.rotation() += { 0.01, 0.02, 0.0 };
     }
 
     ~CubeRotate() = default;
@@ -33,4 +31,4 @@ public:
     CubeRotate& operator = (CubeRotate&&)      = default;
 };
 
-GE_SCRIPT(CubeRotate);
+REGISTER_SCRIPT(CubeRotate);

@@ -10,32 +10,31 @@
 #ifndef SCRIPTLIB_HPP
 #define SCRIPTLIB_HPP
 
-#include "UtilsCPP/Array.hpp"
+#include "Script.hpp"
+#include "UtilsCPP/Dictionary.hpp"
+#include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/String.hpp"
 
 struct ScriptRegistry
 {
-    static utils::Array<utils::String> registry;
+    static utils::Dictionary<utils::String, utils::Func<GE::Script*()>>& getRegistery()
+    {
+        static utils::Dictionary<utils::String, utils::Func<GE::Script*()>> registery;
+        return registery;
+    }
 };
 
-#define GE_SCRIPT(name)                                    \
-    extern "C"                                             \
-    {                                                      \
-        GE::Script* get_##name##_script()                  \
-        {                                                  \
-            return new name;                               \
-        }                                                  \
-    }                                                      \
-    class ScriptRegistry_##name : public ScriptRegistry    \
-    {                                                      \
-    public:                                                \
-        ScriptRegistry_##name()                            \
-        {                                                  \
-            registry.append(#name);                        \
-        }                                                  \
-        static ScriptRegistry_##name instance;             \
-    };                                                     \
-    ScriptRegistry_##name  ScriptRegistry_##name::instance \
+#define REGISTER_SCRIPT(name)                                       \
+    class ScriptRegistry_##name : public ScriptRegistry             \
+    {                                                               \
+    public:                                                         \
+        ScriptRegistry_##name()                                     \
+        {                                                           \
+            getRegistery().insert(#name, [](){ return new name; }); \
+        }                                                           \
+        static ScriptRegistry_##name s_instance;                    \
+    };                                                              \
+    ScriptRegistry_##name  ScriptRegistry_##name::s_instance
 
 
 #endif // SCRIPTLIB_HPP
