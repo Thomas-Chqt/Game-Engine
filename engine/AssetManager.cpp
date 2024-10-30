@@ -31,7 +31,7 @@
 #include <string>
 
 using json = nlohmann::json;
-using fspath = std::filesystem::path;
+namespace fs = std::filesystem;
 
 #define POST_PROCESSING_FLAGS         \
     aiProcess_JoinIdenticalVertices | \
@@ -46,51 +46,46 @@ using fspath = std::filesystem::path;
 namespace GE
 {
 
-AssetID AssetManager::registerMesh(const fspath& path)
+static uuids::uuid_random_generator makeGenerator()
 {
     std::random_device rd;
     auto seed_data = std::array<int, std::mt19937::state_size> {};
     std::generate(std::begin(seed_data), std::end(seed_data), std::ref(rd));
     std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
     std::mt19937 generator(seq);
-    uuids::uuid_random_generator gen{generator};
+    return uuids::uuid_random_generator{generator};
+}
 
+AssetManager::AssetManager() : m_uuidGenerator(makeGenerator())
+{
+}
+
+AssetID AssetManager::registerMesh(const fs::path& path)
+{
     AssetID newAssetID;
     if (m_registeredMeshes.contain(path))
         newAssetID = m_registeredMeshes[path];
     else
     {
-        newAssetID = gen();
-        assert(!newAssetID.is_nil());
-        assert(newAssetID.as_bytes().size() == 16);
-        assert(newAssetID.version() == uuids::uuid_version::random_number_based);
-        assert(newAssetID.variant() == uuids::uuid_variant::rfc);
+        newAssetID = m_uuidGenerator();
         m_registeredMeshes.insert(path,newAssetID);
     }
 
     if (isLoaded())
-    {
-        if (m_baseDir.empty())
-            m_loadedMeshes.insert(newAssetID, loadMesh(path, *m_api));
-        else
-            m_loadedMeshes.insert(newAssetID, loadMesh(m_baseDir/path, *m_api));
-    }
+        m_loadedMeshes.insert(newAssetID, loadMesh(m_baseDir/path, *m_api));
 
     return newAssetID;
 }
 
-void AssetManager::loadAssets(gfx::GraphicAPI& api, const fspath& baseDir)
+void AssetManager::loadAssets(gfx::GraphicAPI& api, const fs::path& baseDir)
 {
+    assert(baseDir.empty() || baseDir.is_absolute() && fs::is_directory(baseDir));
+
     m_api = &api;
     m_baseDir = baseDir;
 
     for (auto& [path, id] : m_registeredMeshes)
-    {
-        if (m_baseDir.empty())
-            m_loadedMeshes.insert(id, loadMesh(path, api));
-        else
-            m_loadedMeshes.insert(id, loadMesh(m_baseDir/path, api));
-    }
+        m_loadedMeshes.insert(id, loadMesh(m_baseDir/path, *m_api));
     m_loadedMeshes.insert(BUILT_IN_CUBE_ASSET_ID, loadBuiltInCube());
 }
 
@@ -102,10 +97,9 @@ void AssetManager::unloadAssets()
     m_baseDir.clear();
 }
 
-Mesh AssetManager::loadMesh(const fspath& filepath, gfx::GraphicAPI& api)
+Mesh AssetManager::loadMesh(const fs::path& filepath, gfx::GraphicAPI& api)
 {
-    assert(std::filesystem::exists(filepath));
-    assert(std::filesystem::is_regular_file(filepath));
+    assert(fs::is_regular_file(filepath));
 
     Assimp::Importer importer;
 
@@ -278,7 +272,7 @@ void from_json(const json& jsn, AssetManager& assetManager)
         {
             auto id = uuids::uuid::from_string(el.value().get<std::string>());
             if (id.has_value())
-                assetManager.m_registeredMeshes.insert(fspath(el.key()), id.value());
+                assetManager.m_registeredMeshes.insert(fs::path(el.key()), id.value());
         }
     }   
 }

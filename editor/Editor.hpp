@@ -11,13 +11,14 @@
 #define EDITOR_HPP
 
 #include "Application.hpp"
+#include "ECS/Entity.hpp"
 #include "EditorCamera.hpp"
 #include "InputManager/InputContext.hpp"
+#include "Project.hpp"
 #include "Scene.hpp"
+#include "UI/EditorUI.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "Graphics/FrameBuffer.hpp"
-#include "UtilsCPP/String.hpp"
-#include "UtilsCPP/Types.hpp"
 #include <filesystem>
 
 namespace GE
@@ -29,6 +30,15 @@ public:
     Editor();
     Editor(const Editor&) = delete;
     Editor(Editor&&)      = delete;
+
+    void newProject();
+    void openProject(const std::filesystem::path&);
+    void reloadProject();
+    void saveProject();
+
+    void editScene(Scene*);
+
+    void reloadScriptLib();
     
     ~Editor() = default;
 
@@ -38,39 +48,18 @@ private:
     void onEvent(gfx::Event&) override;
 
     void updateVPFrameBuff();
+    void udpateEditorDatas();
 
-    void openProject(const std::filesystem::path&);
-    void saveProject();
-
-    void editScene(Scene*);
-
-    void resetEditorInputs();
-
-    std::filesystem::path m_projectFilePath;
-    utils::String m_projectName;
-    std::filesystem::path m_projectRessourcesDir;
-    std::filesystem::path m_projectScriptsDir;
-    std::filesystem::path m_projectBuildDir;
-
-    utils::String m_imguiSettings;
-    bool m_imguiSettingsNeedReload = false;
-
-    utils::Set<Scene> m_scenes;
-    Scene* m_startScene = nullptr;
+    Project m_project;
+    EditorUI m_ui;
 
     Scene* m_editedScene = nullptr;
     Entity m_selectedEntity;
     EditorCamera m_editorCamera;
-    bool m_isSceneRunning = false;
-    Scene m_runningScene;
-
     InputContext m_editorInputContext;
 
+    bool m_imguiSettingsNeedReload = false;
     utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
-
-    utils::uint32 m_viewportPanelW = 800;
-    utils::uint32 m_viewportPanelH = 600;
-    std::filesystem::path m_fileExplorerPath;
     void* m_scriptLibHandle = nullptr;
 
 public:

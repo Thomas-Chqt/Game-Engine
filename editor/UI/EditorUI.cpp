@@ -7,34 +7,26 @@
  * ---------------------------------------------------
  */
 
-#include "AssetManager.hpp"
-#include "ECS/Components.hpp"
-#include "ECS/ECSView.hpp"
-#include "ECS/ECSWorld.hpp"
-#include "ECS/Entity.hpp"
+#include "UI/EditorUI.hpp"
 #include "Editor.hpp"
-#include "Math/Constants.hpp"
-#include "Scene.hpp"
-#include "Script.hpp"
-#include "UtilsCPP/Func.hpp"
-#include "UtilsCPP/SharedPtr.hpp"
-#include "UtilsCPP/String.hpp"
-#include "UtilsCPP/Types.hpp"
-#include "imgui.h"
-#include <TFD/tinyfiledialogs.h>
-#include <cassert>
-#include <chrono>
-#include <cstring>
 #include <filesystem>
-#include <future>
-#include <string>
-#include <dlfcn.h>
 
-using fspath = std::filesystem::path;
+namespace fs = std::filesystem;
 
 namespace GE
 {
 
+EditorUI::EditorUI(Editor& editor)
+    : m_editor(editor)
+{
+}
+
+void EditorUI::render()
+{
+    ImGui::DockSpaceOverViewport();
+}
+
+#if 0
 struct OpenProjectFileDialog
 {
     bool isPresented = false;
@@ -676,5 +668,6 @@ void Editor::onImGuiRender()
         saveProjectFileDialog.isPresented = false;
     }
 }
+#endif
 
 }

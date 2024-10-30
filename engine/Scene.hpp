@@ -41,6 +41,9 @@ public:
     inline const AssetManager& assetManager() const { return m_assetManager; }
 
     Entity newEntity(const utils::String& name);
+    inline void load(gfx::GraphicAPI& api, const std::filesystem::path& dir) { m_assetManager.loadAssets(api, dir); }
+    inline void unload() { m_assetManager.unloadAssets(); }
+    inline bool isLoaded() { return m_assetManager.isLoaded(); }
 
 private:
     utils::String m_name;

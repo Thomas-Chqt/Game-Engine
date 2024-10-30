@@ -19,6 +19,7 @@ namespace GE
 Entity::Entity(ECSWorld& world, ECSWorld::EntityID id)
     : m_world(&world), m_entityId(id)
 {
+    assert(m_world->isValidEntityID(id));
 }
 
 void Entity::destroy()
@@ -46,32 +47,26 @@ utils::String& Entity::name()
 
 Entity Entity::parent()
 {
-    return Entity(*m_world, get<HierarchyComponent>().parent);
-}
-
-const Entity Entity::parent() const
-{
-    return Entity(*m_world, get<HierarchyComponent>().parent);
+    ECSWorld::EntityID parentId = get<HierarchyComponent>().parent;
+    if (parentId == INVALID_ENTITY_ID)
+        return Entity();
+    return Entity(*m_world, parentId);
 }
 
 Entity Entity::firstChild()
 {
-    return Entity(*m_world, get<HierarchyComponent>().firstChild);
-}
-
-const Entity Entity::firstChild() const
-{
-    return Entity(*m_world, get<HierarchyComponent>().firstChild);
+    ECSWorld::EntityID firstChildId = get<HierarchyComponent>().firstChild;
+    if (firstChildId == INVALID_ENTITY_ID)
+        return Entity();
+    return Entity(*m_world, firstChildId);
 }
 
 Entity Entity::nextChild()
 {
-    return Entity(*m_world, get<HierarchyComponent>().nextChild);
-}
-
-const Entity Entity::nextChild() const
-{
-    return Entity(*m_world, get<HierarchyComponent>().nextChild);
+    ECSWorld::EntityID nextChildId = get<HierarchyComponent>().nextChild;
+    if (nextChildId == INVALID_ENTITY_ID)
+        return Entity();
+    return Entity(*m_world, nextChildId);
 }
 
 bool Entity::hasParent() const

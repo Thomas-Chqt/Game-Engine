@@ -73,13 +73,13 @@ public:
     utils::String& name();
 
     Entity parent();
-    const Entity parent() const;
+    inline const Entity parent() const { return const_cast<Entity*>(this)->parent(); }
 
     Entity firstChild();
-    const Entity firstChild() const;
+    inline const Entity firstChild() const { return const_cast<Entity*>(this)->firstChild(); }
 
     Entity nextChild();
-    const Entity nextChild() const;
+    inline const Entity nextChild() const { return const_cast<Entity*>(this)->nextChild(); }
 
     bool hasParent() const;
     utils::uint32 childCount() const;

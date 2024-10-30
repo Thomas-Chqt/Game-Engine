@@ -27,7 +27,7 @@ using AssetID = uuids::uuid;
 class AssetManager
 {
 public:
-    AssetManager()                    = default;
+    AssetManager();
     AssetManager(const AssetManager&) = default;
     AssetManager(AssetManager&&)      = default;
 
@@ -46,6 +46,8 @@ public:
 private:
     Mesh loadMesh(const std::filesystem::path&, gfx::GraphicAPI&);
     Mesh loadBuiltInCube();
+
+    uuids::uuid_random_generator m_uuidGenerator;
 
     gfx::GraphicAPI* m_api = nullptr;
     std::filesystem::path m_baseDir;

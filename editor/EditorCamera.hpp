@@ -20,7 +20,7 @@ class EditorCamera
 {
 public:
     EditorCamera()                    = default;
-    EditorCamera(const EditorCamera&) = delete;
+    EditorCamera(const EditorCamera&) = default;
     EditorCamera(EditorCamera&&)      = default;
 
     void rotate(math::vec2f);
@@ -35,7 +35,7 @@ private:
     math::vec3f m_rotation;
 
 public:
-    EditorCamera& operator = (const EditorCamera&) = delete;
+    EditorCamera& operator = (const EditorCamera&) = default;
     EditorCamera& operator = (EditorCamera&&)      = default;
 };
 
