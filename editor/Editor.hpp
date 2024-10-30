@@ -16,9 +16,9 @@
 #include "InputManager/InputContext.hpp"
 #include "Project.hpp"
 #include "Scene.hpp"
-#include "UI/EditorUI.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "Graphics/FrameBuffer.hpp"
+#include "UtilsCPP/Types.hpp"
 #include <filesystem>
 
 namespace GE
@@ -51,7 +51,6 @@ private:
     void udpateEditorDatas();
 
     Project m_project;
-    EditorUI m_ui;
 
     Scene* m_editedScene = nullptr;
     Entity m_selectedEntity;
@@ -60,6 +59,8 @@ private:
 
     bool m_imguiSettingsNeedReload = false;
     utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
+    utils::uint32 viewportPanelW = 800;
+    utils::uint32 viewportPanelH = 600;
     void* m_scriptLibHandle = nullptr;
 
 public:

@@ -16,6 +16,8 @@
 #include "InputManager/Mapper.hpp"
 #include "Project.hpp"
 #include "Scene.hpp"
+#include "UI/MainMenuBar.hpp"
+#include "UI/ProjectPropertiesModal.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
@@ -31,7 +33,7 @@ namespace fs = std::filesystem;
 namespace GE
 {
 
-Editor::Editor() : m_ui(*this)
+Editor::Editor()
 {
     ImGui::GetIO().IniFilename = nullptr;
 
@@ -154,6 +156,23 @@ void Editor::onImGuiRender()
         m_imguiSettingsNeedReload = false;
     }
 
+    static bool isProjectPropertiesModalPresented = false;
+
+    ImGui::DockSpaceOverViewport();
+
+    MainMenuBar()
+        .on_File_New([](){})
+        .on_File_Open([](){})
+        .on_File_Save([](){})
+        .on_Project_Properties([](){ isProjectPropertiesModalPresented = true; })
+        .on_Project_Scene(utils::Func<void()>())
+        .on_Project_Run(/*project not running*/0 ? [](){} : utils::Func<void()>())
+        .on_Project_Stop(/*project running*/0 ? [](){} : utils::Func<void()>())
+        .render();
+
+    ProjectPropertiesModal(isProjectPropertiesModalPresented, m_project)
+        .render();
+
     if (ImGui::GetIO().WantSaveIniSettings)
     {
         m_project.saveIniSettingsToMemory();
@@ -178,8 +197,8 @@ void Editor::updateVPFrameBuff()
     float xScale, yScale;
     m_window->getFrameBufferScaleFactor(&xScale, &yScale);
 
-    utils::uint32 newFrameBufferWidth = (utils::uint32)((float)m_ui.viewportPanelW() * xScale);
-    utils::uint32 newFrameBufferHeight = (utils::uint32)((float)m_ui.viewportPanelH() * yScale);
+    utils::uint32 newFrameBufferWidth = (utils::uint32)((float)viewportPanelW * xScale);
+    utils::uint32 newFrameBufferHeight = (utils::uint32)((float)viewportPanelH * yScale);
 
     if (m_viewportFBuff && (m_viewportFBuff->width() == newFrameBufferWidth && m_viewportFBuff->height() == newFrameBufferHeight))
         return;
@@ -202,10 +221,10 @@ void Editor::udpateEditorDatas()
 {
     editScene(m_project.startScene());
 
-    if (m_project.ressourcesDir().empty())
-        m_ui.setFileExplorerPath(std::filesystem::current_path());
-    else
-        m_ui.setFileExplorerPath(fs::path(m_project.savePath()).remove_filename() / m_project.ressourcesDir());
+    // if (m_project.ressourcesDir().empty())
+        // m_ui.setFileExplorerPath(std::filesystem::current_path());
+    // else
+        // m_ui.setFileExplorerPath(fs::path(m_project.savePath()).remove_filename() / m_project.ressourcesDir());
 
     reloadScriptLib();
 }

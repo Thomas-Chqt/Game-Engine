@@ -7,25 +7,6 @@
  * ---------------------------------------------------
  */
 
-#include "UI/EditorUI.hpp"
-#include "Editor.hpp"
-#include <filesystem>
-
-namespace fs = std::filesystem;
-
-namespace GE
-{
-
-EditorUI::EditorUI(Editor& editor)
-    : m_editor(editor)
-{
-}
-
-void EditorUI::render()
-{
-    ImGui::DockSpaceOverViewport();
-}
-
 #if 0
 struct OpenProjectFileDialog
 {
@@ -669,5 +650,3 @@ void Editor::onImGuiRender()
     }
 }
 #endif
-
-}
