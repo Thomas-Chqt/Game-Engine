@@ -18,6 +18,8 @@
 #include "Scene.hpp"
 #include "UI/MainMenuBar.hpp"
 #include "UI/ProjectPropertiesModal.hpp"
+#include "UI/ViewportPanel.hpp"
+#include "UI/SceneGraphPanel.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
@@ -170,7 +172,15 @@ void Editor::onImGuiRender()
         .on_Project_Stop(/*project running*/0 ? [](){} : utils::Func<void()>())
         .render();
 
+    ViewportPanel(*m_viewportFBuff->colorTexture())
+        .onResize([&](utils::uint32 w, utils::uint32 h){ m_viewportPanelW = w; m_viewportPanelH = h; })
+        .render();
+
     ProjectPropertiesModal(isProjectPropertiesModalPresented, m_project)
+        .render();
+
+    SceneGraphPanel(m_editedScene, m_selectedEntity)
+        .onEntitySelect([&](const Entity& e){ m_selectedEntity = e; })
         .render();
 
     if (ImGui::GetIO().WantSaveIniSettings)
@@ -197,8 +207,8 @@ void Editor::updateVPFrameBuff()
     float xScale, yScale;
     m_window->getFrameBufferScaleFactor(&xScale, &yScale);
 
-    utils::uint32 newFrameBufferWidth = (utils::uint32)((float)viewportPanelW * xScale);
-    utils::uint32 newFrameBufferHeight = (utils::uint32)((float)viewportPanelH * yScale);
+    utils::uint32 newFrameBufferWidth = (utils::uint32)((float)m_viewportPanelW * xScale);
+    utils::uint32 newFrameBufferHeight = (utils::uint32)((float)m_viewportPanelH * yScale);
 
     if (m_viewportFBuff && (m_viewportFBuff->width() == newFrameBufferWidth && m_viewportFBuff->height() == newFrameBufferHeight))
         return;

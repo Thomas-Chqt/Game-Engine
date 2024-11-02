@@ -59,8 +59,8 @@ private:
 
     bool m_imguiSettingsNeedReload = false;
     utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
-    utils::uint32 viewportPanelW = 800;
-    utils::uint32 viewportPanelH = 600;
+    utils::uint32 m_viewportPanelW = 800;
+    utils::uint32 m_viewportPanelH = 600;
     void* m_scriptLibHandle = nullptr;
 
 public:
