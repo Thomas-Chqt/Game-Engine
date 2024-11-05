@@ -11,6 +11,7 @@
 #include "ECS/Components.hpp"
 #include "Scene.hpp"
 #include <cassert>
+#include <filesystem>
 #include <fstream>
 
 #define DEFAULT_IMGUI_INI \
@@ -77,7 +78,9 @@ Scene* Project::startScene()
 void Project::reload()
 {
     std::ifstream f(m_savePath);
+    fs::path tmp = m_savePath;
     *this = json::parse(f);
+    m_savePath = tmp;
 }
 
 void Project::save()
@@ -85,9 +88,10 @@ void Project::save()
     std::ofstream(m_savePath) << json(*this).dump(4);
 }
 
-void Project::save(const std::filesystem::path& filePath)
+void Project::save(const fs::path& filePath)
 {
-    assert(std::filesystem::is_regular_file(filePath));
+    assert(filePath.is_absolute());
+    assert(fs::is_directory(fs::path(filePath).remove_filename()));
     m_savePath = filePath;
     save();
 }

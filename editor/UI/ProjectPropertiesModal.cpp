@@ -8,6 +8,7 @@
  */
 
 #include "UI/ProjectPropertiesModal.hpp"
+#include "UtilsCPP/String.hpp"
 #include <cstring>
 #include <filesystem>
 
@@ -29,9 +30,9 @@ void ProjectPropertiesModal::render()
         ImGui::OpenPopup("Project properties");
         if (s_needBufUpdate)
         {
-            std::strncpy(s_nameBuff, m_project.name(), sizeof(s_nameBuff));
-            std::strncpy(s_ressourceDirBuff, m_project.ressourcesDir().c_str(), sizeof(s_ressourceDirBuff));
-            std::strncpy(s_scriptsLibBuff, m_project.scriptLib().c_str(), sizeof(s_scriptsLibBuff));
+            m_project.name().SAFECPY(s_nameBuff);
+            utils::String(m_project.ressourcesDir().c_str()).SAFECPY(s_ressourceDirBuff);
+            utils::String(m_project.scriptLib().c_str()).SAFECPY(s_scriptsLibBuff);
             s_needBufUpdate = false;
         }
     }

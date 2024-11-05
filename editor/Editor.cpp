@@ -16,10 +16,14 @@
 #include "InputManager/Mapper.hpp"
 #include "Project.hpp"
 #include "Scene.hpp"
+#include "UI/EntityInspectorPanel.hpp"
+#include "UI/FileOpenDialog.hpp"
+#include "UI/FileSaveDialog.hpp"
 #include "UI/MainMenuBar.hpp"
 #include "UI/ProjectPropertiesModal.hpp"
 #include "UI/ViewportPanel.hpp"
 #include "UI/SceneGraphPanel.hpp"
+#include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
@@ -78,7 +82,7 @@ void Editor::newProject()
 
 void Editor::openProject(const fs::path& filePath)
 {
-    m_project = Project();
+    m_project = Project(filePath);
     udpateEditorDatas();
 }
 
@@ -159,13 +163,17 @@ void Editor::onImGuiRender()
     }
 
     static bool isProjectPropertiesModalPresented = false;
+    static bool isFileOpenDialogPresented = false;
+    static bool isFileSaveDialogPresented = false;
+
+    ImGui::BeginDisabled(isFileOpenDialogPresented || isFileSaveDialogPresented);
 
     ImGui::DockSpaceOverViewport();
 
     MainMenuBar()
-        .on_File_New([](){})
-        .on_File_Open([](){})
-        .on_File_Save([](){})
+        .on_File_New(utils::Func<void()>(*this, &Editor::newProject))
+        .on_File_Open([](){ isFileOpenDialogPresented = true; })
+        .on_File_Save([&](){ m_project.hasSavePath() ? m_project.save() : (void)(isFileSaveDialogPresented = true); })
         .on_Project_Properties([](){ isProjectPropertiesModalPresented = true; })
         .on_Project_Scene(utils::Func<void()>())
         .on_Project_Run(/*project not running*/0 ? [](){} : utils::Func<void()>())
@@ -173,21 +181,41 @@ void Editor::onImGuiRender()
         .render();
 
     ViewportPanel(*m_viewportFBuff->colorTexture())
-        .onResize([&](utils::uint32 w, utils::uint32 h){ m_viewportPanelW = w; m_viewportPanelH = h; })
-        .render();
-
-    ProjectPropertiesModal(isProjectPropertiesModalPresented, m_project)
+        .onResize([&](utils::uint32 w, utils::uint32 h){
+            m_viewportPanelW = w;
+            m_viewportPanelH = h;
+        })
         .render();
 
     SceneGraphPanel(m_editedScene, m_selectedEntity)
         .onEntitySelect([&](const Entity& e){ m_selectedEntity = e; })
         .render();
 
+    EntityInspectorPanel(m_editedScene, m_selectedEntity)
+        .onEntityDelete([&](){
+            m_selectedEntity.destroy();
+            m_selectedEntity = Entity();
+        })
+        .render();
+
+    ProjectPropertiesModal(isProjectPropertiesModalPresented, m_project)
+        .render();
+
+    ImGui::EndDisabled();
+
+    FileOpenDialog(isFileOpenDialogPresented)
+        .onSelection(utils::Func<void(const fs::path&)>(*this, &Editor::openProject))
+        .render();
+
+    FileSaveDialog(m_project.name() + ".geproj", isFileSaveDialogPresented)
+        .onSelection(utils::Func<void(const fs::path&)>(m_project, &Project::save))
+        .render();
+
     if (ImGui::GetIO().WantSaveIniSettings)
     {
         m_project.saveIniSettingsToMemory();
         ImGui::GetIO().WantSaveIniSettings = false;
-    } 
+    }
 }
 
 void Editor::onEvent(gfx::Event& event)
@@ -229,6 +257,10 @@ void Editor::updateVPFrameBuff()
 
 void Editor::udpateEditorDatas()
 {
+    m_editedScene = nullptr;
+    m_selectedEntity = Entity();
+    m_editorCamera = EditorCamera();
+
     editScene(m_project.startScene());
 
     // if (m_project.ressourcesDir().empty())
@@ -237,6 +269,7 @@ void Editor::udpateEditorDatas()
         // m_ui.setFileExplorerPath(fs::path(m_project.savePath()).remove_filename() / m_project.ressourcesDir());
 
     reloadScriptLib();
+    m_imguiSettingsNeedReload = true;
 }
 
 }
