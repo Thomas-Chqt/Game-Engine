@@ -38,6 +38,7 @@ target_link_libraries(Game-Engine PUBLIC Graphics)
 target_link_libraries(Game-Engine PRIVATE assimp)
 target_link_libraries(Game-Engine PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(Game-Engine PUBLIC stduuid)
+target_link_libraries(Game-Engine PUBLIC stb_image)
 
 if(GE_BUILD_METAL)
     add_custom_target(MTLShaderLib DEPENDS ${MTL_SHADER_LIB})

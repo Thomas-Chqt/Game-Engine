@@ -49,8 +49,10 @@ private:
 
     void updateVPFrameBuff();
     void udpateEditorDatas();
+    void processDroppedFiles();
 
     Project m_project;
+    std::filesystem::path m_projectSavePath;
 
     Scene* m_editedScene = nullptr;
     Entity m_selectedEntity;

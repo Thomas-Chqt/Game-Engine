@@ -30,8 +30,10 @@
 #include <cassert>
 #include <dlfcn.h>
 #include <filesystem>
+#include <fstream>
 #include <nlohmann/json.hpp>
 #include "imgui.h"
+#include <stb_image/stb_image.h>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -76,25 +78,29 @@ Editor::Editor()
 
 void Editor::newProject()
 {
+    m_projectSavePath = fs::path();
     m_project = Project();
     udpateEditorDatas();
 }
 
 void Editor::openProject(const fs::path& filePath)
 {
-    m_project = Project(filePath);
-    udpateEditorDatas();
+    assert(fs::is_regular_file(filePath));
+    assert(filePath.is_absolute());
+    
+    m_projectSavePath = filePath;
+    reloadProject();
 }
 
 void Editor::reloadProject()
 {
-    m_project.reload();
+    m_project = Project(m_projectSavePath);
     udpateEditorDatas();
 }
 
 void Editor::saveProject()
 {
-    m_project.save();
+    m_project.save(m_projectSavePath);
 }
 
 void Editor::editScene(Scene* scene)
@@ -105,7 +111,7 @@ void Editor::editScene(Scene* scene)
     if (m_project.ressourcesDir().empty())
         scene->load(m_renderer.graphicAPI(), fs::path());
     else
-        scene->load(m_renderer.graphicAPI(), fs::path(m_project.savePath()).remove_filename() / m_project.ressourcesDir());
+        scene->load(m_renderer.graphicAPI(), fs::path(m_projectSavePath).remove_filename() / m_project.ressourcesDir());
     
     m_editedScene = scene;
     m_selectedEntity = Entity();
@@ -123,12 +129,12 @@ void Editor::reloadScriptLib()
     fs::path absoluteScriptLibPath;
     if (m_project.scriptLib().is_absolute())
         absoluteScriptLibPath = m_project.scriptLib();
-    else if (m_project.hasSavePath())
-        absoluteScriptLibPath = fs::path(m_project.savePath()).remove_filename() / m_project.scriptLib();
+    else if (m_projectSavePath.empty() == false)
+        absoluteScriptLibPath = fs::path(m_projectSavePath).remove_filename() / m_project.scriptLib();
 
     if (m_project.scriptLib().empty() == false)
     {
-        fs::path absoluteScriptLibPath = fs::path(m_project.savePath()).remove_filename() / m_project.scriptLib();
+        fs::path absoluteScriptLibPath = fs::path(m_projectSavePath).remove_filename() / m_project.scriptLib();
         if (fs::is_regular_file(absoluteScriptLibPath))
         {
             m_scriptLibHandle = dlopen(absoluteScriptLibPath.c_str(), RTLD_NOW | RTLD_GLOBAL);
@@ -140,6 +146,7 @@ void Editor::reloadScriptLib()
 void Editor::onUpdate()
 {
     updateVPFrameBuff();
+    processDroppedFiles();
 
     m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
     {
@@ -173,7 +180,7 @@ void Editor::onImGuiRender()
     MainMenuBar()
         .on_File_New(utils::Func<void()>(*this, &Editor::newProject))
         .on_File_Open([](){ isFileOpenDialogPresented = true; })
-        .on_File_Save([&](){ m_project.hasSavePath() ? m_project.save() : (void)(isFileSaveDialogPresented = true); })
+        .on_File_Save([&](){ m_projectSavePath.empty() ? (void)(isFileSaveDialogPresented = true) : saveProject(); })
         .on_Project_Properties([](){ isProjectPropertiesModalPresented = true; })
         .on_Project_Scene(utils::Func<void()>())
         .on_Project_Run(/*project not running*/0 ? [](){} : utils::Func<void()>())
@@ -198,7 +205,7 @@ void Editor::onImGuiRender()
         })
         .render();
 
-    ProjectPropertiesModal(isProjectPropertiesModalPresented, m_project)
+    ProjectPropertiesModal(isProjectPropertiesModalPresented, m_project, m_projectSavePath)
         .render();
 
     ImGui::EndDisabled();
@@ -208,7 +215,10 @@ void Editor::onImGuiRender()
         .render();
 
     FileSaveDialog(m_project.name() + ".geproj", isFileSaveDialogPresented)
-        .onSelection(utils::Func<void(const fs::path&)>(m_project, &Project::save))
+        .onSelection([&](const fs::path& path){
+            m_projectSavePath = path;
+            saveProject();
+        })
         .render();
 
     if (ImGui::GetIO().WantSaveIniSettings)
@@ -270,6 +280,32 @@ void Editor::udpateEditorDatas()
 
     reloadScriptLib();
     m_imguiSettingsNeedReload = true;
+}
+
+void Editor::processDroppedFiles()
+{
+    fs::path path;
+    while (m_window->popDroppedFile(path))
+    {
+        if (json::accept(std::ifstream(path)))
+        {
+            json jsn = json::parse(std::ifstream(path));
+            if (jsn.find("scenes") != jsn.end() && jsn.find("imguiSettings") != jsn.end())
+            {
+                openProject(path);
+                continue;
+            }
+        }
+
+        if (stbi_info(path.c_str(), nullptr, nullptr, nullptr) == 1)
+            continue;
+
+        if (m_editedScene != nullptr)
+        {
+            m_editedScene->assetManager().registerMesh(path);
+            continue;
+        }
+    }
 }
 
 }

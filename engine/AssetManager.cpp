@@ -46,17 +46,7 @@ namespace fs = std::filesystem;
 namespace GE
 {
 
-static uuids::uuid_random_generator makeGenerator()
-{
-    std::random_device rd;
-    auto seed_data = std::array<int, std::mt19937::state_size> {};
-    std::generate(std::begin(seed_data), std::end(seed_data), std::ref(rd));
-    std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
-    std::mt19937 generator(seq);
-    return uuids::uuid_random_generator{generator};
-}
-
-AssetManager::AssetManager() : m_uuidGenerator(makeGenerator())
+AssetManager::AssetManager()
 {
 }
 
@@ -67,8 +57,13 @@ AssetID AssetManager::registerMesh(const fs::path& path)
         newAssetID = m_registeredMeshes[path];
     else
     {
-        newAssetID = m_uuidGenerator();
-        m_registeredMeshes.insert(path,newAssetID);
+        std::random_device rd;
+        auto seed_data = std::array<int, std::mt19937::state_size> {};
+        std::generate(std::begin(seed_data), std::end(seed_data), std::ref(rd));
+        std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
+        std::mt19937 generator(seq);
+        newAssetID = uuids::uuid_random_generator{generator}();
+        m_registeredMeshes.insert(path, newAssetID);
     }
 
     if (isLoaded())
@@ -239,7 +234,14 @@ Mesh AssetManager::loadBuiltInCube()
         { { 1,  1, -1}, {0, 0}, { 0,  1,  0}, {-1,  0,  0} },    
     };
 
-    utils::uint32 indices[] = { 2, 1, 0, 3, 2, 0, 6, 5, 4, 7, 6, 4, 10, 9, 8, 11, 10, 8, 14, 13, 12, 15, 14, 12, 18, 17, 16, 19, 18, 16, 22, 21, 20, 23, 22, 20 };
+    utils::uint32 indices[] = {
+         2,  1,  0,  3,  2,  0,
+         6,  5,  4,  7,  6,  4,
+        10,  9,  8, 11, 10,  8,
+        14, 13, 12, 15, 14, 12,
+        18, 17, 16, 19, 18, 16,
+        22, 21, 20, 23, 22, 20
+    };
 
     return Mesh {
         "built_in_cube",

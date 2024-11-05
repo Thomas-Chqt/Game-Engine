@@ -28,9 +28,6 @@ public:
 
     Project(const std::filesystem::path&);
     
-    inline bool hasSavePath() const { return m_savePath.empty() == false; }
-    const std::filesystem::path& savePath() const { return m_savePath; }
-
     inline const utils::String& name() const { return m_name; }
     inline void setName(const utils::String& s) { m_name = s; }
     
@@ -46,8 +43,8 @@ public:
     inline const utils::Set<Scene>& scenes() const { return m_scenes; }
     inline Scene& scene(const utils::String& name) { return *m_scenes.find(name); }
 
-    inline void addScene(const Scene& s) { m_scenes.insert(s); }
-    inline void addScene(Scene&& s) { m_scenes.insert(std::move(s)); }
+    inline Scene* addScene(const Scene& s) { return &*m_scenes.insert(s); }
+    inline Scene* addScene(Scene&& s) { return &*m_scenes.insert(std::move(s)); }
 
     void deleteScene(const utils::String& name);
     inline void deleteScene(const Scene& s) { deleteScene(s.name()); }
@@ -58,15 +55,11 @@ public:
     inline void setStartScene(const utils::String& name) { m_startScene = name; }
     inline void setStartScene(const Scene& s) { setStartScene(s.name()); }
 
-    void reload();
-    void save();
     void save(const std::filesystem::path&);
 
     ~Project() = default;
 
 private:
-    std::filesystem::path m_savePath;
-
     utils::String m_name;
     std::filesystem::path m_ressourcesDir;
     std::filesystem::path m_scriptLib;

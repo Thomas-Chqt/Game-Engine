@@ -22,7 +22,7 @@ public:
     ProjectPropertiesModal(const ProjectPropertiesModal&) = delete;
     ProjectPropertiesModal(ProjectPropertiesModal&&)      = delete;
     
-    ProjectPropertiesModal(bool& isPresented, Project&);
+    ProjectPropertiesModal(bool& isPresented, Project&, const std::filesystem::path& projSavePath);
 
     void render();
 
@@ -35,6 +35,7 @@ private:
 
     bool& m_isPresented;
     Project& m_project;
+    std::filesystem::path m_projSavePath;
 
     inline static char s_nameBuff[32];
     inline static char s_ressourceDirBuff[1024];

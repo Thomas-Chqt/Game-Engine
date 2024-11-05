@@ -142,13 +142,13 @@ void Mapper<KeyboardButton, Range2DInput>::onKeyDownEvent(gfx::KeyDownEvent& key
 
 void Mapper<KeyboardButton, Range2DInput>::onKeyUpEvent(gfx::KeyUpEvent& keyUpEvent)
 {
-    if (keyUpEvent.keyCode() == static_cast<int>(m_xPos) && m_input.value.x > 0)
+    if (keyUpEvent.keyCode() == static_cast<int>(m_xPos))
         m_input.value -= math::vec2f{m_scale.x, 0.0F};
-    else if (keyUpEvent.keyCode() == static_cast<int>(m_xNeg) && m_input.value.x < 0)
+    else if (keyUpEvent.keyCode() == static_cast<int>(m_xNeg))
         m_input.value += math::vec2f{m_scale.x, 0.0F};
-    else if (keyUpEvent.keyCode() == static_cast<int>(m_yPos) && m_input.value.y > 0)
+    else if (keyUpEvent.keyCode() == static_cast<int>(m_yPos))
         m_input.value -= math::vec2f{0.0F, m_scale.y};
-    else if (keyUpEvent.keyCode() == static_cast<int>(m_yNeg) && m_input.value.y < 0)
+    else if (keyUpEvent.keyCode() == static_cast<int>(m_yNeg))
         m_input.value += math::vec2f{0.0F, m_scale.y};
     
     if (keyUpEvent.keyCode() == static_cast<int>(m_xPos) ||

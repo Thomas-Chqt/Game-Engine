@@ -47,8 +47,6 @@ private:
     Mesh loadMesh(const std::filesystem::path&, gfx::GraphicAPI&);
     Mesh loadBuiltInCube();
 
-    uuids::uuid_random_generator m_uuidGenerator;
-
     gfx::GraphicAPI* m_api = nullptr;
     std::filesystem::path m_baseDir;
 

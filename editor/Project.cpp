@@ -55,9 +55,8 @@ Project::Project()
 
 Project::Project(const fs::path& filePath)
 {
-    assert(std::filesystem::is_regular_file(filePath));
-    m_savePath = filePath;
-    reload();
+    assert(fs::is_regular_file(filePath));
+    *this = json::parse(std::ifstream(filePath));
 }
 
 void Project::deleteScene(const utils::String& name)
@@ -75,25 +74,11 @@ Scene* Project::startScene()
         return nullptr;
 }
 
-void Project::reload()
-{
-    std::ifstream f(m_savePath);
-    fs::path tmp = m_savePath;
-    *this = json::parse(f);
-    m_savePath = tmp;
-}
-
-void Project::save()
-{
-    std::ofstream(m_savePath) << json(*this).dump(4);
-}
-
 void Project::save(const fs::path& filePath)
 {
     assert(filePath.is_absolute());
     assert(fs::is_directory(fs::path(filePath).remove_filename()));
-    m_savePath = filePath;
-    save();
+    std::ofstream(filePath) << json(*this).dump(4);
 }
 
 void to_json(json& jsn, const Project& project)

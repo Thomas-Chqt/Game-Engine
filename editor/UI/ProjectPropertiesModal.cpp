@@ -18,8 +18,8 @@ namespace fs = std::filesystem;
 namespace GE
 {
 
-ProjectPropertiesModal::ProjectPropertiesModal(bool& isPresented, Project& project)
-    : m_isPresented(isPresented), m_project(project)
+ProjectPropertiesModal::ProjectPropertiesModal(bool& isPresented, Project& project, const std::filesystem::path& projSavePath)
+    : m_isPresented(isPresented), m_project(project), m_projSavePath(projSavePath)
 {
 }
 
@@ -70,8 +70,8 @@ bool ProjectPropertiesModal::isRessourceDirValid()
 {
     const fs::path path = s_ressourceDirBuff;
     return path.empty() || (path.is_absolute() && fs::is_directory(path)) || (
-        fs::path(m_project.savePath()).replace_filename(path).is_absolute() &&
-        fs::is_directory(fs::path(m_project.savePath()).replace_filename(path))
+        fs::path(m_projSavePath).replace_filename(path).is_absolute() &&
+        fs::is_directory(fs::path(m_projSavePath).replace_filename(path))
     );
 }
 
@@ -79,8 +79,8 @@ bool ProjectPropertiesModal::isScriptLibValid()
 {
     const fs::path path = s_scriptsLibBuff;
     return path.empty() || (path.is_absolute() && fs::is_regular_file(path)) || (
-        fs::path(m_project.savePath()).replace_filename(path).is_absolute() &&
-        fs::is_regular_file(fs::path(m_project.savePath()).replace_filename(path))
+        fs::path(m_projSavePath).replace_filename(path).is_absolute() &&
+        fs::is_regular_file(fs::path(m_projSavePath).replace_filename(path))
     );
 }
 

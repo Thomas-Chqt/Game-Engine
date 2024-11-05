@@ -78,3 +78,10 @@ set(UUID_USING_CXX20_SPAN ON)
 set(UUID_ENABLE_INSTALL   OFF)
 FetchContent_MakeAvailable(stduuid)
 set_target_properties(stduuid PROPERTIES FOLDER "dependencies")
+
+FetchContent_Declare(stb_image
+    GIT_REPOSITORY https://github.com/Thomas-Chqt/stb_image.git
+    GIT_SHALLOW    1
+)
+FetchContent_MakeAvailable(stb_image)
+set_target_properties(stb_image PROPERTIES FOLDER "dependencies")
