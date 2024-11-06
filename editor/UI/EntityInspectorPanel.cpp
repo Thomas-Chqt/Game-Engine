@@ -8,14 +8,13 @@
  */
 
 #include "UI/EntityInspectorPanel.hpp"
+#include "AssetManager.hpp"
 #include "ECS/Components.hpp"
 #include "ECS/Entity.hpp"
 #include "Scene.hpp"
 #include "UtilsCPP/String.hpp"
 #include "imgui.h"
 #include <cassert>
-
-namespace fs = std::filesystem;
 
 namespace GE
 {
@@ -85,11 +84,8 @@ void EntityInspectorPanel::componentEditWidget<MeshComponent>()
     }          
     if (ImGui::BeginDragDropTarget())
     {
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_file"))
-        {
-            fs::path path = (char*)payload->Data;
-            meshComponent.assetId = m_scene->assetManager().registerMesh(path);
-        }
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("mesh_dnd"))
+            meshComponent.assetId = *(AssetID*)payload->Data;
         ImGui::EndDragDropTarget();
     }
 }
@@ -101,8 +97,8 @@ void EntityInspectorPanel::componentEditWidget<ScriptComponent>()
     ImGui::Text("%s", scriptComponent.name.isEmpty() ? "no script" : (const char*)scriptComponent.name);
     if (ImGui::BeginDragDropTarget())
     {
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_script"))
-            scriptComponent.name = (char*)payload->Data;
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("script_dnd"))
+            scriptComponent.name = utils::String((char*)payload->Data);
         ImGui::EndDragDropTarget();
     }
 }

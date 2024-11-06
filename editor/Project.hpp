@@ -30,10 +30,7 @@ public:
     
     inline const utils::String& name() const { return m_name; }
     inline void setName(const utils::String& s) { m_name = s; }
-    
-    inline const std::filesystem::path& ressourcesDir() const { return m_ressourcesDir; }
-    inline void setRessourcesDir(const std::filesystem::path& p) { m_ressourcesDir = p; }
-    
+        
     inline const std::filesystem::path& scriptLib() const { return m_scriptLib; }
     inline void setScriptLib(const std::filesystem::path& p) { m_scriptLib = p; }
 

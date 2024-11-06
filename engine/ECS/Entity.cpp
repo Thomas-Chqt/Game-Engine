@@ -32,7 +32,8 @@ void Entity::destroy()
             curr.get<HierarchyComponent>().parent = INVALID_ENTITY_ID;
             curr = curr.nextChild();
         }
-        parent().removeChild(*this);
+        if (parent())
+            parent().removeChild(*this);
     }
 
     m_world->deleteEntityID(m_entityId);

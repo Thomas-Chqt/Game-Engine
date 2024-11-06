@@ -74,7 +74,7 @@ AssetID AssetManager::registerMesh(const fs::path& path)
 
 void AssetManager::loadAssets(gfx::GraphicAPI& api, const fs::path& baseDir)
 {
-    assert(baseDir.empty() || baseDir.is_absolute() && fs::is_directory(baseDir));
+    assert(baseDir.empty() || fs::is_directory(baseDir) && baseDir.is_absolute());
 
     m_api = &api;
     m_baseDir = baseDir;
@@ -94,6 +94,7 @@ void AssetManager::unloadAssets()
 
 Mesh AssetManager::loadMesh(const fs::path& filepath, gfx::GraphicAPI& api)
 {
+    assert(filepath.is_absolute());
     assert(fs::is_regular_file(filepath));
 
     Assimp::Importer importer;

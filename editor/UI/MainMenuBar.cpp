@@ -44,9 +44,9 @@ void MainMenuBar::render()
                 m_project.properties();
             ImGui::EndDisabled();
 
-            ImGui::BeginDisabled(!m_project.scenes);
-            if (ImGui::MenuItem("Scene"))
-                m_project.scenes();
+            ImGui::BeginDisabled(!m_project.reloadScriptLib);
+            if (ImGui::MenuItem("Reload script lib"))
+                m_project.reloadScriptLib();
             ImGui::EndDisabled();
 
             ImGui::BeginDisabled(!m_project.run);

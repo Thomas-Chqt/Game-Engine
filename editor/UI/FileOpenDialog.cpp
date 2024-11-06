@@ -16,7 +16,7 @@ namespace fs = std::filesystem;
 namespace GE
 {
 
-FileOpenDialog::FileOpenDialog(bool& isPresented)
+FileOpenDialog::FileOpenDialog(const utils::String& title, bool& isPresented)
     : m_isPresented(isPresented)
 {
 }
@@ -25,11 +25,14 @@ void FileOpenDialog::render()
 {
     using namespace std::chrono_literals;
 
+    static char title[32];
+
     if (m_isPresented == false)
         return;
     if (s_taskStarted == false)
     {
-        s_result = std::async(tinyfd_openFileDialog, "Open project", "", 0, nullptr, nullptr, 0);
+        m_title.safecpy(title, sizeof(title));
+        s_result = std::async(tinyfd_openFileDialog, title, "", 0, nullptr, nullptr, 0);
         s_taskStarted = true;
     }
     if (s_result.wait_for(1ns) == std::future_status::ready)

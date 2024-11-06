@@ -212,4 +212,16 @@ void from_json(const json& jsn, MeshComponent& comp)
         comp.assetId = uuids::uuid::from_string(assetIdIt->template get<std::string>()).value_or(AssetID());
 }
 
+void to_json(nlohmann::json& jsn, const ScriptComponent& comp)
+{
+    jsn["name"] = comp.name;
+}
+
+void from_json(const nlohmann::json& jsn, ScriptComponent& comp)
+{
+    auto nameIt = jsn.find("name");
+    if (nameIt != jsn.end())
+        comp.name = nameIt->template get<std::string>().c_str();
+}
+
 }

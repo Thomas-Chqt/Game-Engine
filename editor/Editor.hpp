@@ -19,6 +19,7 @@
 #include "UtilsCPP/SharedPtr.hpp"
 #include "Graphics/FrameBuffer.hpp"
 #include "UtilsCPP/Types.hpp"
+#include "UtilsCPP/UniquePtr.hpp"
 #include <filesystem>
 
 namespace GE
@@ -35,6 +36,9 @@ public:
     void openProject(const std::filesystem::path&);
     void reloadProject();
     void saveProject();
+
+    void runProject();
+    void stopProject();
 
     void editScene(Scene*);
 
@@ -58,6 +62,8 @@ private:
     Entity m_selectedEntity;
     EditorCamera m_editorCamera;
     InputContext m_editorInputContext;
+
+    utils::UniquePtr<Scene> m_runningScene;
 
     bool m_imguiSettingsNeedReload = false;
     utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;

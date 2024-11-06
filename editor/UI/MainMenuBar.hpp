@@ -35,8 +35,8 @@ public:
     inline MainMenuBar& on_Project_Properties(const utils::Func<void()>& f) { return m_project.properties = f, *this; }
     inline MainMenuBar& on_Project_Properties(utils::Func<void()>&& f) { return m_project.properties = std::move(f), *this; }
 
-    inline MainMenuBar& on_Project_Scene(const utils::Func<void()>& f) { return m_project.scenes = f, *this; }
-    inline MainMenuBar& on_Project_Scene(utils::Func<void()>&& f) { return m_project.scenes = std::move(f), *this; }
+    inline MainMenuBar& on_Project_ReloadScriptLib(const utils::Func<void()>& f) { return m_project.reloadScriptLib = f, *this; }
+    inline MainMenuBar& on_Project_ReloadScriptLib(utils::Func<void()>&& f) { return m_project.reloadScriptLib = std::move(f), *this; }
 
     inline MainMenuBar& on_Project_Run(const utils::Func<void()>& f) { return m_project.run = f, *this; }
     inline MainMenuBar& on_Project_Run(utils::Func<void()>&& f) { return m_project.run = std::move(f), *this; }
@@ -71,7 +71,7 @@ private:
     struct
     {
         utils::Func<void()> properties;
-        utils::Func<void()> scenes;
+        utils::Func<void()> reloadScriptLib;
         utils::Func<void()> run;
         utils::Func<void()> stop;
     } m_project;

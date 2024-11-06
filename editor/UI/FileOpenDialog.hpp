@@ -11,6 +11,7 @@
 #define FILEOPENDIALOG_HPP
 
 #include "UtilsCPP/Func.hpp"
+#include "UtilsCPP/String.hpp"
 #include <filesystem>
 #include <future>
 #include <utility>
@@ -25,7 +26,7 @@ public:
     FileOpenDialog(const FileOpenDialog&) = delete;
     FileOpenDialog(FileOpenDialog&&)      = delete;
     
-    FileOpenDialog(bool& isPresented);
+    FileOpenDialog(const utils::String& title, bool& isPresented);
 
     inline FileOpenDialog& onSelection(const utils::Func<void(const std::filesystem::path&)>& f) { return m_onSelection = f, *this; }
     inline FileOpenDialog& onSelection(utils::Func<void(const std::filesystem::path&)>&& f) { return m_onSelection = std::move(f), *this; }
@@ -38,6 +39,7 @@ public:
     ~FileOpenDialog() = default;
 
 private:
+    utils::String m_title;
     bool& m_isPresented;
     inline static bool s_taskStarted = false;
     inline static std::future<char*> s_result;

@@ -103,6 +103,8 @@ struct ScriptComponent
     utils::SharedPtr<Script> instance;
 
     ScriptComponent() = default;
+    friend void to_json(nlohmann::json&, const ScriptComponent&);
+    friend void from_json(const nlohmann::json&, ScriptComponent&);
 };
 
 }

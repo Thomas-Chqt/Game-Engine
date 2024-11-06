@@ -8,6 +8,8 @@
  */
 
 #include "Editor.hpp"
+#include "ECS/Components.hpp"
+#include "ECS/ECSView.hpp"
 #include "ECS/Entity.hpp"
 #include "EditorCamera.hpp"
 #include "Graphics/Event.hpp"
@@ -16,6 +18,7 @@
 #include "InputManager/Mapper.hpp"
 #include "Project.hpp"
 #include "Scene.hpp"
+#include "UI/ContentBrowserPanel.hpp"
 #include "UI/EntityInspectorPanel.hpp"
 #include "UI/FileOpenDialog.hpp"
 #include "UI/FileSaveDialog.hpp"
@@ -44,6 +47,9 @@ namespace GE
 Editor::Editor()
 {
     ImGui::GetIO().IniFilename = nullptr;
+    // ImGui::GetIO().SetClipboardTextFn = [](void* user_data, const char* text) { static_cast<gfx::Window*>(user_data)->setClipboardString(text); };
+    // ImGui::GetIO().GetClipboardTextFn = [](void* user_data) -> const char* { return static_cast<gfx::Window*>(user_data)->getClipboardString(); };
+    // ImGui::GetIO().ClipboardUserData = (gfx::Window*)m_window;
 
     Mapper<KeyboardButton, Range2DInput>::Descriptor inputMapperDesc;
 
@@ -103,15 +109,36 @@ void Editor::saveProject()
     m_project.save(m_projectSavePath);
 }
 
+void Editor::runProject()
+{
+    using makeScriptInstanceFunc = GE::Script* (*)(char*);
+
+    m_runningScene = utils::makeUnique<Scene>(*m_editedScene);
+
+    if (m_scriptLibHandle == nullptr)
+        return;
+
+    ECSView<ScriptComponent>(m_runningScene->ecsWorld()).onEach([&](Entity entt, ScriptComponent& scriptComponent) {
+        auto makeScriptInstance = (makeScriptInstanceFunc)dlsym(m_scriptLibHandle, "makeScriptInstance");
+        if (makeScriptInstance)
+        {
+            scriptComponent.instance = utils::SharedPtr<Script>(makeScriptInstance(scriptComponent.name));
+            scriptComponent.instance->setEntity(entt);
+        } 
+    });
+}
+
+void Editor::stopProject()
+{
+    m_runningScene.clear();
+}
+
 void Editor::editScene(Scene* scene)
 {
     if (m_editedScene && m_editedScene->isLoaded())
         m_editedScene->unload();
     
-    if (m_project.ressourcesDir().empty())
-        scene->load(m_renderer.graphicAPI(), fs::path());
-    else
-        scene->load(m_renderer.graphicAPI(), fs::path(m_projectSavePath).remove_filename() / m_project.ressourcesDir());
+    scene->load(m_renderer.graphicAPI(), fs::path(m_projectSavePath).remove_filename());
     
     m_editedScene = scene;
     m_selectedEntity = Entity();
@@ -126,20 +153,12 @@ void Editor::reloadScriptLib()
         m_scriptLibHandle = nullptr;
     }
 
-    fs::path absoluteScriptLibPath;
-    if (m_project.scriptLib().is_absolute())
-        absoluteScriptLibPath = m_project.scriptLib();
-    else if (m_projectSavePath.empty() == false)
-        absoluteScriptLibPath = fs::path(m_projectSavePath).remove_filename() / m_project.scriptLib();
-
     if (m_project.scriptLib().empty() == false)
     {
-        fs::path absoluteScriptLibPath = fs::path(m_projectSavePath).remove_filename() / m_project.scriptLib();
-        if (fs::is_regular_file(absoluteScriptLibPath))
-        {
-            m_scriptLibHandle = dlopen(absoluteScriptLibPath.c_str(), RTLD_NOW | RTLD_GLOBAL);
-            assert(m_scriptLibHandle != nullptr);       
-        }
+        fs::path scriptLibPath = fs::path(m_projectSavePath).remove_filename() / m_project.scriptLib();
+        assert(scriptLibPath.is_absolute());
+        if (fs::is_regular_file(scriptLibPath))
+            m_scriptLibHandle = dlopen(scriptLibPath.c_str(), RTLD_NOW | RTLD_GLOBAL);
     }
 }
 
@@ -148,12 +167,28 @@ void Editor::onUpdate()
     updateVPFrameBuff();
     processDroppedFiles();
 
-    m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
+    if (!m_runningScene)
     {
-        if (m_editedScene)
-            m_renderer.addScene(*m_editedScene);
+        m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
+        {
+            if (m_editedScene)
+                m_renderer.addScene(*m_editedScene);
+        }
+        m_renderer.endScene();
     }
-    m_renderer.endScene();
+    else
+    {
+        ECSView<ScriptComponent>(m_runningScene->ecsWorld()).onEach([&](Entity entt, ScriptComponent& scriptComponent){
+            if (scriptComponent.instance)
+                scriptComponent.instance->onUpdate();
+        });
+
+        m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
+        {
+            m_renderer.addScene(*m_runningScene);
+        }
+        m_renderer.endScene();
+    }
 
     if (ImGui::GetIO().WantCaptureKeyboard == false)
         m_editorInputContext.dispatchInputs();
@@ -181,10 +216,10 @@ void Editor::onImGuiRender()
         .on_File_New(utils::Func<void()>(*this, &Editor::newProject))
         .on_File_Open([](){ isFileOpenDialogPresented = true; })
         .on_File_Save([&](){ m_projectSavePath.empty() ? (void)(isFileSaveDialogPresented = true) : saveProject(); })
+        .on_Project_ReloadScriptLib(!m_project.scriptLib().empty() ? utils::Func<void()>(*this, &Editor::reloadScriptLib) : utils::Func<void()>())
         .on_Project_Properties([](){ isProjectPropertiesModalPresented = true; })
-        .on_Project_Scene(utils::Func<void()>())
-        .on_Project_Run(/*project not running*/0 ? [](){} : utils::Func<void()>())
-        .on_Project_Stop(/*project running*/0 ? [](){} : utils::Func<void()>())
+        .on_Project_Run(!m_runningScene ? utils::Func<void()>(*this, &Editor::runProject) : utils::Func<void()>())
+        .on_Project_Stop(m_runningScene ? utils::Func<void()>(*this, &Editor::stopProject) : utils::Func<void()>())
         .render();
 
     ViewportPanel(*m_viewportFBuff->colorTexture())
@@ -206,11 +241,15 @@ void Editor::onImGuiRender()
         .render();
 
     ProjectPropertiesModal(isProjectPropertiesModalPresented, m_project, m_projectSavePath)
+        .onOk(utils::Func<void()>(*this, &Editor::reloadScriptLib))
+        .render();
+
+    ContentBrowserPanel(m_project, m_editedScene, m_scriptLibHandle)
         .render();
 
     ImGui::EndDisabled();
 
-    FileOpenDialog(isFileOpenDialogPresented)
+    FileOpenDialog("Open project", isFileOpenDialogPresented)
         .onSelection(utils::Func<void(const fs::path&)>(*this, &Editor::openProject))
         .render();
 
@@ -272,12 +311,6 @@ void Editor::udpateEditorDatas()
     m_editorCamera = EditorCamera();
 
     editScene(m_project.startScene());
-
-    // if (m_project.ressourcesDir().empty())
-        // m_ui.setFileExplorerPath(std::filesystem::current_path());
-    // else
-        // m_ui.setFileExplorerPath(fs::path(m_project.savePath()).remove_filename() / m_project.ressourcesDir());
-
     reloadScriptLib();
     m_imguiSettingsNeedReload = true;
 }
