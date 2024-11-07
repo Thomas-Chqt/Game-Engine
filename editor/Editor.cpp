@@ -35,6 +35,7 @@
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include "ViewportFrameBuff.hpp"
 #include "imgui.h"
 #include <stb_image/stb_image.h>
 
@@ -44,7 +45,7 @@ namespace fs = std::filesystem;
 namespace GE
 {
 
-Editor::Editor()
+Editor::Editor() : m_vpFrameBuff(*m_window, m_renderer.graphicAPI())
 {
     ImGui::GetIO().IniFilename = nullptr;
     // ImGui::GetIO().SetClipboardTextFn = [](void* user_data, const char* text) { static_cast<gfx::Window*>(user_data)->setClipboardString(text); };
@@ -164,12 +165,12 @@ void Editor::reloadScriptLib()
 
 void Editor::onUpdate()
 {
-    updateVPFrameBuff();
+    m_vpFrameBuff.onUpdate();
     processDroppedFiles();
 
     if (!m_runningScene)
     {
-        m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
+        m_renderer.beginScene(m_editorCamera.getRendererCam(), static_cast<const utils::SharedPtr<gfx::FrameBuffer>&>(m_vpFrameBuff).staticCast<gfx::RenderTarget>());
         {
             if (m_editedScene)
                 m_renderer.addScene(*m_editedScene);
@@ -183,7 +184,7 @@ void Editor::onUpdate()
                 scriptComponent.instance->onUpdate();
         });
 
-        m_renderer.beginScene(m_editorCamera.getRendererCam(), m_viewportFBuff.staticCast<gfx::RenderTarget>());
+        m_renderer.beginScene(m_editorCamera.getRendererCam(), static_cast<const utils::SharedPtr<gfx::FrameBuffer>&>(m_vpFrameBuff).staticCast<gfx::RenderTarget>());
         {
             m_renderer.addScene(*m_runningScene);
         }
@@ -215,18 +216,15 @@ void Editor::onImGuiRender()
     MainMenuBar()
         .on_File_New(utils::Func<void()>(*this, &Editor::newProject))
         .on_File_Open([](){ isFileOpenDialogPresented = true; })
-        .on_File_Save([&](){ m_projectSavePath.empty() ? (void)(isFileSaveDialogPresented = true) : saveProject(); })
+        .on_File_Save(m_projectSavePath.empty() ? [&](){ (void)(isFileSaveDialogPresented = true); } : utils::Func<void()>(*this, &Editor::saveProject))
         .on_Project_ReloadScriptLib(!m_project.scriptLib().empty() ? utils::Func<void()>(*this, &Editor::reloadScriptLib) : utils::Func<void()>())
         .on_Project_Properties([](){ isProjectPropertiesModalPresented = true; })
         .on_Project_Run(!m_runningScene ? utils::Func<void()>(*this, &Editor::runProject) : utils::Func<void()>())
         .on_Project_Stop(m_runningScene ? utils::Func<void()>(*this, &Editor::stopProject) : utils::Func<void()>())
         .render();
 
-    ViewportPanel(*m_viewportFBuff->colorTexture())
-        .onResize([&](utils::uint32 w, utils::uint32 h){
-            m_viewportPanelW = w;
-            m_viewportPanelH = h;
-        })
+    ViewportPanel(*static_cast<const utils::SharedPtr<gfx::FrameBuffer>&>(m_vpFrameBuff)->colorTexture())
+        .onResize(utils::Func<void(utils::uint32, utils::uint32)>(m_vpFrameBuff, &ViewportFrameBuff::resize))
         .render();
 
     SceneGraphPanel(m_editedScene, m_selectedEntity)
@@ -277,31 +275,6 @@ void Editor::onEvent(gfx::Event& event)
     if (event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& windowRequestCloseEvent) {
         terminate();
     })) return;
-}
-
-void Editor::updateVPFrameBuff()
-{
-    float xScale, yScale;
-    m_window->getFrameBufferScaleFactor(&xScale, &yScale);
-
-    utils::uint32 newFrameBufferWidth = (utils::uint32)((float)m_viewportPanelW * xScale);
-    utils::uint32 newFrameBufferHeight = (utils::uint32)((float)m_viewportPanelH * yScale);
-
-    if (m_viewportFBuff && (m_viewportFBuff->width() == newFrameBufferWidth && m_viewportFBuff->height() == newFrameBufferHeight))
-        return;
-    
-    gfx::Texture::Descriptor colorTextureDescriptor;
-    colorTextureDescriptor.width = newFrameBufferWidth;
-    colorTextureDescriptor.height = newFrameBufferHeight;
-    colorTextureDescriptor.pixelFormat = gfx::PixelFormat::BGRA;
-    colorTextureDescriptor.usage = gfx::Texture::Usage::ShaderReadAndRenderTarget;
-    
-    gfx::Texture::Descriptor depthTextureDescriptor = gfx::Texture::Descriptor::depthTextureDescriptor(newFrameBufferWidth, newFrameBufferHeight);
-
-    gfx::FrameBuffer::Descriptor fBuffDesc;
-    fBuffDesc.colorTexture = m_renderer.graphicAPI().newTexture(colorTextureDescriptor);
-    fBuffDesc.depthTexture = m_renderer.graphicAPI().newTexture(depthTextureDescriptor);
-    m_viewportFBuff = m_renderer.graphicAPI().newFrameBuffer(fBuffDesc);
 }
 
 void Editor::udpateEditorDatas()

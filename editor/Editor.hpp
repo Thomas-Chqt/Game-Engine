@@ -16,10 +16,8 @@
 #include "InputManager/InputContext.hpp"
 #include "Project.hpp"
 #include "Scene.hpp"
-#include "UtilsCPP/SharedPtr.hpp"
-#include "Graphics/FrameBuffer.hpp"
-#include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
+#include "ViewportFrameBuff.hpp"
 #include <filesystem>
 
 namespace GE
@@ -51,7 +49,6 @@ private:
     void onImGuiRender() override;
     void onEvent(gfx::Event&) override;
 
-    void updateVPFrameBuff();
     void udpateEditorDatas();
     void processDroppedFiles();
 
@@ -65,10 +62,8 @@ private:
 
     utils::UniquePtr<Scene> m_runningScene;
 
+    ViewportFrameBuff m_vpFrameBuff;
     bool m_imguiSettingsNeedReload = false;
-    utils::SharedPtr<gfx::FrameBuffer> m_viewportFBuff;
-    utils::uint32 m_viewportPanelW = 800;
-    utils::uint32 m_viewportPanelH = 600;
     void* m_scriptLibHandle = nullptr;
 
 public:
