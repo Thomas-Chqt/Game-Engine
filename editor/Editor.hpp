@@ -47,7 +47,8 @@ public:
 private:
     void onUpdate() override;
     void onImGuiRender() override;
-    void onEvent(gfx::Event&) override;
+    void onWindowResizeEvent(gfx::WindowResizeEvent&) override;
+    void onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&) override;
 
     void udpateEditorDatas();
     void processDroppedFiles();

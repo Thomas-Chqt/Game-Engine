@@ -47,7 +47,6 @@ void StateInput::dispatch()
 
 void StateInput::reset()
 {
-    triggered = false;
 }
 
 StateInput::StateInput(utils::String name) : Input(name)
@@ -63,8 +62,6 @@ void RangeInput::dispatch()
 
 void RangeInput::reset()
 {
-    value = 0.0F;
-    triggered = false;
 }
 
 RangeInput::RangeInput(utils::String name) : Input(name)
@@ -80,8 +77,6 @@ void Range2DInput::dispatch()
 
 void Range2DInput::reset()
 {
-    value = { 0.0F, 0.0F };
-    triggered = false;
 }
 
 Range2DInput::Range2DInput(utils::String name) : Input(name)

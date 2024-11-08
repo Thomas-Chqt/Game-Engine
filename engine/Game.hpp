@@ -10,6 +10,7 @@
 #ifndef GAME_HPP
 #define GAME_HPP
 
+#include "InputManager/InputContext.hpp"
 #include "Scene.hpp"
 #include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/String.hpp"
@@ -30,8 +31,13 @@ public:
     void stop();
     inline bool isRunning() const { return m_isRunning; }
 
-    inline Scene& activeScene() const { return *m_activeScene; }
+    inline Scene& activeScene() { return *m_activeScene; }
+    inline const Scene& activeScene() const { return *m_activeScene; }
+
     void setActiveScene(const utils::String& name);
+
+    inline InputContext& inputContext() { return m_inputContext; }
+    inline const InputContext& inputContext() const { return m_inputContext; }
 
     ~Game() = default;
 
@@ -42,6 +48,7 @@ private:
     gfx::GraphicAPI* m_api = nullptr;
     std::filesystem::path m_baseDir;
     MakeScriptInstanceFn m_makeScriptInstance = nullptr;
+    InputContext m_inputContext;
 
     bool m_isRunning = false;
 

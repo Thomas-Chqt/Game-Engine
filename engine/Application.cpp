@@ -30,9 +30,33 @@ void Application::run()
     while (m_running)
     {
         onUpdate();
+
         m_renderer.render();
+
         gfx::Platform::shared().pollEvents();
+
+        for (auto& ctx : m_inputContextStack)
+        {
+            if (ctx == m_activeInputContext)
+                ctx->dispatchInputs();
+            else
+                ctx->resetInputs();
+        }
     }
+}
+
+void Application::onEvent(gfx::Event& event)
+{
+    if (event.dispatch<gfx::InputEvent>([&](gfx::InputEvent& inputEvent) {
+        for (auto& ctx : m_inputContextStack)
+            inputEvent.dispatch(utils::Func<void(gfx::InputEvent&)>(*ctx, &InputContext::onInputEvent));
+    })) return;
+
+    if (event.dispatch(utils::Func<void(gfx::WindowResizeEvent&)>(*this, &Application::onWindowResizeEvent)))
+        return;
+
+    if (event.dispatch(utils::Func<void(gfx::WindowRequestCloseEvent&)>(*this, &Application::onWindowRequestCloseEvent)))
+        return;
 }
 
 Application::~Application()

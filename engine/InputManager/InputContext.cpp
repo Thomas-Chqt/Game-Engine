@@ -21,11 +21,7 @@ void InputContext::onInputEvent(gfx::InputEvent& event)
         {
             if (input->mappers[i] == false)
                 continue;
-
             input->mappers[i]->onInputEvent(event);
-
-            if (event.processed())
-                return;
         }
     }
 }

@@ -32,6 +32,7 @@ void Game::stop()
 {
     assert(m_activeScene != nullptr);
     assert(m_activeScene->isLoaded());
+    
     m_activeScene->unload();
     m_activeScene = nullptr;
     m_isRunning = false;

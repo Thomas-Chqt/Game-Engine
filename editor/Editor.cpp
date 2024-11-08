@@ -49,9 +49,6 @@ namespace GE
 Editor::Editor() : m_vpFrameBuff(*m_window, m_renderer.graphicAPI())
 {
     ImGui::GetIO().IniFilename = nullptr;
-    // ImGui::GetIO().SetClipboardTextFn = [](void* user_data, const char* text) { static_cast<gfx::Window*>(user_data)->setClipboardString(text); };
-    // ImGui::GetIO().GetClipboardTextFn = [](void* user_data) -> const char* { return static_cast<gfx::Window*>(user_data)->getClipboardString(); };
-    // ImGui::GetIO().ClipboardUserData = (gfx::Window*)m_window;
 
     Mapper<KeyboardButton, Range2DInput>::Descriptor inputMapperDesc;
 
@@ -80,6 +77,8 @@ Editor::Editor() : m_vpFrameBuff(*m_window, m_renderer.graphicAPI())
     auto editorCamRotateIptMapper = utils::makeUnique<Mapper<KeyboardButton, Range2DInput>>(inputMapperDesc, editorCamRotateIpt);
     editorCamRotateIpt.mappers[0] = editorCamRotateIptMapper.staticCast<IMapper>();
     editorCamRotateIpt.mappers[1].clear();
+
+    pushInputCtx(&m_editorInputContext);
 
     newProject();
 }
@@ -122,6 +121,7 @@ void Editor::runProject()
         makeScriptInstance = nullptr;
     
     m_game = m_project.createGame();
+    pushInputCtx(&m_game.inputContext());
     m_game.start(m_renderer.graphicAPI(), fs::path(m_projectSavePath).remove_filename(), makeScriptInstance);
     m_game.setActiveScene(m_project.startScene()->name());
 }
@@ -129,6 +129,7 @@ void Editor::runProject()
 void Editor::stopProject()
 {
     m_game.stop();
+    popInputCtx();
 }
 
 void Editor::editScene(Scene* scene)
@@ -170,17 +171,14 @@ void Editor::onUpdate()
 
     if (m_game.isRunning() == false)
     {
+        assert(m_editedScene != nullptr);
         m_renderer.beginScene(m_editorCamera.getRendererCam(), m_vpFrameBuff);
         {
-            if (m_editedScene)
-                m_renderer.addScene(*m_editedScene);
+            m_renderer.addScene(*m_editedScene);
         }
         m_renderer.endScene();
-        
-        if (ImGui::GetIO().WantCaptureKeyboard == false)
-            m_editorInputContext.dispatchInputs();
-        else
-            m_editorInputContext.resetInputs();
+
+        setActiveInputCtx(&m_editorInputContext);
     }
     else
     {
@@ -199,7 +197,12 @@ void Editor::onUpdate()
             m_renderer.addScene(m_game.activeScene());
         }
         m_renderer.endScene();
+
+        setActiveInputCtx(&m_game.inputContext());
     }
+
+    if (ImGui::GetIO().WantCaptureKeyboard)
+        setActiveInputCtx(nullptr);
 }
 
 void Editor::onImGuiRender()
@@ -270,16 +273,13 @@ void Editor::onImGuiRender()
     }
 }
 
-void Editor::onEvent(gfx::Event& event)
+void Editor::onWindowResizeEvent(gfx::WindowResizeEvent&)
 {
-    if (event.dispatch(utils::Func<void(gfx::InputEvent&)>(m_editorInputContext, &InputContext::onInputEvent)))
-        return;
-    if (event.dispatch<gfx::WindowResizeEvent>([&](gfx::WindowResizeEvent& windowResizeEvent) {
-        //
-    })) return;
-    if (event.dispatch<gfx::WindowRequestCloseEvent>([&](gfx::WindowRequestCloseEvent& windowRequestCloseEvent) {
-        terminate();
-    })) return;
+}
+
+void Editor::onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&)
+{
+    terminate();
 }
 
 void Editor::udpateEditorDatas()

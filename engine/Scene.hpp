@@ -36,6 +36,7 @@ public:
     inline const ECSWorld& ecsWorld() const { return m_ecsWorld; }
 
     Entity activeCamera();
+    const Entity activeCamera() const { return const_cast<Scene*>(this)->activeCamera(); };
     void setActiveCamera(const Entity& e);
 
     inline AssetManager& assetManager() { return m_assetManager; }
