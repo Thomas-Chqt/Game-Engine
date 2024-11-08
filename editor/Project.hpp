@@ -52,7 +52,7 @@ public:
     inline void setStartScene(const utils::String& name) { m_startScene = name; }
     inline void setStartScene(const Scene& s) { setStartScene(s.name()); }
 
-    inline Game createGame() const { return Game(m_scenes, m_startScene); }
+    inline Game createGame() const { return Game(m_scenes); }
 
     ~Project() = default;
 

@@ -13,9 +13,9 @@
 namespace GE
 {
 
-void Script::setEntity(Entity entt)
-{
-    m_entity = entt;
-}
+// Script::Script(const Entity& e)
+//     : m_entity(e)
+// {
+// }
 
 }

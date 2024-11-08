@@ -50,19 +50,17 @@ Entity Scene::newEntity(const utils::String& name)
     return newEntity;
 }
 
-void Scene::load(gfx::GraphicAPI& api, const std::filesystem::path& dir, Script* (*makeScriptInstanceFn)(char*))
+void Scene::load(gfx::GraphicAPI& api, const std::filesystem::path& dir, MakeScriptInstanceFn makeScriptInstance)
 {
     assert(isLoaded() == false);
 
     if (m_assetManager.isLoaded() == false)
         m_assetManager.loadAssets(api, dir);
 
-    if (makeScriptInstanceFn != nullptr)
+    if (makeScriptInstance != nullptr)
     {
         ECSView<ScriptComponent>(m_ecsWorld).onEach([&](Entity entt, ScriptComponent& scriptComponent) {
-            scriptComponent.instance = utils::SharedPtr<Script>(makeScriptInstanceFn(scriptComponent.name));
-            scriptComponent.instance->setEntity(entt);
-            scriptComponent.instance->onSetup();
+            scriptComponent.instance = utils::SharedPtr<Script>(makeScriptInstance(scriptComponent.name, entt));
         });
     }
 
@@ -85,12 +83,8 @@ void Scene::unload()
 bool Scene::isLoaded()
 {
     if (m_isLoaded)
-    {
         assert(m_assetManager.isLoaded());
-        return true;
-    }
-    else
-        return false;
+    return m_isLoaded;
 }
 
 void to_json(json& jsn, const Scene& scene)

@@ -14,36 +14,40 @@
 namespace GE
 {
 
-Game::Game(const utils::Set<Scene>& scene, const utils::String& startScene)
-    : m_scenes(scene), m_activeScene(&*m_scenes.find(startScene))
+Game::Game(const utils::Set<Scene>& scenes)
+    : m_scenes(scenes)
 {
 }
 
-void Game::start(gfx::GraphicAPI& api, const std::filesystem::path& baseDir, Script *(*makeScriptInstanceFn)(char *))
+void Game::start(gfx::GraphicAPI& api, const std::filesystem::path& baseDir, MakeScriptInstanceFn makeScriptInstance)
 {
     m_api = &api;
     m_baseDir = baseDir;
-    m_makeScriptInstanceFn = makeScriptInstanceFn;
-
-    assert(m_activeScene);
-    m_activeScene->load(api, baseDir, makeScriptInstanceFn);
+    m_makeScriptInstance = makeScriptInstance;
 
     m_isRunning = true;
 }
 
 void Game::stop()
 {
-    m_scenes.clear();
+    assert(m_activeScene != nullptr);
+    assert(m_activeScene->isLoaded());
+    m_activeScene->unload();
+    m_activeScene = nullptr;
     m_isRunning = false;
 }
 
 void Game::setActiveScene(const utils::String& name)
 {
-    assert(m_activeScene);
-    m_activeScene->unload();
-
-    m_activeScene = &*m_scenes.find(name);
-    m_activeScene->load(*m_api, m_baseDir, m_makeScriptInstanceFn);
+    if (m_activeScene)
+    {
+        assert(m_activeScene->isLoaded());
+        m_activeScene->unload();
+    }
+    auto it = m_scenes.find(name);
+    assert(it != m_scenes.end());
+    m_activeScene = &*it;
+    m_activeScene->load(*m_api, m_baseDir, m_makeScriptInstance);
 }
 
 }

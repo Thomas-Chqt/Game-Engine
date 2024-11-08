@@ -13,22 +13,12 @@
 class Rotating : public GE::Script
 {
 public:
-    Rotating()                  = default;
-    Rotating(const Rotating&) = default;
-    Rotating(Rotating&&)      = default;
+    using GE::Script::Script;
 
     void onUpdate() override
     {
         m_entity.rotation() += { 0.0, 0.02, 0.0 };
     }
-
-    ~Rotating() = default;
-
-private:
-    
-public:
-    Rotating& operator = (const Rotating&) = default;
-    Rotating& operator = (Rotating&&)      = default;
 };
 
 REGISTER_SCRIPT(Rotating);

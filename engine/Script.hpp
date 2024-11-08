@@ -18,13 +18,12 @@ namespace GE
 class Script
 {
 public:
-    Script()              = default;
+    Script()              = delete;
     Script(const Script&) = default;
     Script(Script&&)      = default;
 
-    void setEntity(Entity);
+    inline Script(const Entity& e) : m_entity(e) {}
     
-    virtual void onSetup() {};
     virtual void onUpdate() {};
 
     virtual ~Script() = default;
@@ -36,6 +35,9 @@ public:
     Script& operator = (const Script&) = default;
     Script& operator = (Script&&)      = default;
 };
+
+using GetScriptNamesFn = void (*)(const char***, unsigned long*); // getScriptNames
+using MakeScriptInstanceFn = Script* (*)(const char*, const Entity&); // makeScriptInstance
 
 }
 

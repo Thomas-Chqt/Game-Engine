@@ -18,6 +18,7 @@
 #include "Project.hpp"
 #include "Renderer/Renderer.hpp"
 #include "Scene.hpp"
+#include "Script.hpp"
 #include "UI/ContentBrowserPanel.hpp"
 #include "UI/EntityInspectorPanel.hpp"
 #include "UI/FileOpenDialog.hpp"
@@ -114,16 +115,15 @@ void Editor::saveProject()
 
 void Editor::runProject()
 {
-    using makeScriptInstanceFunc = GE::Script* (*)(char*);
-
-    makeScriptInstanceFunc makeScriptInstance;
+    MakeScriptInstanceFn makeScriptInstance;
     if (m_scriptLibHandle != nullptr)
-        makeScriptInstance = (makeScriptInstanceFunc)dlsym(m_scriptLibHandle, "makeScriptInstance");
+        makeScriptInstance = (MakeScriptInstanceFn)dlsym(m_scriptLibHandle, "makeScriptInstance");
     else
         makeScriptInstance = nullptr;
     
     m_game = m_project.createGame();
     m_game.start(m_renderer.graphicAPI(), fs::path(m_projectSavePath).remove_filename(), makeScriptInstance);
+    m_game.setActiveScene(m_project.startScene()->name());
 }
 
 void Editor::stopProject()
@@ -133,8 +133,11 @@ void Editor::stopProject()
 
 void Editor::editScene(Scene* scene)
 {
-    if (m_editedScene && m_editedScene->assetManager().isLoaded())
+    if (m_editedScene)
+    {
+        assert(m_editedScene->assetManager().isLoaded());
         m_editedScene->assetManager().unloadAssets();
+    }
     
     m_editedScene = scene;
     m_editedScene->assetManager().loadAssets(m_renderer.graphicAPI(), fs::path(m_projectSavePath).remove_filename());

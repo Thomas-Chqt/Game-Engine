@@ -14,9 +14,7 @@
 class Scaling : public GE::Script
 {
 public:
-    Scaling()               = default;
-    Scaling(const Scaling&) = default;
-    Scaling(Scaling&&)      = default;
+    using GE::Script::Script;
     
     void onUpdate() override
     {
@@ -27,15 +25,8 @@ public:
             m_increasing = true;
     }
 
-    ~Scaling() = default;
-
 private:
     bool m_increasing = true;
-
-
-public:
-    Scaling& operator = (const Scaling&) = default;
-    Scaling& operator = (Scaling&&)      = default;
 };
 
 REGISTER_SCRIPT(Scaling);

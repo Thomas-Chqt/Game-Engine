@@ -23,10 +23,10 @@ public:
     Game()            = default;
     Game(const Game&) = default;
     Game(Game&&)      = default;
-    
-    Game(const utils::Set<Scene>& scene, const utils::String& startScene);
 
-    void start(gfx::GraphicAPI& api, const std::filesystem::path& baseDir, Script *(*makeScriptInstanceFn)(char *));
+    Game(const utils::Set<Scene>&);
+
+    void start(gfx::GraphicAPI& api, const std::filesystem::path& baseDir, MakeScriptInstanceFn);
     void stop();
     inline bool isRunning() const { return m_isRunning; }
 
@@ -41,7 +41,7 @@ private:
 
     gfx::GraphicAPI* m_api = nullptr;
     std::filesystem::path m_baseDir;
-    Script *(*m_makeScriptInstanceFn)(char *) = nullptr;
+    MakeScriptInstanceFn m_makeScriptInstance = nullptr;
 
     bool m_isRunning = false;
 

@@ -43,7 +43,7 @@ public:
 
     Entity newEntity(const utils::String& name);
     
-    void load(gfx::GraphicAPI&, const std::filesystem::path& baseDir, Script* (*makeScriptInstanceFn)(char*));
+    void load(gfx::GraphicAPI&, const std::filesystem::path& baseDir, MakeScriptInstanceFn);
     void unload();
     bool isLoaded();
 

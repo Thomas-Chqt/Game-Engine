@@ -8,6 +8,7 @@
  */
 
 #include "UI/ContentBrowserPanel.hpp"
+#include "Script.hpp"
 #include <cstring>
 #include <dlfcn.h>
 
@@ -75,10 +76,9 @@ void ContentBrowserPanel::renderScripts()
     if (m_libScriptHandle == nullptr)
         return;
 
-    using getScriptNamesFunc = void (*)(char***, unsigned long*);
-    char** scriptNames;
+    const char** scriptNames;
     utils::uint64 scriptCount;
-    auto getScriptNames = (getScriptNamesFunc)dlsym(m_libScriptHandle, "getScriptNames");
+    auto getScriptNames = (GetScriptNamesFn)dlsym(m_libScriptHandle, "getScriptNames");
     getScriptNames(&scriptNames, &scriptCount);
 
     for (utils::uint64 i = 0; i < scriptCount; i++)
