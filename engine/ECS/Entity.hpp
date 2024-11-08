@@ -93,10 +93,19 @@ public:
     void removeParent();
 
     math::vec3f& position();
+    const math::vec3f& position() const { return const_cast<Entity*>(this)->position(); }
+
     math::vec3f& rotation();
+    const math::vec3f& rotation() const { return const_cast<Entity*>(this)->rotation(); }
+
     math::vec3f& scale();
+    const math::vec3f& scale() const { return const_cast<Entity*>(this)->scale(); }
+
     math::mat4x4 transform() const;
+    math::mat4x4 transform_noScale() const;
+
     math::mat4x4 worldTransform() const;
+    math::mat4x4 worldTransform_noScale() const;
 
     ~Entity() = default;
 

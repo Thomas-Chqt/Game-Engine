@@ -15,6 +15,12 @@
 namespace GE
 {
 
+class Game;
+class Script;
+
+using GetScriptNamesFn = void (*)(const char***, unsigned long*); // getScriptNames
+using MakeScriptInstanceFn = Script* (*)(const char*, const Entity&, Game& g); // makeScriptInstance
+
 class Script
 {
 public:
@@ -22,7 +28,7 @@ public:
     Script(const Script&) = default;
     Script(Script&&)      = default;
 
-    inline Script(const Entity& e) : m_entity(e) {}
+    inline Script(const Entity& e, Game& g) : m_entity(e), m_game(g) {}
     
     virtual void onUpdate() {};
 
@@ -30,14 +36,8 @@ public:
 
 protected:
     Entity m_entity;
-
-public:
-    Script& operator = (const Script&) = default;
-    Script& operator = (Script&&)      = default;
+    Game& m_game;
 };
-
-using GetScriptNamesFn = void (*)(const char***, unsigned long*); // getScriptNames
-using MakeScriptInstanceFn = Script* (*)(const char*, const Entity&); // makeScriptInstance
 
 }
 

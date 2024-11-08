@@ -208,11 +208,23 @@ math::mat4x4 Entity::transform() const
     return get<TransformComponent>();
 }
 
+math::mat4x4 Entity::transform_noScale() const
+{
+    return math::mat4x4::translation(position()) * math::mat4x4::rotation(rotation());
+}
+
 math::mat4x4 Entity::worldTransform() const
 {
     if (hasParent() && parent().has<TransformComponent>())
         return parent().worldTransform() * transform();
     return transform();
+}
+
+math::mat4x4 Entity::worldTransform_noScale() const
+{
+    if (hasParent() && parent().has<TransformComponent>())
+        return parent().worldTransform_noScale() * transform_noScale();
+    return transform_noScale();
 }
 
 }

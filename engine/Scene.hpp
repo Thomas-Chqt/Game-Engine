@@ -44,7 +44,7 @@ public:
 
     Entity newEntity(const utils::String& name);
     
-    void load(gfx::GraphicAPI&, const std::filesystem::path& baseDir, MakeScriptInstanceFn);
+    void load(gfx::GraphicAPI&, const std::filesystem::path& baseDir, MakeScriptInstanceFn, Game&);
     void unload();
     bool isLoaded();
 

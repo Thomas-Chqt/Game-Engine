@@ -48,7 +48,7 @@ void Game::setActiveScene(const utils::String& name)
     auto it = m_scenes.find(name);
     assert(it != m_scenes.end());
     m_activeScene = &*it;
-    m_activeScene->load(*m_api, m_baseDir, m_makeScriptInstance);
+    m_activeScene->load(*m_api, m_baseDir, m_makeScriptInstance, *this);
 }
 
 }

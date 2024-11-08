@@ -108,7 +108,7 @@ void Editor::reloadProject()
 
 void Editor::saveProject()
 {
-    assert(fs::is_directory(m_projectSavePath.remove_filename()));
+    assert(fs::is_directory(fs::path(m_projectSavePath).remove_filename()));
     std::ofstream(m_projectSavePath) << json(m_project).dump(4);
 }
 
@@ -187,8 +187,12 @@ void Editor::onUpdate()
                 scriptComponent.instance->onUpdate();
         });
 
+        assert(m_game.activeScene().activeCamera());
+        assert(m_game.activeScene().activeCamera().has<TransformComponent>());
+        assert(m_game.activeScene().activeCamera().has<CameraComponent>());
+
         Renderer::Camera rendererCamera = {
-            m_game.activeScene().activeCamera().get<TransformComponent>().transform().inversed(),
+            m_game.activeScene().activeCamera().worldTransform_noScale().inversed(),
             m_game.activeScene().activeCamera().get<CameraComponent>().projectionMatrix()
         };
         
@@ -227,6 +231,7 @@ void Editor::onImGuiRender()
         .on_File_Save(m_projectSavePath.empty() ? [&](){ (void)(isFileSaveDialogPresented = true); } : utils::Func<void()>(*this, &Editor::saveProject))
         .on_Project_ReloadScriptLib(!m_project.scriptLib().empty() ? utils::Func<void()>(*this, &Editor::reloadScriptLib) : utils::Func<void()>())
         .on_Project_Properties([](){ isProjectPropertiesModalPresented = true; })
+        .on_Scene_Add_EmptyEntity([&](){ m_editedScene->newEntity("new_empty_entity"); })
         .on_Project_Run(!m_game.isRunning() ? utils::Func<void()>(*this, &Editor::runProject) : utils::Func<void()>())
         .on_Project_Stop(m_game.isRunning() ? utils::Func<void()>(*this, &Editor::stopProject) : utils::Func<void()>())
         .render();

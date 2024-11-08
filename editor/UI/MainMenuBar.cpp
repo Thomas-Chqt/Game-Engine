@@ -62,6 +62,19 @@ void MainMenuBar::render()
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Scene"))
+        {
+            if (ImGui::BeginMenu("New"))
+            {
+                ImGui::BeginDisabled(!m_scene.neew.emptyEntity);
+                if (ImGui::MenuItem("Empty enitity"))
+                    m_scene.neew.emptyEntity();
+                ImGui::EndDisabled();
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenu();
+        }
+
         if (ImGui::BeginMenu("Debug"))
         {
             ImGui::BeginDisabled(!m_debug.showDemoWindow);

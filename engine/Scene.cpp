@@ -50,7 +50,7 @@ Entity Scene::newEntity(const utils::String& name)
     return newEntity;
 }
 
-void Scene::load(gfx::GraphicAPI& api, const std::filesystem::path& dir, MakeScriptInstanceFn makeScriptInstance)
+void Scene::load(gfx::GraphicAPI& api, const std::filesystem::path& dir, MakeScriptInstanceFn makeScriptInstance, Game& game)
 {
     assert(isLoaded() == false);
 
@@ -60,7 +60,7 @@ void Scene::load(gfx::GraphicAPI& api, const std::filesystem::path& dir, MakeScr
     if (makeScriptInstance != nullptr)
     {
         ECSView<ScriptComponent>(m_ecsWorld).onEach([&](Entity entt, ScriptComponent& scriptComponent) {
-            scriptComponent.instance = utils::SharedPtr<Script>(makeScriptInstance(scriptComponent.name, entt));
+            scriptComponent.instance = utils::SharedPtr<Script>(makeScriptInstance(scriptComponent.name, entt, game));
         });
     }
 
@@ -107,7 +107,13 @@ void from_json(const json& jsn, Scene& scene)
 
     auto activeCameraIt = jsn.find("activeCamera");
     if (activeCameraIt != jsn.end())
-        scene.m_activeCamera = activeCameraIt->template get<ECSWorld::EntityID>();
+    {
+        ECSWorld::EntityID activeCameraId = activeCameraIt->template get<ECSWorld::EntityID>();
+        if (scene.m_ecsWorld.isValidEntityID(activeCameraId))
+            scene.m_activeCamera = activeCameraId;
+        else
+            scene.m_activeCamera = INVALID_ENTITY_ID;
+    }
 
     auto assetManagerIt = jsn.find("assetManager");
     if (assetManagerIt != jsn.end())

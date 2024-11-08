@@ -18,23 +18,25 @@
 
 struct ScriptRegistry
 {
-    static utils::Dictionary<utils::String, utils::Func<GE::Script*(const GE::Entity&)>>& getRegistery()
+    static utils::Dictionary<utils::String, utils::Func<GE::Script*(const GE::Entity&, GE::Game&)>>& getRegistery()
     {
-        static utils::Dictionary<utils::String, utils::Func<GE::Script*(const GE::Entity&)>> registery;
+        static utils::Dictionary<utils::String, utils::Func<GE::Script*(const GE::Entity&, GE::Game&)>> registery;
         return registery;
     }
 };
 
-#define REGISTER_SCRIPT(name)                                                             \
-    class ScriptRegistry_##name : public ScriptRegistry                                   \
-    {                                                                                     \
-    public:                                                                               \
-        ScriptRegistry_##name()                                                           \
-        {                                                                                 \
-            getRegistery().insert(#name, [](const GE::Entity& e){ return new name(e); }); \
-        }                                                                                 \
-        static ScriptRegistry_##name s_instance;                                          \
-    };                                                                                    \
+#define REGISTER_SCRIPT(name)                                                  \
+    class ScriptRegistry_##name : public ScriptRegistry                        \
+    {                                                                          \
+    public:                                                                    \
+        ScriptRegistry_##name()                                                \
+        {                                                                      \
+            getRegistery().insert(#name, [](const GE::Entity& e, GE::Game& g){ \
+                return new name(e, g);                                         \
+            });                                                                \
+        }                                                                      \
+        static ScriptRegistry_##name s_instance;                               \
+    };                                                                         \
     ScriptRegistry_##name  ScriptRegistry_##name::s_instance
 
 #endif // SCRIPTLIB_HPP

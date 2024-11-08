@@ -44,6 +44,9 @@ public:
     inline MainMenuBar& on_Project_Stop(const utils::Func<void()>& f) { return m_project.stop = f, *this; }
     inline MainMenuBar& on_Project_Stop(utils::Func<void()>&& f) { return m_project.stop = std::move(f), *this; }
 
+    inline MainMenuBar& on_Scene_Add_EmptyEntity(const utils::Func<void()>& f) { return m_scene.neew.emptyEntity = f, *this; }
+    inline MainMenuBar& on_Scene_Add_EmptyEntity(utils::Func<void()>&& f) { return m_scene.neew.emptyEntity = std::move(f), *this; }
+
     inline MainMenuBar& on_Debug_ShowDemoWindow(const utils::Func<void()>& f) { return m_debug.showDemoWindow = f, *this; }
     inline MainMenuBar& on_Debug_ShowDemoWindow(utils::Func<void()>&& f) { return m_debug.showDemoWindow = std::move(f), *this; }
 
@@ -75,6 +78,14 @@ private:
         utils::Func<void()> run;
         utils::Func<void()> stop;
     } m_project;
+
+    struct
+    {
+        struct
+        {
+            utils::Func<void()> emptyEntity;
+        } neew;
+    } m_scene;
 
     struct
     {

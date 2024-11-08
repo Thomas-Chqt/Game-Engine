@@ -24,7 +24,7 @@ extern "C" void getScriptNames(const char*** names, unsigned long* count)
     *count = ScriptRegistry::getRegistery().size();
 }
 
-extern "C" GE::Script* makeScriptInstance(const char* name, const GE::Entity& e)
+extern "C" GE::Script* makeScriptInstance(const char* name, const GE::Entity& e, GE::Game& g)
 {
-    return ScriptRegistry::getRegistery()[name](e);
+    return ScriptRegistry::getRegistery()[name](e, g);
 }
