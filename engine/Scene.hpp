@@ -13,6 +13,7 @@
 #include "AssetManager.hpp"
 #include "ECS/ECSWorld.hpp"
 #include "ECS/Entity.hpp"
+#include "Script.hpp"
 #include "UtilsCPP/String.hpp"
 #include <nlohmann/json.hpp>
 
@@ -41,15 +42,19 @@ public:
     inline const AssetManager& assetManager() const { return m_assetManager; }
 
     Entity newEntity(const utils::String& name);
-    inline void load(gfx::GraphicAPI& api, const std::filesystem::path& dir) { m_assetManager.loadAssets(api, dir); }
-    inline void unload() { m_assetManager.unloadAssets(); }
-    inline bool isLoaded() { return m_assetManager.isLoaded(); }
+    
+    void load(gfx::GraphicAPI&, const std::filesystem::path& baseDir, Script* (*makeScriptInstanceFn)(char*));
+    void unload();
+    bool isLoaded();
+
+    ~Scene() = default;
 
 private:
     utils::String m_name;
     ECSWorld m_ecsWorld;
-    ECSWorld::EntityID m_activeCamera;
+    ECSWorld::EntityID m_activeCamera = INVALID_ENTITY_ID;
     AssetManager m_assetManager;
+    bool m_isLoaded = false;
 
 public:
     Scene& operator = (const Scene&) = default;

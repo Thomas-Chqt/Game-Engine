@@ -74,6 +74,8 @@ AssetID AssetManager::registerMesh(const fs::path& path)
 
 void AssetManager::loadAssets(gfx::GraphicAPI& api, const fs::path& baseDir)
 {
+    assert(isLoaded() == false);
+
     assert(baseDir.empty() || fs::is_directory(baseDir) && baseDir.is_absolute());
 
     m_api = &api;
@@ -86,6 +88,8 @@ void AssetManager::loadAssets(gfx::GraphicAPI& api, const fs::path& baseDir)
 
 void AssetManager::unloadAssets()
 {
+    assert(isLoaded());
+
     m_loadedMeshes.clear();
 
     m_api = nullptr;

@@ -47,6 +47,7 @@ public:
     ViewportFrameBuff& operator = (ViewportFrameBuff&&)      = delete;
 
     inline operator const utils::SharedPtr<gfx::FrameBuffer>& () const { return m_framebuffer; }
+    inline operator utils::SharedPtr<gfx::RenderTarget> () const { return m_framebuffer.staticCast<gfx::RenderTarget>(); }
 };
 
 }

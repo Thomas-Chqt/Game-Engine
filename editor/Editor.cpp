@@ -13,10 +13,10 @@
 #include "ECS/Entity.hpp"
 #include "EditorCamera.hpp"
 #include "Graphics/Event.hpp"
-#include "Graphics/RenderTarget.hpp"
 #include "InputManager/RawInput.hpp"
 #include "InputManager/Mapper.hpp"
 #include "Project.hpp"
+#include "Renderer/Renderer.hpp"
 #include "Scene.hpp"
 #include "UI/ContentBrowserPanel.hpp"
 #include "UI/EntityInspectorPanel.hpp"
@@ -101,47 +101,44 @@ void Editor::openProject(const fs::path& filePath)
 
 void Editor::reloadProject()
 {
-    m_project = Project(m_projectSavePath);
+    assert(fs::is_regular_file(m_projectSavePath));
+    m_project = json::parse(std::ifstream(m_projectSavePath));
     udpateEditorDatas();
 }
 
 void Editor::saveProject()
 {
-    m_project.save(m_projectSavePath);
+    assert(fs::is_directory(m_projectSavePath.remove_filename()));
+    std::ofstream(m_projectSavePath) << json(m_project).dump(4);
 }
 
 void Editor::runProject()
 {
     using makeScriptInstanceFunc = GE::Script* (*)(char*);
 
-    m_runningScene = utils::makeUnique<Scene>(*m_editedScene);
-
-    if (m_scriptLibHandle == nullptr)
-        return;
-
-    ECSView<ScriptComponent>(m_runningScene->ecsWorld()).onEach([&](Entity entt, ScriptComponent& scriptComponent) {
-        auto makeScriptInstance = (makeScriptInstanceFunc)dlsym(m_scriptLibHandle, "makeScriptInstance");
-        if (makeScriptInstance)
-        {
-            scriptComponent.instance = utils::SharedPtr<Script>(makeScriptInstance(scriptComponent.name));
-            scriptComponent.instance->setEntity(entt);
-        } 
-    });
+    makeScriptInstanceFunc makeScriptInstance;
+    if (m_scriptLibHandle != nullptr)
+        makeScriptInstance = (makeScriptInstanceFunc)dlsym(m_scriptLibHandle, "makeScriptInstance");
+    else
+        makeScriptInstance = nullptr;
+    
+    m_game = m_project.createGame();
+    m_game.start(m_renderer.graphicAPI(), fs::path(m_projectSavePath).remove_filename(), makeScriptInstance);
 }
 
 void Editor::stopProject()
 {
-    m_runningScene.clear();
+    m_game.stop();
 }
 
 void Editor::editScene(Scene* scene)
 {
-    if (m_editedScene && m_editedScene->isLoaded())
-        m_editedScene->unload();
-    
-    scene->load(m_renderer.graphicAPI(), fs::path(m_projectSavePath).remove_filename());
+    if (m_editedScene && m_editedScene->assetManager().isLoaded())
+        m_editedScene->assetManager().unloadAssets();
     
     m_editedScene = scene;
+    m_editedScene->assetManager().loadAssets(m_renderer.graphicAPI(), fs::path(m_projectSavePath).remove_filename());
+    
     m_selectedEntity = Entity();
     m_editorCamera = EditorCamera();
 }
@@ -168,33 +165,38 @@ void Editor::onUpdate()
     m_vpFrameBuff.onUpdate();
     processDroppedFiles();
 
-    if (!m_runningScene)
+    if (m_game.isRunning() == false)
     {
-        m_renderer.beginScene(m_editorCamera.getRendererCam(), static_cast<const utils::SharedPtr<gfx::FrameBuffer>&>(m_vpFrameBuff).staticCast<gfx::RenderTarget>());
+        m_renderer.beginScene(m_editorCamera.getRendererCam(), m_vpFrameBuff);
         {
             if (m_editedScene)
                 m_renderer.addScene(*m_editedScene);
         }
         m_renderer.endScene();
+        
+        if (ImGui::GetIO().WantCaptureKeyboard == false)
+            m_editorInputContext.dispatchInputs();
+        else
+            m_editorInputContext.resetInputs();
     }
     else
     {
-        ECSView<ScriptComponent>(m_runningScene->ecsWorld()).onEach([&](Entity entt, ScriptComponent& scriptComponent){
+        ECSView<ScriptComponent>(m_game.activeScene().ecsWorld()).onEach([&](Entity entt, ScriptComponent& scriptComponent){
             if (scriptComponent.instance)
                 scriptComponent.instance->onUpdate();
         });
 
-        m_renderer.beginScene(m_editorCamera.getRendererCam(), static_cast<const utils::SharedPtr<gfx::FrameBuffer>&>(m_vpFrameBuff).staticCast<gfx::RenderTarget>());
+        Renderer::Camera rendererCamera = {
+            m_game.activeScene().activeCamera().get<TransformComponent>().transform().inversed(),
+            m_game.activeScene().activeCamera().get<CameraComponent>().projectionMatrix()
+        };
+        
+        m_renderer.beginScene(rendererCamera, m_vpFrameBuff);
         {
-            m_renderer.addScene(*m_runningScene);
+            m_renderer.addScene(m_game.activeScene());
         }
         m_renderer.endScene();
     }
-
-    if (ImGui::GetIO().WantCaptureKeyboard == false)
-        m_editorInputContext.dispatchInputs();
-    else
-        m_editorInputContext.resetInputs();
 }
 
 void Editor::onImGuiRender()
@@ -219,8 +221,8 @@ void Editor::onImGuiRender()
         .on_File_Save(m_projectSavePath.empty() ? [&](){ (void)(isFileSaveDialogPresented = true); } : utils::Func<void()>(*this, &Editor::saveProject))
         .on_Project_ReloadScriptLib(!m_project.scriptLib().empty() ? utils::Func<void()>(*this, &Editor::reloadScriptLib) : utils::Func<void()>())
         .on_Project_Properties([](){ isProjectPropertiesModalPresented = true; })
-        .on_Project_Run(!m_runningScene ? utils::Func<void()>(*this, &Editor::runProject) : utils::Func<void()>())
-        .on_Project_Stop(m_runningScene ? utils::Func<void()>(*this, &Editor::stopProject) : utils::Func<void()>())
+        .on_Project_Run(!m_game.isRunning() ? utils::Func<void()>(*this, &Editor::runProject) : utils::Func<void()>())
+        .on_Project_Stop(m_game.isRunning() ? utils::Func<void()>(*this, &Editor::stopProject) : utils::Func<void()>())
         .render();
 
     ViewportPanel(*static_cast<const utils::SharedPtr<gfx::FrameBuffer>&>(m_vpFrameBuff)->colorTexture())

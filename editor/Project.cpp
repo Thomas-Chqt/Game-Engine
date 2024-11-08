@@ -12,7 +12,6 @@
 #include "Scene.hpp"
 #include <cassert>
 #include <filesystem>
-#include <fstream>
 
 #define DEFAULT_IMGUI_INI                                                                                                 \
     "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1280,701\nCollapsed=0\n\n"                                     \
@@ -46,21 +45,22 @@ Project::Project()
       m_imguiSettings(DEFAULT_IMGUI_INI)
 {
     auto& defautScene = *m_scenes.insert(Scene("default_scene"));
+    
     auto cube = defautScene.newEntity("cube");
     cube.emplace<TransformComponent>();
     cube.emplace<MeshComponent>(BUILT_IN_CUBE_ASSET_ID);
 
     auto light = defautScene.newEntity("light");
-    light.emplace<TransformComponent>(math::vec3f{-1.5, 1.5, -1.5}, math::vec3f{0, 0, 0}, math::vec3f{0, 0, 0});
+    light.emplace<TransformComponent>().position = math::vec3f{-1.5, 1.5, -1.5};
     light.emplace<LightComponent>();
 
-    m_startScene = "default_scene";
-}
+    auto camera = defautScene.newEntity("camera");
+    camera.emplace<TransformComponent>().position = math::vec3f{0.0F, 0.0F, -3.0F};
+    camera.emplace<CameraComponent>();
 
-Project::Project(const fs::path& filePath)
-{
-    assert(fs::is_regular_file(filePath));
-    *this = json::parse(std::ifstream(filePath));
+    defautScene.setActiveCamera(camera);
+
+    m_startScene = "default_scene";
 }
 
 void Project::deleteScene(const utils::String& name)
@@ -72,23 +72,13 @@ void Project::deleteScene(const utils::String& name)
 Scene* Project::startScene()
 {
     auto it = m_scenes.find(m_startScene);
-    if (it != m_scenes.end())
-        return &*it;
-    else
-        return nullptr;
-}
-
-void Project::save(const fs::path& filePath)
-{
-    assert(filePath.is_absolute());
-    assert(fs::is_directory(fs::path(filePath).remove_filename()));
-    std::ofstream(filePath) << json(*this).dump(4);
+    assert(it != m_scenes.end());
+    return &*it;
 }
 
 void to_json(json& jsn, const Project& project)
 {
     jsn["name"] = std::string(project.m_name);
-    jsn["ressourcesDir"] = project.m_ressourcesDir.string();
     jsn["scriptsLib"] = project.m_scriptLib.string();
 
     jsn["imguiSettings"] = std::string(project.m_imguiSettings);
@@ -105,9 +95,6 @@ void from_json(const json& jsn, Project& project)
 {
     auto nameIt = jsn.find("name");
     project.m_name = nameIt != jsn.end() ? utils::String(nameIt->template get<std::string>().c_str()) : "";
-
-    auto ressDirIt = jsn.find("ressourcesDir");
-    project.m_ressourcesDir = ressDirIt != jsn.end() ? ressDirIt->template get<fs::path>() : fs::path();
 
     auto scriptsLibIt = jsn.find("scriptsLib");
     project.m_scriptLib = scriptsLibIt != jsn.end() ? scriptsLibIt->template get<fs::path>() : fs::path();

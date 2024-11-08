@@ -10,8 +10,10 @@
 #include "Scene.hpp"
 #include "AssetManager.hpp"
 #include "ECS/Components.hpp"
+#include "ECS/ECSView.hpp"
 #include "ECS/ECSWorld.hpp"
 #include "ECS/Entity.hpp"
+#include "Script.hpp"
 #include "UtilsCPP/String.hpp"
 #include <cassert>
 #include <string>
@@ -46,6 +48,49 @@ Entity Scene::newEntity(const utils::String& name)
     newEntity.emplace<NameComponent>(name);
 
     return newEntity;
+}
+
+void Scene::load(gfx::GraphicAPI& api, const std::filesystem::path& dir, Script* (*makeScriptInstanceFn)(char*))
+{
+    assert(isLoaded() == false);
+
+    if (m_assetManager.isLoaded() == false)
+        m_assetManager.loadAssets(api, dir);
+
+    if (makeScriptInstanceFn != nullptr)
+    {
+        ECSView<ScriptComponent>(m_ecsWorld).onEach([&](Entity entt, ScriptComponent& scriptComponent) {
+            scriptComponent.instance = utils::SharedPtr<Script>(makeScriptInstanceFn(scriptComponent.name));
+            scriptComponent.instance->setEntity(entt);
+            scriptComponent.instance->onSetup();
+        });
+    }
+
+    m_isLoaded = true;
+}
+
+void Scene::unload()
+{
+    assert(isLoaded());
+
+    ECSView<ScriptComponent>(m_ecsWorld).onEach([&](Entity, ScriptComponent& scriptComponent) {
+        scriptComponent.instance.clear();
+    });
+
+    m_assetManager.unloadAssets();
+
+    m_isLoaded = false;
+}
+
+bool Scene::isLoaded()
+{
+    if (m_isLoaded)
+    {
+        assert(m_assetManager.isLoaded());
+        return true;
+    }
+    else
+        return false;
 }
 
 void to_json(json& jsn, const Scene& scene)

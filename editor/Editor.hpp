@@ -13,10 +13,10 @@
 #include "Application.hpp"
 #include "ECS/Entity.hpp"
 #include "EditorCamera.hpp"
+#include "Game.hpp"
 #include "InputManager/InputContext.hpp"
 #include "Project.hpp"
 #include "Scene.hpp"
-#include "UtilsCPP/UniquePtr.hpp"
 #include "ViewportFrameBuff.hpp"
 #include <filesystem>
 
@@ -60,7 +60,7 @@ private:
     EditorCamera m_editorCamera;
     InputContext m_editorInputContext;
 
-    utils::UniquePtr<Scene> m_runningScene;
+    Game m_game;
 
     ViewportFrameBuff m_vpFrameBuff;
     bool m_imguiSettingsNeedReload = false;

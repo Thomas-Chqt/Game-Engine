@@ -24,7 +24,8 @@ public:
 
     void setEntity(Entity);
     
-    virtual void onUpdate() = 0;
+    virtual void onSetup() {};
+    virtual void onUpdate() {};
 
     virtual ~Script() = default;
 

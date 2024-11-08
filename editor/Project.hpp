@@ -10,6 +10,7 @@
 #ifndef PROJECT_HPP
 #define PROJECT_HPP
 
+#include "Game.hpp"
 #include "Scene.hpp"
 #include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/String.hpp"
@@ -25,8 +26,6 @@ public:
     Project();
     Project(const Project&) = default;
     Project(Project&&)      = default;
-
-    Project(const std::filesystem::path&);
     
     inline const utils::String& name() const { return m_name; }
     inline void setName(const utils::String& s) { m_name = s; }
@@ -38,6 +37,7 @@ public:
     inline void saveIniSettingsToMemory() { m_imguiSettings = ImGui::SaveIniSettingsToMemory(); }
 
     inline const utils::Set<Scene>& scenes() const { return m_scenes; }
+    inline const Scene& scene(const utils::String& name) const { return *m_scenes.find(name); }
     inline Scene& scene(const utils::String& name) { return *m_scenes.find(name); }
 
     inline Scene* addScene(const Scene& s) { return &*m_scenes.insert(s); }
@@ -47,18 +47,17 @@ public:
     inline void deleteScene(const Scene& s) { deleteScene(s.name()); }
 
     Scene* startScene();
-    inline const Scene* startScene() const { return startScene(); }
+    inline const Scene* startScene() const { return const_cast<Project*>(this)->startScene(); }
 
     inline void setStartScene(const utils::String& name) { m_startScene = name; }
     inline void setStartScene(const Scene& s) { setStartScene(s.name()); }
 
-    void save(const std::filesystem::path&);
+    inline Game createGame() const { return Game(m_scenes, m_startScene); }
 
     ~Project() = default;
 
 private:
     utils::String m_name;
-    std::filesystem::path m_ressourcesDir;
     std::filesystem::path m_scriptLib;
 
     utils::String m_imguiSettings;
