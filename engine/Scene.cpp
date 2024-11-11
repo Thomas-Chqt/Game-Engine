@@ -10,10 +10,8 @@
 #include "Scene.hpp"
 #include "AssetManager.hpp"
 #include "ECS/Components.hpp"
-#include "ECS/ECSView.hpp"
 #include "ECS/ECSWorld.hpp"
 #include "ECS/Entity.hpp"
-#include "Script.hpp"
 #include "UtilsCPP/String.hpp"
 #include <cassert>
 #include <string>
@@ -50,43 +48,6 @@ Entity Scene::newEntity(const utils::String& name)
     return newEntity;
 }
 
-void Scene::load(gfx::GraphicAPI& api, const std::filesystem::path& dir, MakeScriptInstanceFn makeScriptInstance, Game& game)
-{
-    assert(isLoaded() == false);
-
-    if (m_assetManager.isLoaded() == false)
-        m_assetManager.loadAssets(api, dir);
-
-    if (makeScriptInstance != nullptr)
-    {
-        ECSView<ScriptComponent>(m_ecsWorld).onEach([&](Entity entt, ScriptComponent& scriptComponent) {
-            scriptComponent.instance = utils::SharedPtr<Script>(makeScriptInstance(scriptComponent.name, entt, game));
-        });
-    }
-
-    m_isLoaded = true;
-}
-
-void Scene::unload()
-{
-    assert(isLoaded());
-
-    ECSView<ScriptComponent>(m_ecsWorld).onEach([&](Entity, ScriptComponent& scriptComponent) {
-        scriptComponent.instance.clear();
-    });
-
-    m_assetManager.unloadAssets();
-
-    m_isLoaded = false;
-}
-
-bool Scene::isLoaded()
-{
-    if (m_isLoaded)
-        assert(m_assetManager.isLoaded());
-    return m_isLoaded;
-}
-
 void to_json(json& jsn, const Scene& scene)
 {
     jsn["name"] = std::string(scene.name());
@@ -109,7 +70,7 @@ void from_json(const json& jsn, Scene& scene)
     if (activeCameraIt != jsn.end())
     {
         ECSWorld::EntityID activeCameraId = activeCameraIt->template get<ECSWorld::EntityID>();
-        if (scene.m_ecsWorld.isValidEntityID(activeCameraId))
+        if (scene.ecsWorld().isValidEntityID(activeCameraId) && scene.ecsWorld().has<CameraComponent>(activeCameraId))
             scene.m_activeCamera = activeCameraId;
         else
             scene.m_activeCamera = INVALID_ENTITY_ID;

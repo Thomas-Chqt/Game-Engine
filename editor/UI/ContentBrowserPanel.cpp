@@ -17,8 +17,8 @@
 namespace GE
 {
 
-ContentBrowserPanel::ContentBrowserPanel(Project& project, const Scene* scene, void* libScriptHandle)
-    : m_project(project), m_scene(scene), m_libScriptHandle(libScriptHandle)
+ContentBrowserPanel::ContentBrowserPanel(Project& project, const Scene* scene, GetScriptNamesFn getScriptNames)
+    : m_project(project), m_scene(scene), m_getScriptNames(getScriptNames)
 {
 }
 
@@ -73,13 +73,12 @@ void ContentBrowserPanel::renderAssets()
 
 void ContentBrowserPanel::renderScripts()
 {
-    if (m_libScriptHandle == nullptr)
+    if (m_getScriptNames == nullptr)
         return;
 
     const char** scriptNames;
     utils::uint64 scriptCount;
-    auto getScriptNames = (GetScriptNamesFn)dlsym(m_libScriptHandle, "getScriptNames");
-    getScriptNames(&scriptNames, &scriptCount);
+    m_getScriptNames(&scriptNames, &scriptCount);
 
     for (utils::uint64 i = 0; i < scriptCount; i++)
         renderElement(scriptNames[i], "script_dnd", scriptNames[i], strlen(scriptNames[i]));

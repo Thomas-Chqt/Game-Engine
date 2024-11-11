@@ -27,34 +27,32 @@ public:
     Application(const Application&) = delete;
     Application(Application&&)      = delete;
 
+    inline gfx::Window& window() { return *m_window; }
+    inline Renderer& renderer() { return m_renderer; }
+
     void run();
-    inline void terminate() { m_running = false; }
 
-    virtual ~Application();
-
-protected:
     virtual void onUpdate() = 0;
     virtual void onImGuiRender() = 0;
+    void onEvent(gfx::Event&);
     virtual void onWindowResizeEvent(gfx::WindowResizeEvent&) = 0;
     virtual void onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&) = 0;
 
     inline void pushInputCtx(InputContext* ctx) { m_inputContextStack.append(ctx); }
     inline void popInputCtx() { m_inputContextStack.pop(--m_inputContextStack.end()); }
-    inline void setActiveInputCtx(InputContext* ctx) { m_activeInputContext = ctx; }
+    inline void setDispatchedInputCtx(InputContext* ctx) { m_dispatchedInputContext = ctx; }
+
+    inline void terminate() { m_running = false; }
+
+    virtual ~Application();
 
 private:
-    void onEvent(gfx::Event&);
-    void onInputEvent(gfx::InputEvent&);
-
-protected:
     utils::SharedPtr<gfx::Window> m_window;
     Renderer m_renderer;
-
-private:
-    bool m_running = false;
-
     utils::Array<InputContext*> m_inputContextStack;
-    InputContext* m_activeInputContext = nullptr;
+    InputContext* m_dispatchedInputContext = nullptr;
+
+    bool m_running = false;
 
 public:
     Application& operator = (const Application&) = delete;

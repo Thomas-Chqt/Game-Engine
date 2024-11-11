@@ -13,7 +13,6 @@
 #include "AssetManager.hpp"
 #include "ECS/ECSWorld.hpp"
 #include "ECS/Entity.hpp"
-#include "Script.hpp"
 #include "UtilsCPP/String.hpp"
 #include <nlohmann/json.hpp>
 
@@ -33,21 +32,18 @@ public:
     inline void setName(const utils::String& s) { m_name = s; }
 
     inline ECSWorld& ecsWorld() { return m_ecsWorld; }
-    inline const ECSWorld& ecsWorld() const { return m_ecsWorld; }
+    inline const ECSWorld& ecsWorld() const { return const_cast<Scene*>(this)->ecsWorld(); }
 
     Entity activeCamera();
     const Entity activeCamera() const { return const_cast<Scene*>(this)->activeCamera(); };
+    
     void setActiveCamera(const Entity& e);
 
     inline AssetManager& assetManager() { return m_assetManager; }
-    inline const AssetManager& assetManager() const { return m_assetManager; }
+    inline const AssetManager& assetManager() const { return const_cast<Scene*>(this)->assetManager(); }
 
     Entity newEntity(const utils::String& name);
     
-    void load(gfx::GraphicAPI&, const std::filesystem::path& baseDir, MakeScriptInstanceFn, Game&);
-    void unload();
-    bool isLoaded();
-
     ~Scene() = default;
 
 private:
@@ -55,7 +51,6 @@ private:
     ECSWorld m_ecsWorld;
     ECSWorld::EntityID m_activeCamera = INVALID_ENTITY_ID;
     AssetManager m_assetManager;
-    bool m_isLoaded = false;
 
 public:
     Scene& operator = (const Scene&) = default;

@@ -13,6 +13,12 @@
 namespace GE
 {
 
+InputContext::InputContext(const InputContext& cp)
+{
+    for (auto& [name, ipt] : cp.m_inputs)
+        m_inputs.insert(name, ipt->clone());
+}
+
 void InputContext::onInputEvent(gfx::InputEvent& event)
 {
     for (auto& [_, input] : m_inputs)
@@ -39,6 +45,17 @@ void InputContext::resetInputs()
     for (auto& [_, input] : m_inputs) {
         input->reset();
     }
+}
+
+InputContext& InputContext::operator = (const InputContext& cp)
+{
+    if (this != &cp)
+    {
+        m_inputs.clear();
+        for (auto& [name, ipt] : cp.m_inputs)
+            m_inputs.insert(name, ipt->clone());
+    }
+    return *this;
 }
 
 }

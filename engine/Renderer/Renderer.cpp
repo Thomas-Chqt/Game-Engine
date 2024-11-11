@@ -93,20 +93,14 @@ void Renderer::addRenderable(const Renderer::Renderable& renderable)
     m_renderables.append(renderable);
 }
 
-void Renderer::addPointLight(const Renderer::PointLight& pointLight)
+void Renderer::addRenderables(const ECSWorld& world, const AssetManager& assetManager)
 {
-    assert(m_lightsBuffer.content().pointLightCount < 32);
-    utils::uint32 idx = m_lightsBuffer.content().pointLightCount++;
-    m_lightsBuffer.content().pointLights[idx] = pointLight;
-}
-
-void Renderer::addScene(const Scene& scene)
-{
-    const_ECSView<TransformComponent, MeshComponent>(scene.ecsWorld()).onEach([&](const Entity entity, const TransformComponent& transform, const MeshComponent& mesh) {
+    const_ECSView<TransformComponent, MeshComponent>(world).onEach([&](const Entity entity, const TransformComponent& transform, const MeshComponent& mesh) {
         if (mesh.assetId.is_nil() == false)
         {
+            assert(assetManager.loadedMeshes().contain(mesh.assetId));
             math::mat4x4 entityWorldTransform = entity.worldTransform();
-            for (auto& subMesh : scene.assetManager().loadedMeshes()[mesh.assetId].subMeshes)
+            for (auto& subMesh : assetManager.loadedMeshes()[mesh.assetId].subMeshes)
             {
                 addRenderable(Renderer::Renderable{
                     subMesh.vertexBuffer, subMesh.indexBuffer,
@@ -115,8 +109,18 @@ void Renderer::addScene(const Scene& scene)
             }
         }
     });
+}
 
-    const_ECSView<TransformComponent, LightComponent>(scene.ecsWorld()).onEach([&](const Entity, const TransformComponent& transform, const LightComponent& light) {
+void Renderer::addPointLight(const Renderer::PointLight& pointLight)
+{
+    assert(m_lightsBuffer.content().pointLightCount < 32);
+    utils::uint32 idx = m_lightsBuffer.content().pointLightCount++;
+    m_lightsBuffer.content().pointLights[idx] = pointLight;
+}
+
+void Renderer::addLights(const ECSWorld& world)
+{
+    const_ECSView<TransformComponent, LightComponent>(world).onEach([&](const Entity, const TransformComponent& transform, const LightComponent& light) {
         switch (light.type)
         {
         case LightComponent::Type::point:

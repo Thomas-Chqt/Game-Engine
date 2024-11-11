@@ -21,6 +21,7 @@ namespace GE
 class IMapper
 {
 public:
+    virtual utils::UniquePtr<IMapper> clone(Input*) const = 0;
     virtual void onInputEvent(gfx::InputEvent&) = 0;
     virtual ~IMapper() = default;
 };
@@ -33,6 +34,7 @@ class Mapper<KeyboardButton, ActionInput> : public IMapper
 public:
     Mapper(KeyboardButton btn, ActionInput& ipt);
 
+    utils::UniquePtr<IMapper> clone(Input*) const override;
     void onInputEvent(gfx::InputEvent&) override;
     
     ~Mapper() override = default;
@@ -50,6 +52,7 @@ class Mapper<KeyboardButton, StateInput> : public IMapper
 public:
     Mapper(KeyboardButton btn, StateInput& ipt);
 
+    utils::UniquePtr<IMapper> clone(Input*) const override;
     void onInputEvent(gfx::InputEvent&) override;
 
     ~Mapper() override = default;
@@ -75,6 +78,7 @@ public:
 public:
     Mapper(const Descriptor& btn, RangeInput& ipt);
 
+    utils::UniquePtr<IMapper> clone(Input*) const override;
     void onInputEvent(gfx::InputEvent& event) override;
 
     ~Mapper() override = default;
@@ -105,6 +109,7 @@ public:
 public:
     Mapper(const Descriptor& btn, Range2DInput& ipt);
 
+    utils::UniquePtr<IMapper> clone(Input*) const override;
     void onInputEvent(gfx::InputEvent& event) override;
 
     ~Mapper() override = default;

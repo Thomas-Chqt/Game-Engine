@@ -19,6 +19,7 @@
 #include "Scene.hpp"
 #include "ViewportFrameBuff.hpp"
 #include <filesystem>
+#include "Script.hpp"
 
 namespace GE
 {
@@ -30,42 +31,53 @@ public:
     Editor(const Editor&) = delete;
     Editor(Editor&&)      = delete;
 
+    void onUpdate() override;
+    void onImGuiRender() override;
+    inline void onWindowResizeEvent(gfx::WindowResizeEvent&) override {}
+    void onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&) override;
+
+    // * Functions that directly match user action
+    // * Some are also used by other functions
     void newProject();
     void openProject(const std::filesystem::path&);
     void reloadProject();
     void saveProject();
-
-    void runProject();
-    void stopProject();
-
-    void editScene(Scene*);
-
     void reloadScriptLib();
-    
-    ~Editor() = default;
+    void editScene(Scene*);
+    void runGame();
+    void stopGame();
+
+    ~Editor();
 
 private:
-    void onUpdate() override;
-    void onImGuiRender() override;
-    void onWindowResizeEvent(gfx::WindowResizeEvent&) override;
-    void onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&) override;
-
-    void udpateEditorDatas();
+    // * helper functions
     void processDroppedFiles();
 
-    Project m_project;
+    // * absolut path of the project file 
+    // * (can be empty if the project hasnt been saved yet)
     std::filesystem::path m_projectSavePath;
 
+    // * project data (saved to disk)
+    Project m_project;
+
+    // * data derived from the project file (created at runtime, not saved)
+    void* m_scriptLibHandle = nullptr;
+    GetScriptNamesFn m_getScriptNames = nullptr;
+    MakeScriptInstanceFn m_makeScriptInstance = nullptr;
+
+    // * editor state
+    // TODO save this data in the project so the last state can be preserved
     Scene* m_editedScene = nullptr;
     Entity m_selectedEntity;
     EditorCamera m_editorCamera;
     InputContext m_editorInputContext;
 
-    Game m_game;
+    // * instance used when the game is running
+    utils::UniquePtr<Game> m_game;
+    bool m_isGameRunning = false;
 
+    // * UI reladed data
     ViewportFrameBuff m_vpFrameBuff;
-    bool m_imguiSettingsNeedReload = false;
-    void* m_scriptLibHandle = nullptr;
 
 public:
     Editor& operator = (const Editor&) = delete;

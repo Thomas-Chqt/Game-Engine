@@ -22,9 +22,9 @@ namespace GE
 class InputContext
 {
 public:
-    InputContext()                    = default;
-    InputContext(const InputContext&) = default;
-    InputContext(InputContext&&)      = default;
+    InputContext() = default;
+    InputContext(const InputContext&);
+    InputContext(InputContext&&) = default;
 
     template<typename T>
     T& newInput(const utils::String& name);
@@ -46,8 +46,8 @@ private:
     utils::Dictionary<utils::String, utils::UniquePtr<Input>> m_inputs;
 
 public:
-    InputContext& operator = (const InputContext&) = default;
-    InputContext& operator = (InputContext&&)      = default;
+    InputContext& operator = (const InputContext&);
+    InputContext& operator = (InputContext&&) = default;
 };
 
 template<typename T>

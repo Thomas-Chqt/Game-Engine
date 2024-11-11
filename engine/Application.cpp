@@ -37,7 +37,7 @@ void Application::run()
 
         for (auto& ctx : m_inputContextStack)
         {
-            if (ctx == m_activeInputContext)
+            if (ctx == m_dispatchedInputContext)
                 ctx->dispatchInputs();
             else
                 ctx->resetInputs();

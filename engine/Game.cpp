@@ -10,45 +10,57 @@
 #include "Game.hpp"
 #include <cassert>
 #include <dlfcn.h>
+#include "ECS/ECSView.hpp"
+#include "ECS/Components.hpp"
+#include "InputManager/InputContext.hpp"
 
 namespace GE
 {
 
-Game::Game(const utils::Set<Scene>& scenes)
-    : m_scenes(scenes)
+Game::Game(const Descriptor& descriptor)
+    : stop(descriptor.stopFunc)
 {
+    m_scenes = descriptor.scenes;
+    m_inputContext = descriptor.inputContext;
+    m_graphicAPI = descriptor.graphicAPI;
+    m_baseDir = descriptor.baseDir;
+    m_makeScriptInstance = descriptor.makeScriptInstance;
 }
 
-void Game::start(gfx::GraphicAPI& api, const std::filesystem::path& baseDir, MakeScriptInstanceFn makeScriptInstance)
-{
-    m_api = &api;
-    m_baseDir = baseDir;
-    m_makeScriptInstance = makeScriptInstance;
-
-    m_isRunning = true;
-}
-
-void Game::stop()
+Scene& Game::activeScene()
 {
     assert(m_activeScene != nullptr);
-    assert(m_activeScene->isLoaded());
-    
-    m_activeScene->unload();
-    m_activeScene = nullptr;
-    m_isRunning = false;
+    assert(m_activeScene->assetManager().isLoaded());
+    return *m_activeScene;
 }
 
 void Game::setActiveScene(const utils::String& name)
 {
     if (m_activeScene)
     {
-        assert(m_activeScene->isLoaded());
-        m_activeScene->unload();
+        assert(m_activeScene->assetManager().isLoaded());
+        if (m_activeScene->name() == name)
+            return;
+        ECSView<ScriptComponent>(m_activeScene->ecsWorld()).onEach([&](Entity, ScriptComponent& scriptComponent) {
+            scriptComponent.instance.clear();
+        });
+        m_activeScene->assetManager().unloadAssets();
     }
+
     auto it = m_scenes.find(name);
     assert(it != m_scenes.end());
     m_activeScene = &*it;
-    m_activeScene->load(*m_api, m_baseDir, m_makeScriptInstance, *this);
+
+    if (m_activeScene->assetManager().isLoaded() == false)
+        m_activeScene->assetManager().loadAssets(*m_graphicAPI, m_baseDir);
+
+    if (m_makeScriptInstance != nullptr)
+    {
+        ECSView<ScriptComponent>(m_activeScene->ecsWorld()).onEach([&](Entity entt, ScriptComponent& scriptComponent) {
+            scriptComponent.instance = utils::SharedPtr<Script>(m_makeScriptInstance(scriptComponent.name, entt, *this));
+            assert(scriptComponent.instance);
+        });
+    }
 }
 
 }

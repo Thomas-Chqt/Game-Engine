@@ -46,7 +46,7 @@ namespace fs = std::filesystem;
 namespace GE
 {
 
-Editor::Editor() : m_vpFrameBuff(*m_window, m_renderer.graphicAPI())
+Editor::Editor() : m_vpFrameBuff(window(), renderer().graphicAPI())
 {
     ImGui::GetIO().IniFilename = nullptr;
 
@@ -83,140 +83,61 @@ Editor::Editor() : m_vpFrameBuff(*m_window, m_renderer.graphicAPI())
     newProject();
 }
 
-void Editor::newProject()
-{
-    m_projectSavePath = fs::path();
-    m_project = Project();
-    udpateEditorDatas();
-}
-
-void Editor::openProject(const fs::path& filePath)
-{
-    assert(fs::is_regular_file(filePath));
-    assert(filePath.is_absolute());
-    
-    m_projectSavePath = filePath;
-    reloadProject();
-}
-
-void Editor::reloadProject()
-{
-    assert(fs::is_regular_file(m_projectSavePath));
-    m_project = json::parse(std::ifstream(m_projectSavePath));
-    udpateEditorDatas();
-}
-
-void Editor::saveProject()
-{
-    assert(fs::is_directory(fs::path(m_projectSavePath).remove_filename()));
-    std::ofstream(m_projectSavePath) << json(m_project).dump(4);
-}
-
-void Editor::runProject()
-{
-    MakeScriptInstanceFn makeScriptInstance;
-    if (m_scriptLibHandle != nullptr)
-        makeScriptInstance = (MakeScriptInstanceFn)dlsym(m_scriptLibHandle, "makeScriptInstance");
-    else
-        makeScriptInstance = nullptr;
-    
-    m_game = m_project.createGame();
-    pushInputCtx(&m_game.inputContext());
-    m_game.start(m_renderer.graphicAPI(), fs::path(m_projectSavePath).remove_filename(), makeScriptInstance);
-    m_game.setActiveScene(m_project.startScene()->name());
-}
-
-void Editor::stopProject()
-{
-    m_game.stop();
-    popInputCtx();
-}
-
-void Editor::editScene(Scene* scene)
-{
-    if (m_editedScene)
-    {
-        assert(m_editedScene->assetManager().isLoaded());
-        m_editedScene->assetManager().unloadAssets();
-    }
-    
-    m_editedScene = scene;
-    m_editedScene->assetManager().loadAssets(m_renderer.graphicAPI(), fs::path(m_projectSavePath).remove_filename());
-    
-    m_selectedEntity = Entity();
-    m_editorCamera = EditorCamera();
-}
-
-void Editor::reloadScriptLib()
-{
-    if (m_scriptLibHandle != nullptr)
-    {
-        dlclose(m_scriptLibHandle);
-        m_scriptLibHandle = nullptr;
-    }
-
-    if (m_project.scriptLib().empty() == false)
-    {
-        fs::path scriptLibPath = fs::path(m_projectSavePath).remove_filename() / m_project.scriptLib();
-        assert(scriptLibPath.is_absolute());
-        if (fs::is_regular_file(scriptLibPath))
-            m_scriptLibHandle = dlopen(scriptLibPath.c_str(), RTLD_NOW | RTLD_GLOBAL);
-    }
-}
-
 void Editor::onUpdate()
 {
+    m_project.loadIniSettingsFromMemory();
     m_vpFrameBuff.onUpdate();
     processDroppedFiles();
 
-    if (m_game.isRunning() == false)
+    if (m_isGameRunning)
     {
-        assert(m_editedScene != nullptr);
-        m_renderer.beginScene(m_editorCamera.getRendererCam(), m_vpFrameBuff);
-        {
-            m_renderer.addScene(*m_editedScene);
-        }
-        m_renderer.endScene();
-
-        setActiveInputCtx(&m_editorInputContext);
-    }
-    else
-    {
-        ECSView<ScriptComponent>(m_game.activeScene().ecsWorld()).onEach([&](Entity entt, ScriptComponent& scriptComponent){
+        ECSView<ScriptComponent>(m_game->activeScene().ecsWorld()).onEach([&](Entity entt, ScriptComponent& scriptComponent){
             if (scriptComponent.instance)
                 scriptComponent.instance->onUpdate();
         });
+    }
 
-        assert(m_game.activeScene().activeCamera());
-        assert(m_game.activeScene().activeCamera().has<TransformComponent>());
-        assert(m_game.activeScene().activeCamera().has<CameraComponent>());
+    if (m_isGameRunning == false)
+    {
+        m_game.clear();
+
+        assert(m_editedScene != nullptr);
+        renderer().beginScene(m_editorCamera.getRendererCam(), m_vpFrameBuff);
+        {
+            renderer().addRenderables(m_editedScene->ecsWorld(), m_editedScene->assetManager());
+            renderer().addLights(m_editedScene->ecsWorld());
+        }
+        renderer().endScene();
+
+        setDispatchedInputCtx(&m_editorInputContext);
+    }
+    else
+    {
+        assert(m_game->activeScene().activeCamera());
+        assert(m_game->activeScene().activeCamera().has<TransformComponent>());
+        assert(m_game->activeScene().activeCamera().has<CameraComponent>());
 
         Renderer::Camera rendererCamera = {
-            m_game.activeScene().activeCamera().worldTransform_noScale().inversed(),
-            m_game.activeScene().activeCamera().get<CameraComponent>().projectionMatrix()
+            m_game->activeScene().activeCamera().worldTransform_noScale().inversed(),
+            m_game->activeScene().activeCamera().get<CameraComponent>().projectionMatrix()
         };
         
-        m_renderer.beginScene(rendererCamera, m_vpFrameBuff);
+        renderer().beginScene(rendererCamera, m_vpFrameBuff);
         {
-            m_renderer.addScene(m_game.activeScene());
+            renderer().addRenderables(m_game->activeScene().ecsWorld(), m_editedScene->assetManager());
+            renderer().addLights(m_game->activeScene().ecsWorld());
         }
-        m_renderer.endScene();
+        renderer().endScene();
 
-        setActiveInputCtx(&m_game.inputContext());
+        setDispatchedInputCtx(&m_game->inputContext());
     }
 
     if (ImGui::GetIO().WantCaptureKeyboard)
-        setActiveInputCtx(nullptr);
+        setDispatchedInputCtx(nullptr);
 }
 
 void Editor::onImGuiRender()
 {
-    if (m_imguiSettingsNeedReload)
-    {
-        m_project.loadIniSettingsFromMemory();
-        m_imguiSettingsNeedReload = false;
-    }
-
     static bool isProjectPropertiesModalPresented = false;
     static bool isFileOpenDialogPresented = false;
     static bool isFileSaveDialogPresented = false;
@@ -229,11 +150,11 @@ void Editor::onImGuiRender()
         .on_File_New(utils::Func<void()>(*this, &Editor::newProject))
         .on_File_Open([](){ isFileOpenDialogPresented = true; })
         .on_File_Save(m_projectSavePath.empty() ? [&](){ (void)(isFileSaveDialogPresented = true); } : utils::Func<void()>(*this, &Editor::saveProject))
-        .on_Project_ReloadScriptLib(!m_project.scriptLib().empty() ? utils::Func<void()>(*this, &Editor::reloadScriptLib) : utils::Func<void()>())
+        .on_Project_ReloadScriptLib(!m_isGameRunning && !m_project.scriptLib().empty() ? utils::Func<void()>(*this, &Editor::reloadScriptLib) : utils::Func<void()>())
         .on_Project_Properties([](){ isProjectPropertiesModalPresented = true; })
         .on_Scene_Add_EmptyEntity([&](){ m_editedScene->newEntity("new_empty_entity"); })
-        .on_Project_Run(!m_game.isRunning() ? utils::Func<void()>(*this, &Editor::runProject) : utils::Func<void()>())
-        .on_Project_Stop(m_game.isRunning() ? utils::Func<void()>(*this, &Editor::stopProject) : utils::Func<void()>())
+        .on_Project_Run(!m_isGameRunning ? utils::Func<void()>(*this, &Editor::runGame) : utils::Func<void()>())
+        .on_Project_Stop(m_isGameRunning ? utils::Func<void()>(*this, &Editor::stopGame) : utils::Func<void()>())
         .render();
 
     ViewportPanel(*static_cast<const utils::SharedPtr<gfx::FrameBuffer>&>(m_vpFrameBuff)->colorTexture())
@@ -255,7 +176,7 @@ void Editor::onImGuiRender()
         .onOk(utils::Func<void()>(*this, &Editor::reloadScriptLib))
         .render();
 
-    ContentBrowserPanel(m_project, m_editedScene, m_scriptLibHandle)
+    ContentBrowserPanel(m_project, m_editedScene, m_getScriptNames)
         .render();
 
     ImGui::EndDisabled();
@@ -278,30 +199,127 @@ void Editor::onImGuiRender()
     }
 }
 
-void Editor::onWindowResizeEvent(gfx::WindowResizeEvent&)
-{
-}
-
 void Editor::onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&)
 {
     terminate();
 }
 
-void Editor::udpateEditorDatas()
+void Editor::newProject()
 {
+    m_projectSavePath = fs::path();
+    reloadProject();
+}
+
+void Editor::openProject(const fs::path& filePath)
+{
+    assert(fs::is_regular_file(filePath));
+    assert(filePath.is_absolute());
+    
+    m_projectSavePath = filePath;
+    reloadProject();
+}
+
+void Editor::reloadProject()
+{
+    if (m_projectSavePath.empty())
+        m_project = Project();
+    else
+    {
+        assert(fs::is_regular_file(m_projectSavePath));
+        assert(m_projectSavePath.is_absolute());
+        m_project = json::parse(std::ifstream(m_projectSavePath));
+    }
+
+    reloadScriptLib();
+
     m_editedScene = nullptr;
+    editScene(m_project.startScene());
+}
+
+void Editor::saveProject()
+{
+    assert(fs::is_directory(fs::path(m_projectSavePath).remove_filename()));
+    std::ofstream(m_projectSavePath) << json(m_project).dump(4);
+}
+
+void Editor::reloadScriptLib()
+{
+    if (m_scriptLibHandle != nullptr)
+    {
+        dlclose(m_scriptLibHandle);
+        m_scriptLibHandle = nullptr;
+    }
+
+    if (m_project.scriptLib().empty() == false)
+    {
+        fs::path scriptLibPath = fs::path(m_projectSavePath).remove_filename() / m_project.scriptLib();
+        assert(scriptLibPath.is_absolute());
+        assert(fs::is_regular_file(scriptLibPath));
+        m_scriptLibHandle = dlopen(scriptLibPath.c_str(), RTLD_NOW | RTLD_GLOBAL);
+        if (m_scriptLibHandle != nullptr)
+        {
+            m_getScriptNames = (GetScriptNamesFn)dlsym(m_scriptLibHandle, "getScriptNames");
+            m_makeScriptInstance = (MakeScriptInstanceFn)dlsym(m_scriptLibHandle, "makeScriptInstance");
+            if (m_getScriptNames == nullptr || m_makeScriptInstance == nullptr)
+            {
+                dlclose(m_scriptLibHandle);
+                m_scriptLibHandle = nullptr;
+            }
+        }
+    }
+}
+
+void Editor::editScene(Scene* scene)
+{
+    if (m_editedScene)
+    {
+        assert(m_editedScene->assetManager().isLoaded());
+        m_editedScene->assetManager().unloadAssets();
+    }
+    
+    m_editedScene = scene;
+    m_editedScene->assetManager().loadAssets(renderer().graphicAPI(), fs::path(m_projectSavePath).remove_filename());
+    
     m_selectedEntity = Entity();
     m_editorCamera = EditorCamera();
+}
 
-    editScene(m_project.startScene());
-    reloadScriptLib();
-    m_imguiSettingsNeedReload = true;
+void Editor::runGame()
+{
+    Game::Descriptor gameDescriptor;
+    gameDescriptor.scenes = m_project.scenes();
+    gameDescriptor.inputContext = m_project.inputContext();
+    gameDescriptor.graphicAPI = &renderer().graphicAPI();
+    gameDescriptor.baseDir = m_projectSavePath.remove_filename();
+    gameDescriptor.makeScriptInstance = m_makeScriptInstance;
+    gameDescriptor.stopFunc = utils::Func<void()>(*this, &Editor::stopGame);
+
+    m_game = utils::makeUnique<Game>(gameDescriptor);
+    m_game->setActiveScene(m_project.startScene()->name());
+
+    m_isGameRunning = true;
+    pushInputCtx(&m_game->inputContext());
+}
+
+void Editor::stopGame()
+{
+    popInputCtx();
+    m_isGameRunning = false;
+}
+
+Editor::~Editor()
+{
+    if (m_scriptLibHandle != nullptr)
+    {
+        dlclose(m_scriptLibHandle);
+        m_scriptLibHandle = nullptr;
+    }
 }
 
 void Editor::processDroppedFiles()
 {
     fs::path path;
-    while (m_window->popDroppedFile(path))
+    while (window().popDroppedFile(path))
     {
         if (json::accept(std::ifstream(path)))
         {

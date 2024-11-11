@@ -14,6 +14,7 @@
 #include "Scene.hpp"
 #include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/String.hpp"
+#include "Script.hpp"
 
 namespace GE
 {
@@ -21,18 +22,28 @@ namespace GE
 class Game
 {
 public:
+    struct Descriptor
+    {
+        utils::Set<Scene> scenes;
+        InputContext inputContext;
+
+        gfx::GraphicAPI* graphicAPI = nullptr;
+        std::filesystem::path baseDir;
+        MakeScriptInstanceFn makeScriptInstance = nullptr;
+        utils::Func<void()> stopFunc;
+    };
+
+public:
     Game()            = default;
     Game(const Game&) = default;
     Game(Game&&)      = default;
 
-    Game(const utils::Set<Scene>&);
+    Game(const Descriptor&);
 
-    void start(gfx::GraphicAPI& api, const std::filesystem::path& baseDir, MakeScriptInstanceFn);
-    void stop();
-    inline bool isRunning() const { return m_isRunning; }
+    const utils::Func<void()> stop;
 
-    inline Scene& activeScene() { return *m_activeScene; }
-    inline const Scene& activeScene() const { return *m_activeScene; }
+    Scene& activeScene();
+    inline const Scene& activeScene() const { return const_cast<Game*>(this)->activeScene(); }
 
     void setActiveScene(const utils::String& name);
 
@@ -44,17 +55,15 @@ public:
 private:
     utils::Set<Scene> m_scenes;
     Scene* m_activeScene = nullptr;
-
-    gfx::GraphicAPI* m_api = nullptr;
-    std::filesystem::path m_baseDir;
-    MakeScriptInstanceFn m_makeScriptInstance = nullptr;
     InputContext m_inputContext;
 
-    bool m_isRunning = false;
+    gfx::GraphicAPI* m_graphicAPI = nullptr;
+    std::filesystem::path m_baseDir;
+    MakeScriptInstanceFn m_makeScriptInstance = nullptr;
 
 public:
-    Game& operator = (const Game&) = default;
-    Game& operator = (Game&&)      = default;
+    Game& operator = (const Game&) = delete;
+    Game& operator = (Game&&)      = delete;
 };
 
 }

@@ -14,10 +14,11 @@
 #include "Graphics/GraphicAPI.hpp"
 #include "Graphics/RenderTarget.hpp"
 #include "Math/Matrix.hpp"
-#include "Scene.hpp"
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 #include "Graphics/BufferInstance.hpp"
+#include "ECS/ECSWorld.hpp"
+#include "AssetManager.hpp"
 
 namespace GE
 {
@@ -67,9 +68,10 @@ public:
     void beginScene(const Renderer::Camera&, const utils::SharedPtr<gfx::RenderTarget>&);
 
     void addRenderable(const Renderer::Renderable&);
-    void addPointLight(const Renderer::PointLight&);
+    void addRenderables(const ECSWorld&, const AssetManager&);
 
-    void addScene(const Scene&);
+    void addPointLight(const Renderer::PointLight&);
+    void addLights(const ECSWorld&);
 
     void endScene();
 

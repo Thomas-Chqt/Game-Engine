@@ -10,15 +10,20 @@
 #ifndef PROJECT_HPP
 #define PROJECT_HPP
 
-#include "Game.hpp"
 #include "Scene.hpp"
 #include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/String.hpp"
 #include <utility>
 #include <filesystem>
+#include "InputManager/InputContext.hpp"
 
 namespace GE
 {
+
+/*
+ * Mirror of the project file with a convenient set of getters and setters.
+ * No complex behavior should be inserted here (like saving) and no other data than the JSON file.
+ */
 
 class Project
 {
@@ -52,18 +57,17 @@ public:
     inline void setStartScene(const utils::String& name) { m_startScene = name; }
     inline void setStartScene(const Scene& s) { setStartScene(s.name()); }
 
-    inline Game createGame() const { return Game(m_scenes); }
+    InputContext& inputContext() { return m_inputContext; }
 
     ~Project() = default;
 
 private:
     utils::String m_name;
     std::filesystem::path m_scriptLib;
-
     utils::String m_imguiSettings;
-
     utils::Set<Scene> m_scenes;
     utils::String m_startScene;
+    InputContext m_inputContext; // TODO add to json 
 
 public:
     Project& operator = (const Project&) = default;

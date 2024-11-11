@@ -71,6 +71,8 @@ void Project::deleteScene(const utils::String& name)
 
 Scene* Project::startScene()
 {
+    if (m_startScene.isEmpty())
+        return nullptr;
     auto it = m_scenes.find(m_startScene);
     assert(it != m_scenes.end());
     return &*it;

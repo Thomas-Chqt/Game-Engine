@@ -26,6 +26,8 @@ struct Input
     bool triggered = false;
     utils::UniquePtr<IMapper> mappers[2];
 
+    virtual utils::UniquePtr<Input> clone() const = 0;
+
     virtual void dispatch() = 0;
     virtual void reset() = 0;
 
@@ -37,6 +39,8 @@ struct ActionInput : public Input
 {
     utils::Func<void()> callback;
 
+    utils::UniquePtr<Input> clone() const override;
+
     void dispatch() override;
     void reset() override;
 
@@ -47,6 +51,8 @@ struct ActionInput : public Input
 struct StateInput : public Input
 {
     utils::Func<void()> callback;
+
+    utils::UniquePtr<Input> clone() const override;
 
     void dispatch() override;
     void reset() override;
@@ -60,6 +66,8 @@ struct RangeInput : public Input
     utils::Func<void(float)> callback;
     float value = 0.0F;
 
+    utils::UniquePtr<Input> clone() const override;
+
     void dispatch() override;
     void reset() override;
 
@@ -71,6 +79,8 @@ struct Range2DInput : public Input
 {
     utils::Func<void(math::vec2f)> callback;
     math::vec2f value = { 0.0F, 0.0F };
+
+    utils::UniquePtr<Input> clone() const override;
 
     void dispatch() override;
     void reset() override;

@@ -13,6 +13,7 @@
 #include "Graphics/Event.hpp"
 #include "Math/Vector.hpp"
 #include "UtilsCPP/Func.hpp"
+#include <cassert>
 
 namespace GE
 {
@@ -22,6 +23,14 @@ namespace GE
 Mapper<KeyboardButton, ActionInput>::Mapper(KeyboardButton btn, ActionInput& ipt)
     : m_button(btn), m_input(ipt)
 {
+}
+
+utils::UniquePtr<IMapper> Mapper<KeyboardButton, ActionInput>::clone(Input* ipt) const
+{
+    ActionInput* actionIpt = dynamic_cast<ActionInput*>(ipt);
+    assert(actionIpt != nullptr);
+    auto output = utils::makeUnique<Mapper<KeyboardButton, ActionInput>>(m_button, *actionIpt);
+    return output.staticCast<IMapper>();
 }
 
 void Mapper<KeyboardButton, ActionInput>::onInputEvent(gfx::InputEvent& event)
@@ -43,6 +52,14 @@ void Mapper<KeyboardButton, ActionInput>::onKeyDownEvent(gfx::KeyDownEvent& keyD
 Mapper<KeyboardButton, StateInput>::Mapper(KeyboardButton btn, StateInput& ipt)
     : m_button(btn), m_input(ipt)
 {
+}
+
+utils::UniquePtr<IMapper> Mapper<KeyboardButton, StateInput>::clone(Input* ipt) const
+{
+    StateInput* stateIpt = dynamic_cast<StateInput*>(ipt);
+    assert(stateIpt != nullptr);
+    auto output = utils::makeUnique<Mapper<KeyboardButton, StateInput>>(m_button, *stateIpt);
+    return output.staticCast<IMapper>();
 }
 
 void Mapper<KeyboardButton, StateInput>::onInputEvent(gfx::InputEvent& event)
@@ -74,6 +91,17 @@ void Mapper<KeyboardButton, StateInput>::onKeyUpEvent(gfx::KeyUpEvent& keyUpEven
 Mapper<KeyboardButton, RangeInput>::Mapper(const Descriptor& btn, RangeInput& ipt)
     : m_button(btn.button), m_scale(btn.scale), m_input(ipt)
 {
+}
+
+utils::UniquePtr<IMapper> Mapper<KeyboardButton, RangeInput>::clone(Input* ipt) const
+{
+    RangeInput* rangeIpt = dynamic_cast<RangeInput*>(ipt);
+    assert(rangeIpt != nullptr);
+    Mapper<KeyboardButton, RangeInput>::Descriptor desc;
+    desc.button = m_button;
+    desc.scale = m_scale;
+    auto output = utils::makeUnique<Mapper<KeyboardButton, RangeInput>>(desc, *rangeIpt);
+    return output.staticCast<IMapper>();
 }
 
 void Mapper<KeyboardButton, RangeInput>::onInputEvent(gfx::InputEvent& event)
@@ -108,6 +136,20 @@ Mapper<KeyboardButton, Range2DInput>::Mapper(const Descriptor& btn, Range2DInput
       m_scale(btn.scale),
       m_input(ipt)
 {
+}
+
+utils::UniquePtr<IMapper> Mapper<KeyboardButton, Range2DInput>::clone(Input* ipt) const
+{
+    Range2DInput* range2dIpt = dynamic_cast<Range2DInput*>(ipt);
+    assert(range2dIpt != nullptr);
+    Mapper<KeyboardButton, Range2DInput>::Descriptor desc;
+    desc.xPos = m_xPos;
+    desc.xNeg = m_xNeg;
+    desc.yPos = m_yPos;
+    desc.yNeg = m_yNeg;
+    desc.scale = m_scale;
+    auto output = utils::makeUnique<Mapper<KeyboardButton, Range2DInput>>(desc, *range2dIpt);
+    return output.staticCast<IMapper>();
 }
 
 void Mapper<KeyboardButton, Range2DInput>::onInputEvent(gfx::InputEvent& event)

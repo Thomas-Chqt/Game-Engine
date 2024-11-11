@@ -14,6 +14,7 @@
 #include "Scene.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Types.hpp"
+#include "Script.hpp"
 
 namespace GE
 {
@@ -25,7 +26,7 @@ public:
     ContentBrowserPanel(const ContentBrowserPanel&) = delete;
     ContentBrowserPanel(ContentBrowserPanel&&)      = delete;
     
-    ContentBrowserPanel(Project&, const Scene*, void* libScriptHandle);
+    ContentBrowserPanel(Project&, const Scene*, GetScriptNamesFn);
 
     void render();
 
@@ -40,7 +41,7 @@ private:
 
     Project& m_project;
     const Scene* m_scene;
-    void* m_libScriptHandle;
+    GetScriptNamesFn m_getScriptNames;
 
     float m_lineWith = 0.0F;
 

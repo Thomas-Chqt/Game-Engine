@@ -23,6 +23,16 @@ Input::~Input()
 
 // ActionInput
 
+utils::UniquePtr<Input> ActionInput::clone() const
+{
+    auto ipt = utils::makeUnique<ActionInput>(name);
+    ipt->triggered = triggered;
+    ipt->mappers[0] = mappers[0]->clone(ipt);
+    ipt->mappers[1] = mappers[1]->clone(ipt);
+    ipt->callback = callback;
+    return ipt.staticCast<Input>();
+}
+
 void ActionInput::dispatch()
 {
     callback();
@@ -40,6 +50,16 @@ ActionInput::ActionInput(utils::String name) : Input(name)
 
 // StateInput
 
+utils::UniquePtr<Input> StateInput::clone() const
+{
+    auto ipt = utils::makeUnique<StateInput>(name);
+    ipt->triggered = triggered;
+    ipt->mappers[0] = mappers[0]->clone(ipt);
+    ipt->mappers[1] = mappers[1]->clone(ipt);
+    ipt->callback = callback;
+    return ipt.staticCast<Input>();
+}
+
 void StateInput::dispatch()
 {
     callback();
@@ -55,6 +75,17 @@ StateInput::StateInput(utils::String name) : Input(name)
 
 // RangeInput
 
+utils::UniquePtr<Input> RangeInput::clone() const
+{
+    auto ipt = utils::makeUnique<RangeInput>(name);
+    ipt->triggered = triggered;
+    ipt->mappers[0] = mappers[0]->clone(ipt);
+    ipt->mappers[1] = mappers[1]->clone(ipt);
+    ipt->callback = callback;
+    ipt->value = value;
+    return ipt.staticCast<Input>();
+}
+
 void RangeInput::dispatch()
 {
     callback(value);
@@ -69,6 +100,17 @@ RangeInput::RangeInput(utils::String name) : Input(name)
 }
 
 // Range2DInput
+
+utils::UniquePtr<Input> Range2DInput::clone() const
+{
+    auto ipt = utils::makeUnique<Range2DInput>(name);
+    ipt->triggered = triggered;
+    ipt->mappers[0] = mappers[0]->clone(ipt);
+    ipt->mappers[1] = mappers[1]->clone(ipt);
+    ipt->callback = callback;
+    ipt->value = value;
+    return ipt.staticCast<Input>();
+}
 
 void Range2DInput::dispatch()
 {
