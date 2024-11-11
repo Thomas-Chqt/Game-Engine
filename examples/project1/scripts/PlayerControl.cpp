@@ -9,8 +9,6 @@
 
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
-#define GFX_USING_GLFW
-
 #include "ECS/Entity.hpp"
 #include "InputManager/Input.hpp"
 #include "InputManager/Mapper.hpp"
