@@ -25,8 +25,8 @@ void ViewportPanel::render()
     if (ImGui::Begin("viewport"))
     {
         ImVec2 contentRegionAvai = ImGui::GetContentRegionAvail();
-        utils::uint32 newWidth = contentRegionAvai.x == 0 ? 1 : contentRegionAvai.x;
-        utils::uint32 newHeight = contentRegionAvai.y == 0 ? 1 : contentRegionAvai.y;
+        utils::uint32 newWidth = contentRegionAvai.x <= 0 ? 1 : contentRegionAvai.x;
+        utils::uint32 newHeight = contentRegionAvai.y <= 0 ? 1 : contentRegionAvai.y;
 
         ImGui::Image(m_texture.imguiTextureId(), contentRegionAvai, m_texture.imguiUV0(), m_texture.imguiUV1());
 

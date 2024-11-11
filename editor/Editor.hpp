@@ -56,6 +56,7 @@ private:
     // * absolut path of the project file 
     // * (can be empty if the project hasnt been saved yet)
     std::filesystem::path m_projectSavePath;
+    bool m_projectNeedReload = false;
 
     // * project data (saved to disk)
     Project m_project;

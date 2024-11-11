@@ -83,7 +83,12 @@ Editor::Editor() : m_vpFrameBuff(window(), renderer().graphicAPI())
 
 void Editor::onUpdate()
 {
-    m_project.loadIniSettingsFromMemory();
+    if (m_projectNeedReload)
+    {
+        reloadProject();
+        m_projectNeedReload = false;
+    }
+
     m_vpFrameBuff.onUpdate();
     processDroppedFiles();
 
@@ -209,7 +214,7 @@ void Editor::onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&)
 void Editor::newProject()
 {
     m_projectSavePath = fs::path();
-    reloadProject();
+    m_projectNeedReload = true;
 }
 
 void Editor::openProject(const fs::path& filePath)
@@ -218,7 +223,7 @@ void Editor::openProject(const fs::path& filePath)
     assert(filePath.is_absolute());
     
     m_projectSavePath = filePath;
-    reloadProject();
+    m_projectNeedReload = true;
 }
 
 void Editor::reloadProject()
@@ -236,6 +241,8 @@ void Editor::reloadProject()
 
     m_editedScene = nullptr;
     editScene(m_project.startScene());
+
+    m_project.loadIniSettingsFromMemory();
 }
 
 void Editor::saveProject()
