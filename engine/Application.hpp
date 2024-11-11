@@ -14,7 +14,7 @@
 #include "Graphics/Window.hpp"
 #include "InputManager/InputContext.hpp"
 #include "Renderer/Renderer.hpp"
-#include "UtilsCPP/Array.hpp"
+#include "UtilsCPP/Set.hpp"
 #include "UtilsCPP/SharedPtr.hpp"
 
 namespace GE
@@ -38,9 +38,8 @@ public:
     virtual void onWindowResizeEvent(gfx::WindowResizeEvent&) = 0;
     virtual void onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&) = 0;
 
-    inline void pushInputCtx(InputContext* ctx) { m_inputContextStack.append(ctx); }
-    inline void popInputCtx() { m_inputContextStack.pop(--m_inputContextStack.end()); }
-    inline void setDispatchedInputCtx(InputContext* ctx) { m_dispatchedInputContext = ctx; }
+    inline void addInputContext(InputContext* ctx) { m_inputContextPool.insert(ctx); }
+    inline void setDispatchedInputContext(InputContext* ctx) { m_dispatchedInputContext = ctx; }
 
     inline void terminate() { m_running = false; }
 
@@ -49,7 +48,7 @@ public:
 private:
     utils::SharedPtr<gfx::Window> m_window;
     Renderer m_renderer;
-    utils::Array<InputContext*> m_inputContextStack;
+    utils::Set<InputContext*> m_inputContextPool;
     InputContext* m_dispatchedInputContext = nullptr;
 
     bool m_running = false;

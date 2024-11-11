@@ -35,20 +35,21 @@ void Application::run()
 
         gfx::Platform::shared().pollEvents();
 
-        for (auto& ctx : m_inputContextStack)
+        for (auto& ctx : m_inputContextPool)
         {
             if (ctx == m_dispatchedInputContext)
                 ctx->dispatchInputs();
             else
                 ctx->resetInputs();
         }
+        m_inputContextPool.clear();
     }
 }
 
 void Application::onEvent(gfx::Event& event)
 {
     if (event.dispatch<gfx::InputEvent>([&](gfx::InputEvent& inputEvent) {
-        for (auto& ctx : m_inputContextStack)
+        for (auto& ctx : m_inputContextPool)
             inputEvent.dispatch(utils::Func<void(gfx::InputEvent&)>(*ctx, &InputContext::onInputEvent));
     })) return;
 

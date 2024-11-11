@@ -29,7 +29,7 @@ public:
         m_camera = m_entity.firstChild();
 
         GE::ActionInput& gameStopInput = m_game.inputContext().newInput<GE::ActionInput>("game_stop");
-        gameStopInput.callback = m_game.stop;
+        gameStopInput.callback = utils::Func<void()>(m_game, &GE::Game::stop);
         auto gameStopInputMapper = utils::makeUnique<GE::Mapper<GE::KeyboardButton, GE::ActionInput>>(GE::KeyboardButton::esc, gameStopInput);
         gameStopInput.mappers[0] = gameStopInputMapper.staticCast<GE::IMapper>();
 

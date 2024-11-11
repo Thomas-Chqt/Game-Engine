@@ -42,8 +42,9 @@ public:
     inline void saveIniSettingsToMemory() { m_imguiSettings = ImGui::SaveIniSettingsToMemory(); }
 
     inline const utils::Set<Scene>& scenes() const { return m_scenes; }
-    inline const Scene& scene(const utils::String& name) const { return *m_scenes.find(name); }
+    
     inline Scene& scene(const utils::String& name) { return *m_scenes.find(name); }
+    inline const Scene& scene(const utils::String& name) const { return const_cast<Project*>(this)->scene(name); }
 
     inline Scene* addScene(const Scene& s) { return &*m_scenes.insert(s); }
     inline Scene* addScene(Scene&& s) { return &*m_scenes.insert(std::move(s)); }
@@ -57,7 +58,8 @@ public:
     inline void setStartScene(const utils::String& name) { m_startScene = name; }
     inline void setStartScene(const Scene& s) { setStartScene(s.name()); }
 
-    InputContext& inputContext() { return m_inputContext; }
+    inline InputContext& inputContext() { return m_inputContext; }
+    inline const InputContext& inputContext() const { return const_cast<Project*>(this)->inputContext(); }
 
     ~Project() = default;
 

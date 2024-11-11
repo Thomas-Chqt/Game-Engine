@@ -30,17 +30,17 @@ public:
         gfx::GraphicAPI* graphicAPI = nullptr;
         std::filesystem::path baseDir;
         MakeScriptInstanceFn makeScriptInstance = nullptr;
-        utils::Func<void()> stopFunc;
     };
 
 public:
-    Game()            = default;
+    Game()            = delete;
     Game(const Game&) = default;
     Game(Game&&)      = default;
 
     Game(const Descriptor&);
 
-    const utils::Func<void()> stop;
+    inline void stop() { m_isRunning = false; };
+    inline bool isRunning() const { return m_isRunning; }
 
     Scene& activeScene();
     inline const Scene& activeScene() const { return const_cast<Game*>(this)->activeScene(); }
@@ -53,6 +53,8 @@ public:
     ~Game() = default;
 
 private:
+    bool m_isRunning = true;
+
     utils::Set<Scene> m_scenes;
     Scene* m_activeScene = nullptr;
     InputContext m_inputContext;
@@ -62,8 +64,8 @@ private:
     MakeScriptInstanceFn m_makeScriptInstance = nullptr;
 
 public:
-    Game& operator = (const Game&) = delete;
-    Game& operator = (Game&&)      = delete;
+    Game& operator = (const Game&) = default;
+    Game& operator = (Game&&)      = default;
 };
 
 }

@@ -74,7 +74,6 @@ private:
 
     // * instance used when the game is running
     utils::UniquePtr<Game> m_game;
-    bool m_isGameRunning = false;
 
     // * UI reladed data
     ViewportFrameBuff m_vpFrameBuff;

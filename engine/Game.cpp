@@ -18,7 +18,6 @@ namespace GE
 {
 
 Game::Game(const Descriptor& descriptor)
-    : stop(descriptor.stopFunc)
 {
     m_scenes = descriptor.scenes;
     m_inputContext = descriptor.inputContext;

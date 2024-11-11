@@ -78,8 +78,6 @@ Editor::Editor() : m_vpFrameBuff(window(), renderer().graphicAPI())
     editorCamRotateIpt.mappers[0] = editorCamRotateIptMapper.staticCast<IMapper>();
     editorCamRotateIpt.mappers[1].clear();
 
-    pushInputCtx(&m_editorInputContext);
-
     newProject();
 }
 
@@ -89,7 +87,7 @@ void Editor::onUpdate()
     m_vpFrameBuff.onUpdate();
     processDroppedFiles();
 
-    if (m_isGameRunning)
+    if (m_game && m_game->isRunning())
     {
         ECSView<ScriptComponent>(m_game->activeScene().ecsWorld()).onEach([&](Entity entt, ScriptComponent& scriptComponent){
             if (scriptComponent.instance)
@@ -97,10 +95,11 @@ void Editor::onUpdate()
         });
     }
 
-    if (m_isGameRunning == false)
-    {
+    if (m_game && m_game->isRunning() == false)
         m_game.clear();
 
+    if (!m_game)
+    {
         assert(m_editedScene != nullptr);
         renderer().beginScene(m_editorCamera.getRendererCam(), m_vpFrameBuff);
         {
@@ -109,7 +108,8 @@ void Editor::onUpdate()
         }
         renderer().endScene();
 
-        setDispatchedInputCtx(&m_editorInputContext);
+        addInputContext(&m_editorInputContext);
+        setDispatchedInputContext(&m_editorInputContext);
     }
     else
     {
@@ -129,11 +129,10 @@ void Editor::onUpdate()
         }
         renderer().endScene();
 
-        setDispatchedInputCtx(&m_game->inputContext());
+        addInputContext(&m_editorInputContext);
+        addInputContext(&m_game->inputContext());
+        setDispatchedInputContext(&m_game->inputContext());
     }
-
-    if (ImGui::GetIO().WantCaptureKeyboard)
-        setDispatchedInputCtx(nullptr);
 }
 
 void Editor::onImGuiRender()
@@ -150,11 +149,11 @@ void Editor::onImGuiRender()
         .on_File_New(utils::Func<void()>(*this, &Editor::newProject))
         .on_File_Open([](){ isFileOpenDialogPresented = true; })
         .on_File_Save(m_projectSavePath.empty() ? [&](){ (void)(isFileSaveDialogPresented = true); } : utils::Func<void()>(*this, &Editor::saveProject))
-        .on_Project_ReloadScriptLib(!m_isGameRunning && !m_project.scriptLib().empty() ? utils::Func<void()>(*this, &Editor::reloadScriptLib) : utils::Func<void()>())
+        .on_Project_ReloadScriptLib(!(m_game && m_game->isRunning()) && !m_project.scriptLib().empty() ? utils::Func<void()>(*this, &Editor::reloadScriptLib) : utils::Func<void()>())
         .on_Project_Properties([](){ isProjectPropertiesModalPresented = true; })
         .on_Scene_Add_EmptyEntity([&](){ m_editedScene->newEntity("new_empty_entity"); })
-        .on_Project_Run(!m_isGameRunning ? utils::Func<void()>(*this, &Editor::runGame) : utils::Func<void()>())
-        .on_Project_Stop(m_isGameRunning ? utils::Func<void()>(*this, &Editor::stopGame) : utils::Func<void()>())
+        .on_Project_Run(!(m_game && m_game->isRunning()) ? utils::Func<void()>(*this, &Editor::runGame) : utils::Func<void()>())
+        .on_Project_Stop((m_game && m_game->isRunning()) ? utils::Func<void()>(*this, &Editor::stopGame) : utils::Func<void()>())
         .render();
 
     ViewportPanel(*static_cast<const utils::SharedPtr<gfx::FrameBuffer>&>(m_vpFrameBuff)->colorTexture())
@@ -197,6 +196,9 @@ void Editor::onImGuiRender()
         m_project.saveIniSettingsToMemory();
         ImGui::GetIO().WantSaveIniSettings = false;
     }
+
+    if (ImGui::GetIO().WantCaptureKeyboard)
+        setDispatchedInputContext(nullptr);
 }
 
 void Editor::onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&)
@@ -292,19 +294,14 @@ void Editor::runGame()
     gameDescriptor.graphicAPI = &renderer().graphicAPI();
     gameDescriptor.baseDir = m_projectSavePath.remove_filename();
     gameDescriptor.makeScriptInstance = m_makeScriptInstance;
-    gameDescriptor.stopFunc = utils::Func<void()>(*this, &Editor::stopGame);
 
     m_game = utils::makeUnique<Game>(gameDescriptor);
     m_game->setActiveScene(m_project.startScene()->name());
-
-    m_isGameRunning = true;
-    pushInputCtx(&m_game->inputContext());
 }
 
 void Editor::stopGame()
 {
-    popInputCtx();
-    m_isGameRunning = false;
+    m_game->stop();
 }
 
 Editor::~Editor()
