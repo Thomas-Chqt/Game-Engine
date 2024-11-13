@@ -85,3 +85,12 @@ FetchContent_Declare(stb_image
 )
 FetchContent_MakeAvailable(stb_image)
 set_target_properties(stb_image PROPERTIES FOLDER "dependencies")
+
+FetchContent_Declare(dlLoad
+    GIT_REPOSITORY https://github.com/Thomas-Chqt/dlLoad.git
+    GIT_SHALLOW    1
+)
+set(DL_BUILD_TESTS OFF)
+set(DL_INSTALL     OFF)
+FetchContent_MakeAvailable(dlLoad)
+set_target_properties(dlLoad PROPERTIES FOLDER "dependencies")

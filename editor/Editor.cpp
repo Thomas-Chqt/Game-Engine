@@ -32,13 +32,13 @@
 #include "UtilsCPP/Types.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
 #include <cassert>
-#include <dlfcn.h>
 #include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include "ViewportFrameBuff.hpp"
 #include "imgui.h"
 #include <stb_image/stb_image.h>
+#include <dlLoad/dlLoad.h>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -255,7 +255,7 @@ void Editor::reloadScriptLib()
 {
     if (m_scriptLibHandle != nullptr)
     {
-        dlclose(m_scriptLibHandle);
+        dlFree(m_scriptLibHandle);
         m_scriptLibHandle = nullptr;
     }
 
@@ -264,14 +264,14 @@ void Editor::reloadScriptLib()
         fs::path scriptLibPath = fs::path(m_projectSavePath).remove_filename() / m_project.scriptLib();
         assert(scriptLibPath.is_absolute());
         assert(fs::is_regular_file(scriptLibPath));
-        m_scriptLibHandle = dlopen(scriptLibPath.c_str(), RTLD_NOW | RTLD_GLOBAL);
+        m_scriptLibHandle = dlLoad(scriptLibPath.c_str());
         if (m_scriptLibHandle != nullptr)
         {
-            m_getScriptNames = (GetScriptNamesFn)dlsym(m_scriptLibHandle, "getScriptNames");
-            m_makeScriptInstance = (MakeScriptInstanceFn)dlsym(m_scriptLibHandle, "makeScriptInstance");
+            m_getScriptNames = (GetScriptNamesFn)getSym(m_scriptLibHandle, "getScriptNames");
+            m_makeScriptInstance = (MakeScriptInstanceFn)getSym(m_scriptLibHandle, "makeScriptInstance");
             if (m_getScriptNames == nullptr || m_makeScriptInstance == nullptr)
             {
-                dlclose(m_scriptLibHandle);
+                dlFree(m_scriptLibHandle);
                 m_scriptLibHandle = nullptr;
             }
         }
@@ -315,7 +315,7 @@ Editor::~Editor()
 {
     if (m_scriptLibHandle != nullptr)
     {
-        dlclose(m_scriptLibHandle);
+        dlFree(m_scriptLibHandle);
         m_scriptLibHandle = nullptr;
     }
 }

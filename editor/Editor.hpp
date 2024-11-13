@@ -20,6 +20,7 @@
 #include "ViewportFrameBuff.hpp"
 #include <filesystem>
 #include "Script.hpp"
+#include "dlLoad/dlLoad.h"
 
 namespace GE
 {
@@ -62,7 +63,7 @@ private:
     Project m_project;
 
     // * data derived from the project file (created at runtime, not saved)
-    void* m_scriptLibHandle = nullptr;
+    DlHandle m_scriptLibHandle = nullptr;
     GetScriptNamesFn m_getScriptNames = nullptr;
     MakeScriptInstanceFn m_makeScriptInstance = nullptr;
 
