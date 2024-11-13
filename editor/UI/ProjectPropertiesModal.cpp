@@ -71,7 +71,10 @@ void ProjectPropertiesModal::render()
         ImGui::EndPopup();
 
         FileOpenDialog("Select script lib", isScriptLibSelectDialogPresented)
-            .onSelection([&](const fs::path& path) { utils::String(path.c_str()).SAFECPY(s_scriptsLibBuff); })
+            .onSelection([&](const fs::path& path) {
+                fs::path relativePath = fs::relative(path, fs::path(m_projSavePath).remove_filename());
+                utils::String(relativePath.c_str()).SAFECPY(s_scriptsLibBuff);
+            })
             .render();
     }
 }

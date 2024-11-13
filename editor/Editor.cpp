@@ -257,13 +257,16 @@ void Editor::reloadScriptLib()
     {
         dlFree(m_scriptLibHandle);
         m_scriptLibHandle = nullptr;
+        m_getScriptNames = nullptr;
+        m_makeScriptInstance = nullptr;
     }
 
     if (m_project.scriptLib().empty() == false)
     {
         fs::path scriptLibPath = fs::path(m_projectSavePath).remove_filename() / m_project.scriptLib();
         assert(scriptLibPath.is_absolute());
-        assert(fs::is_regular_file(scriptLibPath));
+        if (fs::is_regular_file(scriptLibPath) == false)
+            return;
         m_scriptLibHandle = dlLoad(scriptLibPath.c_str());
         if (m_scriptLibHandle != nullptr)
         {
