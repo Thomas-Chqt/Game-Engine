@@ -10,7 +10,6 @@
 #include "UI/ContentBrowserPanel.hpp"
 #include "Script.hpp"
 #include <cstring>
-#include <dlfcn.h>
 
 #define ELEMENT_SIZE 60.0F
 
@@ -68,7 +67,7 @@ void ContentBrowserPanel::renderAssets()
         return;
 
     for (auto& [path, id] : m_scene->assetManager().registeredMeshes())
-        renderElement(path.filename().c_str(), "mesh_dnd", &id, sizeof(id));
+        renderElement(path.filename().string().c_str(), "mesh_dnd", &id, sizeof(id));
 }
 
 void ContentBrowserPanel::renderScripts()

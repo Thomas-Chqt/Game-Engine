@@ -34,7 +34,7 @@ void ProjectPropertiesModal::render()
         if (s_needBufUpdate)
         {
             m_project.name().SAFECPY(s_nameBuff);
-            utils::String(m_project.scriptLib().c_str()).SAFECPY(s_scriptsLibBuff);
+            utils::String(m_project.scriptLib().string().c_str()).SAFECPY(s_scriptsLibBuff);
             s_needBufUpdate = false;
         }
     }
@@ -73,7 +73,7 @@ void ProjectPropertiesModal::render()
         FileOpenDialog("Select script lib", isScriptLibSelectDialogPresented)
             .onSelection([&](const fs::path& path) {
                 fs::path relativePath = fs::relative(path, fs::path(m_projSavePath).remove_filename());
-                utils::String(relativePath.c_str()).SAFECPY(s_scriptsLibBuff);
+                utils::String(relativePath.replace_extension("").string().c_str()).SAFECPY(s_scriptsLibBuff);
             })
             .render();
     }
@@ -92,7 +92,11 @@ bool ProjectPropertiesModal::isScriptLibValid()
     fs::path path = s_scriptsLibBuff;
     if (path.empty())
         return true;
-    path = fs::path(m_projSavePath).remove_filename() / path;
+    #ifdef _WIN32
+        path = fs::path(m_projSavePath).remove_filename() / path.replace_extension(".dll");
+    #else
+        path = fs::path(m_projSavePath).remove_filename() / path;
+    #endif
     return path.is_absolute() && fs::is_regular_file(path);
 }
 

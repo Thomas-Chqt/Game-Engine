@@ -14,11 +14,12 @@
 #include "InputManager/Input.hpp"
 #include "InputManager/RawInput.hpp"
 #include "Math/Vector.hpp"
+#include "Macros.hpp"
 
 namespace GE
 {
 
-class IMapper
+class GAME_ENGINE_API IMapper
 {
 public:
     virtual utils::UniquePtr<IMapper> clone(Input*) const = 0;
@@ -29,7 +30,7 @@ public:
 template<typename K, typename I> class Mapper;
 
 template<>
-class Mapper<KeyboardButton, ActionInput> : public IMapper
+class GAME_ENGINE_API Mapper<KeyboardButton, ActionInput> : public IMapper
 {
 public:
     Mapper(KeyboardButton btn, ActionInput& ipt);
@@ -47,7 +48,7 @@ private:
 };
 
 template<>
-class Mapper<KeyboardButton, StateInput> : public IMapper
+class GAME_ENGINE_API Mapper<KeyboardButton, StateInput> : public IMapper
 {
 public:
     Mapper(KeyboardButton btn, StateInput& ipt);
@@ -66,7 +67,7 @@ private:
 };
 
 template<>
-class Mapper<KeyboardButton, RangeInput> : public IMapper
+class GAME_ENGINE_API Mapper<KeyboardButton, RangeInput> : public IMapper
 {
 public:
     struct Descriptor
@@ -93,7 +94,7 @@ private:
 };
 
 template<>
-class Mapper<KeyboardButton, Range2DInput> : public IMapper
+class GAME_ENGINE_API Mapper<KeyboardButton, Range2DInput> : public IMapper
 {
 public:
     struct Descriptor

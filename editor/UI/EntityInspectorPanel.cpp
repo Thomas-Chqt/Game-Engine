@@ -70,7 +70,7 @@ void EntityInspectorPanel::componentEditWidget<MeshComponent>()
 
     MeshComponent& meshComponent = m_selectedEntity.get<MeshComponent>();
 
-    if (ImGui::BeginCombo("Mesh##MeshComponent_mesh", meshComponent.assetId.is_nil() ? "" : m_scene->assetManager().loadedMeshes()[meshComponent.assetId].name))
+    if (ImGui::BeginCombo("Mesh##MeshComponent_mesh", meshComponent.assetId.is_nil() ? utils::String("") : m_scene->assetManager().loadedMeshes()[meshComponent.assetId].name))
     {
         for (auto& [id, mesh] : m_scene->assetManager().loadedMeshes())
         {

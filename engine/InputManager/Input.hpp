@@ -14,13 +14,14 @@
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
+#include "Macros.hpp"
 
 namespace GE
 {
 
 class IMapper;
 
-struct Input
+struct GAME_ENGINE_API Input
 {
     const utils::String name;
     bool triggered = false;
@@ -35,7 +36,7 @@ struct Input
     virtual ~Input();
 };
 
-struct ActionInput : public Input
+struct GAME_ENGINE_API ActionInput : public Input
 {
     utils::Func<void()> callback;
 
@@ -48,7 +49,7 @@ struct ActionInput : public Input
     ~ActionInput() override = default;
 };
 
-struct StateInput : public Input
+struct GAME_ENGINE_API StateInput : public Input
 {
     utils::Func<void()> callback;
 
@@ -61,7 +62,7 @@ struct StateInput : public Input
     ~StateInput() override = default;
 };
 
-struct RangeInput : public Input
+struct GAME_ENGINE_API RangeInput : public Input
 {
     utils::Func<void(float)> callback;
     float value = 0.0F;
@@ -75,7 +76,7 @@ struct RangeInput : public Input
     ~RangeInput() override = default;
 };
 
-struct Range2DInput : public Input
+struct GAME_ENGINE_API Range2DInput : public Input
 {
     utils::Func<void(math::vec2f)> callback;
     math::vec2f value = { 0.0F, 0.0F };

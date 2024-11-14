@@ -11,6 +11,7 @@ include(FetchContent)
 
 enable_testing()
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+set(CMAKE_POLICY_DEFAULT_CMP0175 OLD)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build using shared libraries" FORCE)
 
@@ -30,18 +31,6 @@ endif()
 
 project(Game-Engine)
 enable_language(CXX)
-
-if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-endif()
-
-if(NOT CMAKE_LIBRARY_OUTPUT_DIRECTORY)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-endif()
-
-if(NOT CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-endif()
 
 add_subdirectory("dependencies")
 add_subdirectory("engine")

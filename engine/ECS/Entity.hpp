@@ -15,11 +15,12 @@
 #include "Math/Vector.hpp"
 #include "UtilsCPP/String.hpp"
 #include "UtilsCPP/Types.hpp"
+#include "Macros.hpp"
 
 namespace GE
 {
 
-class Entity
+class GAME_ENGINE_API Entity
 {
 public:
     Entity()              = default;
@@ -30,7 +31,7 @@ public:
 
     inline const ECSWorld& ecsWorld() const { return *m_world; }
     inline ECSWorld::EntityID entityID() const { return m_entityId; }
-    inline void* imGuiID() const { return (void*)entityID(); }
+    inline void* imGuiID() const { return (void*)(uintptr_t)entityID(); }
 
     template<typename T, typename ... Args>
     T& emplace(Args&& ... args)

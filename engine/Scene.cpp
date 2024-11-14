@@ -60,7 +60,7 @@ void to_json(json& jsn, const Scene& scene)
 void from_json(const json& jsn, Scene& scene)
 {
     auto nameIt = jsn.find("name");        
-    scene.m_name = nameIt == jsn.end() ? "no_name" : utils::String(nameIt->template get<std::string>().c_str());
+    scene.m_name = nameIt == jsn.end() ? utils::String("no_name") : utils::String(nameIt->template get<std::string>().c_str());
 
     auto ecsWorldIt = jsn.find("ecsWorld");
     if (ecsWorldIt != jsn.end())

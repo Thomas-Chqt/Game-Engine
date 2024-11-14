@@ -12,7 +12,10 @@
 #include "Script.hpp"
 #include "UtilsCPP/Array.hpp"
 
-extern "C" void getScriptNames(const char*** names, unsigned long* count)
+extern "C" 
+{
+
+PROJECT1_API void getScriptNames(const char*** names, unsigned long* count)
 {
     static utils::Array<const char*> nameArray;
     nameArray.clear();
@@ -24,7 +27,9 @@ extern "C" void getScriptNames(const char*** names, unsigned long* count)
     *count = ScriptRegistry::getRegistery().size();
 }
 
-extern "C" GE::Script* makeScriptInstance(const char* name, const GE::Entity& e, GE::Game& g)
+PROJECT1_API GE::Script* makeScriptInstance(const char* name, const GE::Entity& e, GE::Game& g)
 {
     return ScriptRegistry::getRegistery()[name](e, g);
+}
+
 }

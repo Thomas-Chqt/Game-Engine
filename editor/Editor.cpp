@@ -39,6 +39,7 @@
 #include "imgui.h"
 #include <stb_image/stb_image.h>
 #include <dlLoad/dlLoad.h>
+#include <Windows.h>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -264,10 +265,13 @@ void Editor::reloadScriptLib()
     if (m_project.scriptLib().empty() == false)
     {
         fs::path scriptLibPath = fs::path(m_projectSavePath).remove_filename() / m_project.scriptLib();
+        #ifdef _WIN32
+            scriptLibPath.replace_extension(".dll");
+        #endif
         assert(scriptLibPath.is_absolute());
         if (fs::is_regular_file(scriptLibPath) == false)
             return;
-        m_scriptLibHandle = dlLoad(scriptLibPath.c_str());
+        m_scriptLibHandle = dlLoad(scriptLibPath.string().c_str());
         if (m_scriptLibHandle != nullptr)
         {
             m_getScriptNames = (GetScriptNamesFn)getSym(m_scriptLibHandle, "getScriptNames");
@@ -338,7 +342,7 @@ void Editor::processDroppedFiles()
             }
         }
 
-        if (stbi_info(path.c_str(), nullptr, nullptr, nullptr) == 1)
+        if (stbi_info(path.string().c_str(), nullptr, nullptr, nullptr) == 1)
             continue;
 
         if (m_editedScene != nullptr)

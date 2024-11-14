@@ -16,6 +16,17 @@
 #include "UtilsCPP/Func.hpp"
 #include "UtilsCPP/String.hpp"
 
+#if (defined(__GNUC__) || defined(__clang__)) && defined(PROJECT1_API_EXPORT)
+    #define PROJECT1_API __attribute__((visibility("default")))
+#elif defined(_MSC_VER) && defined(PROJECT1_API_EXPORT)
+    #define PROJECT1_API __declspec(dllexport)
+#elif defined(_MSC_VER) && defined(PROJECT1_API_IMPORT)
+    #define PROJECT1_API __declspec(dllimport)
+#else
+    #define PROJECT1_API
+#endif
+
+
 struct ScriptRegistry
 {
     static utils::Dictionary<utils::String, utils::Func<GE::Script*(const GE::Entity&, GE::Game&)>>& getRegistery()

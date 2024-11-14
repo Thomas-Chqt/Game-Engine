@@ -9,7 +9,6 @@
 
 #include "Game.hpp"
 #include <cassert>
-#include <dlfcn.h>
 #include "ECS/ECSView.hpp"
 #include "ECS/Components.hpp"
 #include "InputManager/InputContext.hpp"

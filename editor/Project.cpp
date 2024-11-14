@@ -96,7 +96,7 @@ void to_json(json& jsn, const Project& project)
 void from_json(const json& jsn, Project& project)
 {
     auto nameIt = jsn.find("name");
-    project.m_name = nameIt != jsn.end() ? utils::String(nameIt->template get<std::string>().c_str()) : "";
+    project.m_name = nameIt != jsn.end() ? utils::String(nameIt->template get<std::string>().c_str()) : utils::String("");
 
     auto scriptsLibIt = jsn.find("scriptsLib");
     project.m_scriptLib = scriptsLibIt != jsn.end() ? scriptsLibIt->template get<fs::path>() : fs::path();

@@ -15,11 +15,12 @@
 #include "UtilsCPP/String.hpp"
 #include "InputManager/Input.hpp"
 #include "UtilsCPP/UniquePtr.hpp"
+#include "Macros.hpp"
 
 namespace GE
 {
 
-class InputContext
+class GAME_ENGINE_API InputContext
 {
 public:
     InputContext() = default;
