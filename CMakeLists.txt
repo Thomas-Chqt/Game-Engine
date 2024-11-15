@@ -5,7 +5,7 @@
 # Date: 2024/06/20 15:48:52
 # ---------------------------------------------------
 
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22)
 
 include(FetchContent)
 

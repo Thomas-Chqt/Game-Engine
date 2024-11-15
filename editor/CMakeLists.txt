@@ -5,8 +5,6 @@
 # Date: 2024/09/10 10:07:50
 # ---------------------------------------------------
 
-cmake_minimum_required(VERSION 3.16)
-
 add_executable(GE-Editor)
 set_target_properties(GE-Editor
     PROPERTIES CXX_STANDARD 20
@@ -26,5 +24,3 @@ target_link_libraries(GE-Editor PRIVATE Game-Engine)
 target_include_directories(GE-Editor INTERFACE $<TARGET_PROPERTY:Game-Engine,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_link_libraries(GE-Editor PRIVATE tinyfiledialogs)
-
-# target_link_options(GE-Editor PRIVATE "-rdynamic")

@@ -5,8 +5,6 @@
 # Date: 2024/11/13 20:48:06
 # ---------------------------------------------------
 
-cmake_minimum_required(VERSION 3.16)
-
 add_library(project1_scriptLib SHARED)
 set_target_properties(project1_scriptLib PROPERTIES 
     CXX_STANDARD              20

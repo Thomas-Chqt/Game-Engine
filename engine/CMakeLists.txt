@@ -5,8 +5,6 @@
 # Date: 2024/09/10 10:01:04
 # ---------------------------------------------------
 
-cmake_minimum_required(VERSION 3.16)
-
 include(FetchContent)
 
 add_library(Game-Engine STATIC)
