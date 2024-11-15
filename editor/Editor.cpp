@@ -39,7 +39,6 @@
 #include "imgui.h"
 #include <stb_image/stb_image.h>
 #include <dlLoad/dlLoad.h>
-#include <Windows.h>
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;

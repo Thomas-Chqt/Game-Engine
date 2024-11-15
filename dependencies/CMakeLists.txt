@@ -48,8 +48,12 @@ set(ASSIMP_BUILD_FBX_IMPORTER             ON)
 set(ASSIMP_BUILD_GLTF_IMPORTER            ON)
 FetchContent_MakeAvailable(assimp)
 set_target_properties(assimp PROPERTIES FOLDER "dependencies/assimp")
-set_target_properties(zlibstatic PROPERTIES FOLDER "dependencies/assimp")
-set_target_properties(UpdateAssimpLibsDebugSymbolsAndDLLs PROPERTIES FOLDER "dependencies/assimp")
+if(TARGET zlibstatic)
+    set_target_properties(zlibstatic PROPERTIES FOLDER "dependencies/assimp")
+endif()
+if(TARGET UpdateAssimpLibsDebugSymbolsAndDLLs)
+    set_target_properties(UpdateAssimpLibsDebugSymbolsAndDLLs PROPERTIES FOLDER "dependencies/assimp")
+endif()
 
 
 FetchContent_Declare(json
