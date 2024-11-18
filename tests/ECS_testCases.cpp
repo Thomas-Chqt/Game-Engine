@@ -135,7 +135,21 @@ TEST(ECSTest, twoComponent)
     EXPECT_EQ(world.get<Component2>(entity).val(), 2);
 }
 
-TYPED_TEST(ECSTest, deleteEntity)
+TYPED_TEST(ECSTest, deleteEntityOneComp)
+{
+    GE::ECSWorld world;
+
+    EntityID entity = world.newEntityID();
+    world.emplace<TypeParam>(entity, 1);
+
+    world.deleteEntityID(entity);
+
+    EXPECT_EQ(world.entityCount(), 0);
+    EXPECT_EQ(world.archetypeCount(), 2);
+    EXPECT_EQ(world.componentCount(), 0);
+}
+
+TEST(ECSTest, deleteEntityTwoComp)
 {
     GE::ECSWorld world;
 
@@ -150,7 +164,20 @@ TYPED_TEST(ECSTest, deleteEntity)
     EXPECT_EQ(world.componentCount(), 0);
 }
 
-TEST(ECSTest, removeComponent)
+TYPED_TEST(ECSTest, removeOneComponent)
+{
+    GE::ECSWorld world;
+
+    EntityID entity = world.newEntityID(); // 1 arch ({id})
+    world.emplace<TypeParam>(entity, 1); // 2 arch ({id}, {id, TypeParam})
+
+    world.remove<TypeParam>(entity); 
+    EXPECT_EQ(world.entityCount(), 1);
+    EXPECT_EQ(world.archetypeCount(), 2); // 2 arch ({id}, {id, TypeParam})
+    EXPECT_EQ(world.componentCount(), 0);
+}
+
+TEST(ECSTest, removeTwoComponent)
 {
     GE::ECSWorld world;
 
