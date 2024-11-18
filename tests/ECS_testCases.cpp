@@ -106,18 +106,30 @@ TEST(ECSTest, twoComponent)
     EXPECT_EQ(world.archetypeCount(), 2);
     EXPECT_EQ(world.componentCount(), 1);
 
+    #ifdef NDEBUG
+    EXPECT_ANY_THROW({
+        world.emplace<Component1>(entity, 1);
+    });
+    #else
     EXPECT_DEATH({
         world.emplace<Component1>(entity, 1);
     }, "");
+    #endif
 
     EXPECT_EQ(world.emplace<Component2>(entity, 2).val(), 2);
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 3);
     EXPECT_EQ(world.componentCount(), 2);
 
+    #ifdef NDEBUG
+    EXPECT_ANY_THROW({
+        world.emplace<Component2>(entity, 2);
+    });
+    #else
     EXPECT_DEATH({
         world.emplace<Component2>(entity, 2);
     }, "");
+    #endif
 
     EXPECT_EQ(world.get<Component1>(entity).val(), 1);
     EXPECT_EQ(world.get<Component2>(entity).val(), 2);
