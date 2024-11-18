@@ -58,8 +58,11 @@ void ECSWorld::deleteEntityID(EntityID entityId)
     // so the idx in the entity datas need to be change
     m_entityDatas[entityArch.getEntityID(entityArch.size() - 1)].idx = entityIdx;
 
-    entityArch.destructCollum(entityIdx);
-    Archetype::moveComponents(entityArch, entityArch.size() - 1, entityArch, entityIdx);
+    if (entityIdx != entityArch.size() -1)
+    {
+        entityArch.destructCollum(entityIdx);
+        Archetype::moveComponents(entityArch, entityArch.size() - 1, entityArch, entityIdx);
+    }
     entityArch.destructCollum(entityArch.size() - 1);
     entityArch.freeLastCollum();
 
