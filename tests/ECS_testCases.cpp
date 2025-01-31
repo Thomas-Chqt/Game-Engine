@@ -9,273 +9,305 @@
 
 #include <gtest/gtest.h>
 
-#include "Game-Engine/Entity.hpp"
-#include "UtilsCPP/String.hpp"
+#include "ECS/ECSWorld.hpp"
+#include "ECS/ECSView.hpp"
 #include "UtilsCPP/Set.hpp"
 
-#include "Game-Engine/ECSWorld.hpp"
-#include "ECS/ECSView.hpp"
+namespace ECS_tests
+{
 
-TEST(ECSTest, entities)
+using EntityID = GE::ECSWorld::EntityID;
+
+struct Component1
+{
+    int value = 0;
+
+    int& val() { return value; }
+    const int& val() const { return value; }
+
+    Component1() = default;
+    Component1(int v) : value(v) {}
+};
+
+struct Component2
+{
+    int* value;
+
+    int& val() { return *value; }
+    const int& val() const { return *value; }
+
+    Component2() : value(new int(0)) {}
+    Component2(int v) : value(new int(v)) {}
+    Component2(const Component2& cp) : value(new int(*cp.value)) {}
+    Component2(Component2&& mv) : value(mv.value) { mv.value = nullptr; }
+    ~Component2() { delete value; }
+};
+
+template<typename T>
+class ECSTest : public testing::Test {};
+
+using TestedComponents = ::testing::Types<Component1, Component2>;
+
+TYPED_TEST_SUITE(ECSTest, TestedComponents);
+
+TEST(ECSTest, newEntity)
 {
     GE::ECSWorld world;
 
-    GE::Entity entity1 = world.newEmptyEntity();
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 0);
-    EXPECT_EQ(world.componentCount(), 0);
-
-    GE::Entity entity2 = world.newEmptyEntity();
-    EXPECT_NE(entity1, entity2);
-    EXPECT_EQ(world.entityCount(), 2);
-    EXPECT_EQ(world.archetypeCount(), 0);
-    EXPECT_EQ(world.componentCount(), 0);
-    
-    entity1.destroy();
-    EXPECT_FALSE(entity1);
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 0);
-    EXPECT_EQ(world.componentCount(), 0);
-
-    GE::Entity entity3 = world.newEmptyEntity();
-    EXPECT_NE(entity2, entity3);
-    EXPECT_EQ(world.entityCount(), 2);
-    EXPECT_EQ(world.archetypeCount(), 0);
-    EXPECT_EQ(world.componentCount(), 0);
-
-}
-
-TEST(ECSTest, oneComponent)
-{
-    struct Component1 { int value; };
-
-    GE::ECSWorld world;
-
-    GE::Entity entityId = world.newEmptyEntity();
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 0);
-    EXPECT_EQ(world.componentCount(), 0);
-
-    EXPECT_EQ(entityId.emplace<Component1>(1).value, 1);
+    EntityID entity1 = world.newEntityID();
+    EXPECT_TRUE(world.isValidEntityID(entity1));
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 1);
-    EXPECT_EQ(world.componentCount(), 1);
+    EXPECT_EQ(world.componentCount(), 0);
 
-    EXPECT_EQ(entityId.get<Component1>().value, 1);
+    EntityID entity2 = world.newEntityID();
+    EXPECT_TRUE(world.isValidEntityID(entity2));
+    EXPECT_NE(entity1, entity2);
+    EXPECT_EQ(world.entityCount(), 2);
+    EXPECT_EQ(world.archetypeCount(), 1);
+    EXPECT_EQ(world.componentCount(), 0);
+    
+    world.deleteEntityID(entity1);
+    EXPECT_FALSE(world.isValidEntityID(entity1));
+    EXPECT_EQ(world.entityCount(), 1);
+    EXPECT_EQ(world.archetypeCount(), 1);
+    EXPECT_EQ(world.componentCount(), 0);
+
+    EntityID entity3 = world.newEntityID();
+    EXPECT_TRUE(world.isValidEntityID(entity3));
+    EXPECT_EQ(entity3, entity1);
+    EXPECT_EQ(world.entityCount(), 2);
+    EXPECT_EQ(world.archetypeCount(), 1);
+    EXPECT_EQ(world.componentCount(), 0);
+}
+
+TYPED_TEST(ECSTest, oneComponent)
+{
+    GE::ECSWorld world;
+
+    EntityID entity = world.newEntityID();
+
+    EXPECT_EQ(world.emplace<TypeParam>(entity).val(), 0);
+    EXPECT_EQ(world.entityCount(), 1);
+    EXPECT_EQ(world.archetypeCount(), 2);
+    EXPECT_EQ(world.componentCount(), 1);
+    
+    EXPECT_EQ(world.get<TypeParam>(entity).val(), 0);
 }
 
 TEST(ECSTest, twoComponent)
 {
-    struct Component1 { int value; };
-    struct Component2 { int value; };
-
     GE::ECSWorld world;
 
-    GE::Entity entity = world.newEmptyEntity();
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 0);
-    EXPECT_EQ(world.componentCount(), 0);
+    EntityID entity = world.newEntityID();
 
-    EXPECT_EQ(entity.emplace<Component1>(1).value, 1);
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 1);
-    EXPECT_EQ(world.componentCount(), 1);
-
-    EXPECT_EQ(entity.emplace<Component2>(2).value, 2);
+    EXPECT_EQ(world.emplace<Component1>(entity, 1).val(), 1);
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 2);
-    EXPECT_EQ(world.componentCount(), 2);
-
-    EXPECT_EQ(entity.get<Component1>().value, 1);
-    EXPECT_EQ(entity.get<Component2>().value, 2);
-
-    entity.destroy();
-}
-
-TEST(ECSTest, removeComponent)
-{
-    struct Component1 { utils::String value; };
-    struct Component2 { utils::String value; };
-
-    GE::ECSWorld world;
-
-    GE::Entity entity = world.newEmptyEntity();
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 0);
-    EXPECT_EQ(world.componentCount(), 0);
-
-    entity.emplace<Component1>(utils::String("1"));
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 1);
     EXPECT_EQ(world.componentCount(), 1);
 
-    entity.emplace<Component2>(utils::String("2"));
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 2);
-    EXPECT_EQ(world.componentCount(), 2);
+    #ifdef NDEBUG
+    EXPECT_ANY_THROW({
+        world.emplace<Component1>(entity, 1);
+    });
+    #else
+    EXPECT_DEATH({
+        world.emplace<Component1>(entity, 1);
+    }, "");
+    #endif
 
-    entity.remove<Component1>();
+    EXPECT_EQ(world.emplace<Component2>(entity, 2).val(), 2);
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 3);
-    EXPECT_EQ(world.componentCount(), 1);
-
-    EXPECT_EQ(entity.get<Component2>().value, utils::String("2"));
-    EXPECT_FALSE(entity.has<Component1>());
-}
-
-TEST(ECSTest, removeComponent2)
-{
-    struct Component1 { utils::String value; };
-    struct Component2 { utils::String value; };
-
-    GE::ECSWorld world;
-
-    GE::Entity entity = world.newEmptyEntity();
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 0);
-    EXPECT_EQ(world.componentCount(), 0);
-
-    entity.emplace<Component1>(utils::String("1"));
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 1);
-    EXPECT_EQ(world.componentCount(), 1);
-
-    entity.emplace<Component2>(utils::String("2"));
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 2);
     EXPECT_EQ(world.componentCount(), 2);
 
-    entity.remove<Component2>();
-    EXPECT_EQ(world.entityCount(), 1);
+    #ifdef NDEBUG
+    EXPECT_ANY_THROW({
+        world.emplace<Component2>(entity, 2);
+    });
+    #else
+    EXPECT_DEATH({
+        world.emplace<Component2>(entity, 2);
+    }, "");
+    #endif
+
+    EXPECT_EQ(world.get<Component1>(entity).val(), 1);
+    EXPECT_EQ(world.get<Component2>(entity).val(), 2);
+}
+
+TYPED_TEST(ECSTest, deleteEntityOneComp)
+{
+    GE::ECSWorld world;
+
+    EntityID entity = world.newEntityID();
+    world.emplace<TypeParam>(entity, 1);
+
+    world.deleteEntityID(entity);
+
+    EXPECT_EQ(world.entityCount(), 0);
     EXPECT_EQ(world.archetypeCount(), 2);
+    EXPECT_EQ(world.componentCount(), 0);
+}
+
+TEST(ECSTest, deleteEntityTwoComp)
+{
+    GE::ECSWorld world;
+
+    EntityID entity = world.newEntityID();
+    world.emplace<Component1>(entity, 1);
+    world.emplace<Component2>(entity, 2);
+
+    world.deleteEntityID(entity);
+
+    EXPECT_EQ(world.entityCount(), 0);
+    EXPECT_EQ(world.archetypeCount(), 3);
+    EXPECT_EQ(world.componentCount(), 0);
+}
+
+TYPED_TEST(ECSTest, removeOneComponent)
+{
+    GE::ECSWorld world;
+
+    EntityID entity = world.newEntityID(); // 1 arch ({id})
+    world.emplace<TypeParam>(entity, 1); // 2 arch ({id}, {id, TypeParam})
+
+    world.remove<TypeParam>(entity); 
+    EXPECT_EQ(world.entityCount(), 1);
+    EXPECT_EQ(world.archetypeCount(), 2); // 2 arch ({id}, {id, TypeParam})
+    EXPECT_EQ(world.componentCount(), 0);
+}
+
+TEST(ECSTest, removeTwoComponent)
+{
+    GE::ECSWorld world;
+
+    EntityID entity = world.newEntityID(); // 1 arch ({id})
+    world.emplace<Component1>(entity, 1); // 2 arch ({id}, {id, comp1})
+    world.emplace<Component2>(entity, 1); // 3 arch ({id}, {id, comp1}, {id, comp1, comp2})
+
+    world.remove<Component1>(entity); 
+    EXPECT_EQ(world.entityCount(), 1);
+    EXPECT_EQ(world.archetypeCount(), 4); // 4 arch ({id}, {id, comp1}, {id, comp1, comp2}, {id, comp2})
     EXPECT_EQ(world.componentCount(), 1);
 
-    EXPECT_EQ(entity.get<Component1>().value, utils::String("1"));
-    EXPECT_FALSE(entity.has<Component2>());
+    world.remove<Component2>(entity); 
+    EXPECT_EQ(world.entityCount(), 1);
+    EXPECT_EQ(world.archetypeCount(), 4); // 4 arch ({id}, {id, comp1}, {id, comp1, comp2}, {id, comp2})
+    EXPECT_EQ(world.componentCount(), 0);
 }
 
 TEST(ECSTest, multipleEntity)
 {
-    struct Component1 { int value; };
-    struct Component2 { utils::String value; };
-
     GE::ECSWorld world;
 
-    GE::Entity entity1 = world.newEmptyEntity();
+    EntityID entity1 = world.newEntityID();
+    world.emplace<Component1>(entity1, 1);
     EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 0);
-    EXPECT_EQ(world.componentCount(), 0);
-
-    entity1.emplace<Component1>(1);
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 1);
+    EXPECT_EQ(world.archetypeCount(), 2);
     EXPECT_EQ(world.componentCount(), 1);
 
-    EXPECT_TRUE(entity1.has<Component1>());
-    EXPECT_EQ(entity1.get<Component1>().value, 1);
-
-    entity1.emplace<Component2>(utils::String("a"));
-    EXPECT_EQ(world.entityCount(), 1);
+    EntityID entity2 = world.newEntityID();
+    world.emplace<Component1>(entity2, 1);
+    EXPECT_EQ(world.entityCount(), 2);
     EXPECT_EQ(world.archetypeCount(), 2);
     EXPECT_EQ(world.componentCount(), 2);
 
-    EXPECT_TRUE(entity1.has<Component2>());
-    EXPECT_EQ(entity1.get<Component2>().value, utils::String("a"));
+    EntityID entity3 = world.newEntityID();
+    world.emplace<Component1>(entity3, 1);
+    EXPECT_EQ(world.entityCount(), 3);
+    EXPECT_EQ(world.archetypeCount(), 2);
+    EXPECT_EQ(world.componentCount(), 3);
+}
 
-    entity1.remove<Component1>();
+TEST(ECSTest, multipleEntityTwoComponent)
+{
+    GE::ECSWorld world;
+
+    EntityID entity1 = world.newEntityID();
+    world.emplace<Component1>(entity1, 1);
+    world.emplace<Component2>(entity1, 2);
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 3);
-    EXPECT_EQ(world.componentCount(), 1);
-
-    EXPECT_FALSE(entity1.has<Component1>());
-
-
-    GE::Entity entity2 = world.newEmptyEntity();
-    EXPECT_EQ(world.entityCount(), 2);
-    EXPECT_EQ(world.archetypeCount(), 3);
-    EXPECT_EQ(world.componentCount(), 1);
-
-    entity2.emplace<Component1>(2);
-    EXPECT_EQ(world.entityCount(), 2);
-    EXPECT_EQ(world.archetypeCount(), 3);
     EXPECT_EQ(world.componentCount(), 2);
 
-    EXPECT_TRUE(entity2.has<Component1>());
-    EXPECT_EQ(entity2.get<Component1>().value, 2);
-
-    entity2.emplace<Component2>(utils::String("b"));
+    EntityID entity2 = world.newEntityID();
+    world.emplace<Component1>(entity2, 1);
+    world.emplace<Component2>(entity2, 2);
     EXPECT_EQ(world.entityCount(), 2);
-    EXPECT_EQ(world.archetypeCount(), 3);
-    EXPECT_EQ(world.componentCount(), 3);
-
-    EXPECT_TRUE(entity2.has<Component2>());
-    EXPECT_EQ(entity2.get<Component2>().value, utils::String("b"));
-
-    entity2.remove<Component1>();
-    EXPECT_EQ(world.entityCount(), 2);
-    EXPECT_EQ(world.archetypeCount(), 3);
-    EXPECT_EQ(world.componentCount(), 2);
-
-    EXPECT_FALSE(entity2.has<Component1>());
-
-
-    GE::Entity entity3 = world.newEmptyEntity();
-    EXPECT_EQ(world.entityCount(), 3);
-    EXPECT_EQ(world.archetypeCount(), 3);
-    EXPECT_EQ(world.componentCount(), 2);
-
-    entity3.emplace<Component1>(3);
-    EXPECT_EQ(world.entityCount(), 3);
-    EXPECT_EQ(world.archetypeCount(), 3);
-    EXPECT_EQ(world.componentCount(), 3);
-
-    EXPECT_TRUE(entity3.has<Component1>());
-    EXPECT_EQ(entity3.get<Component1>().value, 3);
-
-    entity3.emplace<Component2>(utils::String("c"));
-    EXPECT_EQ(world.entityCount(), 3);
     EXPECT_EQ(world.archetypeCount(), 3);
     EXPECT_EQ(world.componentCount(), 4);
 
-    EXPECT_TRUE(entity3.has<Component2>());
-    EXPECT_EQ(entity3.get<Component2>().value, utils::String("c"));
-
-    entity3.remove<Component1>();
+    EntityID entity3 = world.newEntityID();
+    world.emplace<Component1>(entity3, 1);
+    world.emplace<Component2>(entity3, 2);
     EXPECT_EQ(world.entityCount(), 3);
     EXPECT_EQ(world.archetypeCount(), 3);
-    EXPECT_EQ(world.componentCount(), 3);
+    EXPECT_EQ(world.componentCount(), 6);
+}
 
-    EXPECT_FALSE(entity3.has<Component1>());
+TYPED_TEST(ECSTest, componentEdit)
+{
+    GE::ECSWorld world;
+
+    EntityID entity = world.newEntityID();
+    world.emplace<TypeParam>(entity, 1);
+
+    world.get<TypeParam>(entity).val() = 2;
+
+    EXPECT_EQ(world.entityCount(), 1);
+    EXPECT_EQ(world.archetypeCount(), 2);
+    EXPECT_EQ(world.componentCount(), 1);
+    EXPECT_EQ(world.get<TypeParam>(entity).val(), 2);
+}
+
+TYPED_TEST(ECSTest, copyConstructor)
+{
+    GE::ECSWorld world1;
+
+    EntityID entity = world1.newEntityID();
+    world1.emplace<TypeParam>(entity, 1);
+
+    GE::ECSWorld world2(world1);
+
+    EXPECT_EQ(world1.entityCount(),                world2.entityCount());
+    EXPECT_EQ(world1.archetypeCount(),             world2.archetypeCount());
+    EXPECT_EQ(world1.componentCount(),             world2.componentCount());
+    EXPECT_EQ(world1.get<TypeParam>(entity).val(), world2.get<TypeParam>(entity).val());
+
+    world2.get<TypeParam>(entity).val() = 2;
+
+    EXPECT_NE(world1.get<TypeParam>(entity).val(), world2.get<TypeParam>(entity).val());
 }
 
 TEST(ECSTest, view)
 {
-    struct Component1 { int value; };
-    struct Component2 { utils::String value; };
-
     GE::ECSWorld world;
 
-    {
-        GE::Entity entity = world.newEmptyEntity();
-        entity.emplace<Component1>(1);
-    }
-    {
-        GE::Entity entity = world.newEmptyEntity();
-        entity.emplace<Component2>(utils::String("2"));
-    }
-    {
-        GE::Entity entity = world.newEmptyEntity();
-        entity.emplace<Component1>(3);
-        entity.emplace<Component2>(utils::String("3"));
-    }
+    EntityID entity1 = world.newEntityID();
+    world.emplace<Component1>(entity1, 1);
+
+    EntityID entity2 = world.newEntityID();
+    world.emplace<Component2>(entity2, 2);
+
+    EntityID entity3 = world.newEntityID();
+    world.emplace<Component1>(entity3, 3);
+    world.emplace<Component2>(entity3, 3);
 
     {
         GE::ECSView<Component1> view(world);
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
+            utils::Set<EntityID> entities;
             utils::Set<int> values;
-            view.onEach([&](GE::Entity, Component1& comp1){ values.insert(comp1.value); });
+
+            view.onEach([&](GE::Entity entity, Component1& comp){ 
+                entities.insert(entity.entityID());
+                values.insert(comp.val());
+            });
+
+            EXPECT_EQ(entities.size(), 2);
+            EXPECT_EQ(values.size(), 2);
         });
     }
     {
@@ -283,90 +315,108 @@ TEST(ECSTest, view)
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
-            utils::Set<utils::String> values;
-            view.onEach([&](GE::Entity, Component2& comp2){ values.insert(comp2.value); });
+            utils::Set<EntityID> entities;
+            utils::Set<int> values;
+
+            view.onEach([&](GE::Entity entity, Component2& comp){ 
+                entities.insert(entity.entityID());
+                values.insert(comp.val());
+            });
+
+            EXPECT_EQ(entities.size(), 2);
+            EXPECT_EQ(values.size(), 2);
         });
     }
-}
-
-TEST(ECSTest, multipleComponentView)
-{
-    struct Component1 { int value; };
-    struct Component2 { utils::String value; };
-    struct Component3 { float value; };
-
-    GE::ECSWorld world;
-
-    {
-        GE::Entity entity = world.newEmptyEntity();
-        entity.emplace<Component1>(1);
-    }
-    {
-        GE::Entity entity = world.newEmptyEntity();
-        entity.emplace<Component2>(utils::String("2"));
-    }
-    {
-        GE::Entity entity = world.newEmptyEntity();
-        entity.emplace<Component1>(3);
-        entity.emplace<Component2>(utils::String("3"));
-    }
-    {
-        GE::Entity entity = world.newEmptyEntity();
-        entity.emplace<Component1>(4);
-        entity.emplace<Component2>(utils::String("4"));
-        entity.emplace<Component3>(4.0f);
-    }
-
     {
         GE::ECSView<Component1, Component2> view(world);
-        EXPECT_EQ(view.count(), 2);
+        EXPECT_EQ(view.count(), 1);
 
         EXPECT_NO_THROW({
-            utils::Set<int> valuesInt;
-            utils::Set<utils::String> valuesStr;
-            view.onEach([&](GE::Entity, Component1& comp1, Component2& comp2) {
-                valuesInt.insert(comp1.value);
-                valuesStr.insert(comp2.value);
+            utils::Set<EntityID> entities;
+            utils::Set<int> values1;
+            utils::Set<int> values2;
+
+            view.onEach([&](GE::Entity entity, Component1& comp1, Component2& comp2){ 
+                entities.insert(entity.entityID());
+                values1.insert(comp1.val());
+                values2.insert(comp2.val());
             });
+
+            EXPECT_EQ(entities.size(), 1);
+            EXPECT_EQ(values1.size(), 1);
+            EXPECT_EQ(values2.size(), 1);
         });
     }
 }
 
-TEST(ECSTest, componentEdit)
+TEST(ECSTest, constView)
 {
-    struct Component1 { int value; };
-    struct Component2 { utils::String value; };
-
     GE::ECSWorld world;
 
-    {
-        GE::Entity entity = world.newEmptyEntity();
-        entity.emplace<Component1>(1);
-    }
-    {
-        GE::Entity entity = world.newEntity();
-        entity.emplace<Component2>(utils::String("2"));
-    }
-    {
-        GE::Entity entity = world.newEntity();
-        entity.emplace<Component1>(1);
-        entity.emplace<Component2>(utils::String("2"));
-    }
+    EntityID entity1 = world.newEntityID();
+    world.emplace<Component1>(entity1, 1);
+
+    EntityID entity2 = world.newEntityID();
+    world.emplace<Component2>(entity2, 2);
+
+    EntityID entity3 = world.newEntityID();
+    world.emplace<Component1>(entity3, 3);
+    world.emplace<Component2>(entity3, 3);
 
     {
-        GE::ECSView<Component1> view(world);
-        view.onEach([&](GE::Entity, Component1& comp1){ comp1.value += 1; });
+        GE::const_ECSView<Component1> view(const_cast<const GE::ECSWorld&>(world));
+        EXPECT_EQ(view.count(), 2);
+
+        EXPECT_NO_THROW({
+            utils::Set<EntityID> entities;
+            utils::Set<int> values;
+
+            view.onEach([&](const GE::Entity entity, const Component1& comp){ 
+                entities.insert(entity.entityID());
+                values.insert(comp.val());
+            });
+
+            EXPECT_EQ(entities.size(), 2);
+            EXPECT_EQ(values.size(), 2);
+        });
     }
     {
-        GE::ECSView<Component2> view(world);
-        view.onEach([&](GE::Entity, Component2& comp2){ comp2.value[0] += 1; });
+        GE::const_ECSView<Component2> view(const_cast<const GE::ECSWorld&>(world));
+        EXPECT_EQ(view.count(), 2);
+
+        EXPECT_NO_THROW({
+            utils::Set<EntityID> entities;
+            utils::Set<int> values;
+
+            view.onEach([&](const GE::Entity entity, const Component2& comp){ 
+                entities.insert(entity.entityID());
+                values.insert(comp.val());
+            });
+
+            EXPECT_EQ(entities.size(), 2);
+            EXPECT_EQ(values.size(), 2);
+        });
     }
     {
-        GE::ECSView<Component1> view(world);
-        view.onEach([&](GE::Entity, Component1& comp1){ EXPECT_EQ(comp1.value, 2); });
+        GE::const_ECSView<Component1, Component2> view(const_cast<const GE::ECSWorld&>(world));
+        EXPECT_EQ(view.count(), 1);
+
+        EXPECT_NO_THROW({
+            utils::Set<EntityID> entities;
+            utils::Set<int> values1;
+            utils::Set<int> values2;
+
+            view.onEach([&](const GE::Entity entity, const Component1& comp1, const Component2& comp2){ 
+                entities.insert(entity.entityID());
+                values1.insert(comp1.val());
+                values2.insert(comp2.val());
+            });
+
+            EXPECT_EQ(entities.size(), 1);
+            EXPECT_EQ(values1.size(), 1);
+            EXPECT_EQ(values2.size(), 1);
+        });
     }
-    {
-        GE::ECSView<Component2> view(world);
-        view.onEach([&](GE::Entity, Component2& comp2){ EXPECT_EQ(comp2.value, utils::String("3")); });
-    }
+}
+
 }

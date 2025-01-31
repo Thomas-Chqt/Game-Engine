@@ -8,20 +8,20 @@
 if(NOT TARGET UtilsCPP)
     find_program(GIT_PATH git REQUIRED)
     execute_process(COMMAND ${GIT_PATH} submodule update --init UtilsCPP WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-    set(UTILSCPP_INCLUDE_TESTS OFF)
+    set(UTILSCPP_BUILD_TESTS OFF)
+    set(UTILSCPP_API_EXPORT  ON)
     add_subdirectory(UtilsCPP)
 endif()
 set_target_properties(UtilsCPP PROPERTIES FOLDER "dependencies")
-target_link_libraries(Game-Engine PUBLIC UtilsCPP)
 
 if(NOT TARGET Math)
     find_program(GIT_PATH git REQUIRED)
     execute_process(COMMAND ${GIT_PATH} submodule update --init Math WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set(MATH_BUILD_TESTS OFF)
+    set(MATH_API_EXPORT  ON)
     add_subdirectory(Math)
 endif()
 set_target_properties(Math PROPERTIES FOLDER "dependencies")
-target_link_libraries(Game-Engine PUBLIC Math)
 
 if(NOT TARGET Graphics)
     find_program(GIT_PATH git REQUIRED)
@@ -33,4 +33,78 @@ if(NOT TARGET Graphics)
     add_subdirectory(Graphics)
 endif()
 set_target_properties(Graphics PROPERTIES FOLDER "dependencies")
-target_link_libraries(Game-Engine PUBLIC Graphics)
+
+FetchContent_Declare(assimp
+    GIT_REPOSITORY https://github.com/assimp/assimp.git
+    GIT_TAG        v5.4.1
+    GIT_SHALLOW    1
+)
+set(ASSIMP_BUILD_TESTS                    OFF)
+set(ASSIMP_INSTALL                        OFF)
+set(ASSIMP_NO_EXPORT                      ON)
+set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF)
+set(ASSIMP_BUILD_OBJ_IMPORTER             ON)
+set(ASSIMP_BUILD_FBX_IMPORTER             ON)
+set(ASSIMP_BUILD_GLTF_IMPORTER            ON)
+set(CMAKE_POLICY_DEFAULT_CMP0175 OLD)
+FetchContent_MakeAvailable(assimp)
+unset(CMAKE_POLICY_DEFAULT_CMP0175)
+if(TARGET zlibstatic OR TARGET UpdateAssimpLibsDebugSymbolsAndDLLs)
+    set_target_properties(assimp PROPERTIES FOLDER "dependencies/assimp")
+    if(TARGET zlibstatic)
+        set_target_properties(zlibstatic PROPERTIES FOLDER "dependencies/assimp")
+    endif()
+    if(TARGET UpdateAssimpLibsDebugSymbolsAndDLLs)
+        set_target_properties(UpdateAssimpLibsDebugSymbolsAndDLLs PROPERTIES FOLDER "dependencies/assimp")
+    endif()
+else()
+    set_target_properties(assimp PROPERTIES FOLDER "dependencies")
+endif()
+
+
+FetchContent_Declare(json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.11.3
+    GIT_SHALLOW    1
+)
+set(JSON_BuildTests OFF)
+set(JSON_Install    OFF)
+FetchContent_MakeAvailable(json)
+
+FetchContent_Declare(tinyfiledialogs
+    GIT_REPOSITORY https://github.com/Thomas-Chqt/tinyfiledialogs.git
+    GIT_TAG        0806552c78bf70658628e0ca4e3b962ca163ac70
+)
+set(TFD_BUILD_EXAMPLES OFF)
+set(TFD_INSTALL        OFF)
+FetchContent_MakeAvailable(tinyfiledialogs)
+set_target_properties(tinyfiledialogs PROPERTIES FOLDER "dependencies")
+
+FetchContent_Declare(stduuid
+    GIT_REPOSITORY https://github.com/mariusbancila/stduuid.git
+    GIT_TAG        v1.2.3
+    GIT_SHALLOW    1
+)
+set(UUID_BUILD_TESTS      OFF)
+set(UUID_SYSTEM_GENERATOR OFF)
+set(UUID_TIME_GENERATOR   OFF)
+set(UUID_USING_CXX20_SPAN ON)
+set(UUID_ENABLE_INSTALL   OFF)
+FetchContent_MakeAvailable(stduuid)
+set_target_properties(stduuid PROPERTIES FOLDER "dependencies")
+
+FetchContent_Declare(stb_image
+    GIT_REPOSITORY https://github.com/Thomas-Chqt/stb_image.git
+    GIT_SHALLOW    1
+)
+FetchContent_MakeAvailable(stb_image)
+set_target_properties(stb_image PROPERTIES FOLDER "dependencies")
+
+FetchContent_Declare(dlLoad
+    GIT_REPOSITORY https://github.com/Thomas-Chqt/dlLoad.git
+    GIT_SHALLOW    1
+)
+set(DL_BUILD_TESTS OFF)
+set(DL_INSTALL     OFF)
+FetchContent_MakeAvailable(dlLoad)
+set_target_properties(dlLoad PROPERTIES FOLDER "dependencies")

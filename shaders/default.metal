@@ -28,16 +28,16 @@ struct VertexOut
 
 vertex VertexOut default_vs(VertexIn in [[stage_in]],
     constant float4x4& vpMatrixBuffer    [[buffer(1)]],
-    constant float4x4& modelMatrixBuffer [[buffer(2)]]
+    constant float4x4& modelMatrix [[buffer(2)]]
 )
 {
-    float4 worldPos  = modelMatrixBuffer * float4(in.pos, 1.0);
+    float4 worldPos  = modelMatrix * float4(in.pos, 1.0);
 
     return (VertexOut){
         .clipPos   = vpMatrixBuffer * worldPos,
         .pos       = worldPos.xyz,
         .uv        = in.uv,
-        .normal    = (modelMatrixBuffer * float4(in.normal,  0)).xyz,
+        .normal    = (modelMatrix * float4(in.normal,  0)).xyz,
     };
 }
 
