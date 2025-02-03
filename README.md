@@ -55,7 +55,7 @@ All dependencies are embedded in the project using either **Git submodules** or 
 
 | Option              | Default | Description                          |
 |---------------------|---------|--------------------------------------|
-| `GE_BUILD_EXEMPLES` |  `OFF`  | Build example projects               |
+| `GE_BUILD_EXAMPLES` |  `OFF`  | Build example projects               |
 | `GE_BUILD_TESTS`    |  `OFF`  | Build unit tests                     |
 | `GE_BUILD_METAL`    |  `ON`   | Build the Metal backend (macOS only) |
 | `GE_BUILD_OPENGL`   |  `ON`   | Build the OpenGL backend             |
