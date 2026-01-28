@@ -8,17 +8,17 @@
 include(FetchContent)
 include(GoogleTest)
 
+enable_testing()
+
 add_executable(ECS_test)
 
-set_target_properties(ECS_test PROPERTIES
-    CXX_STANDARD          20
-    CXX_STANDARD_REQUIRED ON
-    FOLDER                "tests"
-)
+# test file only require 11, will be higher when linking to something that need higher
+target_compile_features(Game-Engine PUBLIC cxx_std_11)
+set_target_properties(ECS_test PROPERTIES FOLDER "tests")
 
 target_sources(ECS_test PRIVATE "ECS_testCases.cpp")
 
-target_include_directories(ECS_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} "${CMAKE_SOURCE_DIR}/engine")
+target_include_directories(ECS_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 FetchContent_Declare(googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
@@ -28,10 +28,9 @@ FetchContent_Declare(googletest
 set(BUILD_GMOCK OFF)
 set(INSTALL_GTEST OFF)
 FetchContent_MakeAvailable(googletest)
-
 set_target_properties(gtest PROPERTIES FOLDER "dependencies")
 set_target_properties(gtest_main PROPERTIES FOLDER "dependencies")
-target_link_libraries(ECS_test PRIVATE GTest::gtest_main)
-target_link_libraries(ECS_test PRIVATE Game-Engine)
+
+target_link_libraries(ECS_test PRIVATE Game-Engine GTest::gtest_main)
 
 gtest_discover_tests(ECS_test)

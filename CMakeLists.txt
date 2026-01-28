@@ -7,38 +7,73 @@
 
 cmake_minimum_required(VERSION 3.22)
 
-include(FetchContent)
+include(cmake/FetchDependencies.cmake)
 
-enable_testing()
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build using shared libraries" FORCE)
+project(Game-Engine)
 
-option(GE_BUILD_TESTS    "Build test executable" OFF)
-option(GE_BUILD_EXAMPLES "Build example scripts" OFF)
+option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 
 if (APPLE)
-    option(GE_BUILD_METAL  "Build with metal enable"  ON)
-    option(GE_BUILD_OPENGL "Build with OpenGL enable" ON)
-else()
-    option(GE_BUILD_OPENGL "Build with OpenGL enable" ON)
+    option(GE_BUILD_METAL "Build the metal backend"   ON)
 endif()
+option(GE_BUILD_VULKAN   "Build the vulkan backend"   ON)
+option(GE_BUILD_TESTS    "Build test executable"      OFF)
+option(GE_BUILD_EXAMPLES "Build examples"             OFF)
+option(GE_INSTALL        "Enable the install command" ON)
 
-if (NOT GE_BUILD_METAL AND NOT GE_BUILD_OPENGL)
-    message(FATAL_ERROR "One graphic api must be enable")
-endif()
-
-project(Game-Engine)
 enable_language(CXX)
 
-add_subdirectory("dependencies")
-add_subdirectory("engine")
+fetch_dependencies()
+
+add_library(Game-Engine ${GE_LIB_TYPE})
+
+target_compile_features(Game-Engine PUBLIC cxx_std_23)
+
+if(MSVC)
+    target_compile_options(Game-Engine PRIVATE /W4)
+else()
+    target_compile_options(Game-Engine PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(Game-Engine PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wno-missing-field-initializers>)
+endif()
+
+file(GLOB_RECURSE GE_INC "include/*.hpp")
+target_sources(Game-Engine PRIVATE ${GFX_INC})
+
+# file(GLOB_RECURSE GE_SRC "*.cpp" "*.hpp")
+# target_sources(Game-Engine PRIVATE ${GE_SRC})
+
+target_sources(Game-Engine PRIVATE
+    "src/Window.cpp"
+    "src/Application.cpp"
+    "src/Renderer.cpp"
+)
+
+target_include_directories(Game-Engine
+    PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+
+# target_precompile_headers(Graphics PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp")
+
+target_link_libraries(Game-Engine PUBLIC
+    Graphics
+    glfw
+    glm::glm
+    imgui
+    stb_image
+    dlLoad
+    assimp::assimp
+    nlohmann_json::nlohmann_json
+    tinyfiledialogs
+    stduuid)
+
 add_subdirectory("editor")
 
-if(GE_BUILD_EXAMPLES)
-    add_subdirectory("examples/project1")
-endif()
-
-if (GE_BUILD_TESTS)
-    add_subdirectory("tests")
-endif()
+# if(GE_BUILD_EXAMPLES)
+#     add_subdirectory("examples/project1")
+# endif()
+#
+# if (GE_BUILD_TESTS)
+#     add_subdirectory("tests")
+# endif()
