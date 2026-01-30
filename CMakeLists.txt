@@ -48,6 +48,8 @@ target_sources(Game-Engine PRIVATE
     "src/Window.cpp"
     "src/Application.cpp"
     "src/Renderer.cpp"
+    "src/Archetype.cpp"
+    "src/ECSWorld.cpp"
 )
 
 target_include_directories(Game-Engine
@@ -74,6 +76,7 @@ add_subdirectory("editor")
 #     add_subdirectory("examples/project1")
 # endif()
 #
-# if (GE_BUILD_TESTS)
-#     add_subdirectory("tests")
-# endif()
+if (GE_BUILD_TESTS)
+    enable_testing() # need to be in the top level cmakelists
+    add_subdirectory("tests")
+endif()

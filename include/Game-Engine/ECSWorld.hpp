@@ -10,15 +10,14 @@
 #ifndef ECSWORLD_HPP
 #define ECSWORLD_HPP
 
-#include "UtilsCPP/Array.hpp"
-#include "UtilsCPP/Dictionary.hpp"
-#include "UtilsCPP/Func.hpp"
-#include "UtilsCPP/Set.hpp"
-#include "UtilsCPP/Types.hpp"
 #include <cassert>
 #include <climits>
+#include <cstddef>
+#include <cstdint>
 #include <utility>
-#include <nlohmann/json.hpp>
+#include <set>
+#include <functional>
+#include <map>
 
 #define INVALID_ENTITY_ID ULONG_MAX
 
@@ -28,7 +27,7 @@ namespace GE
 class ECSWorld
 {
 public:
-    using EntityID = utils::uint64;
+    using EntityID = uint64_t;
 
     class Iterator;
 
@@ -36,12 +35,12 @@ private:
     template<typename ... Ts> friend class ECSView;
     template<typename ... Ts> friend class const_ECSView;
 
-    using ComponentID = utils::uint32;
-    using ArchetypeID = utils::Set<ComponentID>;
+    using ComponentID = uint32_t;
+    using ArchetypeID = std::set<ComponentID>;
 
-    using CopyConstructor = utils::Func<void(void* src, void* dst)>;
-    using MoveConstructor = utils::Func<void(void* src, void* dst)>;
-    using Destructor      = utils::Func<void(void* ptr)>;
+    using CopyConstructor = std::function<void(void* src, void* dst)>;
+    using MoveConstructor = std::function<void(void* src, void* dst)>;
+    using Destructor      = std::function<void(void* ptr)>;
 
 public:
     ECSWorld();
@@ -52,7 +51,7 @@ public:
 
     void deleteEntityID(EntityID);
 
-    inline bool isValidEntityID(EntityID id) const { return id < m_entityDatas.length() && m_availableEntityIDs.contain(id) == false; }
+    inline bool isValidEntityID(EntityID id) const { return id < m_entityDatas.size() && m_availableEntityIDs.contains(id) == false; }
 
     template<typename T, typename ... Args>
     T& emplace(EntityID entityId, Args&& ... args);
@@ -69,9 +68,9 @@ public:
     template<typename T>
     const T& get(EntityID) const;
 
-    inline utils::uint32 entityCount() { return m_entityDatas.length() - m_availableEntityIDs.size(); }
-    inline utils::uint32 archetypeCount() { return m_archetypes.size(); }
-    utils::uint32 componentCount();
+    inline uint32_t entityCount() { return m_entityDatas.size() - m_availableEntityIDs.size(); }
+    inline uint32_t archetypeCount() { return m_archetypes.size(); }
+    uint32_t componentCount();
 
     Iterator begin() const;
     Iterator end() const;
@@ -86,19 +85,19 @@ private:
         Archetype(const Archetype&); // copy constructor make no sense inside the same ECSWorld. ment to be used only when copying the ECSWorld
         Archetype(Archetype&&);
 
-        utils::uint64 size() const { return m_size; }
+        uint64_t size() const { return m_size; }
 
         // must be use on empty achetype that are not inserted `ECSWorld::m_archetypes`
         template<typename T>
         void addRowType()
         {
-            m_rows.insert(componentID<T>(), Row{
+            m_rows.insert(std::make_pair(componentID<T>(), Row{
                 operator new (componentSize<T>() * m_capacity),
                 componentSize<T>(),
                 componentCopyConstructor<T>(),
                 componentMoveConstructor<T>(),
                 componentDestructor<T>(),
-            });
+            }));
         }
 
         // must be use on empty achetype that are not inserted `ECSWorld::m_archetypes`
@@ -106,46 +105,46 @@ private:
         void rmvRowType()
         {
             {
-                Row& row = m_rows[componentID<T>()];
+                Row& row = m_rows.at(componentID<T>());
                 if (row.buffer != nullptr)
                 {
-                    for (utils::uint64 i = 0; i < m_size; i++)
-                        row.destructor(static_cast<utils::byte*>(row.buffer) + (row.componentSize * i));
+                    for (uint64_t i = 0; i < m_size; i++)
+                        row.destructor(static_cast<std::byte*>(row.buffer) + (row.componentSize * i));
                     operator delete (row.buffer);
                 }
             }
-            m_rows.remove(componentID<T>());
+            m_rows.erase(componentID<T>());
         }
 
         // only duplicate the component infos (no component duplicated)
         Archetype duplicateRowTypes();
 
         // only extend the size (and capacity if needed) and return last index
-        utils::uint64 allocateCollum();
+        uint64_t allocateCollum();
 
         template<typename T>
-        T* getComponentPointer(utils::uint64 idx)
+        T* getComponentPointer(uint64_t idx)
         {
-            Row& row = m_rows[componentID<T>()];
+            Row& row = m_rows.at(componentID<T>());
             return static_cast<T*>(row.buffer) + idx;
         }
 
         template<typename T>
-        const T* getComponentPointer(utils::uint64 idx) const
+        const T* getComponentPointer(uint64_t idx) const
         {
-            const Row& row = m_rows[componentID<T>()];
+            const Row& row = m_rows.at(componentID<T>());
             return static_cast<T*>(row.buffer) + idx;
         }
 
-        EntityID& getEntityID(utils::uint64 idx);
-        const EntityID& getEntityID(utils::uint64 idx) const;
+        EntityID& getEntityID(uint64_t idx);
+        const EntityID& getEntityID(uint64_t idx) const;
 
         // destination should be garbage memory
         // only call the move constructor
-        static void moveComponents(Archetype& arcSrc, utils::uint64 idxSrc, Archetype& arcDst, utils::uint64 idxDst);
+        static void moveComponents(Archetype& arcSrc, uint64_t idxSrc, Archetype& arcDst, uint64_t idxDst);
 
         // only call the destructor
-        void destructCollum(utils::uint64 idx);
+        void destructCollum(uint64_t idx);
 
         // only reduce the size (and capacity if needed)
         void freeLastCollum();
@@ -156,17 +155,17 @@ private:
         struct Row
         {
             void* buffer = nullptr;
-            const utils::uint64 componentSize;
+            const uint64_t componentSize;
             const CopyConstructor copyConstructor;
             const MoveConstructor moveConstructor;
             const Destructor destructor;
         };
 
-        utils::Dictionary<ComponentID, Row> m_rows;
-        utils::uint64 m_size;
-        utils::uint64 m_capacity;
+        std::map<ComponentID, Row> m_rows;
+        uint64_t m_size;
+        uint64_t m_capacity;
 
-        void setCapacity(utils::uint64);
+        void setCapacity(uint64_t);
         inline void extendCapacity() { setCapacity(m_capacity * 2); }
         inline void reduceCapacity() { setCapacity(m_capacity / 2 > 0 ? m_capacity / 2 : 1); }
 
@@ -178,27 +177,27 @@ private:
     struct EntityData
     {
         ArchetypeID archetypeId;
-        utils::uint64 idx = 0;
+        uint64_t idx = 0;
     };
 
     static ComponentID nextComponentID();
     template<typename T> static ComponentID componentID();
-    template<typename T> static utils::uint64 componentSize();
+    template<typename T> static uint64_t componentSize();
     template<typename T> static CopyConstructor componentCopyConstructor();
     template<typename T> static MoveConstructor componentMoveConstructor();
     template<typename T> static Destructor componentDestructor();
 
-    utils::Array<EntityData> m_entityDatas;
-    utils::Set<EntityID> m_availableEntityIDs;
+    std::vector<EntityData> m_entityDatas;
+    std::set<EntityID> m_availableEntityIDs;
 
-    utils::Dictionary<ArchetypeID, Archetype> m_archetypes;
+    std::map<ArchetypeID, Archetype> m_archetypes;
 
 public:
     ECSWorld& operator = (const ECSWorld&) = default;
     ECSWorld& operator = (ECSWorld&&)      = default;
 
-    friend void to_json(nlohmann::json&, const ECSWorld&);
-    friend void from_json(const nlohmann::json&, ECSWorld&);
+    // friend void to_json(nlohmann::json&, const ECSWorld&);
+    // friend void from_json(const nlohmann::json&, ECSWorld&);
 
 public:
     class Iterator
@@ -225,10 +224,10 @@ public:
 
         inline EntityID operator * () const { return m_id; }
 
-        inline Iterator& operator ++ ()    { do { ++m_id; } while (m_world->m_availableEntityIDs.contain(m_id)); return *this; }
+        inline Iterator& operator ++ ()    { do { ++m_id; } while (m_world->m_availableEntityIDs.contains(m_id)); return *this; }
         inline Iterator  operator ++ (int) { Iterator temp(*this); ++(*this); return temp; }
 
-        inline Iterator& operator -- ()    { do { --m_id; } while (m_world->m_availableEntityIDs.contain(m_id)); return *this; }
+        inline Iterator& operator -- ()    { do { --m_id; } while (m_world->m_availableEntityIDs.contains(m_id)); return *this; }
         inline Iterator  operator -- (int) { Iterator temp(*this); --(*this); return temp; }
 
         inline bool operator == (const Iterator& rhs) const { return m_world == rhs.m_world && m_id == rhs.m_id; }
@@ -244,18 +243,21 @@ T& ECSWorld::emplace(EntityID entityId, Args&& ... args)
 
     ArchetypeID& entityArchID = m_entityDatas[entityId].archetypeId;
     Archetype& entityArch = m_archetypes[entityArchID];
-    utils::uint64& entityIdx = m_entityDatas[entityId].idx;
+    uint64_t& entityIdx = m_entityDatas[entityId].idx;
 
-    ArchetypeID dstArchID = entityArchID + componentID<T>();
+    ArchetypeID dstArchID = entityArchID;
+    dstArchID.insert(componentID<T>());
     auto it = m_archetypes.find(dstArchID);
     if (it == m_archetypes.end())
     {
         Archetype newArchetype = entityArch.duplicateRowTypes();
         newArchetype.addRowType<T>();
-        it = m_archetypes.insert(dstArchID, std::move(newArchetype));
+        auto [newIt, err] = m_archetypes.insert(std::make_pair(dstArchID, std::move(newArchetype)));
+        assert(err);
+        it = newIt;
     }
-    Archetype& dstArchetype = it->val;
-    utils::uint64 dstIdx = dstArchetype.allocateCollum();
+    Archetype& dstArchetype = it->second;
+    uint64_t dstIdx = dstArchetype.allocateCollum();
 
     Archetype::moveComponents(entityArch, entityIdx, dstArchetype, dstIdx);
 
@@ -282,18 +284,21 @@ void ECSWorld::remove(EntityID entityId)
 
     ArchetypeID& entityArchID = m_entityDatas[entityId].archetypeId;
     Archetype& entityArch = m_archetypes[entityArchID];
-    utils::uint64& entityIdx = m_entityDatas[entityId].idx;
+    uint64_t& entityIdx = m_entityDatas[entityId].idx;
 
-    ArchetypeID dstArchID = entityArchID - componentID<T>();
+    ArchetypeID dstArchID = entityArchID;
+    dstArchID.erase(componentID<T>());
     auto it = m_archetypes.find(dstArchID);
     if (it == m_archetypes.end())
     {
         Archetype newArchetype = entityArch.duplicateRowTypes();
         newArchetype.rmvRowType<T>();
-        it = m_archetypes.insert(dstArchID, std::move(newArchetype));
+        auto [newIt, err] = m_archetypes.insert(std::make_pair(dstArchID, std::move(newArchetype)));
+        assert(err);
+        it = newIt;
     }
-    Archetype& dstArchetype = it->val;
-    utils::uint64 dstIdx = dstArchetype.allocateCollum();
+    Archetype& dstArchetype = it->second;
+    uint64_t dstIdx = dstArchetype.allocateCollum();
 
     Archetype::moveComponents(entityArch, entityIdx, dstArchetype, dstIdx);
 
@@ -315,7 +320,7 @@ template<typename T>
 bool ECSWorld::has(EntityID entityId) const
 {
     assert(isValidEntityID(entityId));
-    return m_entityDatas[entityId].archetypeId.contain(componentID<T>());
+    return m_entityDatas[entityId].archetypeId.contains(componentID<T>());
 }
 
 template<typename T>
@@ -325,7 +330,7 @@ T& ECSWorld::get(EntityID entityId)
     assert(has<T>(entityId));
 
     Archetype& entityArch = m_archetypes[m_entityDatas[entityId].archetypeId];
-    utils::uint64& entityIdx = m_entityDatas[entityId].idx;
+    uint64_t& entityIdx = m_entityDatas[entityId].idx;
 
     return *entityArch.getComponentPointer<T>(entityIdx);
 }
@@ -336,8 +341,8 @@ const T& ECSWorld::get(EntityID entityId) const
     assert(isValidEntityID(entityId));
     assert(has<T>(entityId));
 
-    const Archetype& entityArch = m_archetypes[m_entityDatas[entityId].archetypeId];
-    const utils::uint64& entityIdx = m_entityDatas[entityId].idx;
+    const Archetype& entityArch = m_archetypes.at(m_entityDatas[entityId].archetypeId);
+    const uint64_t& entityIdx = m_entityDatas[entityId].idx;
 
     return *entityArch.getComponentPointer<T>(entityIdx);
 }
@@ -350,9 +355,9 @@ ECSWorld::ComponentID ECSWorld::componentID()
 }
 
 template<typename T>
-utils::uint64 ECSWorld::componentSize()
+uint64_t ECSWorld::componentSize()
 {
-    utils::uint64 size = sizeof(T);
+    uint64_t size = sizeof(T);
     return size;
 }
 

@@ -7,21 +7,18 @@
  * ---------------------------------------------------
  */
 
-#include "ECS/ECSWorld.hpp"
-#include "ECS/Components.hpp"
-#include "UtilsCPP/Array.hpp"
-#include "UtilsCPP/Types.hpp"
-#include <cassert>
-#include <nlohmann/json.hpp>
+#include "Game-Engine/ECSWorld.hpp"
 
-using json = nlohmann::json;
+#include <cassert>
+
+// using json = nlohmann::json;
 
 namespace GE
 {
 
 ECSWorld::ECSWorld()
 {
-    m_archetypes.insert(ArchetypeID{0}, Archetype());
+    m_archetypes.insert(std::make_pair(ArchetypeID{0}, Archetype()));
 }
 
 ECSWorld::EntityID ECSWorld::newEntityID()
@@ -29,17 +26,18 @@ ECSWorld::EntityID ECSWorld::newEntityID()
     // new entity has no component so directly inserting in empty archetype (the one with only the entity id)
     ArchetypeID newEntityArcId = { 0 };
     Archetype& newEntityArchetype = m_archetypes[newEntityArcId];
-    utils::uint64 newEntityIdx = newEntityArchetype.allocateCollum();
+    uint64_t newEntityIdx = newEntityArchetype.allocateCollum();
 
     EntityID newEntityId;
-    if (m_availableEntityIDs.isEmpty())
+    if (m_availableEntityIDs.empty())
     {
-        newEntityId = m_entityDatas.length();
-        m_entityDatas.append(EntityData{newEntityArcId, newEntityIdx});
+        newEntityId = m_entityDatas.size();
+        m_entityDatas.push_back(EntityData{newEntityArcId, newEntityIdx});
     }
     else
     {
-        newEntityId = m_availableEntityIDs.pop(m_availableEntityIDs.begin());
+        auto node = m_availableEntityIDs.extract(m_availableEntityIDs.begin());
+        newEntityId = node.value();
         m_entityDatas[newEntityId] = EntityData{newEntityArcId, newEntityIdx};
     }
     newEntityArchetype.getEntityID(newEntityIdx) = newEntityId;
@@ -52,7 +50,7 @@ void ECSWorld::deleteEntityID(EntityID entityId)
 {
     assert(isValidEntityID(entityId));
     Archetype& entityArch = m_archetypes[m_entityDatas[entityId].archetypeId];
-    utils::uint64 entityIdx = m_entityDatas[entityId].idx;
+    uint64_t entityIdx = m_entityDatas[entityId].idx;
 
     // last entity of the archetype will be move to the index of the delete entity
     // so the idx in the entity datas need to be change
@@ -69,9 +67,9 @@ void ECSWorld::deleteEntityID(EntityID entityId)
     m_availableEntityIDs.insert(entityId);
 }
 
-utils::uint32 ECSWorld::componentCount()
+uint32_t ECSWorld::componentCount()
 {
-    utils::uint64 count = 0;
+    uint64_t count = 0;
     for (auto& [id, arch] : m_archetypes)
         count += (id.size() - 1) * arch.size();
     return count;
@@ -80,14 +78,14 @@ utils::uint32 ECSWorld::componentCount()
 ECSWorld::Iterator ECSWorld::begin() const
 {
     EntityID id = 0;
-    while (m_availableEntityIDs.contain(id))
+    while (m_availableEntityIDs.contains(id))
         id++;
     return Iterator(*this, id);
 }
 
 ECSWorld::Iterator ECSWorld::end() const
 {
-    return Iterator(*this, m_entityDatas.length());
+    return Iterator(*this, m_entityDatas.size());
 }
 
 ECSWorld::ComponentID ECSWorld::nextComponentID()
@@ -97,97 +95,97 @@ ECSWorld::ComponentID ECSWorld::nextComponentID()
     return id++;
 };
 
-void to_json(nlohmann::json& jsn, const ECSWorld& world)
-{
-    jsn["entities"] = json::array();
+// void to_json(nlohmann::json& jsn, const ECSWorld& world)
+// {
+//     jsn["entities"] = json::array();
 
-    for (auto id : world)
-    {
-        json entityJsn;
-        entityJsn["id"] = id;
+//     for (auto id : world)
+//     {
+//         json entityJsn;
+//         entityJsn["id"] = id;
 
-        if (world.has<NameComponent>(id))
-            entityJsn["nameComponent"] = world.get<NameComponent>(id);
+//         if (world.has<NameComponent>(id))
+//             entityJsn["nameComponent"] = world.get<NameComponent>(id);
 
-        if (world.has<HierarchyComponent>(id))
-            entityJsn["hierarchyComponent"] = world.get<HierarchyComponent>(id);
+//         if (world.has<HierarchyComponent>(id))
+//             entityJsn["hierarchyComponent"] = world.get<HierarchyComponent>(id);
 
-        if (world.has<TransformComponent>(id))
-            entityJsn["transformComponent"] = world.get<TransformComponent>(id);
+//         if (world.has<TransformComponent>(id))
+//             entityJsn["transformComponent"] = world.get<TransformComponent>(id);
 
-        if (world.has<CameraComponent>(id))
-            entityJsn["cameraComponent"] = world.get<CameraComponent>(id);
+//         if (world.has<CameraComponent>(id))
+//             entityJsn["cameraComponent"] = world.get<CameraComponent>(id);
 
-        if (world.has<LightComponent>(id))
-            entityJsn["lightComponent"] = world.get<LightComponent>(id);
+//         if (world.has<LightComponent>(id))
+//             entityJsn["lightComponent"] = world.get<LightComponent>(id);
 
-        if (world.has<MeshComponent>(id))
-            entityJsn["meshComponent"] = world.get<MeshComponent>(id);
+//         if (world.has<MeshComponent>(id))
+//             entityJsn["meshComponent"] = world.get<MeshComponent>(id);
 
-        if (world.has<ScriptComponent>(id))
-            entityJsn["scriptComponent"] = world.get<ScriptComponent>(id);
+//         if (world.has<ScriptComponent>(id))
+//             entityJsn["scriptComponent"] = world.get<ScriptComponent>(id);
 
-        jsn["entities"].emplace_back(entityJsn);
-    }
+//         jsn["entities"].emplace_back(entityJsn);
+//     }
 
-    jsn["availableEntityID"] = json::array();
+//     jsn["availableEntityID"] = json::array();
 
-    for (auto id : world.m_availableEntityIDs)
-        jsn["availableEntityID"].emplace_back(id);
-}
+//     for (auto id : world.m_availableEntityIDs)
+//         jsn["availableEntityID"].emplace_back(id);
+// }
 
-void from_json(const nlohmann::json& jsn, ECSWorld& world)
-{
-    auto entitiesIt = jsn.find("entities");
-    auto availableEntityIDIt = jsn.find("availableEntityID");
-    utils::uint64 entityDatasCount = 0;
-    if (entitiesIt != jsn.end())
-        entityDatasCount += jsn["entities"].size();
-    if (availableEntityIDIt != jsn.end())
-        entityDatasCount += jsn["availableEntityID"].size();
+// void from_json(const nlohmann::json& jsn, ECSWorld& world)
+// {
+//     auto entitiesIt = jsn.find("entities");
+//     auto availableEntityIDIt = jsn.find("availableEntityID");
+//     uint64_t entityDatasCount = 0;
+//     if (entitiesIt != jsn.end())
+//         entityDatasCount += jsn["entities"].size();
+//     if (availableEntityIDIt != jsn.end())
+//         entityDatasCount += jsn["availableEntityID"].size();
 
-    world.m_entityDatas = utils::Array<ECSWorld::EntityData>(entityDatasCount);
+//     world.m_entityDatas = utils::Array<ECSWorld::EntityData>(entityDatasCount);
 
-    for (auto& entity : jsn["entities"])
-    {
-        ECSWorld::EntityID entityId = entity["id"].template get<ECSWorld::EntityID>();
-        ECSWorld::ArchetypeID newEntityArcId = { 0 };
-        ECSWorld::Archetype& newEntityArchetype = world.m_archetypes[newEntityArcId];
-        utils::uint64 newEntityIdx = newEntityArchetype.allocateCollum();
-        world.m_entityDatas[entityId] = ECSWorld::EntityData{newEntityArcId, newEntityIdx};
-        newEntityArchetype.getEntityID(newEntityIdx) = entityId;
-        
-        auto nameComponentIt = entity.find("nameComponent");
-        if (nameComponentIt != entity.end())
-            world.emplace<NameComponent>(entityId) = nameComponentIt->template get<NameComponent>();
+//     for (auto& entity : jsn["entities"])
+//     {
+//         ECSWorld::EntityID entityId = entity["id"].template get<ECSWorld::EntityID>();
+//         ECSWorld::ArchetypeID newEntityArcId = { 0 };
+//         ECSWorld::Archetype& newEntityArchetype = world.m_archetypes[newEntityArcId];
+//         uint64_t newEntityIdx = newEntityArchetype.allocateCollum();
+//         world.m_entityDatas[entityId] = ECSWorld::EntityData{newEntityArcId, newEntityIdx};
+//         newEntityArchetype.getEntityID(newEntityIdx) = entityId;
 
-        auto hierarchyComponentIt = entity.find("hierarchyComponent");
-        if (hierarchyComponentIt != entity.end())
-            world.emplace<HierarchyComponent>(entityId) = hierarchyComponentIt->template get<HierarchyComponent>();
+//         auto nameComponentIt = entity.find("nameComponent");
+//         if (nameComponentIt != entity.end())
+//             world.emplace<NameComponent>(entityId) = nameComponentIt->template get<NameComponent>();
 
-        auto transformComponentIt = entity.find("transformComponent");
-        if (transformComponentIt != entity.end())
-            world.emplace<TransformComponent>(entityId) = transformComponentIt->template get<TransformComponent>();
+//         auto hierarchyComponentIt = entity.find("hierarchyComponent");
+//         if (hierarchyComponentIt != entity.end())
+//             world.emplace<HierarchyComponent>(entityId) = hierarchyComponentIt->template get<HierarchyComponent>();
 
-        auto cameraComponentIt = entity.find("cameraComponent");
-        if (cameraComponentIt != entity.end())
-            world.emplace<CameraComponent>(entityId) = cameraComponentIt->template get<CameraComponent>();
+//         auto transformComponentIt = entity.find("transformComponent");
+//         if (transformComponentIt != entity.end())
+//             world.emplace<TransformComponent>(entityId) = transformComponentIt->template get<TransformComponent>();
 
-        auto lightComponentIt = entity.find("lightComponent");
-        if (lightComponentIt != entity.end())
-            world.emplace<LightComponent>(entityId) = lightComponentIt->template get<LightComponent>();
+//         auto cameraComponentIt = entity.find("cameraComponent");
+//         if (cameraComponentIt != entity.end())
+//             world.emplace<CameraComponent>(entityId) = cameraComponentIt->template get<CameraComponent>();
 
-        auto meshComponenIt = entity.find("meshComponent");
-        if (meshComponenIt != entity.end())
-            world.emplace<MeshComponent>(entityId) = meshComponenIt->template get<MeshComponent>();
+//         auto lightComponentIt = entity.find("lightComponent");
+//         if (lightComponentIt != entity.end())
+//             world.emplace<LightComponent>(entityId) = lightComponentIt->template get<LightComponent>();
 
-        auto scriptComponentIt = entity.find("scriptComponent");
-        if (scriptComponentIt != entity.end())
-            world.emplace<ScriptComponent>(entityId) = scriptComponentIt->template get<ScriptComponent>();
-    }
+//         auto meshComponenIt = entity.find("meshComponent");
+//         if (meshComponenIt != entity.end())
+//             world.emplace<MeshComponent>(entityId) = meshComponenIt->template get<MeshComponent>();
 
-    for (auto& id : jsn["availableEntityID"])
-        world.m_availableEntityIDs.insert(id);
-}
+//         auto scriptComponentIt = entity.find("scriptComponent");
+//         if (scriptComponentIt != entity.end())
+//             world.emplace<ScriptComponent>(entityId) = scriptComponentIt->template get<ScriptComponent>();
+//     }
+
+//     for (auto& id : jsn["availableEntityID"])
+//         world.m_availableEntityIDs.insert(id);
+// }
 
 }

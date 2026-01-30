@@ -9,9 +9,10 @@
 
 #include <gtest/gtest.h>
 
-#include "ECS/ECSWorld.hpp"
-#include "ECS/ECSView.hpp"
-#include "UtilsCPP/Set.hpp"
+#include "Game-Engine/ECSWorld.hpp"
+#include "Game-Engine/ECSView.hpp"
+
+#include <set>
 
 namespace ECS_tests
 {
@@ -66,7 +67,7 @@ TEST(ECSTest, newEntity)
     EXPECT_EQ(world.entityCount(), 2);
     EXPECT_EQ(world.archetypeCount(), 1);
     EXPECT_EQ(world.componentCount(), 0);
-    
+
     world.deleteEntityID(entity1);
     EXPECT_FALSE(world.isValidEntityID(entity1));
     EXPECT_EQ(world.entityCount(), 1);
@@ -91,7 +92,7 @@ TYPED_TEST(ECSTest, oneComponent)
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 2);
     EXPECT_EQ(world.componentCount(), 1);
-    
+
     EXPECT_EQ(world.get<TypeParam>(entity).val(), 0);
 }
 
@@ -171,7 +172,7 @@ TYPED_TEST(ECSTest, removeOneComponent)
     EntityID entity = world.newEntityID(); // 1 arch ({id})
     world.emplace<TypeParam>(entity, 1); // 2 arch ({id}, {id, TypeParam})
 
-    world.remove<TypeParam>(entity); 
+    world.remove<TypeParam>(entity);
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 2); // 2 arch ({id}, {id, TypeParam})
     EXPECT_EQ(world.componentCount(), 0);
@@ -185,12 +186,12 @@ TEST(ECSTest, removeTwoComponent)
     world.emplace<Component1>(entity, 1); // 2 arch ({id}, {id, comp1})
     world.emplace<Component2>(entity, 1); // 3 arch ({id}, {id, comp1}, {id, comp1, comp2})
 
-    world.remove<Component1>(entity); 
+    world.remove<Component1>(entity);
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 4); // 4 arch ({id}, {id, comp1}, {id, comp1, comp2}, {id, comp2})
     EXPECT_EQ(world.componentCount(), 1);
 
-    world.remove<Component2>(entity); 
+    world.remove<Component2>(entity);
     EXPECT_EQ(world.entityCount(), 1);
     EXPECT_EQ(world.archetypeCount(), 4); // 4 arch ({id}, {id, comp1}, {id, comp1, comp2}, {id, comp2})
     EXPECT_EQ(world.componentCount(), 0);
@@ -298,11 +299,11 @@ TEST(ECSTest, view)
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
-            utils::Set<EntityID> entities;
-            utils::Set<int> values;
+            std::set<EntityID> entities;
+            std::set<int> values;
 
-            view.onEach([&](GE::Entity entity, Component1& comp){ 
-                entities.insert(entity.entityID());
+            view.onEach([&](EntityID entityId, Component1& comp){
+                entities.insert(entityId);
                 values.insert(comp.val());
             });
 
@@ -315,11 +316,11 @@ TEST(ECSTest, view)
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
-            utils::Set<EntityID> entities;
-            utils::Set<int> values;
+            std::set<EntityID> entities;
+            std::set<int> values;
 
-            view.onEach([&](GE::Entity entity, Component2& comp){ 
-                entities.insert(entity.entityID());
+            view.onEach([&](EntityID entityId, Component2& comp){
+                entities.insert(entityId);
                 values.insert(comp.val());
             });
 
@@ -332,12 +333,12 @@ TEST(ECSTest, view)
         EXPECT_EQ(view.count(), 1);
 
         EXPECT_NO_THROW({
-            utils::Set<EntityID> entities;
-            utils::Set<int> values1;
-            utils::Set<int> values2;
+            std::set<EntityID> entities;
+            std::set<int> values1;
+            std::set<int> values2;
 
-            view.onEach([&](GE::Entity entity, Component1& comp1, Component2& comp2){ 
-                entities.insert(entity.entityID());
+            view.onEach([&](EntityID entityId, Component1& comp1, Component2& comp2){
+                entities.insert(entityId);
                 values1.insert(comp1.val());
                 values2.insert(comp2.val());
             });
@@ -368,11 +369,11 @@ TEST(ECSTest, constView)
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
-            utils::Set<EntityID> entities;
-            utils::Set<int> values;
+            std::set<EntityID> entities;
+            std::set<int> values;
 
-            view.onEach([&](const GE::Entity entity, const Component1& comp){ 
-                entities.insert(entity.entityID());
+            view.onEach([&](EntityID entityId, const Component1& comp){
+                entities.insert(entityId);
                 values.insert(comp.val());
             });
 
@@ -385,11 +386,11 @@ TEST(ECSTest, constView)
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
-            utils::Set<EntityID> entities;
-            utils::Set<int> values;
+            std::set<EntityID> entities;
+            std::set<int> values;
 
-            view.onEach([&](const GE::Entity entity, const Component2& comp){ 
-                entities.insert(entity.entityID());
+            view.onEach([&](EntityID entityId, const Component2& comp){
+                entities.insert(entityId);
                 values.insert(comp.val());
             });
 
@@ -402,12 +403,12 @@ TEST(ECSTest, constView)
         EXPECT_EQ(view.count(), 1);
 
         EXPECT_NO_THROW({
-            utils::Set<EntityID> entities;
-            utils::Set<int> values1;
-            utils::Set<int> values2;
+            std::set<EntityID> entities;
+            std::set<int> values1;
+            std::set<int> values2;
 
-            view.onEach([&](const GE::Entity entity, const Component1& comp1, const Component2& comp2){ 
-                entities.insert(entity.entityID());
+            view.onEach([&](EntityID entityId, const Component1& comp1, const Component2& comp2){
+                entities.insert(entityId);
                 values1.insert(comp1.val());
                 values2.insert(comp2.val());
             });

@@ -7,41 +7,44 @@
  * ---------------------------------------------------
  */
 
-#include "ECS/ECSWorld.hpp"
-#include "UtilsCPP/Types.hpp"
+#include "Game-Engine/ECSWorld.hpp"
+
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <utility>
 
 namespace GE
 {
 
-ECSWorld::Archetype::Archetype()
-    : m_size(0), m_capacity(1)
+ECSWorld::Archetype::Archetype() : m_size(0), m_capacity(1)
 {
-    m_rows.insert(0, Row{
+    m_rows.insert(std::pair(0, Row{
         operator new (sizeof(EntityID) * m_capacity),
         componentSize<EntityID>(),
         componentCopyConstructor<EntityID>(),
         componentMoveConstructor<EntityID>(),
         componentDestructor<EntityID>(),
-    });
+    }));
 }
 
-ECSWorld::Archetype::Archetype(const Archetype& cp)
-    : m_size(cp.m_size), m_capacity(cp.m_capacity)
+ECSWorld::Archetype::Archetype(const Archetype& cp) : m_size(cp.m_size), m_capacity(cp.m_capacity)
 {
     for (auto& [id, row] : cp.m_rows)
     {
-        Row& newRow = m_rows.insert(id, Row{
+        auto [it, sucess] = m_rows.insert(std::pair(id, Row{
             operator new (row.componentSize * m_capacity),
             row.componentSize, row.copyConstructor,
             row.moveConstructor, row.destructor
-        })->val;
+        }));
+        assert(sucess);
+        Row& newRow = it->second;
 
-        for (utils::uint64 idx = 0; idx < cp.m_size; idx++)
+        for (uint64_t idx = 0; idx < cp.m_size; idx++)
         {
             row.copyConstructor(
-                static_cast<utils::byte*>(row.buffer) + (row.componentSize * idx),
-                static_cast<utils::byte*>(newRow.buffer) + (newRow.componentSize * idx)
+                static_cast<std::byte*>(row.buffer) + (row.componentSize * idx),
+                static_cast<std::byte*>(newRow.buffer) + (newRow.componentSize * idx)
             );
         }
     }
@@ -52,10 +55,11 @@ ECSWorld::Archetype::Archetype(Archetype&& mv)
 {
     for (auto& [id, row] : mv.m_rows)
     {
-        Row& newRow = m_rows.insert(id, Row{
+        auto [_, sucess] = m_rows.insert(std::pair(id, Row{
             row.buffer, row.componentSize, row.copyConstructor,
             row.moveConstructor, row.destructor
-        })->val;
+        }));
+        assert(sucess);
         row.buffer = nullptr;
     }
 }
@@ -68,41 +72,41 @@ ECSWorld::Archetype ECSWorld::Archetype::duplicateRowTypes()
     {
         if (row.buffer != nullptr)
         {
-            for (utils::uint64 i = 0; i < newArchetype.m_size; i++)
-                row.destructor(static_cast<utils::byte*>(row.buffer) + (row.componentSize * i));
+            for (uint64_t i = 0; i < newArchetype.m_size; i++)
+                row.destructor(static_cast<std::byte*>(row.buffer) + (row.componentSize * i));
             operator delete (row.buffer);
         }
     }
     newArchetype.m_rows.clear();
     for (auto& [id, row] : m_rows)
     {
-        newArchetype.m_rows.insert(id, Row{
+        newArchetype.m_rows.insert(std::make_pair(id, Row{
             operator new (row.componentSize * newArchetype.m_capacity),
             row.componentSize, row.copyConstructor,
             row.moveConstructor, row.destructor
-        });
+        }));
     }
     return newArchetype;
 }
 
-utils::uint64 ECSWorld::Archetype::allocateCollum()
+uint64_t ECSWorld::Archetype::allocateCollum()
 {
     if (m_size == m_capacity)
         extendCapacity();
     return m_size++;
 }
 
-ECSWorld::EntityID& ECSWorld::Archetype::getEntityID(utils::uint64 idx)
+ECSWorld::EntityID& ECSWorld::Archetype::getEntityID(uint64_t idx)
 {
-    return static_cast<EntityID*>(m_rows[0].buffer)[idx];
+    return static_cast<EntityID*>(m_rows.at(0).buffer)[idx];
 }
 
-const ECSWorld::EntityID& ECSWorld::Archetype::getEntityID(utils::uint64 idx) const
+const ECSWorld::EntityID& ECSWorld::Archetype::getEntityID(uint64_t idx) const
 {
-    return static_cast<const EntityID*>(m_rows[0].buffer)[idx];
+    return static_cast<const EntityID*>(m_rows.at(0).buffer)[idx];
 }
 
-void ECSWorld::Archetype::moveComponents(Archetype& arcSrc, utils::uint64 idxSrc, Archetype& arcDst, utils::uint64 idxDst)
+void ECSWorld::Archetype::moveComponents(Archetype& arcSrc, uint64_t idxSrc, Archetype& arcDst, uint64_t idxDst)
 {
     for (auto& [id, row] : arcSrc.m_rows)
     {
@@ -110,17 +114,17 @@ void ECSWorld::Archetype::moveComponents(Archetype& arcSrc, utils::uint64 idxSrc
         if (it != arcDst.m_rows.end())
         {
             row.moveConstructor(
-                static_cast<utils::byte*>(row.buffer) + (row.componentSize * idxSrc),
-                static_cast<utils::byte*>(it->val.buffer) + (it->val.componentSize * idxDst)
+                static_cast<std::byte*>(row.buffer) + (row.componentSize * idxSrc),
+                static_cast<std::byte*>(it->second.buffer) + (it->second.componentSize * idxDst)
             );
         }
     }
 }
 
-void ECSWorld::Archetype::destructCollum(utils::uint64 idx)
+void ECSWorld::Archetype::destructCollum(uint64_t idx)
 {
     for (auto& [_, row] : m_rows)
-        row.destructor(static_cast<utils::byte*>(row.buffer) + (row.componentSize * idx));
+        row.destructor(static_cast<std::byte*>(row.buffer) + (row.componentSize * idx));
 }
 
 void ECSWorld::Archetype::freeLastCollum()
@@ -136,27 +140,27 @@ ECSWorld::Archetype::~Archetype()
     {
         if (row.buffer != nullptr)
         {
-            for (utils::uint64 i = 0; i < m_size; i++)
-                row.destructor(static_cast<utils::byte*>(row.buffer) + (row.componentSize * i));
+            for (uint64_t i = 0; i < m_size; i++)
+                row.destructor(static_cast<std::byte*>(row.buffer) + (row.componentSize * i));
             operator delete (row.buffer);
         }
     }
 }
 
-void ECSWorld::Archetype::setCapacity(utils::uint64 newCapacity)
+void ECSWorld::Archetype::setCapacity(uint64_t newCapacity)
 {
     if (newCapacity == m_capacity)
         return;
     for (auto& [_, row] : m_rows)
     {
         void* newBuffer = operator new (row.componentSize * newCapacity);
-        for (utils::uint64 i = 0; i < m_size; i++)
+        for (uint64_t i = 0; i < m_size; i++)
         {
             row.moveConstructor(
-                static_cast<utils::byte*>(row.buffer) + (row.componentSize * i),
-                static_cast<utils::byte*>(newBuffer) + (row.componentSize * i)
+                static_cast<std::byte*>(row.buffer) + (row.componentSize * i),
+                static_cast<std::byte*>(newBuffer) + (row.componentSize * i)
             );
-            row.destructor(static_cast<utils::byte*>(row.buffer) + (row.componentSize * i));
+            row.destructor(static_cast<std::byte*>(row.buffer) + (row.componentSize * i));
         }
         operator delete (row.buffer);
         row.buffer = newBuffer;
@@ -172,8 +176,8 @@ ECSWorld::Archetype& ECSWorld::Archetype::operator = (const Archetype& cp)
         {
             if (row.buffer != nullptr)
             {
-                for (utils::uint64 i = 0; i < m_size; i++)
-                    row.destructor(static_cast<utils::byte*>(row.buffer) + (row.componentSize * i));
+                for (uint64_t i = 0; i < m_size; i++)
+                    row.destructor(static_cast<std::byte*>(row.buffer) + (row.componentSize * i));
                 operator delete (row.buffer);
             }
         }
@@ -182,17 +186,19 @@ ECSWorld::Archetype& ECSWorld::Archetype::operator = (const Archetype& cp)
         m_capacity = cp.m_capacity;
         for (auto& [id, row] : cp.m_rows)
         {
-            Row& newRow = m_rows.insert(id, Row{
+            auto [it, success] = m_rows.insert(std::make_pair(id, Row{
                 operator new (row.componentSize * m_capacity),
                 row.componentSize, row.copyConstructor,
                 row.moveConstructor, row.destructor
-            })->val;
+            }));
+            assert(success);
+            Row& newRow = it->second;
 
-            for (utils::uint64 idx = 0; idx < cp.m_size; idx++)
+            for (uint64_t idx = 0; idx < cp.m_size; idx++)
             {
                 row.copyConstructor(
-                    static_cast<utils::byte*>(row.buffer) + (row.componentSize * idx),
-                    static_cast<utils::byte*>(newRow.buffer) + (newRow.componentSize * idx)
+                    static_cast<std::byte*>(row.buffer) + (row.componentSize * idx),
+                    static_cast<std::byte*>(newRow.buffer) + (newRow.componentSize * idx)
                 );
             }
         }
@@ -208,8 +214,8 @@ ECSWorld::Archetype& ECSWorld::Archetype::operator = (Archetype&& mv)
         {
             if (row.buffer != nullptr)
             {
-                for (utils::uint64 i = 0; i < m_size; i++)
-                    row.destructor(static_cast<utils::byte*>(row.buffer) + (row.componentSize * i));
+                for (uint64_t i = 0; i < m_size; i++)
+                    row.destructor(static_cast<std::byte*>(row.buffer) + (row.componentSize * i));
                 operator delete (row.buffer);
             }
         }
@@ -218,10 +224,11 @@ ECSWorld::Archetype& ECSWorld::Archetype::operator = (Archetype&& mv)
         m_capacity = mv.m_capacity;
         for (auto& [id, row] : mv.m_rows)
         {
-            Row& newRow = m_rows.insert(id, Row{
+            auto [_, success] = m_rows.insert(std::make_pair(id, Row{
                 row.buffer, row.componentSize, row.copyConstructor,
                 row.moveConstructor, row.destructor
-            })->val;
+            }));
+            assert(success);
             row.buffer = nullptr;
         }
     }

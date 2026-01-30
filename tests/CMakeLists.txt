@@ -8,7 +8,6 @@
 include(FetchContent)
 include(GoogleTest)
 
-enable_testing()
 
 add_executable(ECS_test)
 
