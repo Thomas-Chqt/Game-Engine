@@ -84,7 +84,7 @@ struct basic_entity
         self = basic_entity<ECSWorldT>();
     }
 
-    inline auto& name(this auto&& self)
+    auto& name(this auto&& self)
     {
         if (self.template has<NameComponent>() == false)
             return self.template emplace<NameComponent>().name;
@@ -249,43 +249,6 @@ struct basic_entity
 
 using Entity = basic_entity<ECSWorld>;
 using const_Entity = basic_entity<const ECSWorld>;
-
-// class Entity
-// {
-// public:
-
-//     bool hasParent() const;
-//     utils::uint32 childCount() const;
-//     Entity lastChild();
-//     const Entity lastChild() const;
-
-//     math::vec3f& position();
-//     const math::vec3f& position() const { return const_cast<Entity*>(this)->position(); }
-
-//     math::vec3f& rotation();
-//     const math::vec3f& rotation() const { return const_cast<Entity*>(this)->rotation(); }
-
-//     math::vec3f& scale();
-//     const math::vec3f& scale() const { return const_cast<Entity*>(this)->scale(); }
-
-//     math::mat4x4 transform() const;
-//     math::mat4x4 transform_noScale() const;
-
-//     math::mat4x4 worldTransform() const;
-//     math::mat4x4 worldTransform_noScale() const;
-
-//     ~Entity() = default;
-
-// private:
-//     ECSWorld* m_world = nullptr;
-//     ECSWorld::EntityID m_entityId = INVALID_ENTITY_ID;
-
-// public:
-//     Entity& operator=(const Entity&) = default;
-//     Entity& operator=(Entity&&) = default;
-
-//     inline operator bool() const { return m_world != nullptr && m_world->isValidEntityID(m_entityId); }
-// };
 
 } // namespace GE
 
