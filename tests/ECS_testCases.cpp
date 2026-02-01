@@ -14,7 +14,7 @@
 
 #include <set>
 
-namespace ECS_tests
+namespace GE_tests
 {
 
 using EntityID = GE::ECSWorld::EntityID;

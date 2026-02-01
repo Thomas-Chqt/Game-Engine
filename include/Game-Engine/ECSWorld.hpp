@@ -18,11 +18,15 @@
 #include <set>
 #include <functional>
 #include <map>
+#include <type_traits>
 
 #define INVALID_ENTITY_ID ULONG_MAX
 
 namespace GE
 {
+
+template<typename T>
+concept Component = std::is_copy_constructible_v<T> && std::is_move_constructible_v<T> && std::is_destructible_v<T>;
 
 class ECSWorld
 {
@@ -32,20 +36,20 @@ public:
     class Iterator;
 
 private:
-    template<typename ... Ts> friend class ECSView;
-    template<typename ... Ts> friend class const_ECSView;
+    template<typename... Ts> friend class ECSView;
+    template<typename... Ts> friend class const_ECSView;
 
     using ComponentID = uint32_t;
     using ArchetypeID = std::set<ComponentID>;
 
     using CopyConstructor = std::function<void(void* src, void* dst)>;
     using MoveConstructor = std::function<void(void* src, void* dst)>;
-    using Destructor      = std::function<void(void* ptr)>;
+    using Destructor = std::function<void(void* ptr)>;
 
 public:
     ECSWorld();
     ECSWorld(const ECSWorld&) = default;
-    ECSWorld(ECSWorld&&)      = default;
+    ECSWorld(ECSWorld&&) = default;
 
     EntityID newEntityID();
 
@@ -53,19 +57,19 @@ public:
 
     inline bool isValidEntityID(EntityID id) const { return id < m_entityDatas.size() && m_availableEntityIDs.contains(id) == false; }
 
-    template<typename T, typename ... Args>
-    T& emplace(EntityID entityId, Args&& ... args);
+    template<Component T, typename... Args>
+    T& emplace(EntityID entityId, Args&&... args);
 
-    template<typename T>
+    template<Component T>
     void remove(EntityID);
 
-    template<typename T>
+    template<Component T>
     bool has(EntityID) const;
 
-    template<typename T>
+    template<Component T>
     T& get(EntityID);
 
-    template<typename T>
+    template<Component T>
     const T& get(EntityID) const;
 
     inline uint32_t entityCount() { return m_entityDatas.size() - m_availableEntityIDs.size(); }
@@ -91,6 +95,7 @@ private:
         template<typename T>
         void addRowType()
         {
+            // clang-format off
             m_rows.insert(std::make_pair(componentID<T>(), Row{
                 operator new (componentSize<T>() * m_capacity),
                 componentSize<T>(),
@@ -98,6 +103,7 @@ private:
                 componentMoveConstructor<T>(),
                 componentDestructor<T>(),
             }));
+            // clang-format on
         }
 
         // must be use on empty achetype that are not inserted `ECSWorld::m_archetypes`
@@ -110,7 +116,7 @@ private:
                 {
                     for (uint64_t i = 0; i < m_size; i++)
                         row.destructor(static_cast<std::byte*>(row.buffer) + (row.componentSize * i));
-                    operator delete (row.buffer);
+                    operator delete(row.buffer);
                 }
             }
             m_rows.erase(componentID<T>());
@@ -122,14 +128,14 @@ private:
         // only extend the size (and capacity if needed) and return last index
         uint64_t allocateCollum();
 
-        template<typename T>
+        template<Component T>
         T* getComponentPointer(uint64_t idx)
         {
             Row& row = m_rows.at(componentID<T>());
             return static_cast<T*>(row.buffer) + idx;
         }
 
-        template<typename T>
+        template<Component T>
         const T* getComponentPointer(uint64_t idx) const
         {
             const Row& row = m_rows.at(componentID<T>());
@@ -170,8 +176,8 @@ private:
         inline void reduceCapacity() { setCapacity(m_capacity / 2 > 0 ? m_capacity / 2 : 1); }
 
     public:
-        Archetype& operator = (const Archetype&);
-        Archetype& operator = (Archetype&&);
+        Archetype& operator=(const Archetype&);
+        Archetype& operator=(Archetype&&);
     };
 
     struct EntityData
@@ -181,11 +187,11 @@ private:
     };
 
     static ComponentID nextComponentID();
-    template<typename T> static ComponentID componentID();
-    template<typename T> static uint64_t componentSize();
-    template<typename T> static CopyConstructor componentCopyConstructor();
-    template<typename T> static MoveConstructor componentMoveConstructor();
-    template<typename T> static Destructor componentDestructor();
+    template<Component T> static ComponentID componentID();
+    template<Component T> static uint64_t componentSize();
+    template<Component T> static CopyConstructor componentCopyConstructor();
+    template<Component T> static MoveConstructor componentMoveConstructor();
+    template<Component T> static Destructor componentDestructor();
 
     std::vector<EntityData> m_entityDatas;
     std::set<EntityID> m_availableEntityIDs;
@@ -193,8 +199,8 @@ private:
     std::map<ArchetypeID, Archetype> m_archetypes;
 
 public:
-    ECSWorld& operator = (const ECSWorld&) = default;
-    ECSWorld& operator = (ECSWorld&&)      = default;
+    ECSWorld& operator=(const ECSWorld&) = default;
+    ECSWorld& operator=(ECSWorld&&) = default;
 
     // friend void to_json(nlohmann::json&, const ECSWorld&);
     // friend void from_json(const nlohmann::json&, ECSWorld&);
@@ -206,9 +212,9 @@ public:
         friend class ECSWorld;
 
     public:
-        Iterator()                   = default;
+        Iterator() = default;
         Iterator(const Iterator& cp) = default;
-        Iterator(Iterator&& mv)      = default;
+        Iterator(Iterator&& mv) = default;
 
         ~Iterator() = default;
 
@@ -219,24 +225,48 @@ public:
         EntityID m_id = INVALID_ENTITY_ID;
 
     public:
-        Iterator& operator = (const Iterator& cp) = default;
-        Iterator& operator = (Iterator&& mv)      = default;
+        Iterator& operator=(const Iterator& cp) = default;
+        Iterator& operator=(Iterator&& mv) = default;
 
-        inline EntityID operator * () const { return m_id; }
+        inline EntityID operator*() const { return m_id; }
 
-        inline Iterator& operator ++ ()    { do { ++m_id; } while (m_world->m_availableEntityIDs.contains(m_id)); return *this; }
-        inline Iterator  operator ++ (int) { Iterator temp(*this); ++(*this); return temp; }
+        inline Iterator& operator++()
+        {
+            do
+            {
+                ++m_id;
+            } while (m_world->m_availableEntityIDs.contains(m_id));
+            return *this;
+        }
+        inline Iterator operator++(int)
+        {
+            Iterator temp(*this);
+            ++(*this);
+            return temp;
+        }
 
-        inline Iterator& operator -- ()    { do { --m_id; } while (m_world->m_availableEntityIDs.contains(m_id)); return *this; }
-        inline Iterator  operator -- (int) { Iterator temp(*this); --(*this); return temp; }
+        inline Iterator& operator--()
+        {
+            do
+            {
+                --m_id;
+            } while (m_world->m_availableEntityIDs.contains(m_id));
+            return *this;
+        }
+        inline Iterator operator--(int)
+        {
+            Iterator temp(*this);
+            --(*this);
+            return temp;
+        }
 
-        inline bool operator == (const Iterator& rhs) const { return m_world == rhs.m_world && m_id == rhs.m_id; }
-        inline bool operator != (const Iterator& rhs) const { return !(*this == rhs); }
+        inline bool operator==(const Iterator& rhs) const { return m_world == rhs.m_world && m_id == rhs.m_id; }
+        inline bool operator!=(const Iterator& rhs) const { return !(*this == rhs); }
     };
 };
 
-template<typename T, typename ... Args>
-T& ECSWorld::emplace(EntityID entityId, Args&& ... args)
+template<Component T, typename... Args>
+T& ECSWorld::emplace(EntityID entityId, Args&&... args)
 {
     assert(isValidEntityID(entityId));
     assert(has<T>(entityId) == false);
@@ -276,7 +306,7 @@ T& ECSWorld::emplace(EntityID entityId, Args&& ... args)
     return *componentPtr;
 }
 
-template<typename T>
+template<Component T>
 void ECSWorld::remove(EntityID entityId)
 {
     assert(isValidEntityID(entityId));
@@ -316,14 +346,14 @@ void ECSWorld::remove(EntityID entityId)
     entityIdx = dstIdx;
 }
 
-template<typename T>
+template<Component T>
 bool ECSWorld::has(EntityID entityId) const
 {
     assert(isValidEntityID(entityId));
     return m_entityDatas[entityId].archetypeId.contains(componentID<T>());
 }
 
-template<typename T>
+template<Component T>
 T& ECSWorld::get(EntityID entityId)
 {
     assert(isValidEntityID(entityId));
@@ -335,7 +365,7 @@ T& ECSWorld::get(EntityID entityId)
     return *entityArch.getComponentPointer<T>(entityIdx);
 }
 
-template<typename T>
+template<Component T>
 const T& ECSWorld::get(EntityID entityId) const
 {
     assert(isValidEntityID(entityId));
@@ -347,41 +377,41 @@ const T& ECSWorld::get(EntityID entityId) const
     return *entityArch.getComponentPointer<T>(entityIdx);
 }
 
-template<typename T>
+template<Component T>
 ECSWorld::ComponentID ECSWorld::componentID()
 {
     static ComponentID id = nextComponentID();
     return id;
 }
 
-template<typename T>
+template<Component T>
 uint64_t ECSWorld::componentSize()
 {
     uint64_t size = sizeof(T);
     return size;
 }
 
-template<typename T>
+template<Component T>
 ECSWorld::CopyConstructor ECSWorld::componentCopyConstructor()
 {
     auto fn = [](void* src, void* dst) { new (dst) T(*(T*)src); };
     return fn;
 }
 
-template<typename T>
+template<Component T>
 ECSWorld::MoveConstructor ECSWorld::componentMoveConstructor()
 {
     auto fn = [](void* src, void* dst) { new (dst) T(std::move(*(T*)src)); };
     return fn;
 }
 
-template<typename T>
+template<Component T>
 ECSWorld::Destructor ECSWorld::componentDestructor()
 {
     auto fn = [](void* ptr) { ((T*)ptr)->~T(); };
     return fn;
 }
 
-}
+} // namespace GE
 
 #endif // ECSWORLD_HPP

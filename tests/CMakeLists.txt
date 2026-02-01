@@ -9,15 +9,16 @@ include(FetchContent)
 include(GoogleTest)
 
 
-add_executable(ECS_test)
+add_executable(GE_test)
 
 # test file only require 11, will be higher when linking to something that need higher
-target_compile_features(Game-Engine PUBLIC cxx_std_11)
-set_target_properties(ECS_test PROPERTIES FOLDER "tests")
+target_compile_features(GE_test PUBLIC cxx_std_11)
+set_target_properties(GE_test PROPERTIES FOLDER "tests")
 
-target_sources(ECS_test PRIVATE "ECS_testCases.cpp")
+file(GLOB_RECURSE SRC "*.cpp")
+target_sources(GE_test PRIVATE ${SRC})
 
-target_include_directories(ECS_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(GE_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 FetchContent_Declare(googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
@@ -30,6 +31,6 @@ FetchContent_MakeAvailable(googletest)
 set_target_properties(gtest PROPERTIES FOLDER "dependencies")
 set_target_properties(gtest_main PROPERTIES FOLDER "dependencies")
 
-target_link_libraries(ECS_test PRIVATE Game-Engine GTest::gtest_main)
+target_link_libraries(GE_test PRIVATE Game-Engine GTest::gtest_main)
 
-gtest_discover_tests(ECS_test)
+gtest_discover_tests(GE_test)

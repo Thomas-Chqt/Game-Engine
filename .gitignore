@@ -10,3 +10,4 @@ default.profraw
 graph.drawio.svg
 **/.DS_Store
 examples/project1/project1_scriptLib*
+__cmake_systeminformation
