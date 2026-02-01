@@ -18,6 +18,7 @@
 #include "Game-Engine/ECSWorld.hpp"
 #include "Game-Engine/Components.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <optional>
 #include <type_traits>
@@ -76,7 +77,7 @@ struct basic_entity
     {
         if (auto parent = self.parent())
             parent->removeChild(self);
-        for (auto& child : self.childs())
+        for (auto& child : self.children())
             self.removeChild(child);
 
         self.world->deleteEntityID(self.entityId);
@@ -85,6 +86,8 @@ struct basic_entity
 
     inline auto& name(this auto&& self)
     {
+        if (self.template has<NameComponent>() == false)
+            return self.template emplace<NameComponent>().name;
         return self.template get<NameComponent>().name;
     }
 
@@ -110,12 +113,12 @@ struct basic_entity
         if (self.template has<HierarchyComponent>())
         {
             auto& component = self.template get<HierarchyComponent>();
-            if (component.firstChildId != INVALID_ENTITY_ID)
+            if (component.firstChild != INVALID_ENTITY_ID)
             {
-                assert(self.world->isValidEntityID(component.firstChildId));
+                assert(self.world->isValidEntityID(component.firstChild));
                 return basic_entity<ECSWorldT>{
                     .world = self.world,
-                    .entityId = component.firstChildId
+                    .entityId = component.firstChild
                 };
             }
         }
@@ -139,7 +142,7 @@ struct basic_entity
         return std::nullopt;
     }
 
-    std::vector<basic_entity<ECSWorldT>> childs(this auto&& self)
+    std::vector<basic_entity<ECSWorldT>> children(this auto&& self)
     {
         std::vector<basic_entity<ECSWorldT>> vec;
         std::optional<basic_entity<ECSWorldT>> curr = self.firstChild();
@@ -163,36 +166,53 @@ struct basic_entity
         return false;
     }
 
-    template<ConstEntityLike T>
-    void addChild(this EntityLike auto&& self, EntityLike auto& child, const std::optional<T>& after = std::nullopt)
+    void addChild(this EntityLike auto&& self, EntityLike auto& child, EntityLike auto& after)
     {
         assert(self.world == child.world);
         assert(self.isParentOf(child) == false);
         assert(child.parent() == std::nullopt);
-        assert(!after || self.childs().contains(*after));
+        assert(std::ranges::contains(self.children(), after)); // the `after` entity need to be a direct child
+        assert(self.template has<HierarchyComponent>()); // if it has `after` as a direct child it should have the hierarchy component
+        assert(after.template has<HierarchyComponent>()); // if `after` is a direct child it should have the hierarchy component
 
-        HierarchyComponent& selfComp = self.template has<HierarchyComponent>() ? self.template get<HierarchyComponent>() : self.template emplace<HierarchyComponent>();
-        HierarchyComponent& childComp = child.template has<HierarchyComponent>() ? child.template get<HierarchyComponent>() : child.template emplace<HierarchyComponent>();
+        if (child.template has<HierarchyComponent>() == false)
+            child.template emplace<HierarchyComponent>();
 
-        if (after.has_value())
-        {
-            HierarchyComponent& afterComp = after->template get<HierarchyComponent>();
-            std::optional<basic_entity<ECSWorldT>> afterNext = after->nextChild();
-            childComp.nextChild = afterNext ? afterNext->entityId : INVALID_ENTITY_ID;
-            afterComp.nextChild = child.entityId;
+        HierarchyComponent& selfComp = self.template get<HierarchyComponent>(); // need to be done after any emplace as `emplace` can invalidate references
+        HierarchyComponent& childComp = child.template get<HierarchyComponent>();
+        HierarchyComponent& afterComp = after.template get<HierarchyComponent>();
+
+        if (after.nextChild()) {
+            childComp.nextChild = after.nextChild()->entityId;
         }
-        else if (self.firstChild())
-            return self.addChild(self.childs().back());
-        else
-            selfComp.firstChild = child.entityId;
+        afterComp.nextChild = child.entityId;
+        childComp.parent = self.entityId;
+    }
 
+    void addChild(this EntityLike auto&& self, EntityLike auto& child)
+    {
+        assert(self.world == child.world);
+        assert(self.isParentOf(child) == false);
+        assert(child.parent() == std::nullopt);
+
+        if (self.template has<HierarchyComponent>() == false)
+            self.template emplace<HierarchyComponent>();
+        if (child.template has<HierarchyComponent>() == false)
+            child.template emplace<HierarchyComponent>();
+
+        HierarchyComponent& selfComp = self.template get<HierarchyComponent>(); // need to be done after any emplace as `emplace` can invalidate references
+        HierarchyComponent& childComp = child.template get<HierarchyComponent>();
+
+        if (self.firstChild())
+            return self.addChild(child, self.children().back());
+        selfComp.firstChild = child.entityId;
         childComp.parent = self.entityId;
     }
 
     void removeChild(this EntityLike auto&& self, EntityLike auto& child)
     {
         assert(self.world == child.world);
-        assert(self.childs().contains(child));
+        assert(std::ranges::contains(self.children(), child));
 
         HierarchyComponent& selfComp = self.template get<HierarchyComponent>();
         HierarchyComponent& childComp = child.template get<HierarchyComponent>();
@@ -208,8 +228,10 @@ struct basic_entity
             basic_entity<ECSWorldT> curr = *self.firstChild();
 
             assert(curr.nextChild().has_value());
-            while (*curr.nextChild() != child)
-                curr = curr.nextChild();
+            while (*curr.nextChild() != child) { // we checked that child is a child of self so this will happen before `nextChild.has_value == false`
+                assert(curr.nextChild().has_value());
+                curr = *curr.nextChild();
+            }
 
             assert(curr.nextChild().has_value());
             curr.get<HierarchyComponent>().nextChild = curr.nextChild()->nextChild() ? curr.nextChild()->nextChild()->entityId : INVALID_ENTITY_ID;
