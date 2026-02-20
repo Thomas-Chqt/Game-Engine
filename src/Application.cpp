@@ -8,6 +8,7 @@
  */
 
 #include "Game-Engine/Application.hpp"
+#include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Event.hpp"
 #include "Game-Engine/Window.hpp"
 #include "Game-Engine/Renderer.hpp"
@@ -55,6 +56,7 @@ Application::Application()
         throw std::runtime_error("surface does not support the fifo present mode");
 
     m_renderer = std::make_unique<Renderer>(m_device.get());
+    m_assetManager = std::make_unique<AssetManager>(m_device.get());
 }
 
 void Application::run()

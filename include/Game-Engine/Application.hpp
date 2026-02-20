@@ -10,12 +10,14 @@
 #ifndef APPLICATION_HPP
 #define APPLICATION_HPP
 
+#include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Event.hpp"
 #include "Game-Engine/Window.hpp"
 #include "Game-Engine/Renderer.hpp"
 
 #include <Graphics/Device.hpp>
 
+#include <cstddef>
 #include <memory>
 
 namespace GE
@@ -42,6 +44,7 @@ private:
     std::unique_ptr<Window> m_window = nullptr;
     std::unique_ptr<gfx::Device> m_device = nullptr;
     std::unique_ptr<Renderer> m_renderer = nullptr;
+    std::unique_ptr<AssetManager> m_assetManager = nullptr;
 
     bool m_running = false;
 

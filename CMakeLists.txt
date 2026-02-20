@@ -50,6 +50,7 @@ target_sources(Game-Engine PRIVATE
     "src/Renderer.cpp"
     "src/Archetype.cpp"
     "src/ECSWorld.cpp"
+    "src/AssetManager.cpp"
 )
 
 target_include_directories(Game-Engine
