@@ -10,81 +10,33 @@
 #ifndef EDITOR_HPP
 #define EDITOR_HPP
 
-#include "Application.hpp"
-#include "ECS/Entity.hpp"
-#include "EditorCamera.hpp"
-#include "Game.hpp"
-#include "InputManager/InputContext.hpp"
-#include "Project.hpp"
-#include "Scene.hpp"
-#include "ViewportFrameBuff.hpp"
-#include <filesystem>
-#include "Script.hpp"
-#include "dlLoad/dlLoad.h"
+#include <Game-Engine/Application.hpp>
 
-namespace GE
+namespace GE_Editor
 {
 
-class Editor final : public Application
+class Editor : public GE::Application
 {
 public:
     Editor();
     Editor(const Editor&) = delete;
-    Editor(Editor&&)      = delete;
+    Editor(Editor&&) = delete;
 
     void onUpdate() override;
-    void onImGuiRender() override;
-    inline void onWindowResizeEvent(gfx::WindowResizeEvent&) override {}
-    void onWindowRequestCloseEvent(gfx::WindowRequestCloseEvent&) override;
+    void onEvent(GE::Event& event) override;
 
-    // * Functions that directly match user action
-    // * Some are also used by other functions
-    void newProject();
-    void openProject(const std::filesystem::path&);
-    void reloadProject();
-    void saveProject();
-    void reloadScriptLib();
-    void editScene(Scene*);
-    void runGame();
-    void stopGame();
-
-    ~Editor();
+    inline const GE::FrameGraph& frameGraph() override { return m_frameGraph; }
 
 private:
-    // * helper functions
-    void processDroppedFiles();
+    void rebuildFrameGraph();
 
-    // * absolut path of the project file 
-    // * (can be empty if the project hasnt been saved yet)
-    std::filesystem::path m_projectSavePath;
-    bool m_projectNeedReload = false;
-
-    // * project data (saved to disk)
-    Project m_project;
-
-    // * data derived from the project file (created at runtime, not saved)
-    DlHandle m_scriptLibHandle = nullptr;
-    GetScriptNamesFn m_getScriptNames = nullptr;
-    MakeScriptInstanceFn m_makeScriptInstance = nullptr;
-
-    // * editor state
-    // TODO save this data in the project so the last state can be preserved
-    Scene* m_editedScene = nullptr;
-    Entity m_selectedEntity;
-    EditorCamera m_editorCamera;
-    InputContext m_editorInputContext;
-
-    // * instance used when the game is running
-    utils::UniquePtr<Game> m_game;
-
-    // * UI reladed data
-    ViewportFrameBuff m_vpFrameBuff;
+    GE::FrameGraph m_frameGraph;
 
 public:
-    Editor& operator = (const Editor&) = delete;
-    Editor& operator = (Editor&&)      = delete;
+    Editor& operator=(const Editor&) = delete;
+    Editor& operator=(Editor&&) = delete;
 };
 
-}
+} // namespace GE
 
 #endif // EDITOR_HPP

@@ -78,6 +78,8 @@ public:
     void createSurface(gfx::Instance*);
     inline gfx::Surface* surface() const { return m_surface.get(); }
 
+    GLFWwindow* glfwWindow() const { return m_glfwWindow; }
+
     ~Window();
 
 private:

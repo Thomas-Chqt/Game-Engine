@@ -26,6 +26,7 @@
 #include <future>
 #include <map>
 #include <memory>
+#include <random>
 #include <ranges>
 #include <type_traits>
 #include <utility>
@@ -38,7 +39,7 @@ namespace GE
 template<typename T>
 concept ManagableAsset = std::is_same_v<std::remove_cvref_t<T>, Mesh> || std::is_same_v<std::remove_cvref_t<T>, gfx::Texture>;
 
-using AssetID = std::size_t;
+using AssetID = uint64_t;
 
 class AssetManager
 {
@@ -50,28 +51,34 @@ public:
     AssetManager(gfx::Device*);
 
     template<ManagableAsset T>
-    AssetID registerAsset(const auto& id) requires requires {{ std::hash<std::remove_cvref_t<decltype(id)>>{}(id) } -> std::convertible_to<std::size_t>; }
+    AssetID registerAsset(const std::filesystem::path& path)
     {
-        auto [it, success] = m_assets.try_emplace(std::hash<std::remove_cvref_t<decltype(id)>>{}(id), std::in_place_type<AssetHandle<T>>);
-        assert(success); // lets see if collision really happen
-        if (success)
+        auto registredAssetsIt = m_registredAssets.find(path);
+        if (registredAssetsIt == m_registredAssets.end())
         {
+            uint64_t newAssetId = 0;
+            static thread_local std::mt19937_64 rng(std::random_device{}());
+            static thread_local std::uniform_int_distribution<uint64_t> dist;
+            do newAssetId = dist(rng);
+            while (newAssetId == 0 || m_assets.contains(newAssetId));
+            registredAssetsIt = m_registredAssets.insert(std::make_pair(path, newAssetId)).first;
+            auto [assetIt, inserted] = m_assets.try_emplace(registredAssetsIt->second, std::in_place_type<AssetHandle<T>>);
+            assert(inserted);
+            auto& handle = std::get<AssetHandle<T>>(assetIt->second);
             if constexpr (std::is_same_v<T, Mesh>)
             {
-                static_assert(std::is_same_v<std::remove_cvref_t<decltype(id)>, std::filesystem::path>, "for meshes, id must be a path to the mesh");
-
-                AssetHandle<Mesh>& handle = std::get<AssetHandle<Mesh>>(it->second);
-                handle.loader = [this, path = id](gfx::CommandBuffer& commandBuffer) -> std::unique_ptr<Mesh> {
-                    return std::make_unique<Mesh>(loadMesh(path, commandBuffer));
+                handle.loader = [this, path=path](gfx::CommandBuffer& commandBuffer) -> std::shared_ptr<Mesh> {
+                    return std::make_shared<Mesh>(loadMesh(path, commandBuffer));
                 };
             }
             else if constexpr (std::is_same_v<T, gfx::Texture>)
             {
-                static_assert(std::is_same_v<std::remove_cvref_t<decltype(id)>, std::filesystem::path>, "for textures, id must be a path to the texture");
-                static_assert(false, "not implemented");
+                handle.loader = [this, path=path](gfx::CommandBuffer& commandBuffer) -> std::shared_ptr<gfx::Texture> {
+                    return loadTexture(path, commandBuffer);
+                };
             }
         }
-        return it->first;
+        return registredAssetsIt->second;
     }
 
     template<ManagableAsset T>
@@ -125,7 +132,7 @@ private:
     template<ManagableAsset T>
     struct AssetHandle
     {
-        std::function<std::unique_ptr<T>(gfx::CommandBuffer&)> loader;
+        std::function<std::shared_ptr<T>(gfx::CommandBuffer&)> loader;
         // std::function serializer ???
         std::atomic<LoadingStatus> status = LoadingStatus::unloaded;
         std::shared_future<const std::shared_ptr<T>&> future;
@@ -152,10 +159,34 @@ private:
         return handle.future;
     }
 
+    std::shared_ptr<gfx::Buffer> newDeviceLocalBuffer(gfx::CommandBuffer& commandBuffer, gfx::BufferUsage usage, const std::ranges::sized_range auto& data)
+    {
+        std::shared_ptr<gfx::Buffer> indexBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
+            .size = sizeof(std::ranges::range_value_t<decltype(data)>) * data.size(),
+            .usages = usage | gfx::BufferUsage::copyDestination,
+            .storageMode = gfx::ResourceStorageMode::deviceLocal });
+        assert(indexBuffer);
+
+        std::shared_ptr<gfx::Buffer> stagingBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
+            .size = indexBuffer->size(),
+            .usages = gfx::BufferUsage::copySource,
+            .storageMode = gfx::ResourceStorageMode::hostVisible });
+        assert(stagingBuffer);
+
+        std::ranges::copy(data, stagingBuffer->content<std::ranges::range_value_t<decltype(data)>>());
+
+        commandBuffer.copyBufferToBuffer(stagingBuffer, indexBuffer, indexBuffer->size());
+
+        return indexBuffer;
+    }
+
     Mesh loadMesh(const std::filesystem::path&, gfx::CommandBuffer&);
+    std::shared_ptr<gfx::Texture> loadTexture(const std::filesystem::path&, gfx::CommandBuffer&);
+    std::shared_ptr<gfx::Texture> loadTexture(const std::byte* bytes, uint32_t width, uint32_t height, gfx::CommandBuffer&);
 
     gfx::Device* m_device = nullptr;
-    std::map<AssetID, std::variant<AssetHandle<Mesh>, AssetHandle<gfx::Texture>>> m_assets;
+    std::map<std::filesystem::path, uint64_t> m_registredAssets;
+    std::map<uint64_t, std::variant<AssetHandle<Mesh>, AssetHandle<gfx::Texture>>> m_assets;
 
 public:
     AssetManager& operator=(const AssetManager&) = delete;

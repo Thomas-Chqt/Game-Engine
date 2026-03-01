@@ -17,17 +17,18 @@ function(fetch_dependencies)
     # -----------------------------
     FetchContent_Declare(Graphics
         GIT_REPOSITORY    https://github.com/Thomas-Chqt/Graphics.git
-        GIT_TAG           a3fd84e28e0c6fd376fd7a739cd58b3a3b32b3ab
+        GIT_TAG           00aeb33099b24d1a6c7be54b154d1630148bd29e
         GIT_SHALLOW       1
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
     )
     set(GFX_BUILD_METAL      ${GE_BUILD_METAL})
     set(GFX_BUILD_VULKAN     ${GE_BUILD_VULKAN})
-    set(GFX_GFX_ENABLE_IMGUI ON)
+    set(GFX_ENABLE_IMGUI     ON)
     set(GFX_ENABLE_GLFW      ON)
     set(GFX_BUILD_EXAMPLES   OFF)
-    set(GFX_BUILD_TRACY      ON)
+    set(GFX_BUILD_TESTS      OFF)
+    set(GFX_BUILD_TRACY      OFF)
     set(GFX_INSTALL          ${GE_INSTALL})
     FetchContent_MakeAvailable(Graphics)
     set_target_properties(Graphics PROPERTIES FOLDER "dependencies/Graphics")
@@ -187,22 +188,4 @@ function(fetch_dependencies)
     set(TFD_INSTALL        OFF)
     FetchContent_MakeAvailable(tinyfiledialogs)
     set_target_properties(tinyfiledialogs PROPERTIES FOLDER "dependencies")
-
-    # -----------------------------
-    # stduuid
-    # -----------------------------
-    FetchContent_Declare(stduuid
-        GIT_REPOSITORY    https://github.com/mariusbancila/stduuid.git
-        GIT_TAG           v1.2.3
-        GIT_SHALLOW       1
-        GIT_PROGRESS      TRUE
-        FIND_PACKAGE_ARGS
-    )
-    set(UUID_BUILD_TESTS      OFF)
-    set(UUID_SYSTEM_GENERATOR OFF)
-    set(UUID_TIME_GENERATOR   OFF)
-    set(UUID_USING_CXX20_SPAN ON)
-    set(UUID_ENABLE_INSTALL   OFF)
-    FetchContent_MakeAvailable(stduuid)
-    set_target_properties(stduuid PROPERTIES FOLDER "dependencies")
 endfunction()

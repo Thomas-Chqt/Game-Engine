@@ -12,9 +12,11 @@
 
 #include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Event.hpp"
+#include "Game-Engine/FrameGraph.hpp"
 #include "Game-Engine/Window.hpp"
 #include "Game-Engine/Renderer.hpp"
 
+#include <Graphics/Instance.hpp>
 #include <Graphics/Device.hpp>
 
 #include <cstddef>
@@ -31,6 +33,7 @@ public:
     Application(Application&&)      = delete;
 
     inline Window& window() { return *m_window; }
+    inline AssetManager& assetManager() { return *m_assetManager; }
 
     void run();
     inline void terminate() { m_running = false; }
@@ -38,9 +41,12 @@ public:
     virtual void onUpdate() = 0;
     virtual void onEvent(Event&) = 0;
 
+    virtual const FrameGraph& frameGraph() = 0;
+
     virtual ~Application();
 
 private:
+    std::unique_ptr<gfx::Instance> m_instance = nullptr;
     std::unique_ptr<Window> m_window = nullptr;
     std::unique_ptr<gfx::Device> m_device = nullptr;
     std::unique_ptr<Renderer> m_renderer = nullptr;

@@ -10,9 +10,17 @@
 #ifndef RENDERER_HPP
 #define RENDERER_HPP
 
-#include <Graphics/Device.hpp>
+#include "Game-Engine/FrameGraph.hpp"
 
+#include <Graphics/Device.hpp>
+#include <Graphics/Surface.hpp>
+#include <Graphics/Swapchain.hpp>
+#include <Graphics/Texture.hpp>
+
+#include <cstdint>
 #include <memory>
+#include <utility>
+#include <set>
 
 #define cfd m_frameDatas.at(m_frameIdx)
 
@@ -28,7 +36,9 @@ public:
     Renderer(const Renderer&) = delete;
     Renderer(Renderer&&) = delete;
 
-    Renderer(gfx::Device*);
+    Renderer(gfx::Device*, gfx::Surface*);
+
+    void renderFrame(const FrameGraph&);
 
     ~Renderer() = default;
 
@@ -37,11 +47,15 @@ private:
     {
         std::unique_ptr<gfx::CommandBufferPool> commandBufferPool;
         std::unique_ptr<gfx::ParameterBlockPool> parameterBlockPool;
+        gfx::CommandBuffer* waitedCmdBuffer = nullptr;
 
-        gfx::CommandBuffer* lastCommandBuffer = nullptr;
+        std::set<std::pair<gfx::Texture::Descriptor, std::shared_ptr<gfx::Texture>>> transientTextures;
     };
 
     gfx::Device* m_device;
+    gfx::Surface* m_surface;
+
+    std::unique_ptr<gfx::Swapchain> m_swapchain;
 
     uint8_t m_frameIdx = 0;
     std::array<FrameData, maxFrameInFlight> m_frameDatas;

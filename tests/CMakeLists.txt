@@ -31,6 +31,6 @@ FetchContent_MakeAvailable(googletest)
 set_target_properties(gtest PROPERTIES FOLDER "dependencies")
 set_target_properties(gtest_main PROPERTIES FOLDER "dependencies")
 
-target_link_libraries(GE_test PRIVATE Game-Engine GTest::gtest_main)
+target_link_libraries(GE_test PRIVATE GTest::gtest_main Game-Engine)
 
 gtest_discover_tests(GE_test)

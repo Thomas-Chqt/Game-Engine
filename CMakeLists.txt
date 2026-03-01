@@ -51,6 +51,8 @@ target_sources(Game-Engine PRIVATE
     "src/Archetype.cpp"
     "src/ECSWorld.cpp"
     "src/AssetManager.cpp"
+    "src/FrameGraph.cpp"
+    "src/main.cpp"
 )
 
 target_include_directories(Game-Engine
@@ -68,8 +70,7 @@ target_link_libraries(Game-Engine PUBLIC
     dlLoad
     assimp::assimp
     nlohmann_json::nlohmann_json
-    tinyfiledialogs
-    stduuid)
+    tinyfiledialogs)
 
 add_subdirectory("editor")
 
