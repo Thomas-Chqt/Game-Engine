@@ -1,3 +1,5 @@
+> This project is currently undergoing refactoring (refer to the [refactor branch](https://github.com/Thomas-Chqt/Game-Engine/tree/refactor)) to incorporate the latest version of the graphics library and adopt more modern C++ features.
+
 Game-Engine
 ===========
 
