@@ -9,10 +9,11 @@
 
 #include "Game-Engine/Renderer.hpp"
 #include "Game-Engine/FrameGraph.hpp"
-#include "Graphics/CommandBuffer.hpp"
-#include "Graphics/Drawable.hpp"
-#include "Graphics/Framebuffer.hpp"
-#include "Graphics/Texture.hpp"
+
+#include <Graphics/CommandBuffer.hpp>
+#include <Graphics/Drawable.hpp>
+#include <Graphics/Framebuffer.hpp>
+#include <Graphics/Texture.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -115,9 +116,17 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
                                    : std::nullopt
         };
 
+        for (auto attachmentName : framePass.sampledAttachments)
+            commandBuffer->addSampledTexture(textureMap[attachmentName]);
+
         commandBuffer->beginRenderPass(framebuffer);
         {
-            framePass.execute(*commandBuffer, *cfd.parameterBlockPool);
+            FramePassContext framePassContext = {
+                .commandBuffer = *commandBuffer,
+                .parameterBlockPool = *cfd.parameterBlockPool,
+                .textureMap = textureMap
+            };
+            framePass.execute(framePassContext);
         }
         commandBuffer->endRenderPass();
     }
@@ -127,11 +136,13 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
 
     m_device->submitCommandBuffers(commandBuffer);
     cfd.waitedCmdBuffer = commandBuffer.get();
-    m_frameIdx = (m_frameIdx + 1) % maxFrameInFlight;
 
-    // m_device->imguiNewFrame();
-    // ImGui_ImplGlfw_NewFrame();
-    // ImGui::NewFrame();
+    m_frameIdx = (m_frameIdx + 1) % maxFrameInFlight;
+}
+
+Renderer::~Renderer()
+{
+    m_device->waitIdle();
 }
 
 } // namespace GE

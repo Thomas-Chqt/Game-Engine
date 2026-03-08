@@ -9,33 +9,38 @@
 
 #include "UI/ViewportPanel.hpp"
 
-namespace GE
+#include <imgui.h>
+
+#include <cstdint>
+#include <string>
+#include <utility>
+#include <variant>
+
+namespace GE_Editor
 {
 
-ViewportPanel::ViewportPanel(const gfx::Texture& texture)
-    : m_texture(texture)
+ViewportPanel::ViewportPanel(std::pair<uint32_t, uint32_t>* size)
+    : m_size(size)
 {
 }
 
 void ViewportPanel::render()
 {
-    static utils::uint32 width = 800;
-    static utils::uint32 height = 600;
-
+    static std::variant<std::string, uint64_t> textureIdPlaceholder = std::string("viewportBackBuffer");
     if (ImGui::Begin("viewport"))
     {
         ImVec2 contentRegionAvai = ImGui::GetContentRegionAvail();
-        utils::uint32 newWidth = contentRegionAvai.x <= 0 ? 1 : contentRegionAvai.x;
-        utils::uint32 newHeight = contentRegionAvai.y <= 0 ? 1 : contentRegionAvai.y;
+        uint32_t newWidth = contentRegionAvai.x <= 0 ? 1 : contentRegionAvai.x;
+        uint32_t newHeight = contentRegionAvai.y <= 0 ? 1 : contentRegionAvai.y;
 
-        ImGui::Image(m_texture.imguiTextureId(), contentRegionAvai, m_texture.imguiUV0(), m_texture.imguiUV1());
+        ImGui::Image(&textureIdPlaceholder, contentRegionAvai);
 
-        if (newWidth != height || newWidth != width)
+        if (newWidth != m_size->first || newHeight != m_size->second)
         {
-            width = newWidth;
-            height = newHeight;
+            m_size->first = newWidth;
+            m_size->second = newHeight;
             if (m_onResize)
-                m_onResize(width, height);
+                m_onResize(*m_size);
         }
     }
     ImGui::End();

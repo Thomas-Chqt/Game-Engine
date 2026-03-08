@@ -8,6 +8,9 @@
  */
 
 #include "Editor.hpp"
+#include "Graphics/Enums.hpp"
+#include "UI/MainMenuBar.hpp"
+#include "UI/ViewportPanel.hpp"
 
 #include <Game-Engine/FrameGraph.hpp>
 #include <Game-Engine/FramePassBuilder.hpp>
@@ -31,7 +34,7 @@ Editor::Editor()
 
 void Editor::onUpdate()
 {
-    ImGui::ShowDemoWindow();
+    renderImgui();
 }
 
 void Editor::onEvent(GE::Event& event)
@@ -49,19 +52,36 @@ void Editor::onEvent(GE::Event& event)
 void Editor::rebuildFrameGraph()
 {
     m_frameGraph = GE::FrameGraph(GE::FrameGraph::Descriptor{
-        .backBufferName = "backBuffer",
+        .backBufferName = "windowBackBuffer",
         .passes = {
             GE::ClearPassBuilder()
-                .setRenderSize(window().frameBufferSize())
-                .setColorAttachment("backBuffer")
-                .setClearColor({0.0f, 0.0f, 0.0f})
+                .setRenderSize(m_viewportSize)
+                .setColorAttachment("viewportBackBuffer")
+                .setClearColor({0.0f, 1.0f, 1.0f})
                 .setDepthAttachment("depthBuffer")
                 .setClearDepth(1.0f),
             GE::ImguiPassBuilder()
                 .setRenderSize(window().frameBufferSize())
-                .setColorAttachment("backBuffer")
+                .setColorAttachment("windowBackBuffer", gfx::PixelFormat::BGRA8Unorm, gfx::LoadAction::clear)
+                .addSampledAttachment("viewportBackBuffer")
         }
     });
+}
+
+void Editor::renderImgui()
+{
+    ImGui::NewFrame();
+
+    ImGui::DockSpaceOverViewport();
+
+    MainMenuBar()
+        .render();
+
+    ViewportPanel(&m_viewportSize)
+        .onResize([this](auto){ rebuildFrameGraph(); })
+        .render();
+
+    ImGui::Render();
 }
 
 } // namespace GE_Editor

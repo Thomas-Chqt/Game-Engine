@@ -43,12 +43,14 @@ public:
 
     virtual const FrameGraph& frameGraph() = 0;
 
-    virtual ~Application();
+    virtual ~Application() = default;
 
 private:
+    std::unique_ptr<void, std::function<void(void*)>> m_glfwGuard;
     std::unique_ptr<gfx::Instance> m_instance = nullptr;
     std::unique_ptr<Window> m_window = nullptr;
     std::unique_ptr<gfx::Device> m_device = nullptr;
+    std::unique_ptr<void, std::function<void(void*)>> m_imguiGuard;
     std::unique_ptr<Renderer> m_renderer = nullptr;
     std::unique_ptr<AssetManager> m_assetManager = nullptr;
 

@@ -42,11 +42,19 @@ struct AttachmentDescriptor
     };
 };
 
+struct FramePassContext
+{
+    gfx::CommandBuffer& commandBuffer;
+    gfx::ParameterBlockPool& parameterBlockPool;
+    std::map<std::string, std::shared_ptr<gfx::Texture>>& textureMap;
+};
+
 struct FramePass
 {
     std::vector<AttachmentDescriptor> colorAttachments;
     std::optional<AttachmentDescriptor> depthAttachment;
-    std::function<void(gfx::CommandBuffer&, gfx::ParameterBlockPool&)> execute;
+    std::vector<std::string> sampledAttachments;
+    std::function<void(FramePassContext&)> execute;
 
     FramePass() = default;
     FramePass(const FramePass&) = default;

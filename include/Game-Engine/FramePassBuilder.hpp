@@ -10,7 +10,8 @@
 #define FRAMEPASSBUILDER_HPP
 
 #include "Game-Engine/FrameGraph.hpp"
-#include "Graphics/Enums.hpp"
+
+#include <Graphics/Enums.hpp>
 
 #include <imgui.h>
 #include <glm/glm.hpp>
@@ -18,6 +19,8 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <functional>
+#include <variant>
 
 namespace GE
 {
@@ -50,8 +53,30 @@ public:
             framePass.depthAttachment = depthAttachmentDesc;
         }
 
-        framePass.execute = [](gfx::CommandBuffer& cmdBuffer, gfx::ParameterBlockPool&) {
-            cmdBuffer.imGuiRenderDrawData(ImGui::GetDrawData());
+        framePass.sampledAttachments = m_sampledAttachmentNames;
+
+        framePass.execute = [](FramePassContext& ctx) {
+            ImDrawData* drawData = ImGui::GetDrawData();
+            for (int i = 0; i < drawData->CmdListsCount; ++i) {
+                ImDrawList* list = drawData->CmdLists[i];
+                for (ImDrawCmd& cmd : list->CmdBuffer) {
+                    if (cmd.TexRef._TexID == 0)
+                        continue;
+                    assert(cmd.TexRef._TexData == nullptr);
+                    auto vistor = [&](auto& v) {
+                        if constexpr (std::is_same_v<std::remove_cvref_t<decltype(v)>, std::string>) {
+                            if (ctx.textureMap[v]->imTextureId().has_value() == false)
+                                ctx.textureMap[v]->initImTextureId();
+                            cmd.TexRef._TexID = *ctx.textureMap[v]->imTextureId();
+                        }
+                        else if constexpr (std::is_same_v<std::remove_cvref_t<decltype(v)>, uint64_t>) {
+                            cmd.TexRef._TexID = v;
+                        }
+                    };
+                    std::visit(std::move(vistor), *std::bit_cast<std::variant<std::string, uint64_t>*>(cmd.TexRef._TexID));
+                }
+            }
+            ctx.commandBuffer.imGuiRenderDrawData(drawData);
         };
 
         return framePass;
@@ -77,6 +102,12 @@ public:
         return *this;
     }
 
+    inline constexpr ImguiPassBuilder& addSampledAttachment(const std::string& name)
+    {
+        m_sampledAttachmentNames.push_back(name);
+        return *this;
+    }
+
 private:
     std::pair<uint32_t, uint32_t> m_renderSize;
 
@@ -86,6 +117,7 @@ private:
 
     std::optional<std::string> m_depthAttachmentName;
     std::optional<gfx::PixelFormat> m_depthAttachmentPixelFmt;
+    std::vector<std::string> m_sampledAttachmentNames;
 };
 
 class ClearPassBuilder
@@ -116,7 +148,7 @@ public:
             framePass.depthAttachment = depthAttachmentDesc;
         }
 
-        framePass.execute = [](gfx::CommandBuffer& cmdBuffer, gfx::ParameterBlockPool&) {};
+        framePass.execute = [](auto) {};
 
         return framePass;
     }

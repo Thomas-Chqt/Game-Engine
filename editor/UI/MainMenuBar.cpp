@@ -8,9 +8,10 @@
  */
 
 #include "UI/MainMenuBar.hpp"
+
 #include <imgui.h>
 
-namespace GE
+namespace GE_Editor
 {
 
 void MainMenuBar::render()

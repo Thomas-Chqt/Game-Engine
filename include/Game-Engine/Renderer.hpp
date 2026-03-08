@@ -40,7 +40,7 @@ public:
 
     void renderFrame(const FrameGraph&);
 
-    ~Renderer() = default;
+    ~Renderer();
 
 private:
     struct FrameData

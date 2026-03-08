@@ -31,6 +31,7 @@ Application::Application()
     auto res = ::glfwInit();
     assert(res == GLFW_TRUE);
     (void)res;
+    m_imguiGuard = { (void*)(1), [](void*){} };
 
     m_instance = gfx::Instance::newInstance(gfx::Instance::Descriptor{});
     assert(m_instance);
@@ -58,15 +59,9 @@ Application::Application()
     if (m_window->surface()->supportedPresentModes(*m_device).contains(gfx::PresentMode::fifo) == false)
         throw std::runtime_error("surface does not support the fifo present mode");
 
-    m_renderer = std::make_unique<Renderer>(m_device.get(), m_window->surface());
-    m_assetManager = std::make_unique<AssetManager>(m_device.get());
-
     ImGui::CreateContext();
-
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-
     switch (m_device->backend())
     {
         case gfx::Backend::vulkan:
@@ -76,8 +71,18 @@ Application::Application()
             ImGui_ImplGlfw_InitForOther(m_window->glfwWindow(), true);
             break;
     }
-
     m_device->imguiInit({gfx::PixelFormat::BGRA8Unorm});
+    m_imguiGuard = {
+        (void*)(1),
+        [device=m_device.get()](void*){
+            device->imguiShutdown();
+            ImGui_ImplGlfw_Shutdown();
+            ImGui::DestroyContext();
+        }
+    };
+
+    m_renderer = std::make_unique<Renderer>(m_device.get(), m_window->surface());
+    m_assetManager = std::make_unique<AssetManager>(m_device.get());
 }
 
 void Application::run()
@@ -91,25 +96,11 @@ void Application::run()
 
         m_device->imguiNewFrame();
         ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
 
         onUpdate();
 
-        ImGui::Render();
         m_renderer->renderFrame(frameGraph());
-        ImGui::UpdatePlatformWindows();
-        ImGui::RenderPlatformWindowsDefault();
     }
-}
-
-Application::~Application()
-{
-    m_device->waitIdle();
-    ImGui_ImplGlfw_Shutdown();
-    m_device->imguiShutdown();
-    ImGui::DestroyContext();
-    m_window->clearCallbacks(this);
-    ::glfwTerminate();
 }
 
 }

@@ -10,39 +10,39 @@
 #ifndef VIEWPORTPANEL_HPP
 #define VIEWPORTPANEL_HPP
 
-#include "Graphics/Texture.hpp"
-#include "UtilsCPP/Func.hpp"
-#include "UtilsCPP/Types.hpp"
+#include <imgui.h>
+
+#include <cstdint>
+#include <functional>
 #include <utility>
 
-namespace GE
+namespace GE_Editor
 {
 
 class ViewportPanel
 {
 public:
-    ViewportPanel()                     = delete;
+    ViewportPanel() = delete;
     ViewportPanel(const ViewportPanel&) = delete;
-    ViewportPanel(ViewportPanel&&)      = delete;
-    
-    ViewportPanel(const gfx::Texture&);
+    ViewportPanel(ViewportPanel&&) = delete;
 
-    inline ViewportPanel& onResize(const utils::Func<void(utils::uint32, utils::uint32)>& f) { return m_onResize = f, *this; }
-    inline ViewportPanel& onResize(utils::Func<void(utils::uint32, utils::uint32)>&& f) { return m_onResize = std::move(f), *this; }
+    ViewportPanel(std::pair<uint32_t, uint32_t>* size);
+
+    inline ViewportPanel& onResize(std::function<void(std::pair<uint32_t, uint32_t>)>&& f) { return m_onResize = std::move(f), *this; }
 
     void render();
 
     ~ViewportPanel() = default;
 
 private:
-    const gfx::Texture& m_texture;
-    utils::Func<void(utils::uint32, utils::uint32)> m_onResize;
+    std::pair<uint32_t, uint32_t>* m_size;
+    std::function<void(std::pair<uint32_t, uint32_t>)> m_onResize;
 
 public:
-    ViewportPanel& operator = (const ViewportPanel&) = delete;
-    ViewportPanel& operator = (ViewportPanel&&)      = delete;
+    ViewportPanel& operator=(const ViewportPanel&) = delete;
+    ViewportPanel& operator=(ViewportPanel&&) = delete;
 };
 
-}
+} // namespace GE
 
 #endif // VIEWPORTPANEL_HPP

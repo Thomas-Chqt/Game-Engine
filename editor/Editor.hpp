@@ -12,6 +12,11 @@
 
 #include <Game-Engine/Application.hpp>
 
+#include <cstdint>
+#include <imgui.h>
+
+#include <utility>
+
 namespace GE_Editor
 {
 
@@ -29,6 +34,9 @@ public:
 
 private:
     void rebuildFrameGraph();
+    void renderImgui();
+
+    std::pair<uint32_t, uint32_t> m_viewportSize = {0, 0};
 
     GE::FrameGraph m_frameGraph;
 

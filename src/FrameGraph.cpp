@@ -7,6 +7,7 @@
  */
 
 #include "Game-Engine/FrameGraph.hpp"
+#include "Graphics/Enums.hpp"
 
 #include <Graphics/Texture.hpp>
 
@@ -20,7 +21,7 @@ FrameGraph::FrameGraph(const Descriptor& desc)
     : m_passes(desc.passes)
     , m_backBufferDescriptor(std::make_pair(desc.backBufferName, gfx::Texture::Descriptor{}))
 {
-    auto addAttachment = [&](const AttachmentDescriptor& attachment, gfx::TextureUsage usage) {
+    auto addAttachment = [&](const AttachmentDescriptor& attachment, gfx::TextureUsages usage) {
         const gfx::Texture::Descriptor newDescriptor{
             .width = attachment.size.first,
             .height = attachment.size.second,
@@ -57,6 +58,26 @@ FrameGraph::FrameGraph(const Descriptor& desc)
         if (pass.depthAttachment)
             addAttachment(*pass.depthAttachment, gfx::TextureUsage::depthStencilAttachment);
     }
+
+    auto addUsageToAttachment = [&](const std::string& name, gfx::TextureUsages usage) {
+        if (name == m_backBufferDescriptor.first)
+        {
+            auto& descriptor = m_backBufferDescriptor.second;
+            if (descriptor.width == 0 || descriptor.height == 0)
+                throw std::runtime_error("Sampled attachment \"" + name + "\" is not defined");
+            descriptor.usages |= usage;
+            return;
+        }
+
+        auto it = m_textureDescriptors.find(name);
+        if (it == m_textureDescriptors.end())
+            throw std::runtime_error("Sampled attachment \"" + name + "\" is not defined");
+        it->second.usages |= usage;
+    };
+
+    for (const FramePass& pass : m_passes)
+        for (const std::string& sampledAttachment : pass.sampledAttachments)
+            addUsageToAttachment(sampledAttachment, gfx::TextureUsage::shaderRead);
 }
 
 }
