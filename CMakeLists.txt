@@ -53,6 +53,7 @@ target_sources(Game-Engine PRIVATE
     "src/AssetManager.cpp"
     "src/FrameGraph.cpp"
     "src/main.cpp"
+    "src/Scene.cpp"
 )
 
 target_include_directories(Game-Engine
@@ -71,6 +72,11 @@ target_link_libraries(Game-Engine PUBLIC
     assimp::assimp
     nlohmann_json::nlohmann_json
     tinyfiledialogs)
+
+add_subdirectory("shaders")
+
+add_dependencies(Game-Engine flat_color_shader)
+target_compile_definitions(Game-Engine PRIVATE "SHADER_DIR=\"${SHADER_DIR}\"")
 
 add_subdirectory("editor")
 

@@ -8,12 +8,17 @@
  */
 
 #include "Editor.hpp"
-#include "Graphics/Enums.hpp"
+
+#include "Game-Engine/Components.hpp"
 #include "UI/MainMenuBar.hpp"
 #include "UI/ViewportPanel.hpp"
 
+#include <Game-Engine/AssetManager.hpp>
+#include <Game-Engine/Entity.hpp>
 #include <Game-Engine/FrameGraph.hpp>
 #include <Game-Engine/FramePassBuilder.hpp>
+
+#include <Graphics/Enums.hpp>
 
 #include <imgui.h>
 
@@ -30,6 +35,19 @@ namespace GE_Editor
 Editor::Editor()
 {
     rebuildFrameGraph();
+
+    GE::Entity teapot = m_editedScene.newEntity("teapot");
+    teapot.emplace<GE::TransformComponent>().position.z = -3;
+    teapot.emplace<GE::MeshComponent>().mesh = assetManager().registerAsset<GE::Mesh>(RESOURCE_DIR"/teapot");
+
+    GE::Entity camera = m_editedScene.newEntity("camera");
+    camera.emplace<GE::TransformComponent>();
+    camera.emplace<GE::CameraComponent>();
+    m_editedScene.setActiveCamera(camera);
+
+    GE::Entity light = m_editedScene.newEntity("light");
+    light.emplace<GE::TransformComponent>();
+    light.emplace<GE::LightComponent>();
 }
 
 void Editor::onUpdate()

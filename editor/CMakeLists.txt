@@ -14,8 +14,11 @@ target_sources(GE-Editor PRIVATE
     "Editor.cpp"
     "UI/MainMenuBar.cpp"
     "UI/ViewportPanel.cpp"
+    # "UI/SceneGraphPanel.cpp"
 )
 
 target_include_directories(GE-Editor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_compile_definitions(GE-Editor PRIVATE "RESOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/resources\"")
 
 target_link_libraries(GE-Editor PRIVATE Game-Engine)

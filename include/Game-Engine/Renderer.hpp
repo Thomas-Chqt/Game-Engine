@@ -11,6 +11,7 @@
 #define RENDERER_HPP
 
 #include "Game-Engine/FrameGraph.hpp"
+#include "Graphics/GraphicsPipeline.hpp"
 
 #include <Graphics/Device.hpp>
 #include <Graphics/Surface.hpp>
@@ -59,6 +60,11 @@ private:
 
     uint8_t m_frameIdx = 0;
     std::array<FrameData, maxFrameInFlight> m_frameDatas;
+
+    std::shared_ptr<gfx::ParameterBlockLayout> m_vpMatrixBlockLayout;
+    std::shared_ptr<gfx::ParameterBlockLayout> m_sceneDataBlockLayout;
+    std::shared_ptr<gfx::ParameterBlockLayout> m_materiaBlockLayout;
+    std::shared_ptr<gfx::GraphicsPipeline> m_gfxPipeline; // only one for now
 
 public:
     Renderer& operator=(const Renderer&) = delete;

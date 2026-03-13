@@ -10,6 +10,7 @@
 #ifndef EDITOR_HPP
 #define EDITOR_HPP
 
+#include "Game-Engine/Scene.hpp"
 #include <Game-Engine/Application.hpp>
 
 #include <cstdint>
@@ -35,6 +36,8 @@ public:
 private:
     void rebuildFrameGraph();
     void renderImgui();
+
+    GE::Scene m_editedScene;
 
     std::pair<uint32_t, uint32_t> m_viewportSize = {0, 0};
 

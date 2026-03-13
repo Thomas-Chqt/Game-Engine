@@ -28,17 +28,17 @@
 namespace GE
 {
 
-template<typename T>
-concept ECSWorldLike = std::is_same_v<std::remove_const_t<T>, GE::ECSWorld>;
-
 template<ECSWorldLike ECSWorldT>
 struct basic_entity;
 
 template<typename T>
-concept EntityLike = std::is_same_v<std::remove_reference_t<T>, basic_entity<ECSWorld>>;
+concept EntityLike =
+    std::is_same_v<std::remove_reference_t<T>, basic_entity<ECSWorld>>;
 
 template<typename T>
-concept ConstEntityLike = std::is_convertible_v<std::remove_reference_t<T>, const basic_entity<ECSWorld>> || std::is_same_v<std::remove_cvref_t<T>, basic_entity<const ECSWorld>>;
+concept ConstEntityLike =
+    std::is_convertible_v<std::remove_reference_t<T>, const basic_entity<ECSWorld>> ||
+    std::is_same_v<std::remove_cvref_t<T>, basic_entity<const ECSWorld>>;
 
 template<ECSWorldLike ECSWorldT>
 struct basic_entity
@@ -178,7 +178,6 @@ struct basic_entity
         if (child.template has<HierarchyComponent>() == false)
             child.template emplace<HierarchyComponent>();
 
-        HierarchyComponent& selfComp = self.template get<HierarchyComponent>(); // need to be done after any emplace as `emplace` can invalidate references
         HierarchyComponent& childComp = child.template get<HierarchyComponent>();
         HierarchyComponent& afterComp = after.template get<HierarchyComponent>();
 

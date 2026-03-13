@@ -9,11 +9,13 @@
 
 #include "Game-Engine/Renderer.hpp"
 #include "Game-Engine/FrameGraph.hpp"
+#include "Game-Engine/Mesh.hpp"
 
 #include <Graphics/CommandBuffer.hpp>
 #include <Graphics/Drawable.hpp>
 #include <Graphics/Framebuffer.hpp>
 #include <Graphics/Texture.hpp>
+#include <Graphics/GraphicsPipeline.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -40,6 +42,53 @@ Renderer::Renderer(gfx::Device* device, gfx::Surface* surface)
         frameData.parameterBlockPool = m_device->newParameterBlockPool({ .maxUniformBuffers = 2, .maxTextures = 0, .maxSamplers = 0 });
         assert(frameData.parameterBlockPool);
     }
+
+    m_vpMatrixBlockLayout = m_device->newParameterBlockLayout(gfx::ParameterBlockLayout::Descriptor{
+        .bindings = {
+            gfx::ParameterBlockBinding{ .type = gfx::BindingType::uniformBuffer, .usages = gfx::BindingUsage::fragmentRead },
+            gfx::ParameterBlockBinding{ .type = gfx::BindingType::uniformBuffer, .usages = gfx::BindingUsage::fragmentRead },
+            gfx::ParameterBlockBinding{ .type = gfx::BindingType::uniformBuffer, .usages = gfx::BindingUsage::fragmentRead },
+        }
+    });
+
+    m_sceneDataBlockLayout = m_device->newParameterBlockLayout(gfx::ParameterBlockLayout::Descriptor{
+        .bindings = {
+            gfx::ParameterBlockBinding{ .type = gfx::BindingType::uniformBuffer, .usages = gfx::BindingUsage::fragmentRead },
+        }
+    });
+
+    m_materiaBlockLayout = m_device->newParameterBlockLayout(gfx::ParameterBlockLayout::Descriptor{
+        .bindings = {
+            gfx::ParameterBlockBinding{ .type = gfx::BindingType::uniformBuffer, .usages = gfx::BindingUsage::fragmentRead },
+        }
+    });
+
+    auto shaderLib = m_device->newShaderLib(SHADER_DIR"/flat_color.slib");
+
+    m_gfxPipeline = m_device->newGraphicsPipeline(gfx::GraphicsPipeline::Descriptor{
+        .vertexLayout = gfx::VertexLayout{
+            .stride = sizeof(Vertex),
+            .attributes = {
+                gfx::VertexAttribute{
+                    .format = gfx::VertexAttributeFormat::float3,
+                    .offset = offsetof(Vertex, pos)},
+                gfx::VertexAttribute{
+                    .format = gfx::VertexAttributeFormat::float3,
+                    .offset = offsetof(Vertex, normal)},
+            }
+        },
+        .vertexShader = &shaderLib->getFunction("vertexMain"),
+        .fragmentShader = &shaderLib->getFunction("fragmentMain"),
+        .colorAttachmentPxFormats = {gfx::PixelFormat::BGRA8Unorm},
+        .depthAttachmentPxFormat = gfx::PixelFormat::Depth32Float,
+        .blendOperation = gfx::BlendOperation::blendingOff,
+        .cullMode = gfx::CullMode::back,
+        .parameterBlockLayouts = {
+            Renderer::vpMatrixBpLayout(),
+            Renderer::sceneDataBpLayout(),
+            m_parameterBlockLayout
+        }
+    })
 }
 
 void Renderer::renderFrame(const FrameGraph& frameGraph)

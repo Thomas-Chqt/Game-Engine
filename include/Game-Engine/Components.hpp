@@ -10,6 +10,7 @@
 #ifndef COMPONENTS_HPP
 #define COMPONENTS_HPP
 
+#include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/ECSWorld.hpp"
 
 #include <glm/glm.hpp>
@@ -34,16 +35,16 @@ struct HierarchyComponent
 
 struct TransformComponent
 {
-    glm::vec3 position = {0.0F, 0.0F, 0.0F};
-    glm::vec3 rotation = {0.0F, 0.0F, 0.0F};
-    glm::vec3 scale = {1.0F, 1.0F, 1.0F};
+    glm::vec3 position = {0.0f, 0.0f, 0.0f};
+    glm::vec3 rotation = {0.0f, 0.0f, 0.0f};
+    glm::vec3 scale    = {1.0f, 1.0f, 1.0f};
 };
 
 struct CameraComponent
 {
-    float fov = (float)(60 * (std::numbers::pi_v<float> / 180.0F));
-    float zFar = 10000.0F;
-    float zNear = 0.01F;
+    float fov   = (float)(60 * (std::numbers::pi_v<float> / 180.0f));
+    float zFar  = 1000.0f;
+    float zNear = 0.1f;
 };
 
 struct LightComponent
@@ -52,6 +53,11 @@ struct LightComponent
 
     glm::vec3 color = {1.0f, 1.0f, 1.0f};
     float intentsity = 1.0f;
+};
+
+struct MeshComponent
+{
+    AssetID mesh;
 };
 
 } // namespace GE

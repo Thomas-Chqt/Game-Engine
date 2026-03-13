@@ -295,7 +295,7 @@ TEST(ECSTest, view)
     world.emplace<Component2>(entity3, 3);
 
     {
-        GE::ECSView<Component1> view(world);
+        GE::ECSView<Component1> view(&world);
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
@@ -312,7 +312,7 @@ TEST(ECSTest, view)
         });
     }
     {
-        GE::ECSView<Component2> view(world);
+        GE::ECSView<Component2> view(&world);
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
@@ -329,7 +329,7 @@ TEST(ECSTest, view)
         });
     }
     {
-        GE::ECSView<Component1, Component2> view(world);
+        GE::ECSView<Component1, Component2> view(&world);
         EXPECT_EQ(view.count(), 1);
 
         EXPECT_NO_THROW({
@@ -365,7 +365,7 @@ TEST(ECSTest, constView)
     world.emplace<Component2>(entity3, 3);
 
     {
-        GE::const_ECSView<Component1> view(const_cast<const GE::ECSWorld&>(world));
+        GE::const_ECSView<Component1> view(&world);
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
@@ -382,7 +382,7 @@ TEST(ECSTest, constView)
         });
     }
     {
-        GE::const_ECSView<Component2> view(const_cast<const GE::ECSWorld&>(world));
+        GE::const_ECSView<Component2> view(&world);
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
@@ -399,7 +399,7 @@ TEST(ECSTest, constView)
         });
     }
     {
-        GE::const_ECSView<Component1, Component2> view(const_cast<const GE::ECSWorld&>(world));
+        GE::const_ECSView<Component1, Component2> view(&world);
         EXPECT_EQ(view.count(), 1);
 
         EXPECT_NO_THROW({
