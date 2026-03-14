@@ -145,7 +145,10 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
     {
         auto it = cfd.constantBuffers.find(bufferName);
         if (it == cfd.constantBuffers.end() || it->second->size() != bufferDescriptor.size)
-            cfd.constantBuffers[bufferName] = m_device->newBuffer(bufferDescriptor);
+        {
+            std::shared_ptr<gfx::Buffer> newBuffer = m_device->newBuffer(bufferDescriptor);
+            cfd.constantBuffers[bufferName] = newBuffer;
+        }
     }
 
     // Build a combined buffer map for contexts
@@ -162,7 +165,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         auto it = cfd.structuredBuffers.find(name);
         if (it == cfd.structuredBuffers.end() || it->second->size() < size)
         {
-            auto newBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
+            std::shared_ptr<gfx::Buffer> newBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
                 .size = size,
                 .usages = gfx::BufferUsage::structuredBuffer,
                 .storageMode = gfx::ResourceStorageMode::hostVisible
