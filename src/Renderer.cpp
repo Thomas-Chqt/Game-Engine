@@ -216,7 +216,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         };
 
         for (auto attachmentName : framePass.sampledAttachments)
-            commandBuffer->addSampledTexture(textureMap[attachmentName]);
+            commandBuffer->addSampledTexture(textureMap.at(attachmentName));
 
         commandBuffer->beginRenderPass(framebuffer);
         {
