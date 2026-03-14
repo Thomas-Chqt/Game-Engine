@@ -22,6 +22,7 @@
 
 #include <cassert>
 #include <memory>
+#include <vector>
 
 namespace GE
 {
@@ -29,21 +30,7 @@ namespace GE
 FramePass FlatGeometryPassBuilder::build() const
 {
     GE::FramePass framePass;
-
-    framePass.colorAttachments = { GE::ColorAttachmentUsage{
-        .name = m_colorAttachmentName,
-        .loadAction = gfx::LoadAction::clear,
-        .clearColor = { m_clearColor.x, m_clearColor.y, m_clearColor.z, 1.0f },
-    }};
-
-    if (m_depthAttachmentName.has_value())
-    {
-        framePass.depthAttachment = GE::DepthAttachmentUsage{
-            .name = *m_depthAttachmentName,
-            .loadAction = gfx::LoadAction::clear,
-            .clearDepth = m_clearDepth,
-        };
-    }
+    buildAttachments(framePass);
 
     framePass.setup = [scene=m_scene](FramePassSetupContext& ctx)
     {
@@ -56,10 +43,7 @@ FramePass FlatGeometryPassBuilder::build() const
         rotationMat = glm::rotate(rotationMat, cameraTransform.rotation.x, glm::vec3(1, 0, 0));
         rotationMat = glm::rotate(rotationMat, cameraTransform.rotation.z, glm::vec3(0, 0, 1));
 
-        shader::FrameData& frameData = *ctx.bufferMap["frameData"]->content<shader::FrameData>();
-        shader::DirectionalLight* directionalLights = ctx.bufferMap["directionalLights"]->content<shader::DirectionalLight>();
-        shader::PointLight* pointLights = ctx.bufferMap["pointLights"]->content<shader::PointLight>();
-        shader::flat_color::Material& material = *ctx.bufferMap["material"]->content<shader::flat_color::Material>();
+        shader::FrameData& frameData = *ctx.constantBuffers["frameData"]->content<shader::FrameData>();
 
         glm::vec3 pos = cameraTransform.position;
         glm::vec3 dir = rotationMat * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
@@ -68,26 +52,35 @@ FramePass FlatGeometryPassBuilder::build() const
         frameData.cameraPosition = cameraTransform.position;
         frameData.ambientLightColor = glm::vec3(1.0f, 1.0f, 1.0f) * 0.1f;
 
-        frameData.directionalLightCount = 0;
-        frameData.pointLightCount = 0;
+        std::vector<shader::DirectionalLight> directionalLights;
+        std::vector<shader::PointLight> pointLights;
         const_ECSView<TransformComponent, LightComponent>(&scene->ecsWorld()).onEach([&](const_Entity, const TransformComponent& transform, const LightComponent& light)
         {
             switch (light.type)
             {
             case LightComponent::Type::directional:
-                directionalLights[frameData.directionalLightCount++] = {
+                directionalLights.push_back({
                     .position = transform.position,
                     .color = light.color * light.intentsity,
-                };
+                });
+                break;
             case LightComponent::Type::point:
-                pointLights[frameData.pointLightCount++] = {
+                pointLights.push_back({
                     .position = transform.position,
                     .color = light.color * light.intentsity,
                     .attenuation = light.attenuation
-                };
+                });
+                break;
             }
         });
 
+        frameData.directionalLightCount = directionalLights.size();
+        frameData.pointLightCount = pointLights.size();
+
+        ctx.setStructuredBufferContent("directionalLights", directionalLights.data(), directionalLights.size() * sizeof(shader::DirectionalLight));
+        ctx.setStructuredBufferContent("pointLights", pointLights.data(), pointLights.size() * sizeof(shader::PointLight));
+
+        shader::flat_color::Material& material = *ctx.constantBuffers["material"]->content<shader::flat_color::Material>();
         material.diffuseColor = glm::vec4(1.0f);
         material.specularColor = glm::vec4(0.0f);
         material.shininess = 0.0f;

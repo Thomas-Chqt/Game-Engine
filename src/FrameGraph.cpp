@@ -13,16 +13,15 @@
 #include <Graphics/Buffer.hpp>
 
 #include <stdexcept>
-#include <utility>
 
 namespace GE
 {
 
 FrameGraph::FrameGraph(const Descriptor& desc)
     : m_passes(desc.passes)
-    , m_backBufferDescriptor(std::make_pair(desc.backBufferName, gfx::Texture::Descriptor{}))
+    , m_backBufferName(desc.backBufferName)
 {
-    // Process attachment declarations from the descriptor
+    // Process attachment declarations - all go into m_textureDescriptors including back buffer
     for (const AttachmentDescriptor& attachment : desc.attachments)
     {
         const gfx::Texture::Descriptor newDescriptor{
@@ -32,12 +31,6 @@ FrameGraph::FrameGraph(const Descriptor& desc)
             .usages = {},
         };
 
-        if (attachment.name == m_backBufferDescriptor.first)
-        {
-            m_backBufferDescriptor.second = newDescriptor;
-            continue;
-        }
-
         auto [it, inserted] = m_textureDescriptors.emplace(attachment.name, newDescriptor);
         if (!inserted)
             throw std::runtime_error("Duplicate attachment declaration for \"" + attachment.name + "\"");
@@ -45,15 +38,6 @@ FrameGraph::FrameGraph(const Descriptor& desc)
 
     // Add usage flags based on how passes reference the attachments
     auto addUsageToAttachment = [&](const std::string& name, gfx::TextureUsages usage) {
-        if (name == m_backBufferDescriptor.first)
-        {
-            auto& descriptor = m_backBufferDescriptor.second;
-            if (descriptor.width == 0 || descriptor.height == 0)
-                throw std::runtime_error("Attachment \"" + name + "\" is used but not declared");
-            descriptor.usages |= usage;
-            return;
-        }
-
         auto it = m_textureDescriptors.find(name);
         if (it == m_textureDescriptors.end())
             throw std::runtime_error("Attachment \"" + name + "\" is used but not declared");
@@ -62,7 +46,7 @@ FrameGraph::FrameGraph(const Descriptor& desc)
 
     for (const FramePass& pass : m_passes)
     {
-        for (const ColorAttachmentUsage& colorAttachment : pass.colorAttachments)
+        for (const AttachmentUsage& colorAttachment : pass.colorAttachments)
             addUsageToAttachment(colorAttachment.name, gfx::TextureUsage::colorAttachment);
 
         if (pass.depthAttachment)

@@ -83,7 +83,7 @@ void Editor::rebuildFrameGraph()
                 .setDepthAttachment("depthBuffer")
                 .setClearDepth(1.0f),
             GE::ImguiPassBuilder()
-                .setColorAttachment("windowBackBuffer", gfx::LoadAction::clear)
+                .setColorAttachment("windowBackBuffer")
                 .addSampledAttachment("viewportBackBuffer")
         }
     });

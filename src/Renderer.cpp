@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <print>
@@ -105,15 +106,17 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         cfd.parameterBlockPool->reset();
     }
 
-    if (m_swapchain == nullptr || m_swapchain->drawablesTextureDescriptor() != frameGraph.backBufferDescriptor().second)
+    const auto& backBufferDesc = frameGraph.textureDescriptors().at(frameGraph.backBufferName());
+
+    if (m_swapchain == nullptr || m_swapchain->drawablesTextureDescriptor() != backBufferDesc)
     {
         gfx::Swapchain::Descriptor swapchainDescriptor = {
             .surface = m_surface,
-            .width = frameGraph.backBufferDescriptor().second.width,
-            .height = frameGraph.backBufferDescriptor().second.height,
+            .width = backBufferDesc.width,
+            .height = backBufferDesc.height,
             .imageCount = 3,
             .drawableCount = maxFrameInFlight,
-            .pixelFormat = frameGraph.backBufferDescriptor().second.pixelFormat,
+            .pixelFormat = backBufferDesc.pixelFormat,
             .presentMode = gfx::PresentMode::fifo,
         };
         // std::println("recreating swapchain with size w:{}, h:{}", swapchainDescriptor.width, swapchainDescriptor.height);
@@ -121,14 +124,17 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         m_swapchain = m_device->newSwapchain(swapchainDescriptor);
         assert(m_swapchain);
     }
-    assert(m_swapchain->drawablesTextureDescriptor() == frameGraph.backBufferDescriptor().second);
+    assert(m_swapchain->drawablesTextureDescriptor() == backBufferDesc);
 
-    // Create/reuse transient textures
+    // Create/reuse transient textures (skip back buffer)
     std::map<std::string, std::shared_ptr<gfx::Texture>> textureMap;
     std::set<std::pair<gfx::Texture::Descriptor, std::shared_ptr<gfx::Texture>>> usedTextures;
 
     for (auto& [textureName, textureDescriptor] : frameGraph.textureDescriptors())
     {
+        if (textureName == frameGraph.backBufferName())
+            continue;
+
         std::shared_ptr<gfx::Texture> texture;
         auto it = std::ranges::find_if(cfd.transientTextures, [&](auto& element) -> bool { return element.first == textureDescriptor; });
         if (it != cfd.transientTextures.end())
@@ -151,28 +157,23 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         }
     }
 
-    // Build a combined buffer map for contexts
-    std::map<std::string, std::shared_ptr<gfx::Buffer>> bufferMap;
-    for (auto& [name, buffer] : cfd.constantBuffers)
-        bufferMap[name] = buffer;
-    for (auto& [name, buffer] : cfd.structuredBuffers)
-        bufferMap[name] = buffer;
-
-    // Resize structured buffer callback
-    auto resizeStructuredBuffer = [&](const std::string& name, uint32_t size) {
-        if (frameGraph.structuredBufferNames().contains(name) == false)
+    // Callback to set structured buffer size and content in one call
+    auto setStructuredBufferContent = [&](const std::string& name, const void* data, uint32_t size) {
+        if (!frameGraph.structuredBufferNames().contains(name))
             return;
+        uint32_t allocSize = std::max(size, (uint32_t)1);
         auto it = cfd.structuredBuffers.find(name);
-        if (it == cfd.structuredBuffers.end() || it->second->size() < size)
+        if (it == cfd.structuredBuffers.end() || it->second->size() < allocSize)
         {
             std::shared_ptr<gfx::Buffer> newBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
-                .size = size,
+                .size = allocSize,
                 .usages = gfx::BufferUsage::structuredBuffer,
                 .storageMode = gfx::ResourceStorageMode::hostVisible
             });
             cfd.structuredBuffers[name] = newBuffer;
-            bufferMap[name] = newBuffer;
         }
+        if (data != nullptr && size > 0)
+            std::memcpy(cfd.structuredBuffers[name]->content<char>(), data, size);
     };
 
     std::shared_ptr<gfx::CommandBuffer> commandBuffer = cfd.commandBufferPool->get();
@@ -183,23 +184,30 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         if (framePass.setup)
         {
             FramePassSetupContext setupContext = {
-                .bufferMap = bufferMap,
-                .resizeStructuredBuffer = resizeStructuredBuffer,
+                .constantBuffers = cfd.constantBuffers,
+                .setStructuredBufferContent = setStructuredBufferContent,
             };
             framePass.setup(setupContext);
         }
+
+        // Build combined buffer map for execute phase (after setup may have modified structured buffers)
+        std::map<std::string, std::shared_ptr<gfx::Buffer>> bufferMap;
+        for (auto& [name, buffer] : cfd.constantBuffers)
+            bufferMap[name] = buffer;
+        for (auto& [name, buffer] : cfd.structuredBuffers)
+            bufferMap[name] = buffer;
 
         if (drawable == nullptr /* TODO check if pass use swapchain image */)
         {
             drawable = m_swapchain->nextDrawable();
             if (drawable == nullptr)
                 return;
-            textureMap[frameGraph.backBufferDescriptor().first] = drawable->texture();
+            textureMap[frameGraph.backBufferName()] = drawable->texture();
         }
 
         gfx::Framebuffer framebuffer = gfx::Framebuffer{
             .colorAttachments = framePass.colorAttachments
-                                | std::views::transform([&](const ColorAttachmentUsage& attachmentUsage) {
+                                | std::views::transform([&](const AttachmentUsage& attachmentUsage) {
                                       return gfx::Framebuffer::Attachment{
                                           .loadAction = attachmentUsage.loadAction,
                                           .clearColor = attachmentUsage.clearColor,

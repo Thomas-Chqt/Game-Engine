@@ -51,24 +51,20 @@ struct StructuredBufferDescriptor
     std::string name;
 };
 
-struct ColorAttachmentUsage
-{
-    std::string name;
-    gfx::LoadAction loadAction = gfx::LoadAction::load;
-    std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 0.0f};
-};
-
-struct DepthAttachmentUsage
+struct AttachmentUsage
 {
     std::string name;
     gfx::LoadAction loadAction = gfx::LoadAction::clear;
-    float clearDepth = 1.0f;
+    union {
+        std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 0.0f};
+        float clearDepth;
+    };
 };
 
 struct FramePassSetupContext
 {
-    std::map<std::string, std::shared_ptr<gfx::Buffer>>& bufferMap;
-    std::function<void(const std::string& name, uint32_t size)> resizeStructuredBuffer;
+    std::map<std::string, std::shared_ptr<gfx::Buffer>>& constantBuffers;
+    std::function<void(const std::string& name, const void* data, uint32_t size)> setStructuredBufferContent;
 };
 
 struct FramePassContext
@@ -87,8 +83,8 @@ struct FramePassContext
 
 struct FramePass
 {
-    std::vector<ColorAttachmentUsage> colorAttachments;
-    std::optional<DepthAttachmentUsage> depthAttachment;
+    std::vector<AttachmentUsage> colorAttachments;
+    std::optional<AttachmentUsage> depthAttachment;
     std::vector<std::string> sampledAttachments;
     std::function<void(FramePassSetupContext&)> setup;
     std::function<void(FramePassContext&)> execute;
@@ -118,7 +114,7 @@ public:
 
     FrameGraph(const Descriptor&);
 
-    const std::pair<std::string, gfx::Texture::Descriptor>& backBufferDescriptor() const { return m_backBufferDescriptor; }
+    const std::string& backBufferName() const { return m_backBufferName; }
     const std::map<std::string, gfx::Texture::Descriptor>& textureDescriptors() const { return m_textureDescriptors; }
     const std::map<std::string, gfx::Buffer::Descriptor>& constantBufferDescriptors() const { return m_constantBufferDescriptors; }
     const std::set<std::string>& structuredBufferNames() const { return m_structuredBufferNames; }
@@ -128,7 +124,7 @@ public:
 
 private:
     std::vector<FramePass> m_passes;
-    std::pair<std::string, gfx::Texture::Descriptor> m_backBufferDescriptor;
+    std::string m_backBufferName;
     std::map<std::string, gfx::Texture::Descriptor> m_textureDescriptors;
     std::map<std::string, gfx::Buffer::Descriptor> m_constantBufferDescriptors;
     std::set<std::string> m_structuredBufferNames;
