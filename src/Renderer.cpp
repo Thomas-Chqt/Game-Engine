@@ -91,34 +91,6 @@ Renderer::Renderer(gfx::Device* device, gfx::Surface* surface)
             }
         });
         assert(inFlightData.parameterBlockPool);
-
-        inFlightData.frameDataBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
-            .size = sizeof(shader::FrameData),
-            .usages = gfx::BufferUsage::constantBuffer,
-            .storageMode = gfx::ResourceStorageMode::hostVisible
-        });
-        assert(inFlightData.frameDataBuffer);
-
-        inFlightData.directionalLightsBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
-            .size = sizeof(shader::DirectionalLight) * 10,
-            .usages = gfx::BufferUsage::structuredBuffer,
-            .storageMode = gfx::ResourceStorageMode::hostVisible
-        });
-        assert(inFlightData.directionalLightsBuffer);
-
-        inFlightData.pointLightsBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
-            .size = sizeof(shader::PointLight) * 10,
-            .usages = gfx::BufferUsage::structuredBuffer,
-            .storageMode = gfx::ResourceStorageMode::hostVisible
-        });
-        assert(inFlightData.pointLightsBuffer);
-
-        inFlightData.materialBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
-            .size = sizeof(shader::flat_color::Material),
-            .usages = gfx::BufferUsage::structuredBuffer,
-            .storageMode = gfx::ResourceStorageMode::hostVisible
-        });
-        assert(inFlightData.materialBuffer);
     }
 
 }
@@ -151,6 +123,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
     }
     assert(m_swapchain->drawablesTextureDescriptor() == frameGraph.backBufferDescriptor().second);
 
+    // Create/reuse transient textures
     std::map<std::string, std::shared_ptr<gfx::Texture>> textureMap;
     std::set<std::pair<gfx::Texture::Descriptor, std::shared_ptr<gfx::Texture>>> usedTextures;
 
@@ -167,10 +140,52 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
     }
     cfd.transientTextures = std::move(usedTextures);
 
+    // Create/reuse constant buffers
+    for (auto& [bufferName, bufferDescriptor] : frameGraph.constantBufferDescriptors())
+    {
+        auto it = cfd.constantBuffers.find(bufferName);
+        if (it == cfd.constantBuffers.end() || it->second->size() != bufferDescriptor.size)
+            cfd.constantBuffers[bufferName] = m_device->newBuffer(bufferDescriptor);
+    }
+
+    // Build a combined buffer map for contexts
+    std::map<std::string, std::shared_ptr<gfx::Buffer>> bufferMap;
+    for (auto& [name, buffer] : cfd.constantBuffers)
+        bufferMap[name] = buffer;
+    for (auto& [name, buffer] : cfd.structuredBuffers)
+        bufferMap[name] = buffer;
+
+    // Resize structured buffer callback
+    auto resizeStructuredBuffer = [&](const std::string& name, uint32_t size) {
+        if (frameGraph.structuredBufferNames().contains(name) == false)
+            return;
+        auto it = cfd.structuredBuffers.find(name);
+        if (it == cfd.structuredBuffers.end() || it->second->size() < size)
+        {
+            auto newBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
+                .size = size,
+                .usages = gfx::BufferUsage::structuredBuffer,
+                .storageMode = gfx::ResourceStorageMode::hostVisible
+            });
+            cfd.structuredBuffers[name] = newBuffer;
+            bufferMap[name] = newBuffer;
+        }
+    };
+
     std::shared_ptr<gfx::CommandBuffer> commandBuffer = cfd.commandBufferPool->get();
     std::shared_ptr<gfx::Drawable> drawable;
     for (auto& framePass : frameGraph.passes())
     {
+        // Run setup phase if present
+        if (framePass.setup)
+        {
+            FramePassSetupContext setupContext = {
+                .bufferMap = bufferMap,
+                .resizeStructuredBuffer = resizeStructuredBuffer,
+            };
+            framePass.setup(setupContext);
+        }
+
         if (drawable == nullptr /* TODO check if pass use swapchain image */)
         {
             drawable = m_swapchain->nextDrawable();
@@ -181,11 +196,11 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
 
         gfx::Framebuffer framebuffer = gfx::Framebuffer{
             .colorAttachments = framePass.colorAttachments
-                                | std::views::transform([&](const AttachmentDescriptor& attachmentDesc) {
+                                | std::views::transform([&](const ColorAttachmentUsage& attachmentUsage) {
                                       return gfx::Framebuffer::Attachment{
-                                          .loadAction = attachmentDesc.loadAction,
-                                          .clearColor = attachmentDesc.clearColor,
-                                          .texture = textureMap.at(attachmentDesc.name)
+                                          .loadAction = attachmentUsage.loadAction,
+                                          .clearColor = attachmentUsage.clearColor,
+                                          .texture = textureMap.at(attachmentUsage.name)
                                       };
                                   })
                                 | std::ranges::to<std::vector>(),
@@ -206,10 +221,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
                 .commandBuffer = *commandBuffer,
                 .parameterBlockPool = *cfd.parameterBlockPool,
                 .textureMap = textureMap,
-                .frameDataBuffer = cfd.frameDataBuffer,
-                .directionalLightsBuffer = cfd.directionalLightsBuffer,
-                .pointLightsBuffer = cfd.pointLightsBuffer,
-                .materialBuffer = cfd.materialBuffer,
+                .bufferMap = bufferMap,
                 .frameDataBlockLayout = m_frameDataBlockLayout,
                 .materialBlockLayout = m_materialBlockLayout,
                 .gfxPipeline = m_gfxPipeline,

@@ -20,7 +20,9 @@
 #include <Graphics/GraphicsPipeline.hpp>
 
 #include <cstdint>
+#include <map>
 #include <memory>
+#include <string>
 #include <utility>
 #include <set>
 
@@ -51,10 +53,8 @@ private:
         std::unique_ptr<gfx::ParameterBlockPool> parameterBlockPool;
         gfx::CommandBuffer* waitedCmdBuffer = nullptr;
 
-        std::shared_ptr<gfx::Buffer> frameDataBuffer;
-        std::shared_ptr<gfx::Buffer> directionalLightsBuffer;
-        std::shared_ptr<gfx::Buffer> pointLightsBuffer;
-        std::shared_ptr<gfx::Buffer> materialBuffer;
+        std::map<std::string, std::shared_ptr<gfx::Buffer>> constantBuffers;
+        std::map<std::string, std::shared_ptr<gfx::Buffer>> structuredBuffers;
 
         std::set<std::pair<gfx::Texture::Descriptor, std::shared_ptr<gfx::Texture>>> transientTextures;
     };

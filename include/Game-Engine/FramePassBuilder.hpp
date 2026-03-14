@@ -35,25 +35,19 @@ public:
     {
         GE::FramePass framePass;
 
-        auto colorAttachmentDesc = GE::AttachmentDescriptor{
+        framePass.colorAttachments = { GE::ColorAttachmentUsage{
             .name = m_colorAttachmentName,
-            .size = m_renderSize,
-            .pixelFormat = m_colorAttachmentPixelFmt,
             .loadAction = m_colorAttachmentLoadAction,
             .clearColor = { 0.0f, 0.0f, 0.0f, 0.0f },
-        };
-        framePass.colorAttachments = { colorAttachmentDesc };
+        }};
 
-        if (m_depthAttachmentName.has_value() && m_depthAttachmentPixelFmt.has_value())
+        if (m_depthAttachmentName.has_value())
         {
-            auto depthAttachmentDesc = GE::AttachmentDescriptor{
+            framePass.depthAttachment = GE::DepthAttachmentUsage{
                 .name = *m_depthAttachmentName,
-                .size = m_renderSize,
-                .pixelFormat = *m_depthAttachmentPixelFmt,
                 .loadAction = gfx::LoadAction::clear,
                 .clearDepth = 1.0f,
             };
-            framePass.depthAttachment = depthAttachmentDesc;
         }
 
         framePass.sampledAttachments = m_sampledAttachmentNames;
@@ -85,23 +79,16 @@ public:
         return framePass;
     }
 
-    inline constexpr ImguiPassBuilder& setRenderSize(const std::pair<uint32_t, uint32_t>& s)
-    {
-        return m_renderSize = s, *this;
-    }
-
-    inline constexpr ImguiPassBuilder& setColorAttachment(const std::string& name, const gfx::PixelFormat& pxFmt = gfx::PixelFormat::BGRA8Unorm, gfx::LoadAction lAc = gfx::LoadAction::load)
+    inline constexpr ImguiPassBuilder& setColorAttachment(const std::string& name, gfx::LoadAction lAc = gfx::LoadAction::load)
     {
         m_colorAttachmentName = name;
-        m_colorAttachmentPixelFmt = pxFmt;
         m_colorAttachmentLoadAction = lAc;
         return *this;
     }
 
-    inline constexpr ImguiPassBuilder& setDepthAttachment(const std::string& name, const gfx::PixelFormat& pxFmt = gfx::PixelFormat::Depth32Float)
+    inline constexpr ImguiPassBuilder& setDepthAttachment(const std::string& name)
     {
         m_depthAttachmentName = name;
-        m_depthAttachmentPixelFmt = pxFmt;
         return *this;
     }
 
@@ -112,14 +99,10 @@ public:
     }
 
 private:
-    std::pair<uint32_t, uint32_t> m_renderSize;
-
     std::string m_colorAttachmentName = "backBuffer";
-    gfx::PixelFormat m_colorAttachmentPixelFmt = gfx::PixelFormat::BGRA8Unorm;
     gfx::LoadAction m_colorAttachmentLoadAction = gfx::LoadAction::load;
 
     std::optional<std::string> m_depthAttachmentName;
-    std::optional<gfx::PixelFormat> m_depthAttachmentPixelFmt;
     std::vector<std::string> m_sampledAttachmentNames;
 };
 
@@ -130,25 +113,19 @@ public:
     {
         GE::FramePass framePass;
 
-        auto colorAttachmentDesc = GE::AttachmentDescriptor{
+        framePass.colorAttachments = { GE::ColorAttachmentUsage{
             .name = m_colorAttachmentName,
-            .size = m_renderSize,
-            .pixelFormat = m_colorAttachmentPixelFmt,
             .loadAction = gfx::LoadAction::clear,
             .clearColor = { m_clearColor.x, m_clearColor.y, m_clearColor.z, 1.0f },
-        };
-        framePass.colorAttachments = { colorAttachmentDesc };
+        }};
 
-        if (m_depthAttachmentName.has_value() && m_depthAttachmentPixelFmt.has_value())
+        if (m_depthAttachmentName.has_value())
         {
-            auto depthAttachmentDesc = GE::AttachmentDescriptor{
+            framePass.depthAttachment = GE::DepthAttachmentUsage{
                 .name = *m_depthAttachmentName,
-                .size = m_renderSize,
-                .pixelFormat = *m_depthAttachmentPixelFmt,
                 .loadAction = gfx::LoadAction::clear,
                 .clearDepth = m_clearDepth,
             };
-            framePass.depthAttachment = depthAttachmentDesc;
         }
 
         framePass.execute = [](auto) {};
@@ -156,23 +133,15 @@ public:
         return framePass;
     }
 
-    inline constexpr ClearPassBuilder& setRenderSize(const std::pair<uint32_t, uint32_t>& s)
-    {
-        m_renderSize = s;
-        return *this;
-    }
-
-    inline constexpr ClearPassBuilder& setColorAttachment(const std::string& name, const gfx::PixelFormat& pxFmt = gfx::PixelFormat::BGRA8Unorm)
+    inline constexpr ClearPassBuilder& setColorAttachment(const std::string& name)
     {
         m_colorAttachmentName = name;
-        m_colorAttachmentPixelFmt = pxFmt;
         return *this;
     }
 
-    inline constexpr ClearPassBuilder& setDepthAttachment(const std::string& name, const gfx::PixelFormat& pxFmt = gfx::PixelFormat::Depth32Float)
+    inline constexpr ClearPassBuilder& setDepthAttachment(const std::string& name)
     {
         m_depthAttachmentName = name;
-        m_depthAttachmentPixelFmt = pxFmt;
         return *this;
     }
 
@@ -189,14 +158,10 @@ public:
     }
 
 private:
-    std::pair<uint32_t, uint32_t> m_renderSize;
-
     std::string m_colorAttachmentName = "backBuffer";
-    gfx::PixelFormat m_colorAttachmentPixelFmt = gfx::PixelFormat::BGRA8Unorm;
     glm::vec3 m_clearColor = glm::vec3(0.0, 0.0, 0.0);
 
-    std::optional<std::string> m_depthAttachmentName= "depthBuffer";
-    std::optional<gfx::PixelFormat> m_depthAttachmentPixelFmt = gfx::PixelFormat::Depth32Float;
+    std::optional<std::string> m_depthAttachmentName = "depthBuffer";
     float m_clearDepth = 1.0f;
 };
 
@@ -205,23 +170,15 @@ class FlatGeometryPassBuilder
 public:
     inline FramePass build() const;
 
-    inline constexpr FlatGeometryPassBuilder& setRenderSize(const std::pair<uint32_t, uint32_t>& s)
-    {
-        m_renderSize = s;
-        return *this;
-    }
-
-    inline constexpr FlatGeometryPassBuilder& setColorAttachment(const std::string& name, const gfx::PixelFormat& pxFmt = gfx::PixelFormat::BGRA8Unorm)
+    inline constexpr FlatGeometryPassBuilder& setColorAttachment(const std::string& name)
     {
         m_colorAttachmentName = name;
-        m_colorAttachmentPixelFmt = pxFmt;
         return *this;
     }
 
-    inline constexpr FlatGeometryPassBuilder& setDepthAttachment(const std::string& name, const gfx::PixelFormat& pxFmt = gfx::PixelFormat::Depth32Float)
+    inline constexpr FlatGeometryPassBuilder& setDepthAttachment(const std::string& name)
     {
         m_depthAttachmentName = name;
-        m_depthAttachmentPixelFmt = pxFmt;
         return *this;
     }
 
@@ -244,14 +201,10 @@ public:
     }
 
 private:
-    std::pair<uint32_t, uint32_t> m_renderSize;
-
     std::string m_colorAttachmentName = "backBuffer";
-    gfx::PixelFormat m_colorAttachmentPixelFmt = gfx::PixelFormat::BGRA8Unorm;
     glm::vec3 m_clearColor = glm::vec3(0.0, 0.0, 0.0);
 
-    std::optional<std::string> m_depthAttachmentName= "depthBuffer";
-    std::optional<gfx::PixelFormat> m_depthAttachmentPixelFmt = gfx::PixelFormat::Depth32Float;
+    std::optional<std::string> m_depthAttachmentName = "depthBuffer";
     float m_clearDepth = 1.0f;
 
     const Scene* m_scene = nullptr;

@@ -13,10 +13,12 @@
 #include <Graphics/ParameterBlockPool.hpp>
 #include <Graphics/Enums.hpp>
 #include <Graphics/Texture.hpp>
+#include <Graphics/Buffer.hpp>
 
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -36,11 +38,37 @@ struct AttachmentDescriptor
     std::string name;
     std::pair<uint32_t, uint32_t> size;
     gfx::PixelFormat pixelFormat;
-    gfx::LoadAction loadAction;
-    union {
-        std::array<float, 4> clearColor;
-        float clearDepth;
-    };
+};
+
+struct ConstantBufferDescriptor
+{
+    std::string name;
+    uint32_t size;
+};
+
+struct StructuredBufferDescriptor
+{
+    std::string name;
+};
+
+struct ColorAttachmentUsage
+{
+    std::string name;
+    gfx::LoadAction loadAction = gfx::LoadAction::load;
+    std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 0.0f};
+};
+
+struct DepthAttachmentUsage
+{
+    std::string name;
+    gfx::LoadAction loadAction = gfx::LoadAction::clear;
+    float clearDepth = 1.0f;
+};
+
+struct FramePassSetupContext
+{
+    std::map<std::string, std::shared_ptr<gfx::Buffer>>& bufferMap;
+    std::function<void(const std::string& name, uint32_t size)> resizeStructuredBuffer;
 };
 
 struct FramePassContext
@@ -48,11 +76,7 @@ struct FramePassContext
     gfx::CommandBuffer& commandBuffer;
     gfx::ParameterBlockPool& parameterBlockPool;
     std::map<std::string, std::shared_ptr<gfx::Texture>>& textureMap;
-
-    std::shared_ptr<gfx::Buffer> frameDataBuffer;
-    std::shared_ptr<gfx::Buffer> directionalLightsBuffer;
-    std::shared_ptr<gfx::Buffer> pointLightsBuffer;
-    std::shared_ptr<gfx::Buffer> materialBuffer;
+    std::map<std::string, std::shared_ptr<gfx::Buffer>>& bufferMap;
 
     std::shared_ptr<gfx::ParameterBlockLayout> frameDataBlockLayout;
     std::shared_ptr<gfx::ParameterBlockLayout> materialBlockLayout;
@@ -63,9 +87,10 @@ struct FramePassContext
 
 struct FramePass
 {
-    std::vector<AttachmentDescriptor> colorAttachments;
-    std::optional<AttachmentDescriptor> depthAttachment;
+    std::vector<ColorAttachmentUsage> colorAttachments;
+    std::optional<DepthAttachmentUsage> depthAttachment;
     std::vector<std::string> sampledAttachments;
+    std::function<void(FramePassSetupContext&)> setup;
     std::function<void(FramePassContext&)> execute;
 
     FramePass() = default;
@@ -80,6 +105,9 @@ public:
     struct Descriptor
     {
         std::string backBufferName;
+        std::vector<AttachmentDescriptor> attachments;
+        std::vector<ConstantBufferDescriptor> constantBuffers;
+        std::vector<StructuredBufferDescriptor> structuredBuffers;
         std::vector<FramePass> passes;
     };
 
@@ -92,6 +120,8 @@ public:
 
     const std::pair<std::string, gfx::Texture::Descriptor>& backBufferDescriptor() const { return m_backBufferDescriptor; }
     const std::map<std::string, gfx::Texture::Descriptor>& textureDescriptors() const { return m_textureDescriptors; }
+    const std::map<std::string, gfx::Buffer::Descriptor>& constantBufferDescriptors() const { return m_constantBufferDescriptors; }
+    const std::set<std::string>& structuredBufferNames() const { return m_structuredBufferNames; }
     const std::vector<FramePass>& passes() const { return m_passes; }
 
     ~FrameGraph() = default;
@@ -100,6 +130,8 @@ private:
     std::vector<FramePass> m_passes;
     std::pair<std::string, gfx::Texture::Descriptor> m_backBufferDescriptor;
     std::map<std::string, gfx::Texture::Descriptor> m_textureDescriptors;
+    std::map<std::string, gfx::Buffer::Descriptor> m_constantBufferDescriptors;
+    std::set<std::string> m_structuredBufferNames;
 
 public:
     FrameGraph& operator=(const FrameGraph&) = default;
