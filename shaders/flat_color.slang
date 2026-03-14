@@ -8,24 +8,23 @@
 
 #include "shader.h"
 
-import frameData;
-import material;
-import phong_shading;
+SLANG_MODULE_IMP(light);
+SLANG_MODULE_IMP(frameData);
+SLANG_MODULE_IMP(phong_shading);
 
-namespace shader
+namespace shader::flat_color
 {
 
+/* -------------------------Vertex Shader------------------------------- */
+
+#ifndef __cplusplus
+
 ParameterBlock<FrameData> frameData;
-ParameterBlock<StructuredBuffer<float4x4>> modelMatrices;
-ParameterBlock<StructuredBuffer<FlatColorMaterial>> materials;
 
 PUSH_CONSTANT
 {
-    uint modelMatrixIndex;
-    uint materialIndex;
+    float4x4 modelMatrix;
 }
-
-/* -------------------------Vertex Shader------------------------------- */
 
 struct Vertex
 {
@@ -43,30 +42,43 @@ struct VSOutput
 [shader("vertex")]
 VSOutput vertexMain(Vertex input)
 {
-    float4 worldPos  = mul(float4(input.pos, 1.0), modelMatrices[modelMatrixIndex]);
+    float4 worldPos  = mul(float4(input.pos, 1.0), modelMatrix);
 
     VSOutput output;
     output.pos     = worldPos.xyz;
     output.clipPos = mul(worldPos, frameData.vpMatrix);
-    output.normal  = mul(input.normal, (float3x3)modelMatrices[modelMatrixIndex]);
+    output.normal  = mul(input.normal, (float3x3)modelMatrix);
     return output;
 }
 
+#endif // ifndef _cplusplus
+
 /* -------------------------Fragment Shader------------------------------- */
+
+struct Material
+{
+    float4 diffuseColor;
+    float3 specularColor; FLOAT3_PADDING(0);
+    float shininess;
+};
+
+#ifndef __cplusplus
+
+ParameterBlock<ConstantBuffer<Material>> material;
 
 [shader("fragment")]
 float4 fragmentMain(VSOutput input) : SV_TARGET
 {
-    if (materials[materialIndex].diffuseColor.a < 1.0f)
+    if (material.diffuseColor.a < 1.0f)
         discard;
 
     phong::FragmentContext fragCtx;
     fragCtx.position      = input.pos;
     fragCtx.normal        = normalize(input.normal);
     fragCtx.cameraDir     = normalize(frameData.cameraPosition - input.pos);
-    fragCtx.diffuseColor  = materials[materialIndex].diffuseColor.rgb;
-    fragCtx.specularColor = materials[materialIndex].specularColor;
-    fragCtx.shininess     = materials[materialIndex].shininess;
+    fragCtx.diffuseColor  = material.diffuseColor.rgb;
+    fragCtx.specularColor = material.specularColor;
+    fragCtx.shininess     = material.shininess;
 
     float3 finalColor = frameData.ambientLightColor * fragCtx.diffuseColor;
     for (int i = 0; i < frameData.directionalLightCount; ++i)
@@ -74,7 +86,9 @@ float4 fragmentMain(VSOutput input) : SV_TARGET
     for (int i = 0; i < frameData.pointLightCount; ++i)
         finalColor += phong::evalPointLight(fragCtx, frameData.pointLights[i]);
 
-    return float4(saturate(finalColor), materials[materialIndex].diffuseColor.a);
+    return float4(saturate(finalColor), material.diffuseColor.a);
 }
 
-}
+#endif // ifndef _cplusplus
+
+} // namespace shader::flat_color

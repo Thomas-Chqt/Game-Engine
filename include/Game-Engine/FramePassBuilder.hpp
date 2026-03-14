@@ -10,8 +10,11 @@
 #define FRAMEPASSBUILDER_HPP
 
 #include "Game-Engine/FrameGraph.hpp"
+#include "Game-Engine/Scene.hpp"
+
 
 #include <Graphics/Enums.hpp>
+#include <Graphics/ParameterBlock.hpp>
 
 #include <imgui.h>
 #include <glm/glm.hpp>
@@ -58,8 +61,7 @@ public:
         framePass.execute = [](FramePassContext& ctx) {
             ImDrawData* drawData = ImGui::GetDrawData();
             for (int i = 0; i < drawData->CmdListsCount; ++i) {
-                ImDrawList* list = drawData->CmdLists[i];
-                for (ImDrawCmd& cmd : list->CmdBuffer) {
+                for (ImDrawCmd& cmd : drawData->CmdLists[i]->CmdBuffer) {
                     if (cmd.TexRef._TexID == 0)
                         continue;
                     assert(cmd.TexRef._TexData == nullptr);
@@ -69,9 +71,10 @@ public:
                                 ctx.textureMap[v]->initImTextureId();
                             cmd.TexRef._TexID = *ctx.textureMap[v]->imTextureId();
                         }
-                        else if constexpr (std::is_same_v<std::remove_cvref_t<decltype(v)>, uint64_t>) {
+                        else if constexpr (std::is_same_v<std::remove_cvref_t<decltype(v)>, uint64_t>)
                             cmd.TexRef._TexID = v;
-                        }
+                        else
+                            std::unreachable();
                     };
                     std::visit(std::move(vistor), *std::bit_cast<std::variant<std::string, uint64_t>*>(cmd.TexRef._TexID));
                 }
@@ -195,6 +198,63 @@ private:
     std::optional<std::string> m_depthAttachmentName= "depthBuffer";
     std::optional<gfx::PixelFormat> m_depthAttachmentPixelFmt = gfx::PixelFormat::Depth32Float;
     float m_clearDepth = 1.0f;
+};
+
+class FlatGeometryPassBuilder
+{
+public:
+    inline FramePass build() const;
+
+    inline constexpr FlatGeometryPassBuilder& setRenderSize(const std::pair<uint32_t, uint32_t>& s)
+    {
+        m_renderSize = s;
+        return *this;
+    }
+
+    inline constexpr FlatGeometryPassBuilder& setColorAttachment(const std::string& name, const gfx::PixelFormat& pxFmt = gfx::PixelFormat::BGRA8Unorm)
+    {
+        m_colorAttachmentName = name;
+        m_colorAttachmentPixelFmt = pxFmt;
+        return *this;
+    }
+
+    inline constexpr FlatGeometryPassBuilder& setDepthAttachment(const std::string& name, const gfx::PixelFormat& pxFmt = gfx::PixelFormat::Depth32Float)
+    {
+        m_depthAttachmentName = name;
+        m_depthAttachmentPixelFmt = pxFmt;
+        return *this;
+    }
+
+    inline constexpr FlatGeometryPassBuilder& setClearColor(const glm::vec3& color)
+    {
+        m_clearColor = color;
+        return *this;
+    }
+
+    inline constexpr FlatGeometryPassBuilder& setClearDepth(float value)
+    {
+        m_clearDepth = value;
+        return *this;
+    }
+
+    inline constexpr FlatGeometryPassBuilder& setScene(const Scene* scene)
+    {
+        m_scene = scene;
+        return *this;
+    }
+
+private:
+    std::pair<uint32_t, uint32_t> m_renderSize;
+
+    std::string m_colorAttachmentName = "backBuffer";
+    gfx::PixelFormat m_colorAttachmentPixelFmt = gfx::PixelFormat::BGRA8Unorm;
+    glm::vec3 m_clearColor = glm::vec3(0.0, 0.0, 0.0);
+
+    std::optional<std::string> m_depthAttachmentName= "depthBuffer";
+    std::optional<gfx::PixelFormat> m_depthAttachmentPixelFmt = gfx::PixelFormat::Depth32Float;
+    float m_clearDepth = 1.0f;
+
+    const Scene* m_scene = nullptr;
 };
 
 }

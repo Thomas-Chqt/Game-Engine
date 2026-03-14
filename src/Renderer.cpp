@@ -11,11 +11,17 @@
 #include "Game-Engine/FrameGraph.hpp"
 #include "Game-Engine/Mesh.hpp"
 
+#include "shaders/FrameData.slang"
+#include "shaders/Light.slang"
+#include "shaders/flat_color.slang"
+
 #include <Graphics/CommandBuffer.hpp>
 #include <Graphics/Drawable.hpp>
 #include <Graphics/Framebuffer.hpp>
 #include <Graphics/Texture.hpp>
 #include <Graphics/GraphicsPipeline.hpp>
+#include <Graphics/Enums.hpp>
+#include <Graphics/Buffer.hpp>
 
 #include <algorithm>
 #include <cassert>
@@ -34,32 +40,16 @@ namespace GE
 Renderer::Renderer(gfx::Device* device, gfx::Surface* surface)
     : m_device(device), m_surface(surface)
 {
-    for (auto& frameData : m_frameDatas)
-    {
-        frameData.commandBufferPool = m_device->newCommandBufferPool();
-        assert(frameData.commandBufferPool);
-
-        frameData.parameterBlockPool = m_device->newParameterBlockPool({ .maxUniformBuffers = 2, .maxTextures = 0, .maxSamplers = 0 });
-        assert(frameData.parameterBlockPool);
-    }
-
-    m_vpMatrixBlockLayout = m_device->newParameterBlockLayout(gfx::ParameterBlockLayout::Descriptor{
+    m_frameDataBlockLayout = m_device->newParameterBlockLayout({
         .bindings = {
-            gfx::ParameterBlockBinding{ .type = gfx::BindingType::uniformBuffer, .usages = gfx::BindingUsage::fragmentRead },
-            gfx::ParameterBlockBinding{ .type = gfx::BindingType::uniformBuffer, .usages = gfx::BindingUsage::fragmentRead },
-            gfx::ParameterBlockBinding{ .type = gfx::BindingType::uniformBuffer, .usages = gfx::BindingUsage::fragmentRead },
+            { .type = gfx::BindingType::constantBuffer,   .usages = gfx::BindingUsage::vertexRead | gfx::BindingUsage::fragmentRead },
+            { .type = gfx::BindingType::structuredBuffer, .usages = gfx::BindingUsage::vertexRead | gfx::BindingUsage::fragmentRead },
+            { .type = gfx::BindingType::structuredBuffer, .usages = gfx::BindingUsage::vertexRead | gfx::BindingUsage::fragmentRead }
         }
     });
-
-    m_sceneDataBlockLayout = m_device->newParameterBlockLayout(gfx::ParameterBlockLayout::Descriptor{
+    m_materialBlockLayout = m_device->newParameterBlockLayout({
         .bindings = {
-            gfx::ParameterBlockBinding{ .type = gfx::BindingType::uniformBuffer, .usages = gfx::BindingUsage::fragmentRead },
-        }
-    });
-
-    m_materiaBlockLayout = m_device->newParameterBlockLayout(gfx::ParameterBlockLayout::Descriptor{
-        .bindings = {
-            gfx::ParameterBlockBinding{ .type = gfx::BindingType::uniformBuffer, .usages = gfx::BindingUsage::fragmentRead },
+            { .type = gfx::BindingType::constantBuffer, .usages = gfx::BindingUsage::vertexRead }
         }
     });
 
@@ -84,11 +74,53 @@ Renderer::Renderer(gfx::Device* device, gfx::Surface* surface)
         .blendOperation = gfx::BlendOperation::blendingOff,
         .cullMode = gfx::CullMode::back,
         .parameterBlockLayouts = {
-            Renderer::vpMatrixBpLayout(),
-            Renderer::sceneDataBpLayout(),
-            m_parameterBlockLayout
+            m_frameDataBlockLayout,
+            m_materialBlockLayout
         }
-    })
+    });
+
+    for (auto& inFlightData : m_inFlightDatas)
+    {
+        inFlightData.commandBufferPool = m_device->newCommandBufferPool();
+        assert(inFlightData.commandBufferPool);
+
+        inFlightData.parameterBlockPool = m_device->newParameterBlockPool({
+            .maxBindingCount = {
+                {gfx::BindingType::constantBuffer, 2},
+                {gfx::BindingType::structuredBuffer, 2},
+            }
+        });
+        assert(inFlightData.parameterBlockPool);
+
+        inFlightData.frameDataBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
+            .size = sizeof(shader::FrameData),
+            .usages = gfx::BufferUsage::constantBuffer,
+            .storageMode = gfx::ResourceStorageMode::hostVisible
+        });
+        assert(inFlightData.frameDataBuffer);
+
+        inFlightData.directionalLightsBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
+            .size = sizeof(shader::DirectionalLight) * 10,
+            .usages = gfx::BufferUsage::structuredBuffer,
+            .storageMode = gfx::ResourceStorageMode::hostVisible
+        });
+        assert(inFlightData.directionalLightsBuffer);
+
+        inFlightData.pointLightsBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
+            .size = sizeof(shader::PointLight) * 10,
+            .usages = gfx::BufferUsage::structuredBuffer,
+            .storageMode = gfx::ResourceStorageMode::hostVisible
+        });
+        assert(inFlightData.pointLightsBuffer);
+
+        inFlightData.materialBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
+            .size = sizeof(shader::flat_color::Material),
+            .usages = gfx::BufferUsage::structuredBuffer,
+            .storageMode = gfx::ResourceStorageMode::hostVisible
+        });
+        assert(inFlightData.materialBuffer);
+    }
+
 }
 
 void Renderer::renderFrame(const FrameGraph& frameGraph)
@@ -173,7 +205,18 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
             FramePassContext framePassContext = {
                 .commandBuffer = *commandBuffer,
                 .parameterBlockPool = *cfd.parameterBlockPool,
-                .textureMap = textureMap
+                .textureMap = textureMap,
+                .frameDataBuffer = cfd.frameDataBuffer,
+                .directionalLightsBuffer = cfd.directionalLightsBuffer,
+                .pointLightsBuffer = cfd.pointLightsBuffer,
+                .materialBuffer = cfd.materialBuffer,
+                .frameDataBlockLayout = m_frameDataBlockLayout,
+                .materialBlockLayout = m_materialBlockLayout,
+                .gfxPipeline = m_gfxPipeline,
+                .renderSize = {
+                    framebuffer.colorAttachments[0].texture->width(),
+                    framebuffer.colorAttachments[0].texture->height()
+                }
             };
             framePass.execute(framePassContext);
         }

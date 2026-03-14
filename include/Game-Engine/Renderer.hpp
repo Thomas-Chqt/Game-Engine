@@ -11,19 +11,20 @@
 #define RENDERER_HPP
 
 #include "Game-Engine/FrameGraph.hpp"
-#include "Graphics/GraphicsPipeline.hpp"
 
 #include <Graphics/Device.hpp>
 #include <Graphics/Surface.hpp>
 #include <Graphics/Swapchain.hpp>
 #include <Graphics/Texture.hpp>
+#include <Graphics/Buffer.hpp>
+#include <Graphics/GraphicsPipeline.hpp>
 
 #include <cstdint>
 #include <memory>
 #include <utility>
 #include <set>
 
-#define cfd m_frameDatas.at(m_frameIdx)
+#define cfd m_inFlightDatas.at(m_frameIdx)
 
 namespace GE
 {
@@ -44,11 +45,16 @@ public:
     ~Renderer();
 
 private:
-    struct FrameData
+    struct InFlightData
     {
         std::unique_ptr<gfx::CommandBufferPool> commandBufferPool;
         std::unique_ptr<gfx::ParameterBlockPool> parameterBlockPool;
         gfx::CommandBuffer* waitedCmdBuffer = nullptr;
+
+        std::shared_ptr<gfx::Buffer> frameDataBuffer;
+        std::shared_ptr<gfx::Buffer> directionalLightsBuffer;
+        std::shared_ptr<gfx::Buffer> pointLightsBuffer;
+        std::shared_ptr<gfx::Buffer> materialBuffer;
 
         std::set<std::pair<gfx::Texture::Descriptor, std::shared_ptr<gfx::Texture>>> transientTextures;
     };
@@ -56,15 +62,14 @@ private:
     gfx::Device* m_device;
     gfx::Surface* m_surface;
 
+    std::shared_ptr<gfx::ParameterBlockLayout> m_frameDataBlockLayout;
+    std::shared_ptr<gfx::ParameterBlockLayout> m_materialBlockLayout;
+    std::shared_ptr<gfx::GraphicsPipeline> m_gfxPipeline; // only one for now
+
     std::unique_ptr<gfx::Swapchain> m_swapchain;
 
     uint8_t m_frameIdx = 0;
-    std::array<FrameData, maxFrameInFlight> m_frameDatas;
-
-    std::shared_ptr<gfx::ParameterBlockLayout> m_vpMatrixBlockLayout;
-    std::shared_ptr<gfx::ParameterBlockLayout> m_sceneDataBlockLayout;
-    std::shared_ptr<gfx::ParameterBlockLayout> m_materiaBlockLayout;
-    std::shared_ptr<gfx::GraphicsPipeline> m_gfxPipeline; // only one for now
+    std::array<InFlightData, maxFrameInFlight> m_inFlightDatas;
 
 public:
     Renderer& operator=(const Renderer&) = delete;

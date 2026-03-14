@@ -14,6 +14,7 @@
 #include <Graphics/Enums.hpp>
 #include <Graphics/Texture.hpp>
 
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <string>
@@ -47,6 +48,17 @@ struct FramePassContext
     gfx::CommandBuffer& commandBuffer;
     gfx::ParameterBlockPool& parameterBlockPool;
     std::map<std::string, std::shared_ptr<gfx::Texture>>& textureMap;
+
+    std::shared_ptr<gfx::Buffer> frameDataBuffer;
+    std::shared_ptr<gfx::Buffer> directionalLightsBuffer;
+    std::shared_ptr<gfx::Buffer> pointLightsBuffer;
+    std::shared_ptr<gfx::Buffer> materialBuffer;
+
+    std::shared_ptr<gfx::ParameterBlockLayout> frameDataBlockLayout;
+    std::shared_ptr<gfx::ParameterBlockLayout> materialBlockLayout;
+    std::shared_ptr<gfx::GraphicsPipeline> gfxPipeline; // only one for now
+
+    std::pair<uint32_t, uint32_t> renderSize;
 };
 
 struct FramePass

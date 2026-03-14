@@ -35,8 +35,8 @@ public:
     auto activeCamera(this auto&& self)
     {
         if (self.m_activeCamera == INVALID_ENTITY_ID)
-            return Entity();
-        return basic_entity(self.m_ecsWorld, self.m_activeCamera);
+            return const_Entity();
+        return basic_entity(&self.m_ecsWorld, self.m_activeCamera);
     }
 
     void setActiveCamera(const Entity& e);

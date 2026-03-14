@@ -25,12 +25,16 @@ namespace shader
     #define SLANG_PUBLIC
     #define SLANG_MODULE_DEF(name)
     #define SLANG_MODULE_IMP(name)
+    #define CBUFFER_BEGIN(name)
+    #define CBUFFER_END
     #define FLOAT3_PADDING(n) float _padding##n
 #else
     #define SLANG_PUBLIC public
     #define SLANG_MODULE_DEF(name) module name
     #define SLANG_MODULE_IMP(name) import name
     #define alignas(n)
+    #define CBUFFER_BEGIN(name) cbuffer name {
+    #define CBUFFER_END };
     #ifdef __SPIRV__
         #define FLOAT3_PADDING(n) float _padding##n
     #else

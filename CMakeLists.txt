@@ -54,11 +54,12 @@ target_sources(Game-Engine PRIVATE
     "src/FrameGraph.cpp"
     "src/main.cpp"
     "src/Scene.cpp"
+    "src/FramePassBuilder.cpp"
 )
 
 target_include_directories(Game-Engine
     PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # target_precompile_headers(Graphics PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp")
 
