@@ -50,16 +50,18 @@ public:
     inline constexpr Derived& setDepthAttachment(const std::string& name)
     {
         if (!m_depthAttachment)
-            m_depthAttachment.emplace();
-        m_depthAttachment->texture = name;
+            m_depthAttachment.emplace(AttachmentDescriptor{ .texture = name, .loadAction = gfx::LoadAction::clear, .clearDepth = 1.0f });
+        else
+            m_depthAttachment->texture = name;
         return static_cast<Derived&>(*this);
     }
 
     inline constexpr Derived& setClearDepth(float value)
     {
         if (!m_depthAttachment)
-            m_depthAttachment.emplace();
-        m_depthAttachment->clearDepth = value;
+            m_depthAttachment.emplace(AttachmentDescriptor{ .loadAction = gfx::LoadAction::clear, .clearDepth = value });
+        else
+            m_depthAttachment->clearDepth = value;
         return static_cast<Derived&>(*this);
     }
 
@@ -81,11 +83,7 @@ protected:
         .loadAction = gfx::LoadAction::clear,
         .clearColor = {0.0f, 0.0f, 0.0f, 0.0f},
     };
-    std::optional<AttachmentDescriptor> m_depthAttachment = AttachmentDescriptor{
-        .texture = "depthBuffer",
-        .loadAction = gfx::LoadAction::clear,
-        .clearDepth = 1.0f,
-    };
+    std::optional<AttachmentDescriptor> m_depthAttachment;
     std::vector<std::string> m_sampledTextureNames;
     std::vector<std::string> m_usedBufferNames;
 };
