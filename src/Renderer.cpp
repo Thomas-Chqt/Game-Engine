@@ -11,10 +11,6 @@
 #include "Game-Engine/FrameGraph.hpp"
 #include "Game-Engine/Mesh.hpp"
 
-#include "shaders/FrameData.slang"
-#include "shaders/Light.slang"
-#include "shaders/flat_color.slang"
-
 #include <Graphics/CommandBuffer.hpp>
 #include <Graphics/Drawable.hpp>
 #include <Graphics/Framebuffer.hpp>
@@ -23,10 +19,10 @@
 #include <Graphics/Enums.hpp>
 #include <Graphics/Buffer.hpp>
 
-#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstring>
+#include <map>
 #include <memory>
 #include <optional>
 #include <print>
@@ -106,76 +102,73 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         cfd.parameterBlockPool->reset();
     }
 
-    const auto& backBufferDesc = frameGraph.textureDescriptors().at(frameGraph.backBufferName());
-
-    if (m_swapchain == nullptr || m_swapchain->drawablesTextureDescriptor() != backBufferDesc)
-    {
-        gfx::Swapchain::Descriptor swapchainDescriptor = {
-            .surface = m_surface,
-            .width = backBufferDesc.width,
-            .height = backBufferDesc.height,
-            .imageCount = 3,
-            .drawableCount = maxFrameInFlight,
-            .pixelFormat = backBufferDesc.pixelFormat,
-            .presentMode = gfx::PresentMode::fifo,
-        };
-        // std::println("recreating swapchain with size w:{}, h:{}", swapchainDescriptor.width, swapchainDescriptor.height);
-        m_device->waitIdle();
-        m_swapchain = m_device->newSwapchain(swapchainDescriptor);
-        assert(m_swapchain);
-    }
-    assert(m_swapchain->drawablesTextureDescriptor() == backBufferDesc);
-
-    // Create/reuse transient textures (skip back buffer)
     std::map<std::string, std::shared_ptr<gfx::Texture>> textureMap;
-    std::set<std::pair<gfx::Texture::Descriptor, std::shared_ptr<gfx::Texture>>> usedTextures;
-
+    std::map<gfx::Texture::Descriptor, std::set<std::shared_ptr<gfx::Texture>>> newTextureCache;
     for (auto& [textureName, textureDescriptor] : frameGraph.textureDescriptors())
     {
-        if (textureName == frameGraph.backBufferName())
-            continue;
-
-        std::shared_ptr<gfx::Texture> texture;
-        auto it = std::ranges::find_if(cfd.transientTextures, [&](auto& element) -> bool { return element.first == textureDescriptor; });
-        if (it != cfd.transientTextures.end())
-            texture = cfd.transientTextures.extract(it).value().second;
+        if (textureName == frameGraph.backBufferName() && (m_swapchain == nullptr || m_swapchain->drawablesTextureDescriptor() != textureDescriptor))
+        {
+            gfx::Swapchain::Descriptor swapchainDescriptor = {
+                .surface = m_surface,
+                .width = textureDescriptor.width,
+                .height = textureDescriptor.height,
+                .imageCount = 3,
+                .drawableCount = maxFrameInFlight,
+                .pixelFormat = textureDescriptor.pixelFormat,
+                .presentMode = gfx::PresentMode::fifo,
+            };
+            // std::println("recreating swapchain with size w:{}, h:{}", swapchainDescriptor.width, swapchainDescriptor.height);
+            m_device->waitIdle();
+            m_swapchain = m_device->newSwapchain(swapchainDescriptor);
+            assert(m_swapchain);
+        }
         else
-            texture = m_device->newTexture(textureDescriptor);
-        textureMap.insert(std::make_pair(textureName, texture));
-        usedTextures.insert(std::make_pair(textureDescriptor, texture));
+        {
+            std::shared_ptr<gfx::Texture> texture;
+            auto it = cfd.textureCache.find(textureDescriptor);
+            if (it == cfd.textureCache.end() || it->second.empty())
+                texture = m_device->newTexture(textureDescriptor);
+            else
+                texture = it->second.extract(it->second.begin()).value();
+            auto [_, inserted] = textureMap.insert(std::make_pair(textureName, texture));
+            assert(inserted);
+            newTextureCache[textureDescriptor].insert(texture);
+        }
     }
-    cfd.transientTextures = std::move(usedTextures);
 
-    // Create/reuse constant buffers
+    std::map<std::string, std::shared_ptr<gfx::Buffer>> bufferMap;
+    std::map<gfx::Buffer::Descriptor, std::set<std::shared_ptr<gfx::Buffer>>> newBufferCache;
     for (auto& [bufferName, bufferDescriptor] : frameGraph.constantBufferDescriptors())
     {
-        auto it = cfd.constantBuffers.find(bufferName);
-        if (it == cfd.constantBuffers.end() || it->second->size() != bufferDescriptor.size)
-        {
-            std::shared_ptr<gfx::Buffer> newBuffer = m_device->newBuffer(bufferDescriptor);
-            assert(newBuffer);
-            cfd.constantBuffers[bufferName] = newBuffer;
-        }
+        std::shared_ptr<gfx::Buffer> buffer;
+        auto it = cfd.bufferCache.find(bufferDescriptor);
+        if (it == cfd.bufferCache.end() || it->second.empty())
+            buffer = m_device->newBuffer(bufferDescriptor);
+        else
+            buffer = it->second.extract(it->second.begin()).value();
+        auto [_, inserted] = bufferMap.insert(std::make_pair(bufferName, buffer));
+        assert(inserted);
+        newBufferCache[bufferDescriptor].insert(buffer);
     }
 
-    // Callback to set structured buffer size and content in one call
-    auto setStructuredBufferContent = [&](const std::string& name, const void* data, uint32_t size) {
-        if (!frameGraph.structuredBufferNames().contains(name))
+    auto setStructuredBufferContent = [&](const std::string& bufferName, const void* data, uint32_t size) {
+        if (data == nullptr || size == 0)
             return;
-        uint32_t allocSize = std::max(size, (uint32_t)1);
-        auto it = cfd.structuredBuffers.find(name);
-        if (it == cfd.structuredBuffers.end() || it->second->size() < allocSize)
-        {
-            std::shared_ptr<gfx::Buffer> newBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
-                .size = allocSize,
-                .usages = gfx::BufferUsage::structuredBuffer,
-                .storageMode = gfx::ResourceStorageMode::hostVisible
-            });
-            assert(newBuffer);
-            cfd.structuredBuffers[name] = newBuffer;
-        }
-        if (data != nullptr && size > 0)
-            std::memcpy(cfd.structuredBuffers[name]->content<std::byte>(), data, size);
+        gfx::Buffer::Descriptor bufferDescriptor = gfx::Buffer::Descriptor{
+            .size = size,
+            .usages = gfx::BufferUsage::structuredBuffer,
+            .storageMode = gfx::ResourceStorageMode::hostVisible
+        };
+        std::shared_ptr<gfx::Buffer> buffer;
+        auto it = cfd.bufferCache.find(bufferDescriptor);
+        if (it == cfd.bufferCache.end() || it->second.empty())
+            buffer = m_device->newBuffer(bufferDescriptor);
+        else
+            buffer = it->second.extract(it->second.begin()).value();
+        auto [_, inserted] = bufferMap.insert(std::make_pair(bufferName, buffer));
+        assert(inserted);
+        newBufferCache[bufferDescriptor].insert(buffer);
+        std::memcpy(buffer->content<std::byte>(), data, size);
     };
 
     std::shared_ptr<gfx::CommandBuffer> commandBuffer = cfd.commandBufferPool->get();
@@ -190,49 +183,14 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
             textureMap[frameGraph.backBufferName()] = drawable->texture();
         }
 
-        // Build filtered texture map for this pass
-        std::map<std::string, std::shared_ptr<gfx::Texture>> passTextureMap;
-        for (auto& ca : framePass.colorAttachments)
-            passTextureMap[ca.texture] = textureMap.at(ca.texture);
-        if (framePass.depthAttachment)
-            passTextureMap[framePass.depthAttachment->texture] = textureMap.at(framePass.depthAttachment->texture);
-        for (auto& st : framePass.sampledTextures)
-            passTextureMap[st] = textureMap.at(st);
-
-        // Build filtered constant buffer map for this pass
-        std::map<std::string, std::shared_ptr<gfx::Buffer>> passConstantBuffers;
-        for (auto& bufName : framePass.usedBuffers)
-        {
-            auto it = cfd.constantBuffers.find(bufName);
-            if (it != cfd.constantBuffers.end())
-                passConstantBuffers[bufName] = it->second;
-        }
-
-        // Run setup phase if present
         if (framePass.setup)
         {
             FramePassSetupContext setupContext = {
-                .textureMap = passTextureMap,
-                .constantBuffers = passConstantBuffers,
-                .setStructuredBufferContent = [&](const std::string& name, const void* data, uint32_t size) {
-                    if (std::ranges::find(framePass.usedBuffers, name) == framePass.usedBuffers.end())
-                        return;
-                    setStructuredBufferContent(name, data, size);
-                },
+                .textureMap = textureMap,
+                .constantBuffers = bufferMap,
+                .setStructuredBufferContent = setStructuredBufferContent,
             };
             framePass.setup(setupContext);
-        }
-
-        // Build filtered buffer map for execute phase (after setup may have modified structured buffers)
-        std::map<std::string, std::shared_ptr<gfx::Buffer>> passBufferMap;
-        for (auto& bufName : framePass.usedBuffers)
-        {
-            auto it = cfd.constantBuffers.find(bufName);
-            if (it != cfd.constantBuffers.end())
-                passBufferMap[bufName] = it->second;
-            auto it2 = cfd.structuredBuffers.find(bufName);
-            if (it2 != cfd.structuredBuffers.end())
-                passBufferMap[bufName] = it2->second;
         }
 
         gfx::Framebuffer framebuffer = gfx::Framebuffer{
@@ -241,7 +199,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
                                       return gfx::Framebuffer::Attachment{
                                           .loadAction = attachment.loadAction,
                                           .clearColor = attachment.clearColor,
-                                          .texture = passTextureMap.at(attachment.texture)
+                                          .texture = textureMap.at(attachment.texture)
                                       };
                                   })
                                 | std::ranges::to<std::vector>(),
@@ -249,20 +207,20 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
                                    ? std::make_optional(gfx::Framebuffer::Attachment{
                                          .loadAction = framePass.depthAttachment->loadAction,
                                          .clearDepth = framePass.depthAttachment->clearDepth,
-                                         .texture = passTextureMap.at(framePass.depthAttachment->texture) })
+                                         .texture = textureMap.at(framePass.depthAttachment->texture) })
                                    : std::nullopt
         };
 
         for (auto& textureName : framePass.sampledTextures)
-            commandBuffer->addSampledTexture(passTextureMap.at(textureName));
+            commandBuffer->addSampledTexture(textureMap.at(textureName));
 
         commandBuffer->beginRenderPass(framebuffer);
         {
             FramePassExecuteContext framePassContext = {
                 .commandBuffer = *commandBuffer,
                 .parameterBlockPool = *cfd.parameterBlockPool,
-                .textureMap = passTextureMap,
-                .bufferMap = passBufferMap,
+                .textureMap = textureMap,
+                .bufferMap = bufferMap,
                 .frameDataBlockLayout = m_frameDataBlockLayout,
                 .materialBlockLayout = m_materialBlockLayout,
                 .gfxPipeline = m_gfxPipeline
@@ -278,6 +236,8 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
     m_device->submitCommandBuffers(commandBuffer);
     cfd.waitedCmdBuffer = commandBuffer.get();
 
+    cfd.textureCache = std::move(newTextureCache);
+    cfd.bufferCache = std::move(newBufferCache);
     m_frameIdx = (m_frameIdx + 1) % maxFrameInFlight;
 }
 

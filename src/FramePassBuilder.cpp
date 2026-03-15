@@ -11,29 +11,25 @@
 #include "Game-Engine/Components.hpp"
 #include "Game-Engine/ECSView.hpp"
 #include "Game-Engine/Entity.hpp"
-
 #include "Game-Engine/Mesh.hpp"
+
 #include "shaders/FrameData.slang"
 #include "shaders/Light.slang"
 #include "shaders/flat_color.slang"
 
-#include <future>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <cassert>
 #include <memory>
 #include <vector>
+#include <future>
 
 namespace GE
 {
 
 FramePass FlatGeometryPassBuilder::build() const
 {
-    GE::FramePass framePass;
-    framePass.colorAttachments = { m_colorAttachment };
-    framePass.depthAttachment = m_depthAttachment;
-    framePass.sampledTextures = m_sampledTextureNames;
-    framePass.usedBuffers = m_usedBufferNames;
+    GE::FramePass framePass = FramePassBuilderBase<FlatGeometryPassBuilder>::build();
 
     framePass.setup = [scene=m_scene, colorTexture=m_colorAttachment.texture](FramePassSetupContext& ctx)
     {
@@ -103,8 +99,10 @@ FramePass FlatGeometryPassBuilder::build() const
 
         std::shared_ptr<gfx::ParameterBlock> frameDataPBlock = ctx.parameterBlockPool.get(ctx.frameDataBlockLayout);
         frameDataPBlock->setBinding(0, ctx.bufferMap.at("frameData"));
-        frameDataPBlock->setBinding(1, ctx.bufferMap.at("directionalLights"));
-        frameDataPBlock->setBinding(2, ctx.bufferMap.at("pointLights"));
+        if (ctx.bufferMap.contains("directionalLights"))
+            frameDataPBlock->setBinding(1, ctx.bufferMap.at("directionalLights"));
+        if (ctx.bufferMap.contains("pointLights"))
+            frameDataPBlock->setBinding(2, ctx.bufferMap.at("pointLights"));
 
         std::shared_ptr<gfx::ParameterBlock> materialPBlock = ctx.parameterBlockPool.get(ctx.materialBlockLayout);
         materialPBlock->setBinding(0, ctx.bufferMap.at("material"));

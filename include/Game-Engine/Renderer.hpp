@@ -22,8 +22,6 @@
 #include <cstdint>
 #include <map>
 #include <memory>
-#include <string>
-#include <utility>
 #include <set>
 
 #define cfd m_inFlightDatas.at(m_frameIdx)
@@ -53,10 +51,8 @@ private:
         std::unique_ptr<gfx::ParameterBlockPool> parameterBlockPool;
         gfx::CommandBuffer* waitedCmdBuffer = nullptr;
 
-        std::map<std::string, std::shared_ptr<gfx::Buffer>> constantBuffers;
-        std::map<std::string, std::shared_ptr<gfx::Buffer>> structuredBuffers;
-
-        std::set<std::pair<gfx::Texture::Descriptor, std::shared_ptr<gfx::Texture>>> transientTextures;
+        std::map<gfx::Texture::Descriptor, std::set<std::shared_ptr<gfx::Texture>>> textureCache;
+        std::map<gfx::Buffer::Descriptor, std::set<std::shared_ptr<gfx::Buffer>>> bufferCache;
     };
 
     gfx::Device* m_device;

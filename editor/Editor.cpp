@@ -38,7 +38,7 @@ Editor::Editor()
 
     GE::Entity teapot = m_editedScene.newEntity("teapot");
     teapot.emplace<GE::TransformComponent>().position.z = -3;
-    teapot.emplace<GE::MeshComponent>().mesh = assetManager().registerAsset<GE::Mesh>(RESOURCE_DIR"/teapot");
+    teapot.emplace<GE::MeshComponent>().id = assetManager().registerAsset<GE::Mesh>(RESOURCE_DIR"/teapot.obj");
 
     GE::Entity camera = m_editedScene.newEntity("camera");
     camera.emplace<GE::TransformComponent>();
@@ -72,16 +72,22 @@ void Editor::rebuildFrameGraph()
     m_frameGraph = GE::FrameGraph(GE::FrameGraph::Descriptor{
         .backBufferName = "windowBackBuffer",
         .textures = {
-            { .name = "windowBackBuffer",    .size = window().frameBufferSize(), .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
-            { .name = "viewportBackBuffer",  .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
-            { .name = "depthBuffer",         .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::Depth32Float },
+            { .name = "viewportBackBuffer", .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
+            { .name = "depthBuffer",        .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::Depth32Float },
+            { .name = "windowBackBuffer",   .size = window().frameBufferSize(), .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
+        },
+        .constantBuffers {
+            { .name = "frameData", .size = 100u },
+            { .name = "material", .size = 100u }
+        },
+        .structuredBuffers {
+            { .name = "directionalLights" },
+            { .name = "pointLights" }
         },
         .passes = {
-            GE::ClearPassBuilder()
+            GE::FlatGeometryPassBuilder(&m_editedScene, &assetManager())
                 .setColorAttachment("viewportBackBuffer")
-                .setClearColor({0.0f, 1.0f, 1.0f})
-                .setDepthAttachment("depthBuffer")
-                .setClearDepth(1.0f),
+                .setDepthAttachment("depthBuffer"),
             GE::ImguiPassBuilder()
                 .setColorAttachment("windowBackBuffer")
                 .addSampledTexture("viewportBackBuffer")

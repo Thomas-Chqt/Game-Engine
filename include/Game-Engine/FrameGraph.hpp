@@ -54,9 +54,9 @@ struct StructuredBufferDescriptor
 struct AttachmentDescriptor
 {
     std::string texture;
-    gfx::LoadAction loadAction = gfx::LoadAction::clear;
+    gfx::LoadAction loadAction;
     union {
-        std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 0.0f};
+        std::array<float, 4> clearColor;
         float clearDepth;
     };
 };

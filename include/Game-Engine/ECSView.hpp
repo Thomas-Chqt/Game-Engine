@@ -68,7 +68,7 @@ public:
 
     void onFirst(const std::function<void(basic_entity<ECSWorldT>, std::conditional_t<std::is_const_v<ECSWorldT>, const Cs&, Cs&> ...)>& f) const
     {
-        onFirst([&](typename ECSWorldT::EntityId entityId, Cs& ... components){
+        onFirst([&](typename ECSWorldT::EntityID entityId, std::conditional_t<std::is_const_v<ECSWorldT>, const Cs&, Cs&> ... components){
             basic_entity<ECSWorldT> entity = {
                 .world = m_world,
                 .entityId = entityId
@@ -92,7 +92,7 @@ public:
 
     void onEach(const std::function<void(basic_entity<ECSWorldT>, std::conditional_t<std::is_const_v<ECSWorldT>, const Cs&, Cs&> ...)>& f) const
     {
-        onEach([&](typename ECSWorldT::EntityId entityId, Cs& ... components){
+        onEach([&](typename ECSWorldT::EntityID entityId, std::conditional_t<std::is_const_v<ECSWorldT>, const Cs&, Cs&> ... components){
             basic_entity<ECSWorldT> entity = {
                 .world = m_world,
                 .entityId = entityId
