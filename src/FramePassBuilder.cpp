@@ -46,7 +46,7 @@ FramePass FlatGeometryPassBuilder::build() const
         rotationMat = glm::rotate(rotationMat, cameraTransform.rotation.x, glm::vec3(1, 0, 0));
         rotationMat = glm::rotate(rotationMat, cameraTransform.rotation.z, glm::vec3(0, 0, 1));
 
-        shader::FrameData& frameData = *ctx.constantBuffers["frameData"]->content<shader::FrameData>();
+        shader::FrameData& frameData = *ctx.constantBuffers.at("frameData")->content<shader::FrameData>();
 
         glm::vec3 pos = cameraTransform.position;
         glm::vec3 dir = rotationMat * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
@@ -89,7 +89,7 @@ FramePass FlatGeometryPassBuilder::build() const
         ctx.setStructuredBufferContent("directionalLights", directionalLights.data(), directionalLights.size() * sizeof(shader::DirectionalLight));
         ctx.setStructuredBufferContent("pointLights", pointLights.data(), pointLights.size() * sizeof(shader::PointLight));
 
-        shader::flat_color::Material& material = *ctx.constantBuffers["material"]->content<shader::flat_color::Material>();
+        shader::flat_color::Material& material = *ctx.constantBuffers.at("material")->content<shader::flat_color::Material>();
         material.diffuseColor = glm::vec4(1.0f);
         material.specularColor = glm::vec4(0.0f);
         material.shininess = 0.0f;
@@ -102,12 +102,12 @@ FramePass FlatGeometryPassBuilder::build() const
         ctx.commandBuffer.usePipeline(ctx.gfxPipeline);
 
         std::shared_ptr<gfx::ParameterBlock> frameDataPBlock = ctx.parameterBlockPool.get(ctx.frameDataBlockLayout);
-        frameDataPBlock->setBinding(0, ctx.bufferMap["frameData"]);
-        frameDataPBlock->setBinding(1, ctx.bufferMap["directionalLights"]);
-        frameDataPBlock->setBinding(2, ctx.bufferMap["pointLights"]);
+        frameDataPBlock->setBinding(0, ctx.bufferMap.at("frameData"));
+        frameDataPBlock->setBinding(1, ctx.bufferMap.at("directionalLights"));
+        frameDataPBlock->setBinding(2, ctx.bufferMap.at("pointLights"));
 
         std::shared_ptr<gfx::ParameterBlock> materialPBlock = ctx.parameterBlockPool.get(ctx.materialBlockLayout);
-        materialPBlock->setBinding(0, ctx.bufferMap["material"]);
+        materialPBlock->setBinding(0, ctx.bufferMap.at("material"));
 
         const_ECSView<TransformComponent, MeshComponent>(&scene->ecsWorld()).onEach([&](const_Entity, const TransformComponent& transform, const MeshComponent meshId)
         {
