@@ -44,33 +44,17 @@ public:
         return framePass;
     }
 
-    inline constexpr Derived& setColorAttachment(const std::string& name, gfx::LoadAction lAc = gfx::LoadAction::clear)
+    inline constexpr Derived& setColorAttachment(const std::string& name, gfx::LoadAction loadAction = gfx::LoadAction::clear, std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 1.0f})
     {
         m_colorAttachment.texture = name;
-        m_colorAttachment.loadAction = lAc;
+        m_colorAttachment.loadAction = loadAction;
+        m_colorAttachment.clearColor = clearColor;
         return static_cast<Derived&>(*this);
     }
 
-    inline constexpr Derived& setClearColor(const glm::vec3& color)
+    inline constexpr Derived& setDepthAttachment(const std::string& name, gfx::LoadAction loadAction = gfx::LoadAction::clear, float clearDepth = 1.0f)
     {
-        m_colorAttachment.clearColor = { color.x, color.y, color.z, 1.0f };
-        return static_cast<Derived&>(*this);
-    }
-
-    inline constexpr Derived& setDepthAttachment(const std::string& name, gfx::LoadAction lAc = gfx::LoadAction::clear)
-    {
-        if (!m_depthAttachment)
-            m_depthAttachment.emplace(AttachmentDescriptor{.clearDepth=1.0f});
-        m_depthAttachment->texture = name;
-        m_depthAttachment->loadAction = lAc;
-        return static_cast<Derived&>(*this);
-    }
-
-    inline constexpr Derived& setClearDepth(float value)
-    {
-        if (!m_depthAttachment)
-            m_depthAttachment.emplace(AttachmentDescriptor{.clearDepth=1.0f});
-        m_depthAttachment->clearDepth = value;
+        m_depthAttachment.emplace(AttachmentDescriptor{.texture = name, .loadAction = loadAction, .clearDepth = clearDepth});
         return static_cast<Derived&>(*this);
     }
 
