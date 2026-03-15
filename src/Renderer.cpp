@@ -46,7 +46,7 @@ Renderer::Renderer(gfx::Device* device, gfx::Surface* surface)
     });
     m_materialBlockLayout = m_device->newParameterBlockLayout({
         .bindings = {
-            { .type = gfx::BindingType::constantBuffer, .usages = gfx::BindingUsage::vertexRead }
+            { .type = gfx::BindingType::constantBuffer, .usages = gfx::BindingUsage::fragmentRead }
         }
     });
 

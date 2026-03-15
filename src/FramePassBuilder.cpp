@@ -112,8 +112,6 @@ FramePass FlatGeometryPassBuilder::build() const
     {
         assert(scene);
 
-        ctx.commandBuffer.usePipeline(ctx.gfxPipeline);
-
         std::shared_ptr<gfx::ParameterBlock> frameDataPBlock = ctx.parameterBlockPool.get(ctx.frameDataBlockLayout);
         frameDataPBlock->setBinding(0, ctx.bufferMap.at("frameData"));
         if (ctx.bufferMap.contains("directionalLights"))
@@ -123,6 +121,10 @@ FramePass FlatGeometryPassBuilder::build() const
 
         std::shared_ptr<gfx::ParameterBlock> materialPBlock = ctx.parameterBlockPool.get(ctx.materialBlockLayout);
         materialPBlock->setBinding(0, ctx.bufferMap.at("material"));
+
+        ctx.commandBuffer.usePipeline(ctx.gfxPipeline);
+        ctx.commandBuffer.setParameterBlock(frameDataPBlock, 0);
+        ctx.commandBuffer.setParameterBlock(materialPBlock, 1);
 
         const_ECSView<TransformComponent, MeshComponent>(&scene->ecsWorld()).onEach([&](const_Entity, const TransformComponent& transform, const MeshComponent meshId)
         {
