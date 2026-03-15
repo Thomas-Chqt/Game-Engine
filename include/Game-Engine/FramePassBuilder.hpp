@@ -76,14 +76,6 @@ public:
     }
 
 protected:
-    inline constexpr void buildAttachments(FramePass& framePass) const
-    {
-        framePass.colorAttachments = { m_colorAttachment };
-        framePass.depthAttachment = m_depthAttachment;
-        framePass.sampledTextures = m_sampledTextureNames;
-        framePass.usedBuffers = m_usedBufferNames;
-    }
-
     AttachmentDescriptor m_colorAttachment = {
         .texture = "backBuffer",
         .loadAction = gfx::LoadAction::clear,
@@ -104,7 +96,10 @@ public:
     inline constexpr FramePass build() const
     {
         GE::FramePass framePass;
-        buildAttachments(framePass);
+        framePass.colorAttachments = { m_colorAttachment };
+        framePass.depthAttachment = m_depthAttachment;
+        framePass.sampledTextures = m_sampledTextureNames;
+        framePass.usedBuffers = m_usedBufferNames;
 
         framePass.execute = [](FramePassExecuteContext& ctx) {
             ImDrawData* drawData = ImGui::GetDrawData();
@@ -140,7 +135,10 @@ public:
     inline constexpr FramePass build() const
     {
         GE::FramePass framePass;
-        buildAttachments(framePass);
+        framePass.colorAttachments = { m_colorAttachment };
+        framePass.depthAttachment = m_depthAttachment;
+        framePass.sampledTextures = m_sampledTextureNames;
+        framePass.usedBuffers = m_usedBufferNames;
         framePass.execute = [](auto) {};
         return framePass;
     }

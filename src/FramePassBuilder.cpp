@@ -30,7 +30,10 @@ namespace GE
 FramePass FlatGeometryPassBuilder::build() const
 {
     GE::FramePass framePass;
-    buildAttachments(framePass);
+    framePass.colorAttachments = { m_colorAttachment };
+    framePass.depthAttachment = m_depthAttachment;
+    framePass.sampledTextures = m_sampledTextureNames;
+    framePass.usedBuffers = m_usedBufferNames;
 
     framePass.setup = [scene=m_scene, colorTexture=m_colorAttachment.texture](FramePassSetupContext& ctx)
     {
