@@ -86,6 +86,7 @@ struct FramePass
     std::optional<AttachmentDescriptor> depthAttachment;
     std::vector<std::string> sampledTextures;
     std::vector<std::string> usedBuffers;
+    std::vector<TextureDescriptor> textureDeclarations;
     std::vector<ConstantBufferDescriptor> constantBufferDeclarations;
     std::vector<StructuredBufferDescriptor> structuredBufferDeclarations;
     std::function<void(FramePassSetupContext&)> setup;

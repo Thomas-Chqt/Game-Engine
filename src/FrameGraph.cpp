@@ -61,6 +61,20 @@ FrameGraph::FrameGraph(const Descriptor& desc)
     // Process resource declarations from passes
     for (const FramePass& pass : m_passes)
     {
+        for (const TextureDescriptor& texture : pass.textureDeclarations)
+        {
+            const gfx::Texture::Descriptor newDescriptor{
+                .width = texture.size.first,
+                .height = texture.size.second,
+                .pixelFormat = texture.pixelFormat,
+                .usages = {},
+            };
+
+            auto [it, inserted] = m_textureDescriptors.emplace(texture.name, newDescriptor);
+            if (!inserted)
+                throw std::runtime_error("Duplicate texture declaration for \"" + texture.name + "\"");
+        }
+
         for (const ConstantBufferDescriptor& cbDesc : pass.constantBufferDeclarations)
         {
             gfx::Buffer::Descriptor bufferDesc{

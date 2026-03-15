@@ -41,6 +41,7 @@ public:
         framePass.depthAttachment = m_depthAttachment;
         framePass.sampledTextures = m_sampledTextureNames;
         framePass.usedBuffers = m_usedBufferNames;
+        framePass.textureDeclarations = m_textureDeclarations;
         framePass.constantBufferDeclarations = m_constantBufferDeclarations;
         framePass.structuredBufferDeclarations = m_structuredBufferDeclarations;
         return framePass;
@@ -88,6 +89,13 @@ public:
         return static_cast<Derived&>(*this);
     }
 
+protected:
+    inline constexpr Derived& addTexture(const std::string& name, std::pair<uint32_t, uint32_t> size, gfx::PixelFormat pixelFormat)
+    {
+        m_textureDeclarations.push_back({ .name = name, .size = size, .pixelFormat = pixelFormat });
+        return static_cast<Derived&>(*this);
+    }
+
     inline constexpr Derived& addConstantBuffer(const std::string& name, uint32_t size)
     {
         m_constantBufferDeclarations.push_back({ .name = name, .size = size });
@@ -102,11 +110,11 @@ public:
         return static_cast<Derived&>(*this);
     }
 
-protected:
     AttachmentDescriptor m_colorAttachment = AttachmentDescriptor{.clearColor={0.0f, 0.0f, 0.0f, 1.0f}};
     std::optional<AttachmentDescriptor> m_depthAttachment;
     std::vector<std::string> m_sampledTextureNames;
     std::vector<std::string> m_usedBufferNames;
+    std::vector<TextureDescriptor> m_textureDeclarations;
     std::vector<ConstantBufferDescriptor> m_constantBufferDeclarations;
     std::vector<StructuredBufferDescriptor> m_structuredBufferDeclarations;
 };
