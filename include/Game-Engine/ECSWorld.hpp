@@ -25,6 +25,11 @@
 namespace GE
 {
 
+class ECSWorld;
+
+template<typename T>
+concept ECSWorldLike = std::is_same_v<std::remove_const_t<T>, GE::ECSWorld>;
+
 template<typename T>
 concept Component = std::is_copy_constructible_v<T> && std::is_move_constructible_v<T> && std::is_destructible_v<T>;
 
@@ -36,8 +41,7 @@ public:
     class Iterator;
 
 private:
-    template<typename... Ts> friend class ECSView;
-    template<typename... Ts> friend class const_ECSView;
+    template<ECSWorldLike ECSWorldT, Component  ... Cs> requires(sizeof...(Cs) > 0) friend class basic_ecsView;
 
     using ComponentID = uint32_t;
     using ArchetypeID = std::set<ComponentID>;

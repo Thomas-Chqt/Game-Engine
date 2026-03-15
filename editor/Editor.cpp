@@ -8,12 +8,18 @@
  */
 
 #include "Editor.hpp"
-#include "Graphics/Enums.hpp"
+
+#include "Game-Engine/Components.hpp"
+#include "UI/EntityInspectorPanel.hpp"
 #include "UI/MainMenuBar.hpp"
 #include "UI/ViewportPanel.hpp"
 
+#include <Game-Engine/AssetManager.hpp>
+#include <Game-Engine/Entity.hpp>
 #include <Game-Engine/FrameGraph.hpp>
 #include <Game-Engine/FramePassBuilder.hpp>
+
+#include <Graphics/Enums.hpp>
 
 #include <imgui.h>
 
@@ -30,6 +36,21 @@ namespace GE_Editor
 Editor::Editor()
 {
     rebuildFrameGraph();
+
+    GE::Entity teapot = m_editedScene.newEntity("teapot");
+    teapot.emplace<GE::TransformComponent>().position.z = -3;
+    teapot.emplace<GE::MeshComponent>().id = assetManager().registerAsset<GE::Mesh>(RESOURCE_DIR"/teapot.obj");
+
+    GE::Entity camera = m_editedScene.newEntity("camera");
+    camera.emplace<GE::TransformComponent>();
+    camera.emplace<GE::CameraComponent>();
+    m_editedScene.setActiveCamera(camera);
+
+    GE::Entity light = m_editedScene.newEntity("light");
+    light.emplace<GE::TransformComponent>();
+    light.emplace<GE::LightComponent>();
+
+    m_selectedEntity = teapot;
 }
 
 void Editor::onUpdate()
@@ -52,18 +73,19 @@ void Editor::onEvent(GE::Event& event)
 void Editor::rebuildFrameGraph()
 {
     m_frameGraph = GE::FrameGraph(GE::FrameGraph::Descriptor{
+        .textures = {
+            { .name = "viewportBackBuffer", .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
+            { .name = "depthBuffer",        .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::Depth32Float },
+            { .name = "windowBackBuffer",   .size = window().frameBufferSize(), .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
+        },
         .backBufferName = "windowBackBuffer",
         .passes = {
-            GE::ClearPassBuilder()
-                .setRenderSize(m_viewportSize)
+            GE::FlatGeometryPassBuilder(&m_editedScene, &assetManager())
                 .setColorAttachment("viewportBackBuffer")
-                .setClearColor({0.0f, 1.0f, 1.0f})
-                .setDepthAttachment("depthBuffer")
-                .setClearDepth(1.0f),
+                .setDepthAttachment("depthBuffer"),
             GE::ImguiPassBuilder()
-                .setRenderSize(window().frameBufferSize())
-                .setColorAttachment("windowBackBuffer", gfx::PixelFormat::BGRA8Unorm, gfx::LoadAction::clear)
-                .addSampledAttachment("viewportBackBuffer")
+                .setColorAttachment("windowBackBuffer")
+                .addSampledTexture("viewportBackBuffer")
         }
     });
 }
@@ -79,6 +101,9 @@ void Editor::renderImgui()
 
     ViewportPanel(&m_viewportSize)
         .onResize([this](auto){ rebuildFrameGraph(); })
+        .render();
+
+    EntityInspectorPanel(m_selectedEntity)
         .render();
 
     ImGui::Render();

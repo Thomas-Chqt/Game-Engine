@@ -10,74 +10,119 @@
 #include "Graphics/Enums.hpp"
 
 #include <Graphics/Texture.hpp>
+#include <Graphics/Buffer.hpp>
 
 #include <stdexcept>
-#include <utility>
 
 namespace GE
 {
 
 FrameGraph::FrameGraph(const Descriptor& desc)
     : m_passes(desc.passes)
-    , m_backBufferDescriptor(std::make_pair(desc.backBufferName, gfx::Texture::Descriptor{}))
+    , m_backBufferName(desc.backBufferName)
 {
-    auto addAttachment = [&](const AttachmentDescriptor& attachment, gfx::TextureUsages usage) {
+    // Process texture declarations - all go into m_textureDescriptors including back buffer
+    for (const TextureDescriptor& texture : desc.textures)
+    {
         const gfx::Texture::Descriptor newDescriptor{
-            .width = attachment.size.first,
-            .height = attachment.size.second,
-            .pixelFormat = attachment.pixelFormat,
-            .usages = usage,
+            .width = texture.size.first,
+            .height = texture.size.second,
+            .pixelFormat = texture.pixelFormat,
+            .usages = {},
         };
 
-        auto mergeDescriptor = [&](gfx::Texture::Descriptor& descriptor, const std::string& name) {
-            if (descriptor.width != newDescriptor.width || descriptor.height != newDescriptor.height || descriptor.pixelFormat != newDescriptor.pixelFormat)
-                throw std::runtime_error("Conflicting texture descriptor for attachment \"" + name + "\"");
-            descriptor.usages |= newDescriptor.usages;
+        auto [it, inserted] = m_textureDescriptors.emplace(texture.name, newDescriptor);
+        if (!inserted)
+            throw std::runtime_error("Duplicate texture declaration for \"" + texture.name + "\"");
+    }
+
+    // Process constant buffer declarations from graph level
+    for (const ConstantBufferDescriptor& cbDesc : desc.constantBuffers)
+    {
+        gfx::Buffer::Descriptor bufferDesc{
+            .size = cbDesc.size,
+            .usages = gfx::BufferUsage::constantBuffer,
+            .storageMode = gfx::ResourceStorageMode::hostVisible
         };
 
-        if (attachment.name == m_backBufferDescriptor.first)
+        auto [it, inserted] = m_constantBufferDescriptors.emplace(cbDesc.name, bufferDesc);
+        if (!inserted)
+            throw std::runtime_error("Duplicate constant buffer declaration for \"" + cbDesc.name + "\"");
+    }
+
+    // Process structured buffer declarations from graph level
+    for (const StructuredBufferDescriptor& sbDesc : desc.structuredBuffers)
+    {
+        auto [it, inserted] = m_structuredBufferNames.insert(sbDesc.name);
+        if (!inserted)
+            throw std::runtime_error("Duplicate structured buffer declaration for \"" + sbDesc.name + "\"");
+    }
+
+    // Process resource declarations from passes
+    for (const FramePass& pass : m_passes)
+    {
+        for (const TextureDescriptor& texture : pass.textureDeclarations)
         {
-            auto& descriptor = m_backBufferDescriptor.second;
-            if (descriptor.width == 0 && descriptor.height == 0)
-                descriptor = newDescriptor;
-            else
-                mergeDescriptor(descriptor, attachment.name);
-            return;
+            const gfx::Texture::Descriptor newDescriptor{
+                .width = texture.size.first,
+                .height = texture.size.second,
+                .pixelFormat = texture.pixelFormat,
+                .usages = {},
+            };
+
+            auto [it, inserted] = m_textureDescriptors.emplace(texture.name, newDescriptor);
+            if (!inserted)
+                throw std::runtime_error("Duplicate texture declaration for \"" + texture.name + "\"");
         }
 
-        auto [it, inserted] = m_textureDescriptors.emplace(attachment.name, newDescriptor);
-        if (!inserted)
-            mergeDescriptor(it->second, attachment.name);
+        for (const ConstantBufferDescriptor& cbDesc : pass.constantBufferDeclarations)
+        {
+            gfx::Buffer::Descriptor bufferDesc{
+                .size = cbDesc.size,
+                .usages = gfx::BufferUsage::constantBuffer,
+                .storageMode = gfx::ResourceStorageMode::hostVisible
+            };
+
+            auto [it, inserted] = m_constantBufferDescriptors.emplace(cbDesc.name, bufferDesc);
+            if (!inserted)
+                throw std::runtime_error("Duplicate constant buffer declaration for \"" + cbDesc.name + "\"");
+        }
+
+        for (const StructuredBufferDescriptor& sbDesc : pass.structuredBufferDeclarations)
+        {
+            auto [it, inserted] = m_structuredBufferNames.insert(sbDesc.name);
+            if (!inserted)
+                throw std::runtime_error("Duplicate structured buffer declaration for \"" + sbDesc.name + "\"");
+        }
+    }
+
+    // Add texture usage flags based on how passes reference the textures
+    auto addUsageToTexture = [&](const std::string& name, gfx::TextureUsages usage) {
+        auto it = m_textureDescriptors.find(name);
+        if (it == m_textureDescriptors.end())
+            throw std::runtime_error("Texture \"" + name + "\" is used but not declared");
+        it->second.usages |= usage;
     };
 
     for (const FramePass& pass : m_passes)
     {
         for (const AttachmentDescriptor& colorAttachment : pass.colorAttachments)
-            addAttachment(colorAttachment, gfx::TextureUsage::colorAttachment);
+            addUsageToTexture(colorAttachment.texture, gfx::TextureUsage::colorAttachment);
 
         if (pass.depthAttachment)
-            addAttachment(*pass.depthAttachment, gfx::TextureUsage::depthStencilAttachment);
-    }
+            addUsageToTexture(pass.depthAttachment->texture, gfx::TextureUsage::depthStencilAttachment);
 
-    auto addUsageToAttachment = [&](const std::string& name, gfx::TextureUsages usage) {
-        if (name == m_backBufferDescriptor.first)
+        for (const std::string& sampledTexture : pass.sampledTextures)
+            addUsageToTexture(sampledTexture, gfx::TextureUsage::shaderRead);
+
+        // Validate usedBuffers reference declared buffers
+        for (const std::string& bufferName : pass.usedBuffers)
         {
-            auto& descriptor = m_backBufferDescriptor.second;
-            if (descriptor.width == 0 || descriptor.height == 0)
-                throw std::runtime_error("Sampled attachment \"" + name + "\" is not defined");
-            descriptor.usages |= usage;
-            return;
+            if (m_constantBufferDescriptors.find(bufferName) == m_constantBufferDescriptors.end()
+                && m_structuredBufferNames.find(bufferName) == m_structuredBufferNames.end())
+                throw std::runtime_error("Buffer \"" + bufferName + "\" is used but not declared");
         }
-
-        auto it = m_textureDescriptors.find(name);
-        if (it == m_textureDescriptors.end())
-            throw std::runtime_error("Sampled attachment \"" + name + "\" is not defined");
-        it->second.usages |= usage;
-    };
-
-    for (const FramePass& pass : m_passes)
-        for (const std::string& sampledAttachment : pass.sampledAttachments)
-            addUsageToAttachment(sampledAttachment, gfx::TextureUsage::shaderRead);
+    }
 }
 
 }

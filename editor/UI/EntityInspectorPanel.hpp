@@ -10,24 +10,19 @@
 #ifndef ENTITYINSPECTORPANEL_HPP
 #define ENTITYINSPECTORPANEL_HPP
 
-#include "ECS/Entity.hpp"
-#include "Scene.hpp"
-#include "UtilsCPP/Func.hpp"
+#include "Game-Engine/Entity.hpp"
 
-namespace GE
+namespace GE_Editor
 {
 
 class EntityInspectorPanel
 {
 public:
-    EntityInspectorPanel()                            = delete;
+    EntityInspectorPanel() = delete;
     EntityInspectorPanel(const EntityInspectorPanel&) = delete;
-    EntityInspectorPanel(EntityInspectorPanel&&)      = delete;
-    
-    EntityInspectorPanel(Scene*, const Entity&);
+    EntityInspectorPanel(EntityInspectorPanel&&) = delete;
 
-    inline EntityInspectorPanel& onEntityDelete(const utils::Func<void()>& f) { return m_onEntityDelete = f, *this; }
-    inline EntityInspectorPanel& onEntityDelete(utils::Func<void()>&& f) { return m_onEntityDelete = std::move(f), *this; }
+    EntityInspectorPanel(const GE::Entity&);
 
     void render();
 
@@ -38,17 +33,13 @@ private:
     template<typename T> void componentEditWidget();
     void addComponentPopUp();
 
-    Scene* m_scene;
-    Entity m_selectedEntity;
-
-    utils::Func<void()> m_onEntityDelete;
-
+    GE::Entity m_entity;
 
 public:
-    EntityInspectorPanel& operator = (const EntityInspectorPanel&) = delete;
-    EntityInspectorPanel& operator = (EntityInspectorPanel&&)      = delete;
+    EntityInspectorPanel& operator=(const EntityInspectorPanel&) = delete;
+    EntityInspectorPanel& operator=(EntityInspectorPanel&&) = delete;
 };
 
-}
+} // namespace GE_Editor
 
 #endif // ENTITYINSPECTORPANEL_HPP

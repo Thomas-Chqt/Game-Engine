@@ -17,7 +17,7 @@ function(fetch_dependencies)
     # -----------------------------
     FetchContent_Declare(Graphics
         GIT_REPOSITORY    https://github.com/Thomas-Chqt/Graphics.git
-        GIT_TAG           f08b9ef0715e838d242c3da86264ab622ca4db06
+        GIT_TAG           2dc632949e9b314540f0b14d2b90aded0ce15ab9
         GIT_SHALLOW       1
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
