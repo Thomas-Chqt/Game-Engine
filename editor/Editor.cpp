@@ -10,6 +10,7 @@
 #include "Editor.hpp"
 
 #include "Game-Engine/Components.hpp"
+#include "UI/EntityInspectorPanel.hpp"
 #include "UI/MainMenuBar.hpp"
 #include "UI/ViewportPanel.hpp"
 
@@ -48,6 +49,8 @@ Editor::Editor()
     GE::Entity light = m_editedScene.newEntity("light");
     light.emplace<GE::TransformComponent>();
     light.emplace<GE::LightComponent>();
+
+    m_selectedEntity = teapot;
 }
 
 void Editor::onUpdate()
@@ -70,12 +73,12 @@ void Editor::onEvent(GE::Event& event)
 void Editor::rebuildFrameGraph()
 {
     m_frameGraph = GE::FrameGraph(GE::FrameGraph::Descriptor{
-        .backBufferName = "windowBackBuffer",
         .textures = {
             { .name = "viewportBackBuffer", .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
             { .name = "depthBuffer",        .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::Depth32Float },
             { .name = "windowBackBuffer",   .size = window().frameBufferSize(), .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
         },
+        .backBufferName = "windowBackBuffer",
         .passes = {
             GE::FlatGeometryPassBuilder(&m_editedScene, &assetManager())
                 .setColorAttachment("viewportBackBuffer")
@@ -98,6 +101,9 @@ void Editor::renderImgui()
 
     ViewportPanel(&m_viewportSize)
         .onResize([this](auto){ rebuildFrameGraph(); })
+        .render();
+
+    EntityInspectorPanel(m_selectedEntity)
         .render();
 
     ImGui::Render();

@@ -15,6 +15,7 @@ target_sources(GE-Editor PRIVATE
     "UI/MainMenuBar.cpp"
     "UI/ViewportPanel.cpp"
     # "UI/SceneGraphPanel.cpp"
+    "UI/EntityInspectorPanel.cpp"
 )
 
 target_include_directories(GE-Editor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
