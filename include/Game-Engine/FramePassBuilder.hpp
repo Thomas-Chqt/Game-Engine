@@ -132,7 +132,7 @@ public:
     inline constexpr FramePass build() const
     {
         GE::FramePass framePass = FramePassBuilderBase<ClearPassBuilder>::build();
-        framePass.execute = [](auto) {};
+        framePass.execute = [](FramePassExecuteContext&) {};
         return framePass;
     }
 };

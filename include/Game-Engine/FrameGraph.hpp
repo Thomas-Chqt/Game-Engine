@@ -15,6 +15,7 @@
 #include <Graphics/Texture.hpp>
 #include <Graphics/Buffer.hpp>
 
+#include <concepts>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -22,6 +23,9 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <memory>
+#include <optional>
+#include <array>
 
 namespace GE
 {
