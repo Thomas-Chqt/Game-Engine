@@ -63,12 +63,12 @@ struct AttachmentDescriptor
 
 struct FramePassSetupContext
 {
+    std::map<std::string, std::shared_ptr<gfx::Texture>>& textureMap;
     std::map<std::string, std::shared_ptr<gfx::Buffer>>& constantBuffers;
     std::function<void(const std::string& name, const void* data, uint32_t size)> setStructuredBufferContent;
-    std::pair<uint32_t, uint32_t> renderSize;
 };
 
-struct FramePassContext
+struct FramePassExecuteContext
 {
     gfx::CommandBuffer& commandBuffer;
     gfx::ParameterBlockPool& parameterBlockPool;
@@ -78,8 +78,6 @@ struct FramePassContext
     std::shared_ptr<gfx::ParameterBlockLayout> frameDataBlockLayout;
     std::shared_ptr<gfx::ParameterBlockLayout> materialBlockLayout;
     std::shared_ptr<gfx::GraphicsPipeline> gfxPipeline; // only one for now
-
-    std::pair<uint32_t, uint32_t> renderSize;
 };
 
 struct FramePass
@@ -89,7 +87,7 @@ struct FramePass
     std::vector<std::string> sampledTextures;
     std::vector<std::string> usedBuffers;
     std::function<void(FramePassSetupContext&)> setup;
-    std::function<void(FramePassContext&)> execute;
+    std::function<void(FramePassExecuteContext&)> execute;
 
     FramePass() = default;
     FramePass(const FramePass&) = default;

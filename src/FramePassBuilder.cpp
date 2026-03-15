@@ -32,7 +32,7 @@ FramePass FlatGeometryPassBuilder::build() const
     GE::FramePass framePass;
     buildAttachments(framePass);
 
-    framePass.setup = [scene=m_scene](FramePassSetupContext& ctx)
+    framePass.setup = [scene=m_scene, colorTexture=m_colorAttachment.texture](FramePassSetupContext& ctx)
     {
         assert(scene);
 
@@ -49,7 +49,10 @@ FramePass FlatGeometryPassBuilder::build() const
         glm::vec3 dir = rotationMat * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         glm::vec3 up = rotationMat * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
 
-        const float aspectRatio = static_cast<float>(ctx.renderSize.first) / static_cast<float>(ctx.renderSize.second == 0 ? 1 : ctx.renderSize.second);
+        auto& tex = ctx.textureMap.at(colorTexture);
+        uint32_t texWidth = tex->width();
+        uint32_t texHeight = tex->height();
+        const float aspectRatio = static_cast<float>(texWidth) / static_cast<float>(texHeight == 0 ? 1 : texHeight);
         frameData.vpMatrix = scene->activeCamera().get<CameraComponent>().projectionMatrix(aspectRatio) * glm::lookAt(pos, pos + dir, up);
 
         frameData.cameraPosition = cameraTransform.position;
@@ -89,7 +92,7 @@ FramePass FlatGeometryPassBuilder::build() const
         material.shininess = 0.0f;
     };
 
-    framePass.execute = [scene=m_scene, assetManager=m_assetManager](FramePassContext& ctx)
+    framePass.execute = [scene=m_scene, assetManager=m_assetManager](FramePassExecuteContext& ctx)
     {
         assert(scene);
 

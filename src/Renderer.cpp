@@ -173,7 +173,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
             cfd.structuredBuffers[name] = newBuffer;
         }
         if (data != nullptr && size > 0)
-            std::memcpy(cfd.structuredBuffers[name]->content<char>(), data, size);
+            std::memcpy(cfd.structuredBuffers[name]->content<std::byte>(), data, size);
     };
 
     std::shared_ptr<gfx::CommandBuffer> commandBuffer = cfd.commandBufferPool->get();
@@ -197,14 +197,6 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         for (auto& st : framePass.sampledTextures)
             passTextureMap[st] = textureMap.at(st);
 
-        // Compute render size from color attachment
-        std::pair<uint32_t, uint32_t> renderSize = {0, 0};
-        if (!framePass.colorAttachments.empty())
-        {
-            auto& tex = passTextureMap.at(framePass.colorAttachments[0].texture);
-            renderSize = { tex->width(), tex->height() };
-        }
-
         // Build filtered constant buffer map for this pass
         std::map<std::string, std::shared_ptr<gfx::Buffer>> passConstantBuffers;
         for (auto& bufName : framePass.usedBuffers)
@@ -218,13 +210,13 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         if (framePass.setup)
         {
             FramePassSetupContext setupContext = {
+                .textureMap = passTextureMap,
                 .constantBuffers = passConstantBuffers,
                 .setStructuredBufferContent = [&](const std::string& name, const void* data, uint32_t size) {
                     if (std::ranges::find(framePass.usedBuffers, name) == framePass.usedBuffers.end())
                         return;
                     setStructuredBufferContent(name, data, size);
                 },
-                .renderSize = renderSize,
             };
             framePass.setup(setupContext);
         }
@@ -264,15 +256,14 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
 
         commandBuffer->beginRenderPass(framebuffer);
         {
-            FramePassContext framePassContext = {
+            FramePassExecuteContext framePassContext = {
                 .commandBuffer = *commandBuffer,
                 .parameterBlockPool = *cfd.parameterBlockPool,
                 .textureMap = passTextureMap,
                 .bufferMap = passBufferMap,
                 .frameDataBlockLayout = m_frameDataBlockLayout,
                 .materialBlockLayout = m_materialBlockLayout,
-                .gfxPipeline = m_gfxPipeline,
-                .renderSize = renderSize
+                .gfxPipeline = m_gfxPipeline
             };
             framePass.execute(framePassContext);
         }
