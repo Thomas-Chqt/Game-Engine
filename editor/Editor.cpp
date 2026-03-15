@@ -76,14 +76,6 @@ void Editor::rebuildFrameGraph()
             { .name = "depthBuffer",        .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::Depth32Float },
             { .name = "windowBackBuffer",   .size = window().frameBufferSize(), .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
         },
-        .constantBuffers {
-            { .name = "frameData", .size = 100u },
-            { .name = "material", .size = 100u }
-        },
-        .structuredBuffers {
-            { .name = "directionalLights" },
-            { .name = "pointLights" }
-        },
         .passes = {
             GE::FlatGeometryPassBuilder(&m_editedScene, &assetManager())
                 .setColorAttachment("viewportBackBuffer")

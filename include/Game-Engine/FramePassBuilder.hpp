@@ -41,6 +41,8 @@ public:
         framePass.depthAttachment = m_depthAttachment;
         framePass.sampledTextures = m_sampledTextureNames;
         framePass.usedBuffers = m_usedBufferNames;
+        framePass.constantBufferDeclarations = m_constantBufferDeclarations;
+        framePass.structuredBufferDeclarations = m_structuredBufferDeclarations;
         return framePass;
     }
 
@@ -86,11 +88,27 @@ public:
         return static_cast<Derived&>(*this);
     }
 
+    inline constexpr Derived& addConstantBuffer(const std::string& name, uint32_t size)
+    {
+        m_constantBufferDeclarations.push_back({ .name = name, .size = size });
+        m_usedBufferNames.push_back(name);
+        return static_cast<Derived&>(*this);
+    }
+
+    inline constexpr Derived& addStructuredBuffer(const std::string& name)
+    {
+        m_structuredBufferDeclarations.push_back({ .name = name });
+        m_usedBufferNames.push_back(name);
+        return static_cast<Derived&>(*this);
+    }
+
 protected:
     AttachmentDescriptor m_colorAttachment = AttachmentDescriptor{.clearColor={0.0f, 0.0f, 0.0f, 1.0f}};
     std::optional<AttachmentDescriptor> m_depthAttachment;
     std::vector<std::string> m_sampledTextureNames;
     std::vector<std::string> m_usedBufferNames;
+    std::vector<ConstantBufferDescriptor> m_constantBufferDeclarations;
+    std::vector<StructuredBufferDescriptor> m_structuredBufferDeclarations;
 };
 
 class ImguiPassBuilder : public FramePassBuilderBase<ImguiPassBuilder>

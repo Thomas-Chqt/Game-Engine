@@ -36,7 +36,53 @@ FrameGraph::FrameGraph(const Descriptor& desc)
             throw std::runtime_error("Duplicate texture declaration for \"" + texture.name + "\"");
     }
 
-    // Add usage flags based on how passes reference the textures
+    // Process constant buffer declarations from graph level
+    for (const ConstantBufferDescriptor& cbDesc : desc.constantBuffers)
+    {
+        gfx::Buffer::Descriptor bufferDesc{
+            .size = cbDesc.size,
+            .usages = gfx::BufferUsage::constantBuffer,
+            .storageMode = gfx::ResourceStorageMode::hostVisible
+        };
+
+        auto [it, inserted] = m_constantBufferDescriptors.emplace(cbDesc.name, bufferDesc);
+        if (!inserted)
+            throw std::runtime_error("Duplicate constant buffer declaration for \"" + cbDesc.name + "\"");
+    }
+
+    // Process structured buffer declarations from graph level
+    for (const StructuredBufferDescriptor& sbDesc : desc.structuredBuffers)
+    {
+        auto [it, inserted] = m_structuredBufferNames.insert(sbDesc.name);
+        if (!inserted)
+            throw std::runtime_error("Duplicate structured buffer declaration for \"" + sbDesc.name + "\"");
+    }
+
+    // Process resource declarations from passes
+    for (const FramePass& pass : m_passes)
+    {
+        for (const ConstantBufferDescriptor& cbDesc : pass.constantBufferDeclarations)
+        {
+            gfx::Buffer::Descriptor bufferDesc{
+                .size = cbDesc.size,
+                .usages = gfx::BufferUsage::constantBuffer,
+                .storageMode = gfx::ResourceStorageMode::hostVisible
+            };
+
+            auto [it, inserted] = m_constantBufferDescriptors.emplace(cbDesc.name, bufferDesc);
+            if (!inserted)
+                throw std::runtime_error("Duplicate constant buffer declaration for \"" + cbDesc.name + "\"");
+        }
+
+        for (const StructuredBufferDescriptor& sbDesc : pass.structuredBufferDeclarations)
+        {
+            auto [it, inserted] = m_structuredBufferNames.insert(sbDesc.name);
+            if (!inserted)
+                throw std::runtime_error("Duplicate structured buffer declaration for \"" + sbDesc.name + "\"");
+        }
+    }
+
+    // Add texture usage flags based on how passes reference the textures
     auto addUsageToTexture = [&](const std::string& name, gfx::TextureUsages usage) {
         auto it = m_textureDescriptors.find(name);
         if (it == m_textureDescriptors.end())
@@ -54,28 +100,14 @@ FrameGraph::FrameGraph(const Descriptor& desc)
 
         for (const std::string& sampledTexture : pass.sampledTextures)
             addUsageToTexture(sampledTexture, gfx::TextureUsage::shaderRead);
-    }
 
-    // Process constant buffer declarations
-    for (const ConstantBufferDescriptor& cbDesc : desc.constantBuffers)
-    {
-        gfx::Buffer::Descriptor bufferDesc{
-            .size = cbDesc.size,
-            .usages = gfx::BufferUsage::constantBuffer,
-            .storageMode = gfx::ResourceStorageMode::hostVisible
-        };
-
-        auto [it, inserted] = m_constantBufferDescriptors.emplace(cbDesc.name, bufferDesc);
-        if (!inserted)
-            throw std::runtime_error("Duplicate constant buffer declaration for \"" + cbDesc.name + "\"");
-    }
-
-    // Process structured buffer declarations
-    for (const StructuredBufferDescriptor& sbDesc : desc.structuredBuffers)
-    {
-        auto [it, inserted] = m_structuredBufferNames.insert(sbDesc.name);
-        if (!inserted)
-            throw std::runtime_error("Duplicate structured buffer declaration for \"" + sbDesc.name + "\"");
+        // Validate usedBuffers reference declared buffers
+        for (const std::string& bufferName : pass.usedBuffers)
+        {
+            if (m_constantBufferDescriptors.find(bufferName) == m_constantBufferDescriptors.end()
+                && m_structuredBufferNames.find(bufferName) == m_structuredBufferNames.end())
+                throw std::runtime_error("Buffer \"" + bufferName + "\" is used but not declared");
+        }
     }
 }
 
