@@ -27,19 +27,18 @@
 namespace GE
 {
 
+FlatGeometryPassBuilder::FlatGeometryPassBuilder(const Scene* scene, AssetManager* assetManager)
+    : m_scene(scene), m_assetManager(assetManager)
+{
+    addConstantBuffer("frameData", sizeof(shader::FrameData));
+    addConstantBuffer("material", sizeof(shader::flat_color::Material));
+    addStructuredBuffer("directionalLights");
+    addStructuredBuffer("pointLights");
+}
+
 FramePass FlatGeometryPassBuilder::build() const
 {
     GE::FramePass framePass = FramePassBuilderBase<FlatGeometryPassBuilder>::build();
-
-    // Declare resources this pass needs
-    framePass.constantBufferDeclarations.push_back({ .name = "frameData", .size = sizeof(shader::FrameData) });
-    framePass.constantBufferDeclarations.push_back({ .name = "material", .size = sizeof(shader::flat_color::Material) });
-    framePass.structuredBufferDeclarations.push_back({ .name = "directionalLights" });
-    framePass.structuredBufferDeclarations.push_back({ .name = "pointLights" });
-    framePass.usedBuffers.push_back("frameData");
-    framePass.usedBuffers.push_back("material");
-    framePass.usedBuffers.push_back("directionalLights");
-    framePass.usedBuffers.push_back("pointLights");
 
     framePass.setup = [scene=m_scene, colorTexture=m_colorAttachment.texture](FramePassSetupContext& ctx)
     {
