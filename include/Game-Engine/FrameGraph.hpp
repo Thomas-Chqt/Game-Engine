@@ -33,7 +33,7 @@ concept FramePassBuilder = requires(const T& b) {
     { b.build() } -> std::convertible_to<FramePass>;
 };
 
-struct AttachmentDescriptor
+struct TextureDescriptor
 {
     std::string name;
     std::pair<uint32_t, uint32_t> size;
@@ -51,9 +51,9 @@ struct StructuredBufferDescriptor
     std::string name;
 };
 
-struct AttachmentUsage
+struct AttachmentDescriptor
 {
-    std::string name;
+    std::string texture;
     gfx::LoadAction loadAction = gfx::LoadAction::clear;
     union {
         std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -65,6 +65,7 @@ struct FramePassSetupContext
 {
     std::map<std::string, std::shared_ptr<gfx::Buffer>>& constantBuffers;
     std::function<void(const std::string& name, const void* data, uint32_t size)> setStructuredBufferContent;
+    std::pair<uint32_t, uint32_t> renderSize;
 };
 
 struct FramePassContext
@@ -83,9 +84,10 @@ struct FramePassContext
 
 struct FramePass
 {
-    std::vector<AttachmentUsage> colorAttachments;
-    std::optional<AttachmentUsage> depthAttachment;
-    std::vector<std::string> sampledAttachments;
+    std::vector<AttachmentDescriptor> colorAttachments;
+    std::optional<AttachmentDescriptor> depthAttachment;
+    std::vector<std::string> sampledTextures;
+    std::vector<std::string> usedBuffers;
     std::function<void(FramePassSetupContext&)> setup;
     std::function<void(FramePassContext&)> execute;
 
@@ -101,7 +103,7 @@ public:
     struct Descriptor
     {
         std::string backBufferName;
-        std::vector<AttachmentDescriptor> attachments;
+        std::vector<TextureDescriptor> textures;
         std::vector<ConstantBufferDescriptor> constantBuffers;
         std::vector<StructuredBufferDescriptor> structuredBuffers;
         std::vector<FramePass> passes;

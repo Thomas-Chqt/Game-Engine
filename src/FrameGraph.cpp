@@ -21,39 +21,39 @@ FrameGraph::FrameGraph(const Descriptor& desc)
     : m_passes(desc.passes)
     , m_backBufferName(desc.backBufferName)
 {
-    // Process attachment declarations - all go into m_textureDescriptors including back buffer
-    for (const AttachmentDescriptor& attachment : desc.attachments)
+    // Process texture declarations - all go into m_textureDescriptors including back buffer
+    for (const TextureDescriptor& texture : desc.textures)
     {
         const gfx::Texture::Descriptor newDescriptor{
-            .width = attachment.size.first,
-            .height = attachment.size.second,
-            .pixelFormat = attachment.pixelFormat,
+            .width = texture.size.first,
+            .height = texture.size.second,
+            .pixelFormat = texture.pixelFormat,
             .usages = {},
         };
 
-        auto [it, inserted] = m_textureDescriptors.emplace(attachment.name, newDescriptor);
+        auto [it, inserted] = m_textureDescriptors.emplace(texture.name, newDescriptor);
         if (!inserted)
-            throw std::runtime_error("Duplicate attachment declaration for \"" + attachment.name + "\"");
+            throw std::runtime_error("Duplicate texture declaration for \"" + texture.name + "\"");
     }
 
-    // Add usage flags based on how passes reference the attachments
-    auto addUsageToAttachment = [&](const std::string& name, gfx::TextureUsages usage) {
+    // Add usage flags based on how passes reference the textures
+    auto addUsageToTexture = [&](const std::string& name, gfx::TextureUsages usage) {
         auto it = m_textureDescriptors.find(name);
         if (it == m_textureDescriptors.end())
-            throw std::runtime_error("Attachment \"" + name + "\" is used but not declared");
+            throw std::runtime_error("Texture \"" + name + "\" is used but not declared");
         it->second.usages |= usage;
     };
 
     for (const FramePass& pass : m_passes)
     {
-        for (const AttachmentUsage& colorAttachment : pass.colorAttachments)
-            addUsageToAttachment(colorAttachment.name, gfx::TextureUsage::colorAttachment);
+        for (const AttachmentDescriptor& colorAttachment : pass.colorAttachments)
+            addUsageToTexture(colorAttachment.texture, gfx::TextureUsage::colorAttachment);
 
         if (pass.depthAttachment)
-            addUsageToAttachment(pass.depthAttachment->name, gfx::TextureUsage::depthStencilAttachment);
+            addUsageToTexture(pass.depthAttachment->texture, gfx::TextureUsage::depthStencilAttachment);
 
-        for (const std::string& sampledAttachment : pass.sampledAttachments)
-            addUsageToAttachment(sampledAttachment, gfx::TextureUsage::shaderRead);
+        for (const std::string& sampledTexture : pass.sampledTextures)
+            addUsageToTexture(sampledTexture, gfx::TextureUsage::shaderRead);
     }
 
     // Process constant buffer declarations

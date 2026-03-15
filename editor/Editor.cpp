@@ -71,7 +71,7 @@ void Editor::rebuildFrameGraph()
 {
     m_frameGraph = GE::FrameGraph(GE::FrameGraph::Descriptor{
         .backBufferName = "windowBackBuffer",
-        .attachments = {
+        .textures = {
             { .name = "windowBackBuffer",    .size = window().frameBufferSize(), .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
             { .name = "viewportBackBuffer",  .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
             { .name = "depthBuffer",         .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::Depth32Float },
@@ -84,7 +84,7 @@ void Editor::rebuildFrameGraph()
                 .setClearDepth(1.0f),
             GE::ImguiPassBuilder()
                 .setColorAttachment("windowBackBuffer")
-                .addSampledAttachment("viewportBackBuffer")
+                .addSampledTexture("viewportBackBuffer")
         }
     });
 }

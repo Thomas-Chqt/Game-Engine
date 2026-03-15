@@ -49,6 +49,9 @@ FramePass FlatGeometryPassBuilder::build() const
         glm::vec3 dir = rotationMat * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
         glm::vec3 up = rotationMat * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
 
+        const float aspectRatio = static_cast<float>(ctx.renderSize.first) / static_cast<float>(ctx.renderSize.second == 0 ? 1 : ctx.renderSize.second);
+        frameData.vpMatrix = scene->activeCamera().get<CameraComponent>().projectionMatrix(aspectRatio) * glm::lookAt(pos, pos + dir, up);
+
         frameData.cameraPosition = cameraTransform.position;
         frameData.ambientLightColor = glm::vec3(1.0f, 1.0f, 1.0f) * 0.1f;
 
@@ -86,25 +89,9 @@ FramePass FlatGeometryPassBuilder::build() const
         material.shininess = 0.0f;
     };
 
-    framePass.execute = [scene=m_scene](FramePassContext& ctx)
+    framePass.execute = [scene=m_scene, assetManager=m_assetManager](FramePassContext& ctx)
     {
         assert(scene);
-
-        auto& cameraTransform = scene->activeCamera().get<TransformComponent>();
-
-        auto rotationMat = glm::mat4x4(1.0f);
-        rotationMat = glm::rotate(rotationMat, cameraTransform.rotation.y, glm::vec3(0, 1, 0));
-        rotationMat = glm::rotate(rotationMat, cameraTransform.rotation.x, glm::vec3(1, 0, 0));
-        rotationMat = glm::rotate(rotationMat, cameraTransform.rotation.z, glm::vec3(0, 0, 1));
-
-        glm::vec3 pos = cameraTransform.position;
-        glm::vec3 dir = rotationMat * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-        glm::vec3 up = rotationMat * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-
-        shader::FrameData& frameData = *ctx.bufferMap["frameData"]->content<shader::FrameData>();
-
-        const float aspectRatio = static_cast<float>(ctx.renderSize.first) / static_cast<float>(ctx.renderSize.second == 0 ? 1 : ctx.renderSize.second);
-        frameData.vpMatrix = scene->activeCamera().get<CameraComponent>().projectionMatrix(aspectRatio) * glm::lookAt(pos, pos + dir, up);
 
         ctx.commandBuffer.usePipeline(ctx.gfxPipeline);
 
@@ -116,7 +103,6 @@ FramePass FlatGeometryPassBuilder::build() const
         std::shared_ptr<gfx::ParameterBlock> materialPBlock = ctx.parameterBlockPool.get(ctx.materialBlockLayout);
         materialPBlock->setBinding(0, ctx.bufferMap["material"]);
 
-        AssetManager* assetManager;
         const_ECSView<TransformComponent, MeshComponent>(&scene->ecsWorld()).onEach([&](const_Entity, const TransformComponent& transform, const MeshComponent meshId)
         {
             std::shared_future<const std::shared_ptr<Mesh>&> meshFuture = assetManager->loadAsset<Mesh>(meshId.id);

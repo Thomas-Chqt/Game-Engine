@@ -180,24 +180,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
     std::shared_ptr<gfx::Drawable> drawable;
     for (auto& framePass : frameGraph.passes())
     {
-        // Run setup phase if present
-        if (framePass.setup)
-        {
-            FramePassSetupContext setupContext = {
-                .constantBuffers = cfd.constantBuffers,
-                .setStructuredBufferContent = setStructuredBufferContent,
-            };
-            framePass.setup(setupContext);
-        }
-
-        // Build combined buffer map for execute phase (after setup may have modified structured buffers)
-        std::map<std::string, std::shared_ptr<gfx::Buffer>> bufferMap;
-        for (auto& [name, buffer] : cfd.constantBuffers)
-            bufferMap[name] = buffer;
-        for (auto& [name, buffer] : cfd.structuredBuffers)
-            bufferMap[name] = buffer;
-
-        if (drawable == nullptr /* TODO check if pass use swapchain image */)
+        if (drawable == nullptr /* TODO check if pass uses swapchain image */)
         {
             drawable = m_swapchain->nextDrawable();
             if (drawable == nullptr)
@@ -205,13 +188,66 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
             textureMap[frameGraph.backBufferName()] = drawable->texture();
         }
 
+        // Build filtered texture map for this pass
+        std::map<std::string, std::shared_ptr<gfx::Texture>> passTextureMap;
+        for (auto& ca : framePass.colorAttachments)
+            passTextureMap[ca.texture] = textureMap.at(ca.texture);
+        if (framePass.depthAttachment)
+            passTextureMap[framePass.depthAttachment->texture] = textureMap.at(framePass.depthAttachment->texture);
+        for (auto& st : framePass.sampledTextures)
+            passTextureMap[st] = textureMap.at(st);
+
+        // Compute render size from color attachment
+        std::pair<uint32_t, uint32_t> renderSize = {0, 0};
+        if (!framePass.colorAttachments.empty())
+        {
+            auto& tex = passTextureMap.at(framePass.colorAttachments[0].texture);
+            renderSize = { tex->width(), tex->height() };
+        }
+
+        // Build filtered constant buffer map for this pass
+        std::map<std::string, std::shared_ptr<gfx::Buffer>> passConstantBuffers;
+        for (auto& bufName : framePass.usedBuffers)
+        {
+            auto it = cfd.constantBuffers.find(bufName);
+            if (it != cfd.constantBuffers.end())
+                passConstantBuffers[bufName] = it->second;
+        }
+
+        // Run setup phase if present
+        if (framePass.setup)
+        {
+            FramePassSetupContext setupContext = {
+                .constantBuffers = passConstantBuffers,
+                .setStructuredBufferContent = [&](const std::string& name, const void* data, uint32_t size) {
+                    if (std::ranges::find(framePass.usedBuffers, name) == framePass.usedBuffers.end())
+                        return;
+                    setStructuredBufferContent(name, data, size);
+                },
+                .renderSize = renderSize,
+            };
+            framePass.setup(setupContext);
+        }
+
+        // Build filtered buffer map for execute phase (after setup may have modified structured buffers)
+        std::map<std::string, std::shared_ptr<gfx::Buffer>> passBufferMap;
+        for (auto& bufName : framePass.usedBuffers)
+        {
+            auto it = cfd.constantBuffers.find(bufName);
+            if (it != cfd.constantBuffers.end())
+                passBufferMap[bufName] = it->second;
+            auto it2 = cfd.structuredBuffers.find(bufName);
+            if (it2 != cfd.structuredBuffers.end())
+                passBufferMap[bufName] = it2->second;
+        }
+
         gfx::Framebuffer framebuffer = gfx::Framebuffer{
             .colorAttachments = framePass.colorAttachments
-                                | std::views::transform([&](const AttachmentUsage& attachmentUsage) {
+                                | std::views::transform([&](const AttachmentDescriptor& attachment) {
                                       return gfx::Framebuffer::Attachment{
-                                          .loadAction = attachmentUsage.loadAction,
-                                          .clearColor = attachmentUsage.clearColor,
-                                          .texture = textureMap.at(attachmentUsage.name)
+                                          .loadAction = attachment.loadAction,
+                                          .clearColor = attachment.clearColor,
+                                          .texture = passTextureMap.at(attachment.texture)
                                       };
                                   })
                                 | std::ranges::to<std::vector>(),
@@ -219,27 +255,24 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
                                    ? std::make_optional(gfx::Framebuffer::Attachment{
                                          .loadAction = framePass.depthAttachment->loadAction,
                                          .clearDepth = framePass.depthAttachment->clearDepth,
-                                         .texture = textureMap.at(framePass.depthAttachment->name) })
+                                         .texture = passTextureMap.at(framePass.depthAttachment->texture) })
                                    : std::nullopt
         };
 
-        for (auto attachmentName : framePass.sampledAttachments)
-            commandBuffer->addSampledTexture(textureMap.at(attachmentName));
+        for (auto& textureName : framePass.sampledTextures)
+            commandBuffer->addSampledTexture(passTextureMap.at(textureName));
 
         commandBuffer->beginRenderPass(framebuffer);
         {
             FramePassContext framePassContext = {
                 .commandBuffer = *commandBuffer,
                 .parameterBlockPool = *cfd.parameterBlockPool,
-                .textureMap = textureMap,
-                .bufferMap = bufferMap,
+                .textureMap = passTextureMap,
+                .bufferMap = passBufferMap,
                 .frameDataBlockLayout = m_frameDataBlockLayout,
                 .materialBlockLayout = m_materialBlockLayout,
                 .gfxPipeline = m_gfxPipeline,
-                .renderSize = {
-                    framebuffer.colorAttachments[0].texture->width(),
-                    framebuffer.colorAttachments[0].texture->height()
-                }
+                .renderSize = renderSize
             };
             framePass.execute(framePassContext);
         }

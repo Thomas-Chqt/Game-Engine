@@ -28,13 +28,15 @@
 namespace GE
 {
 
+class AssetManager;
+
 template<typename Derived>
 class FramePassBuilderBase
 {
 public:
     inline constexpr Derived& setColorAttachment(const std::string& name, gfx::LoadAction lAc = gfx::LoadAction::clear)
     {
-        m_colorAttachmentName = name;
+        m_colorTextureName = name;
         m_colorAttachmentLoadAction = lAc;
         return static_cast<Derived&>(*this);
     }
@@ -47,7 +49,7 @@ public:
 
     inline constexpr Derived& setDepthAttachment(const std::string& name)
     {
-        m_depthAttachmentName = name;
+        m_depthTextureName = name;
         return static_cast<Derived&>(*this);
     }
 
@@ -57,41 +59,49 @@ public:
         return static_cast<Derived&>(*this);
     }
 
-    inline constexpr Derived& addSampledAttachment(const std::string& name)
+    inline constexpr Derived& addSampledTexture(const std::string& name)
     {
-        m_sampledAttachmentNames.push_back(name);
+        m_sampledTextureNames.push_back(name);
+        return static_cast<Derived&>(*this);
+    }
+
+    inline constexpr Derived& addUsedBuffer(const std::string& name)
+    {
+        m_usedBufferNames.push_back(name);
         return static_cast<Derived&>(*this);
     }
 
 protected:
     inline constexpr void buildAttachments(FramePass& framePass) const
     {
-        framePass.colorAttachments = { AttachmentUsage{
-            .name = m_colorAttachmentName,
+        framePass.colorAttachments = { AttachmentDescriptor{
+            .texture = m_colorTextureName,
             .loadAction = m_colorAttachmentLoadAction,
             .clearColor = m_clearColor,
         }};
 
-        if (m_depthAttachmentName.has_value())
+        if (m_depthTextureName.has_value())
         {
-            framePass.depthAttachment = AttachmentUsage{
-                .name = *m_depthAttachmentName,
+            framePass.depthAttachment = AttachmentDescriptor{
+                .texture = *m_depthTextureName,
                 .loadAction = gfx::LoadAction::clear,
                 .clearDepth = m_clearDepth,
             };
         }
 
-        framePass.sampledAttachments = m_sampledAttachmentNames;
+        framePass.sampledTextures = m_sampledTextureNames;
+        framePass.usedBuffers = m_usedBufferNames;
     }
 
-    std::string m_colorAttachmentName = "backBuffer";
+    std::string m_colorTextureName = "backBuffer";
     gfx::LoadAction m_colorAttachmentLoadAction = gfx::LoadAction::clear;
     std::array<float, 4> m_clearColor = {0.0f, 0.0f, 0.0f, 0.0f};
 
-    std::optional<std::string> m_depthAttachmentName = "depthBuffer";
+    std::optional<std::string> m_depthTextureName = "depthBuffer";
     float m_clearDepth = 1.0f;
 
-    std::vector<std::string> m_sampledAttachmentNames;
+    std::vector<std::string> m_sampledTextureNames;
+    std::vector<std::string> m_usedBufferNames;
 };
 
 class ImguiPassBuilder : public FramePassBuilderBase<ImguiPassBuilder>
@@ -145,16 +155,14 @@ public:
 class FlatGeometryPassBuilder : public FramePassBuilderBase<FlatGeometryPassBuilder>
 {
 public:
-    inline FramePass build() const;
+    FlatGeometryPassBuilder(const Scene* scene, AssetManager* assetManager)
+        : m_scene(scene), m_assetManager(assetManager) {}
 
-    inline constexpr FlatGeometryPassBuilder& setScene(const Scene* scene)
-    {
-        m_scene = scene;
-        return *this;
-    }
+    FramePass build() const;
 
 private:
-    const Scene* m_scene = nullptr;
+    const Scene* m_scene;
+    AssetManager* m_assetManager;
 };
 
 }
