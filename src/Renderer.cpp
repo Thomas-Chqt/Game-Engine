@@ -153,6 +153,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         if (it == cfd.constantBuffers.end() || it->second->size() != bufferDescriptor.size)
         {
             std::shared_ptr<gfx::Buffer> newBuffer = m_device->newBuffer(bufferDescriptor);
+            assert(newBuffer);
             cfd.constantBuffers[bufferName] = newBuffer;
         }
     }
@@ -170,6 +171,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
                 .usages = gfx::BufferUsage::structuredBuffer,
                 .storageMode = gfx::ResourceStorageMode::hostVisible
             });
+            assert(newBuffer);
             cfd.structuredBuffers[name] = newBuffer;
         }
         if (data != nullptr && size > 0)
