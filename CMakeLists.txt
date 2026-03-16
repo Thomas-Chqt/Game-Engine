@@ -38,24 +38,8 @@ else()
     target_compile_options(Game-Engine PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wno-missing-field-initializers>)
 endif()
 
-file(GLOB_RECURSE GE_INC "include/*.hpp")
-target_sources(Game-Engine PRIVATE ${GFX_INC})
-
-# file(GLOB_RECURSE GE_SRC "*.cpp" "*.hpp")
-# target_sources(Game-Engine PRIVATE ${GE_SRC})
-
-target_sources(Game-Engine PRIVATE
-    "src/Window.cpp"
-    "src/Application.cpp"
-    "src/Renderer.cpp"
-    "src/Archetype.cpp"
-    "src/ECSWorld.cpp"
-    "src/AssetManager.cpp"
-    "src/FrameGraph.cpp"
-    "src/main.cpp"
-    "src/Scene.cpp"
-    "src/FramePassBuilder.cpp"
-)
+file(GLOB_RECURSE GE_SRC "include/*.hpp" "src/*.cpp" "src/*.hpp")
+target_sources(Game-Engine PRIVATE ${GE_SRC} ${GFX_INC})
 
 target_include_directories(Game-Engine
     PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -63,16 +47,7 @@ target_include_directories(Game-Engine
 
 # target_precompile_headers(Graphics PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp")
 
-target_link_libraries(Game-Engine PUBLIC
-    Graphics
-    glfw
-    glm::glm
-    imgui
-    stb_image
-    dlLoad
-    assimp::assimp
-    nlohmann_json::nlohmann_json
-    tinyfiledialogs)
+target_link_libraries(Game-Engine PUBLIC Graphics glfw glm::glm imgui stb_image dlLoad assimp::assimp)
 
 add_subdirectory("shaders")
 
