@@ -99,8 +99,8 @@ FramePass FlatGeometryPassBuilder::build() const
         frameData.directionalLightCount = directionalLights.size();
         frameData.pointLightCount = pointLights.size();
 
-        ctx.setStructuredBufferContent("directionalLights", directionalLights.data(), directionalLights.size() * sizeof(shader::DirectionalLight));
-        ctx.setStructuredBufferContent("pointLights", pointLights.data(), pointLights.size() * sizeof(shader::PointLight));
+        ctx.setStructuredBufferContent("directionalLights", directionalLights.data(), (directionalLights.size() > 0 ?  directionalLights.size() : 1) * sizeof(shader::DirectionalLight));
+        ctx.setStructuredBufferContent("pointLights", pointLights.data(), (pointLights.size() > 0 ? pointLights.size() : 1 ) * sizeof(shader::PointLight));
 
         shader::flat_color::Material& material = *ctx.constantBuffers.at("material")->content<shader::flat_color::Material>();
         material.diffuseColor = glm::vec4(1.0f);
@@ -114,10 +114,8 @@ FramePass FlatGeometryPassBuilder::build() const
 
         std::shared_ptr<gfx::ParameterBlock> frameDataPBlock = ctx.parameterBlockPool.get(ctx.frameDataBlockLayout);
         frameDataPBlock->setBinding(0, ctx.bufferMap.at("frameData"));
-        if (ctx.bufferMap.contains("directionalLights"))
-            frameDataPBlock->setBinding(1, ctx.bufferMap.at("directionalLights"));
-        if (ctx.bufferMap.contains("pointLights"))
-            frameDataPBlock->setBinding(2, ctx.bufferMap.at("pointLights"));
+        frameDataPBlock->setBinding(1, ctx.bufferMap.at("directionalLights"));
+        frameDataPBlock->setBinding(2, ctx.bufferMap.at("pointLights"));
 
         std::shared_ptr<gfx::ParameterBlock> materialPBlock = ctx.parameterBlockPool.get(ctx.materialBlockLayout);
         materialPBlock->setBinding(0, ctx.bufferMap.at("material"));

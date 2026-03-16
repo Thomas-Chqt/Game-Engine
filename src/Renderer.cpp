@@ -152,7 +152,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
     }
 
     auto setStructuredBufferContent = [&](const std::string& bufferName, const void* data, uint32_t size) {
-        if (data == nullptr || size == 0)
+        if (size == 0)
             return;
         gfx::Buffer::Descriptor bufferDescriptor = gfx::Buffer::Descriptor{
             .size = size,
@@ -168,7 +168,8 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         auto [_, inserted] = bufferMap.insert(std::make_pair(bufferName, buffer));
         assert(inserted);
         newBufferCache[bufferDescriptor].insert(buffer);
-        std::memcpy(buffer->content<std::byte>(), data, size);
+        if (data != nullptr)
+            std::memcpy(buffer->content<std::byte>(), data, size);
     };
 
     std::shared_ptr<gfx::CommandBuffer> commandBuffer = cfd.commandBufferPool->get();
