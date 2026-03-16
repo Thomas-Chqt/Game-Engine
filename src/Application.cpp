@@ -17,6 +17,7 @@
 #include <Graphics/Surface.hpp>
 #include <Graphics/Device.hpp>
 
+#include <GLFW/glfw3.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 
@@ -31,7 +32,7 @@ Application::Application()
     auto res = ::glfwInit();
     assert(res == GLFW_TRUE);
     (void)res;
-    m_imguiGuard = { (void*)(1), [](void*){} };
+    m_glfwGuard = { (void*)(1), [](void*){ ::glfwTerminate(); } };
 
     m_instance = gfx::Instance::newInstance(gfx::Instance::Descriptor{});
     assert(m_instance);
