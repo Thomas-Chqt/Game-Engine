@@ -9,15 +9,16 @@
 
 #include "Editor.hpp"
 
-#include "Game-Engine/Components.hpp"
 #include "UI/EntityInspectorPanel.hpp"
 #include "UI/MainMenuBar.hpp"
+#include "UI/SceneGraphPanel.hpp"
 #include "UI/ViewportPanel.hpp"
 
 #include <Game-Engine/AssetManager.hpp>
 #include <Game-Engine/Entity.hpp>
 #include <Game-Engine/FrameGraph.hpp>
 #include <Game-Engine/FramePassBuilder.hpp>
+#include <Game-Engine/Components.hpp>
 
 #include <Graphics/Enums.hpp>
 
@@ -39,7 +40,7 @@ Editor::Editor()
 
     GE::Entity teapot = m_editedScene.newEntity("teapot");
     teapot.emplace<GE::TransformComponent>().position.z = -3;
-    teapot.emplace<GE::MeshComponent>().id = assetManager().registerAsset<GE::Mesh>(RESOURCE_DIR"/teapot.obj");
+    teapot.emplace<GE::MeshComponent>(assetManager().registerAsset<GE::Mesh>(RESOURCE_DIR"/teapot.obj"));
 
     GE::Entity camera = m_editedScene.newEntity("camera");
     camera.emplace<GE::TransformComponent>();
@@ -60,13 +61,9 @@ void Editor::onUpdate()
 
 void Editor::onEvent(GE::Event& event)
 {
-    if (event.dispatch<GE::WindowRequestCloseEvent>([&](GE::WindowRequestCloseEvent&) {
-            terminate();
-        }))
+    if (event.dispatch<GE::WindowRequestCloseEvent>([&](GE::WindowRequestCloseEvent&) { terminate(); }))
         return;
-    if (event.dispatch<GE::WindowResizeEvent>([&](GE::WindowResizeEvent&) {
-            rebuildFrameGraph();
-        }))
+    if (event.dispatch<GE::WindowResizeEvent>([&](GE::WindowResizeEvent&) { rebuildFrameGraph(); }))
         return;
 }
 
@@ -101,6 +98,9 @@ void Editor::renderImgui()
 
     ViewportPanel(&m_viewportSize)
         .onResize([this](auto){ rebuildFrameGraph(); })
+        .render();
+
+    SceneGraphPanel(&m_editedScene, &m_selectedEntity)
         .render();
 
     EntityInspectorPanel(m_selectedEntity)

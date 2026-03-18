@@ -10,7 +10,7 @@
 #ifndef ENTITYINSPECTORPANEL_HPP
 #define ENTITYINSPECTORPANEL_HPP
 
-#include "Game-Engine/Entity.hpp"
+#include <Game-Engine/Entity.hpp>
 
 namespace GE_Editor
 {

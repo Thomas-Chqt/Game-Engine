@@ -79,6 +79,9 @@ struct LightComponent
 struct MeshComponent
 {
     AssetID id;
+
+    inline operator AssetID& () { return id; }
+    inline operator const AssetID& () const { return id; }
 };
 
 } // namespace GE

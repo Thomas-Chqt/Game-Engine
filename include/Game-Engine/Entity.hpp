@@ -86,9 +86,24 @@ struct basic_entity
 
     auto& name(this auto&& self)
     {
-        if (self.template has<NameComponent>() == false)
-            return self.template emplace<NameComponent>().name;
+        if constexpr (EntityLike<std::remove_cvref_t<decltype(self)>>)
+        {
+            if (self.template has<NameComponent>() == false)
+                return self.template emplace<NameComponent>().name;
+        }
         return self.template get<NameComponent>().name;
+    }
+
+    inline glm::mat4 transform() const { return static_cast<glm::mat4>(get<TransformComponent>()); }
+
+    glm::mat4 worldTransform() const
+    {
+        if (auto parent = this->parent())
+        {
+            assert(parent->template has<TransformComponent>());
+            return parent->worldTransform() * transform();
+        }
+        return transform();
     }
 
     std::optional<basic_entity<ECSWorldT>> parent(this auto&& self)
@@ -169,7 +184,7 @@ struct basic_entity
     void addChild(this EntityLike auto&& self, EntityLike auto& child, EntityLike auto& after)
     {
         assert(self.world == child.world);
-        assert(self.isParentOf(child) == false);
+        assert(child.isParentOf(self) == false);
         assert(child.parent() == std::nullopt);
         assert(std::ranges::contains(self.children(), after)); // the `after` entity need to be a direct child
         assert(self.template has<HierarchyComponent>()); // if it has `after` as a direct child it should have the hierarchy component
@@ -191,7 +206,7 @@ struct basic_entity
     void addChild(this EntityLike auto&& self, EntityLike auto& child)
     {
         assert(self.world == child.world);
-        assert(self.isParentOf(child) == false);
+        assert(child.isParentOf(self) == false);
         assert(child.parent() == std::nullopt);
 
         if (self.template has<HierarchyComponent>() == false)

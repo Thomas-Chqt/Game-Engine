@@ -124,9 +124,9 @@ FramePass FlatGeometryPassBuilder::build() const
         ctx.commandBuffer.setParameterBlock(frameDataPBlock, 0);
         ctx.commandBuffer.setParameterBlock(materialPBlock, 1);
 
-        const_ECSView<TransformComponent, MeshComponent>(&scene->ecsWorld()).onEach([&](const_Entity, const TransformComponent& transform, const MeshComponent meshId)
+        const_ECSView<TransformComponent, MeshComponent>(&scene->ecsWorld()).onEach([&](const_Entity entity, const TransformComponent&, const MeshComponent meshId)
         {
-            std::shared_future<const std::shared_ptr<Mesh>&> meshFuture = assetManager->loadAsset<Mesh>(meshId.id);
+            std::shared_future<const std::shared_ptr<Mesh>&> meshFuture = assetManager->loadAsset<Mesh>(meshId);
             if (meshFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
             {
                 std::shared_ptr<Mesh> mesh = meshFuture.get();
@@ -143,7 +143,7 @@ FramePass FlatGeometryPassBuilder::build() const
                 };
 
                 for (auto& submesh : mesh->subMeshes)
-                    drawSubmesh(submesh, transform);
+                    drawSubmesh(submesh, entity.worldTransform());
             }
         });
     };
