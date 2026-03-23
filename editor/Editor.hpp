@@ -10,9 +10,10 @@
 #ifndef EDITOR_HPP
 #define EDITOR_HPP
 
-#include "Game-Engine/Entity.hpp"
-#include "Game-Engine/Scene.hpp"
+#include "Project.hpp"
+
 #include <Game-Engine/Application.hpp>
+#include <Game-Engine/FrameGraph.hpp>
 
 #include <cstdint>
 #include <imgui.h>
@@ -38,8 +39,7 @@ private:
     void rebuildFrameGraph();
     void renderImgui();
 
-    GE::Scene m_editedScene;
-    GE::Entity m_selectedEntity;
+    Project m_project;
 
     std::pair<uint32_t, uint32_t> m_viewportSize = {0, 0};
 

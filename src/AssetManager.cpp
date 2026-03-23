@@ -8,10 +8,12 @@
  */
 
 #include "Game-Engine/AssetManager.hpp"
+#include "Game-Engine/Mesh.hpp"
 
 #include <Graphics/Device.hpp>
 #include <Graphics/Enums.hpp>
 
+#include <array>
 #include <stb_image/stb_image.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
@@ -24,6 +26,7 @@
 #include <bit>
 #include <cstddef>
 #include <utility>
+#include <vector>
 
 #ifdef __cpp_lib_containers_ranges
     #define APPEND_RANGE(self, range) self.append_range(range)
@@ -59,6 +62,7 @@ namespace GE
 AssetManager::AssetManager(gfx::Device* device)
     : m_device(device)
 {
+    registerBuiltInCube();
 }
 
 void AssetManager::unloadAsset(AssetID assetId)
@@ -195,6 +199,71 @@ std::shared_ptr<gfx::Texture> AssetManager::loadTexture(const std::byte* bytes, 
     commandBuffer.endBlitPass();
 
     return texture;
+}
+
+void AssetManager::registerBuiltInCube()
+{
+    auto [assetIt, inserted] = m_assets.try_emplace(BUILT_IN_CUBE_ASSET_ID, std::in_place_type<AssetHandle<Mesh>>);
+    assert(inserted);
+    auto& handle = std::get<AssetHandle<Mesh>>(assetIt->second);
+    handle.loader = [this](gfx::CommandBuffer& commandBuffer) -> std::shared_ptr<Mesh> {
+        return std::make_shared<Mesh>(loadBuiltInCube(commandBuffer));
+    };
+}
+
+Mesh AssetManager::loadBuiltInCube(gfx::CommandBuffer& commandBuffer)
+{
+    constexpr auto vertices = std::to_array<Vertex>({
+        { {-1, -1, -1}, {0, 1}, {-1,  0,  0}, { 0,  1,  0} },
+        { {-1,  1, -1}, {1, 1}, {-1,  0,  0}, { 0,  1,  0} },
+        { {-1,  1,  1}, {1, 0}, {-1,  0,  0}, { 0,  1,  0} },
+        { {-1, -1,  1}, {0, 0}, {-1,  0,  0}, { 0,  1,  0} },
+        { {-1, -1,  1}, {0, 1}, { 0,  0,  1}, { 0,  1,  1} },
+        { {-1,  1,  1}, {1, 1}, { 0,  0,  1}, { 0,  1,  1} },
+        { { 1,  1,  1}, {1, 0}, { 0,  0,  1}, { 0,  1,  1} },
+        { { 1, -1,  1}, {0, 0}, { 0,  0,  1}, { 0,  1,  1} },
+        { { 1, -1,  1}, {0, 1}, { 1,  0,  0}, { 0,  1,  0} },
+        { { 1,  1,  1}, {1, 1}, { 1,  0,  0}, { 0,  1,  0} },
+        { { 1,  1, -1}, {1, 0}, { 1,  0,  0}, { 0,  1,  0} },
+        { { 1, -1, -1}, {0, 0}, { 1,  0,  0}, { 0,  1,  0} },
+        { { 1, -1, -1}, {1, 0}, { 0,  0, -1}, { 0, -1, -1} },
+        { { 1,  1, -1}, {0, 0}, { 0,  0, -1}, { 0, -1, -1} },
+        { {-1,  1, -1}, {0, 1}, { 0,  0, -1}, { 0, -1, -1} },
+        { {-1, -1, -1}, {1, 1}, { 0,  0, -1}, { 0, -1, -1} },
+        { {-1, -1,  1}, {0, 1}, { 0, -1,  0}, { 1,  0,  0} },
+        { { 1, -1,  1}, {1, 1}, { 0, -1,  0}, { 1,  0,  0} },
+        { { 1, -1, -1}, {1, 0}, { 0, -1,  0}, { 1,  0,  0} },
+        { {-1, -1, -1}, {0, 0}, { 0, -1,  0}, { 1,  0,  0} },
+        { { 1,  1,  1}, {0, 1}, { 0,  1,  0}, {-1,  0,  0} },
+        { {-1,  1,  1}, {1, 1}, { 0,  1,  0}, {-1,  0,  0} },
+        { {-1,  1, -1}, {1, 0}, { 0,  1,  0}, {-1,  0,  0} },
+        { { 1,  1, -1}, {0, 0}, { 0,  1,  0}, {-1,  0,  0} },
+    });
+
+    constexpr auto indices = std::to_array<uint32_t>({
+         2,  1,  0,  3,  2,  0,
+         6,  5,  4,  7,  6,  4,
+        10,  9,  8, 11, 10,  8,
+        14, 13, 12, 15, 14, 12,
+        18, 17, 16, 19, 18, 16,
+        22, 21, 20, 23, 22, 20
+    });
+
+    commandBuffer.beginBlitPass();
+    auto mesh = Mesh {
+        .name = "built_in_cube",
+        .subMeshes = std::vector<SubMesh> {
+            {
+                .name = "built_in_cube_submesh",
+                .transform = glm::mat4(1.0f),
+                .vertexBuffer = newDeviceLocalBuffer(commandBuffer, gfx::BufferUsage::vertexBuffer, vertices),
+                .indexBuffer = newDeviceLocalBuffer(commandBuffer, gfx::BufferUsage::indexBuffer, indices),
+                .subMeshes = {}
+            }
+        }
+    };
+    commandBuffer.endBlitPass();
+    return mesh;
 }
 
 } // namespace GE

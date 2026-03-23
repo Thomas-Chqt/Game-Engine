@@ -9,6 +9,7 @@
 
 #include "Editor.hpp"
 
+#include "Game-Engine/Scene.hpp"
 #include "UI/EntityInspectorPanel.hpp"
 #include "UI/MainMenuBar.hpp"
 #include "UI/SceneGraphPanel.hpp"
@@ -38,20 +39,6 @@ Editor::Editor()
 {
     rebuildFrameGraph();
 
-    GE::Entity teapot = m_editedScene.newEntity("teapot");
-    teapot.emplace<GE::TransformComponent>().position.z = -3;
-    teapot.emplace<GE::MeshComponent>(assetManager().registerAsset<GE::Mesh>(RESOURCE_DIR"/teapot.obj"));
-
-    GE::Entity camera = m_editedScene.newEntity("camera");
-    camera.emplace<GE::TransformComponent>();
-    camera.emplace<GE::CameraComponent>();
-    m_editedScene.setActiveCamera(camera);
-
-    GE::Entity light = m_editedScene.newEntity("light");
-    light.emplace<GE::TransformComponent>();
-    light.emplace<GE::LightComponent>();
-
-    m_selectedEntity = teapot;
 }
 
 void Editor::onUpdate()
@@ -77,7 +64,7 @@ void Editor::rebuildFrameGraph()
         },
         .backBufferName = "windowBackBuffer",
         .passes = {
-            GE::FlatGeometryPassBuilder(&m_editedScene, &assetManager())
+            GE::FlatGeometryPassBuilder(m_project.editedScene(), &assetManager())
                 .setColorAttachment("viewportBackBuffer")
                 .setDepthAttachment("depthBuffer"),
             GE::ImguiPassBuilder()
@@ -89,6 +76,9 @@ void Editor::rebuildFrameGraph()
 
 void Editor::renderImgui()
 {
+    GE::Scene* editedScene = m_project.editedScene();
+    GE::Entity selectedEntity = m_project.selectedEntity();
+
     ImGui::NewFrame();
 
     ImGui::DockSpaceOverViewport();
@@ -100,13 +90,15 @@ void Editor::renderImgui()
         .onResize([this](auto){ rebuildFrameGraph(); })
         .render();
 
-    SceneGraphPanel(&m_editedScene, &m_selectedEntity)
+    SceneGraphPanel(editedScene, &selectedEntity)
         .render();
 
-    EntityInspectorPanel(m_selectedEntity)
+    EntityInspectorPanel(selectedEntity)
         .render();
 
     ImGui::Render();
+
+    m_project.setSelectedEntity(selectedEntity);
 }
 
 } // namespace GE_Editor

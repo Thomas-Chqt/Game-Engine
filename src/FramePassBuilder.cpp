@@ -76,19 +76,19 @@ FramePass FlatGeometryPassBuilder::build() const
 
         std::vector<shader::DirectionalLight> directionalLights;
         std::vector<shader::PointLight> pointLights;
-        const_ECSView<TransformComponent, LightComponent>(&scene->ecsWorld()).onEach([&](const_Entity, const TransformComponent& transform, const LightComponent& light)
+        const_ECSView<TransformComponent, LightComponent>(&scene->ecsWorld()).onEach([&](const_Entity entity, const TransformComponent&, const LightComponent& light)
         {
             switch (light.type)
             {
             case LightComponent::Type::directional:
                 directionalLights.push_back({
-                    .position = transform.position,
+                    .position = entity.worldTransform()[3],
                     .color = light.color * light.intentsity,
                 });
                 break;
             case LightComponent::Type::point:
                 pointLights.push_back({
-                    .position = transform.position,
+                    .position = entity.worldTransform()[3],
                     .color = light.color * light.intentsity,
                     .attenuation = light.attenuation
                 });

@@ -24,6 +24,7 @@
 #include <filesystem>
 #include <functional>
 #include <future>
+#include <limits>
 #include <map>
 #include <memory>
 #include <random>
@@ -40,6 +41,8 @@ template<typename T>
 concept ManagableAsset = std::is_same_v<std::remove_cvref_t<T>, Mesh> || std::is_same_v<std::remove_cvref_t<T>, gfx::Texture>;
 
 using AssetID = uint64_t;
+
+constexpr AssetID BUILT_IN_CUBE_ASSET_ID = std::numeric_limits<uint64_t>::max();
 
 class AssetManager
 {
@@ -183,6 +186,8 @@ private:
     Mesh loadMesh(const std::filesystem::path&, gfx::CommandBuffer&);
     std::shared_ptr<gfx::Texture> loadTexture(const std::filesystem::path&, gfx::CommandBuffer&);
     std::shared_ptr<gfx::Texture> loadTexture(const std::byte* bytes, uint32_t width, uint32_t height, gfx::CommandBuffer&);
+    void registerBuiltInCube();
+    Mesh loadBuiltInCube(gfx::CommandBuffer&);
 
     gfx::Device* m_device = nullptr;
     std::map<std::filesystem::path, uint64_t> m_registredAssets;

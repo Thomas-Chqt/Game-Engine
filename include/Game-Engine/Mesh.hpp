@@ -42,8 +42,6 @@ struct SubMesh
 struct Mesh
 {
     std::string name;
-    glm::vec3 bBoxMin;
-    glm::vec3 bBoxMax;
     std::vector<SubMesh> subMeshes;
 };
 
