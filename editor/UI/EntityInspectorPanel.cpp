@@ -13,9 +13,9 @@
 #include <Game-Engine/ECSWorld.hpp>
 #include <Game-Engine/Entity.hpp>
 
-#include <cstring>
 #include <imgui.h>
 
+#include <cstring>
 #include <cassert>
 #include <numbers>
 
@@ -42,30 +42,53 @@ void EntityInspectorPanel::componentEditWidget<GE::TransformComponent>()
     ImGui::DragFloat3("scale##TransformComponent_scale",       (float*)&transform.scale,    0.01f, 0.0f, 10.0f);
 }
 
-// template<>
-// void EntityInspectorPanel::componentEditWidget<CameraComponent>()
-// {
-//     assert(m_scene != nullptr);
+template<>
+void EntityInspectorPanel::componentEditWidget<GE::CameraComponent>()
+{
+    GE::CameraComponent& cameraComponent = m_entity.get<GE::CameraComponent>();
 
-//     CameraComponent& cameraComponent = m_selectedEntity.get<CameraComponent>();
+    // if (m_scene->activeCamera() == m_selectedEntity)
+    //     ImGui::Text("Active");
+    // else if (ImGui::Button("Make active"))
+    //     m_scene->setActiveCamera(m_selectedEntity);
 
-//     if (m_scene->activeCamera() == m_selectedEntity)
-//         ImGui::Text("Active");
-//     else if (ImGui::Button("Make active"))
-//         m_scene->setActiveCamera(m_selectedEntity);
+    ImGui::DragFloat("fov##CameraComponent_fov",     &cameraComponent.fov,   0.01f,  -2*std::numbers::pi_v<float>, 2*std::numbers::pi_v<float>);
+    ImGui::DragFloat("zFar##CameraComponent_zFar",   &cameraComponent.zFar,  0.01f, 0.001f, 10000.0f);
+    ImGui::DragFloat("zNear##CameraComponent_zNear", &cameraComponent.zNear, 0.01f, 0.001f, 10000.0f);
+}
 
-//     ImGui::DragFloat("fov##CameraComponent_fov",     &cameraComponent.fov,   0.01f,  -2*PI,     2*PI);
-//     ImGui::DragFloat("zFar##CameraComponent_zFar",   &cameraComponent.zFar,  0.01f, 0.001f, 10000.0f);
-//     ImGui::DragFloat("zNear##CameraComponent_zNear", &cameraComponent.zNear, 0.01f, 0.001f, 10000.0f);
-// }
+template<>
+void EntityInspectorPanel::componentEditWidget<GE::LightComponent>()
+{
+    auto typeToStr = [](const GE::LightComponent::Type& type){
+        switch (type) {
+            case GE::LightComponent::Type::directional:
+            return "directional";
+            break;
+            case GE::LightComponent::Type::point:
+            return "point";
+            break;
+        }
+    };
 
-// template<>
-// void EntityInspectorPanel::componentEditWidget<LightComponent>()
-// {
-//     LightComponent& lightComponent = m_selectedEntity.get<LightComponent>();
-//     ImGui::ColorEdit3("color##LightComponent_color", (float*)&lightComponent.color);
-//     ImGui::DragFloat("intentsity##LightComponent_intensity", &lightComponent.intentsity, 0.01, 0.0f, 1.0f);
-// }
+    GE::LightComponent& lightComponent = m_entity.get<GE::LightComponent>();
+    if (ImGui::BeginCombo("Type##LightComponent_type", typeToStr(lightComponent.type)))
+    {
+        for (auto& type : {GE::LightComponent::Type::directional, GE::LightComponent::Type::point})
+        {
+            const bool is_selected = (lightComponent.type == type);
+            if (ImGui::Selectable(typeToStr(type), is_selected))
+                lightComponent.type = type;
+            if (is_selected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::ColorEdit3("color##LightComponent_color", (float*)&lightComponent.color);
+    ImGui::DragFloat("intentsity##LightComponent_intensity", &lightComponent.intentsity, 0.01, 0.0f, 1.0f);
+    if (lightComponent.type == GE::LightComponent::Type::point)
+        ImGui::DragFloat("attenuation##LightComponent_attenuation", &lightComponent.attenuation, 0.01, 0.0f, 1.0f);
+}
 
 // template<>
 // void EntityInspectorPanel::componentEditWidget<MeshComponent>()
@@ -124,12 +147,12 @@ void EntityInspectorPanel::render()
             componentEditWidget<GE::NameComponent>();
             if (m_entity.has<GE::TransformComponent>() && componentEditHeader<GE::TransformComponent>("Transform component"))
                 componentEditWidget<GE::TransformComponent>();
-            // if (m_entity.has<GE::CameraComponent>() && componentEditHeader<CameraComponent>("Camera component"))
-            //     componentEditWidget<CameraComponent>();
-            // if (m_entity.has<GE::LightComponent>() && componentEditHeader<LightComponent>("Light component"))
-            //     componentEditWidget<LightComponent>();
-            // if (m_entity.has<GE::MeshComponent>() && componentEditHeader<MeshComponent>("Mesh component"))
-            //     componentEditWidget<MeshComponent>();
+            if (m_entity.has<GE::CameraComponent>() && componentEditHeader<GE::CameraComponent>("Camera component"))
+                componentEditWidget<GE::CameraComponent>();
+            if (m_entity.has<GE::LightComponent>() && componentEditHeader<GE::LightComponent>("Light component"))
+                componentEditWidget<GE::LightComponent>();
+            // if (m_entity.has<GE::MeshComponent>() && componentEditHeader<GE::MeshComponent>("Mesh component"))
+            //     componentEditWidget<GE::MeshComponent>();
             // if (m_entity.has<GE::ScriptComponent>() && componentEditHeader<ScriptComponent>("Script component"))
             //     componentEditWidget<ScriptComponent>();
 
@@ -141,10 +164,10 @@ void EntityInspectorPanel::render()
                 ImGui::OpenPopup("add_component_popup");
             addComponentPopUp();
 
-            // ImGui::SameLine();
+            ImGui::SameLine();
 
-            // if (m_onEntityDelete && ImGui::Button("Delete enitity"))
-            //     m_onEntityDelete();
+            if (m_onEntityDelete && ImGui::Button("Delete enitity"))
+                m_onEntityDelete();
         }
         ImGui::PopItemWidth();
     }
@@ -168,17 +191,17 @@ void EntityInspectorPanel::addComponentPopUp()
         if (m_entity.has<GE::TransformComponent>() == false && ImGui::Selectable("Transform component"))
             m_entity.emplace<GE::TransformComponent>();
 
-        // if (m_selectedEntity.has<CameraComponent>() == false && ImGui::Selectable("Camera component"))
-        //     m_selectedEntity.emplace<CameraComponent>();
+        if (m_entity.has<GE::CameraComponent>() == false && ImGui::Selectable("Camera component"))
+            m_entity.emplace<GE::CameraComponent>();
 
-        // if (m_selectedEntity.has<LightComponent>() == false && ImGui::Selectable("Light component"))
-        //     m_selectedEntity.emplace<LightComponent>();
+        if (m_entity.has<GE::LightComponent>() == false && ImGui::Selectable("Light component"))
+            m_entity.emplace<GE::LightComponent>();
 
-        // if (m_selectedEntity.has<MeshComponent>() == false && ImGui::Selectable("Mesh component"))
-        //     m_selectedEntity.emplace<MeshComponent>();
+        // if (m_entity.has<GE::MeshComponent>() == false && ImGui::Selectable("Mesh component"))
+        //     m_entity.emplace<GE::MeshComponent>();
 
-        // if (m_selectedEntity.has<ScriptComponent>() == false && ImGui::Selectable("Script component"))
-        //     m_selectedEntity.emplace<ScriptComponent>();
+        // if (m_entity.has<GE::ScriptComponent>() == false && ImGui::Selectable("Script component"))
+        //     m_entity.emplace<GE::ScriptComponent>();
 
         ImGui::EndPopup();
     }

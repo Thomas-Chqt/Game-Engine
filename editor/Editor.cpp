@@ -57,12 +57,12 @@ void Editor::onEvent(GE::Event& event)
 void Editor::rebuildFrameGraph()
 {
     m_frameGraph = GE::FrameGraph(GE::FrameGraph::Descriptor{
+        .backBufferName = "windowBackBuffer",
         .textures = {
             { .name = "viewportBackBuffer", .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
             { .name = "depthBuffer",        .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::Depth32Float },
             { .name = "windowBackBuffer",   .size = window().frameBufferSize(), .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
         },
-        .backBufferName = "windowBackBuffer",
         .passes = {
             GE::FlatGeometryPassBuilder(m_project.editedScene(), &assetManager())
                 .setColorAttachment("viewportBackBuffer")

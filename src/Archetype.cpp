@@ -17,7 +17,7 @@
 namespace GE
 {
 
-ECSWorld::Archetype::Archetype() : m_size(0), m_capacity(1)
+ECSWorld::Archetype::Archetype() : m_size(0), m_capacity(1) // TODO : start capacity at 0 ?
 {
     m_rows.insert(std::pair(0, Row{
         operator new (sizeof(EntityID) * m_capacity),

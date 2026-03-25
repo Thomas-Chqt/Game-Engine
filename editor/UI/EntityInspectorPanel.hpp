@@ -11,6 +11,7 @@
 #define ENTITYINSPECTORPANEL_HPP
 
 #include <Game-Engine/Entity.hpp>
+#include <functional>
 
 namespace GE_Editor
 {
@@ -24,6 +25,8 @@ public:
 
     EntityInspectorPanel(const GE::Entity&);
 
+    EntityInspectorPanel& onEntityDelete(std::function<void()>&& f) { return m_onEntityDelete = std::move(f), *this; }
+
     void render();
 
     ~EntityInspectorPanel() = default;
@@ -34,6 +37,8 @@ private:
     void addComponentPopUp();
 
     GE::Entity m_entity;
+
+    std::function<void()> m_onEntityDelete;
 
 public:
     EntityInspectorPanel& operator=(const EntityInspectorPanel&) = delete;
