@@ -10,6 +10,8 @@
 #include "Game-Engine/ECSWorld.hpp"
 
 #include <cassert>
+#include <cstddef>
+#include <ranges>
 
 // using json = nlohmann::json;
 
@@ -23,27 +25,39 @@ ECSWorld::ECSWorld()
 
 ECSWorld::EntityID ECSWorld::newEntityID()
 {
+    EntityID newEntityId;
+    if (m_availableEntityIDs.empty())
+        newEntityId = m_entityDatas.size();
+    else
+        newEntityId = *m_availableEntityIDs.begin();
+    registerEntityID(newEntityId);
+    return newEntityId;
+}
+
+void ECSWorld::registerEntityID(ECSWorld::EntityID id)
+{
+    assert(isValidEntityID(id) == false); // user is responsible to be sure the id is not already used
+
     // new entity has no component so directly inserting in empty archetype (the one with only the entity id)
     ArchetypeID newEntityArcId = { 0 };
     Archetype& newEntityArchetype = m_archetypes[newEntityArcId];
     uint64_t newEntityIdx = newEntityArchetype.allocateCollum();
-
-    EntityID newEntityId;
-    if (m_availableEntityIDs.empty())
+    auto it = m_availableEntityIDs.find(id);
+    if (it != m_availableEntityIDs.end())
     {
-        newEntityId = m_entityDatas.size();
-        m_entityDatas.push_back(EntityData{newEntityArcId, newEntityIdx});
+        m_availableEntityIDs.erase(it);
+        m_entityDatas[id] = EntityData{newEntityArcId, newEntityIdx};
     }
     else
     {
-        auto node = m_availableEntityIDs.extract(m_availableEntityIDs.begin());
-        newEntityId = node.value();
-        m_entityDatas[newEntityId] = EntityData{newEntityArcId, newEntityIdx};
+        if (id > m_entityDatas.size()) {
+            m_availableEntityIDs.insert_range(std::views::iota(m_entityDatas.size(), id));
+            m_entityDatas.resize(id);
+        }
+        m_entityDatas.push_back(EntityData{newEntityArcId, newEntityIdx});
     }
-    newEntityArchetype.getEntityID(newEntityIdx) = newEntityId;
-
-    assert(isValidEntityID(newEntityId));
-    return newEntityId;
+    newEntityArchetype.getEntityID(newEntityIdx) = id;
+    assert(isValidEntityID(id));
 }
 
 void ECSWorld::deleteEntityID(EntityID entityId)

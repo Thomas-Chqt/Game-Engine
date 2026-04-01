@@ -10,13 +10,14 @@
 #ifndef COMPONENTS_HPP
 #define COMPONENTS_HPP
 
-#include "Game-Engine/AssetManager.hpp"
+#include "Game-Engine/AssetManagerView.hpp"
 #include "Game-Engine/ECSWorld.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <string>
+#include <variant>
 
 namespace GE
 {
@@ -24,6 +25,9 @@ namespace GE
 struct NameComponent
 {
     std::string name;
+
+    inline operator std::string& () { return name; }
+    inline operator const std::string& () const { return name; }
 };
 
 struct HierarchyComponent
@@ -83,6 +87,8 @@ struct MeshComponent
     inline operator AssetID& () { return id; }
     inline operator const AssetID& () const { return id; }
 };
+
+using ComponentVariant = std::variant<NameComponent, HierarchyComponent, TransformComponent, CameraComponent, LightComponent, MeshComponent>;
 
 } // namespace GE
 

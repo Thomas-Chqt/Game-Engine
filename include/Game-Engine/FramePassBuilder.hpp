@@ -124,13 +124,12 @@ public:
 class FlatGeometryPassBuilder : public FramePassBuilderBase<FlatGeometryPassBuilder>
 {
 public:
-    FlatGeometryPassBuilder(const Scene* scene, AssetManager* assetManager);
+    FlatGeometryPassBuilder(const Scene* scene);
 
     FramePass build() const;
 
 private:
     const Scene* m_scene;
-    AssetManager* m_assetManager;
 };
 
 }

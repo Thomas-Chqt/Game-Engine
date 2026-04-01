@@ -9,12 +9,30 @@
 
 #include "Game-Engine/Scene.hpp"
 
+#include <type_traits>
+#include <variant>
+
 namespace GE
 {
 
-Scene::Scene(const std::string& name)
-    : m_name(name)
+Scene::Scene(AssetManager* assetManager, const std::string& name)
+    : m_assetManagerView(assetManager)
+    , m_name(name)
 {
+}
+
+Scene::Scene(AssetManager* assetManager, const Descriptor& desc)
+    : Scene(assetManager, desc.name)
+{
+    for (auto& [id, vComponents] : desc.entities) {
+        m_ecsWorld.registerEntityID(id);
+        for (auto& vComponent : vComponents) {
+            std::visit([&](auto& component) {
+                m_ecsWorld.emplace<std::remove_cvref_t<decltype(component)>>(id, component);
+            }, vComponent);
+        }
+    }
+    m_activeCamera = desc.activeCamera;
 }
 
 void Scene::setActiveCamera(const Entity& e)

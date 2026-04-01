@@ -14,11 +14,12 @@
 
 #include <Game-Engine/Application.hpp>
 #include <Game-Engine/FrameGraph.hpp>
+#include <Game-Engine/Scene.hpp>
 
-#include <cstdint>
 #include <imgui.h>
 
 #include <utility>
+#include <cstdint>
 
 namespace GE_Editor
 {
@@ -39,7 +40,11 @@ private:
     void rebuildFrameGraph();
     void renderImgui();
 
+    std::filesystem::path m_projectFilePath;
     Project m_project;
+
+    std::pair<uint32_t, GE::Scene> m_editedScene;
+    GE::Entity m_selectedEntity;
 
     std::pair<uint32_t, uint32_t> m_viewportSize = {0, 0};
 

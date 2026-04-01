@@ -25,6 +25,7 @@
 #include <ranges>
 #include <bit>
 #include <cstddef>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -61,31 +62,55 @@ namespace GE
 
 AssetManager::AssetManager(gfx::Device* device)
     : m_device(device)
+    , m_builtInCubeHandle(std::in_place_type<AssetHandle<Mesh>>)
 {
-    registerBuiltInCube();
+    std::get<AssetHandle<Mesh>>(m_builtInCubeHandle).loader = [device=m_device](gfx::CommandBuffer& commandBuffer) -> std::shared_ptr<Mesh> {
+        return std::make_shared<Mesh>(loadBuiltInCube(*device, commandBuffer));
+    };
 }
 
-void AssetManager::unloadAsset(AssetID assetId)
+void AssetManager::registerAsset(const VAssetPath& vAssetPath)
 {
-    auto it = m_assets.find(assetId);
-    assert(it != m_assets.end());
+    std::visit([&](const auto& assetPath) {
+        using AssetType = typename std::remove_cvref_t<decltype(assetPath)>::AssetType;
+        auto [it, inserted] = m_handles.try_emplace(vAssetPath, std::in_place_type<AssetHandle<AssetType>>);
+        if (inserted)
+        {
+            AssetHandle<AssetType>& handle = std::get<AssetHandle<AssetType>>(it->second);
+            if constexpr (std::is_same_v<AssetType, Mesh>) {
+                handle.loader = [device=m_device, path=assetPath](gfx::CommandBuffer& commandBuffer) {
+                    return std::make_shared<Mesh>(loadMesh(*device, path, commandBuffer));
+                };
+            }
+            else if constexpr (std::is_same_v<AssetType, gfx::Texture>) {
+                handle.loader = [device=m_device, path=assetPath](gfx::CommandBuffer& commandBuffer) {
+                    return loadTexture(*device, path, commandBuffer);
+                };
+            }
+            else std::unreachable();
+        }
+    },
+    vAssetPath);
+}
 
-    auto visitor = [](auto&& handle) {
+void AssetManager::unloadAssetHandle(VAssetHandle& vHandle)
+{
+    std::visit([](auto& handle) {
         handle.future.wait(); // dont need to propagate errors
-        auto expected = LoadingStatus::loaded;
-        if (handle.status.compare_exchange_strong(expected, LoadingStatus::unloaded))
+        auto expected = AssetHandleLoadingStatus::loaded;
+        if (handle.status.compare_exchange_strong(expected, AssetHandleLoadingStatus::unloaded))
             handle.asset.reset();
-    };
-    std::visit(std::move(visitor), it->second);
+    },
+    vHandle);
 }
 
 AssetManager::~AssetManager()
 {
-    for (auto& [id, _] : m_assets)
-        unloadAsset(id);
+    for (auto& [_, handle] : m_handles)
+        unloadAssetHandle(handle);
 }
 
-Mesh AssetManager::loadMesh(const std::filesystem::path& path, gfx::CommandBuffer& commandBuffer)
+Mesh AssetManager::loadMesh(gfx::Device& device, const std::filesystem::path& path, gfx::CommandBuffer& commandBuffer)
 {
     assert(std::filesystem::is_regular_file(path));
 
@@ -110,8 +135,8 @@ Mesh AssetManager::loadMesh(const std::filesystem::path& path, gfx::CommandBuffe
         return SubMesh{
             .name = aiMesh->mName.C_Str(),
             .transform = glm::mat4x4(1.0f),
-            .vertexBuffer = newDeviceLocalBuffer(commandBuffer, gfx::BufferUsage::vertexBuffer, std::views::iota(0u, aiMesh->mNumVertices) | std::views::transform(std::move(aiVtxToVtx))),
-            .indexBuffer = newDeviceLocalBuffer(commandBuffer, gfx::BufferUsage::indexBuffer, std::views::iota(0u, aiMesh->mNumFaces * 3) | std::views::transform(std::move(aiVtxToIdx))),
+            .vertexBuffer = newDeviceLocalBuffer(device, commandBuffer, gfx::BufferUsage::vertexBuffer, std::views::iota(0u, aiMesh->mNumVertices) | std::views::transform(std::move(aiVtxToVtx))),
+            .indexBuffer = newDeviceLocalBuffer(device, commandBuffer, gfx::BufferUsage::indexBuffer, std::views::iota(0u, aiMesh->mNumFaces * 3) | std::views::transform(std::move(aiVtxToIdx))),
             // .material = materials[aiMesh->mMaterialIndex],
             .subMeshes = {}
         };
@@ -162,7 +187,7 @@ Mesh AssetManager::loadMesh(const std::filesystem::path& path, gfx::CommandBuffe
     return mesh;
 }
 
-std::shared_ptr<gfx::Texture> AssetManager::loadTexture(const std::filesystem::path& path, gfx::CommandBuffer& commandBuffer)
+std::shared_ptr<gfx::Texture> AssetManager::loadTexture(gfx::Device& device, const std::filesystem::path& path, gfx::CommandBuffer& commandBuffer)
 {
     using UniqueStbiUc = std::unique_ptr<stbi_uc, decltype(&stbi_image_free)>;
 
@@ -171,13 +196,13 @@ std::shared_ptr<gfx::Texture> AssetManager::loadTexture(const std::filesystem::p
     UniqueStbiUc bytes = UniqueStbiUc(stbi_load(path.string().c_str(), &width, &height, nullptr, STBI_rgb_alpha), stbi_image_free);
     if (!bytes)
         throw std::runtime_error("failed to load texture: " + path.string());
-    return loadTexture(std::bit_cast<const std::byte*>(bytes.get()), static_cast<uint32_t>(width), static_cast<uint32_t>(height), commandBuffer);
+    return loadTexture(device, std::bit_cast<const std::byte*>(bytes.get()), static_cast<uint32_t>(width), static_cast<uint32_t>(height), commandBuffer);
 }
 
-std::shared_ptr<gfx::Texture> AssetManager::loadTexture(const std::byte* bytes, uint32_t width, uint32_t height, gfx::CommandBuffer& commandBuffer)
+std::shared_ptr<gfx::Texture> AssetManager::loadTexture(gfx::Device& device, const std::byte* bytes, uint32_t width, uint32_t height, gfx::CommandBuffer& commandBuffer)
 {
     assert(bytes);
-    std::shared_ptr<gfx::Texture> texture = m_device->newTexture(gfx::Texture::Descriptor{
+    std::shared_ptr<gfx::Texture> texture = device.newTexture(gfx::Texture::Descriptor{
         .type = gfx::TextureType::texture2d,
         .width = width,
         .height = height,
@@ -186,7 +211,7 @@ std::shared_ptr<gfx::Texture> AssetManager::loadTexture(const std::byte* bytes, 
         .storageMode = gfx::ResourceStorageMode::deviceLocal });
     assert(texture);
 
-    std::shared_ptr<gfx::Buffer> stagingBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
+    std::shared_ptr<gfx::Buffer> stagingBuffer = device.newBuffer(gfx::Buffer::Descriptor{
         .size = static_cast<size_t>(width) * static_cast<size_t>(height) * pixelFormatSize(gfx::PixelFormat::RGBA8Unorm),
         .usages = gfx::BufferUsage::copySource,
         .storageMode = gfx::ResourceStorageMode::hostVisible });
@@ -201,17 +226,7 @@ std::shared_ptr<gfx::Texture> AssetManager::loadTexture(const std::byte* bytes, 
     return texture;
 }
 
-void AssetManager::registerBuiltInCube()
-{
-    auto [assetIt, inserted] = m_assets.try_emplace(BUILT_IN_CUBE_ASSET_ID, std::in_place_type<AssetHandle<Mesh>>);
-    assert(inserted);
-    auto& handle = std::get<AssetHandle<Mesh>>(assetIt->second);
-    handle.loader = [this](gfx::CommandBuffer& commandBuffer) -> std::shared_ptr<Mesh> {
-        return std::make_shared<Mesh>(loadBuiltInCube(commandBuffer));
-    };
-}
-
-Mesh AssetManager::loadBuiltInCube(gfx::CommandBuffer& commandBuffer)
+Mesh AssetManager::loadBuiltInCube(gfx::Device& device, gfx::CommandBuffer& commandBuffer)
 {
     constexpr auto vertices = std::to_array<Vertex>({
         { {-1, -1, -1}, {0, 1}, {-1,  0,  0}, { 0,  1,  0} },
@@ -256,8 +271,8 @@ Mesh AssetManager::loadBuiltInCube(gfx::CommandBuffer& commandBuffer)
             {
                 .name = "built_in_cube_submesh",
                 .transform = glm::mat4(1.0f),
-                .vertexBuffer = newDeviceLocalBuffer(commandBuffer, gfx::BufferUsage::vertexBuffer, vertices),
-                .indexBuffer = newDeviceLocalBuffer(commandBuffer, gfx::BufferUsage::indexBuffer, indices),
+                .vertexBuffer = newDeviceLocalBuffer(device, commandBuffer, gfx::BufferUsage::vertexBuffer, vertices),
+                .indexBuffer = newDeviceLocalBuffer(device, commandBuffer, gfx::BufferUsage::indexBuffer, indices),
                 .subMeshes = {}
             }
         }

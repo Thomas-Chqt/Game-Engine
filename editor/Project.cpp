@@ -10,38 +10,57 @@
 
 #include <Game-Engine/AssetManager.hpp>
 #include <Game-Engine/Scene.hpp>
+#include <Game-Engine/Components.hpp>
+#include <Game-Engine/ECSWorld.hpp>
+#include <Game-Engine/Mesh.hpp>
+#include <Game-Engine/AssetManagerView.hpp>
 
 #include <cassert>
+#include <utility>
 
 namespace GE_Editor
 {
 
 Project::Project()
 {
-    GE::Scene& scene = m_scenes.emplace_back("default_scene");
+    auto [it, inserted] = m_scenes.emplace(0, GE::Scene::Descriptor());
+    assert(inserted);
+    GE::Scene::Descriptor& desc = it->second;
 
-    GE::Entity teapot = scene.newEntity("cube");
-    teapot.emplace<GE::TransformComponent>();
-    teapot.emplace<GE::MeshComponent>(GE::BUILT_IN_CUBE_ASSET_ID);
-
-    GE::Entity camera = scene.newEntity("camera");
-    camera.emplace<GE::TransformComponent>(GE::TransformComponent{
-        .position = {  3.0f, 3.0f, 5.0f },
-        .rotation = { -0.5f, 0.5f, 0.0f },
-        .scale    = {  1.0f, 1.0f, 1.0f }
-    });
-    camera.emplace<GE::CameraComponent>();
-    scene.setActiveCamera(camera);
-
-    GE::Entity light = scene.newEntity("light");
-    light.emplace<GE::TransformComponent>();
-    light.emplace<GE::LightComponent>();
-
-    camera.addChild(light);
-
-    m_startScene = &scene;
-    m_editedScene = &scene;
-    m_selectedEntity = teapot;
+    desc.name = "default_scene";
+    desc.activeCamera = 1;
+    desc.registredAssets = {
+        { GE::BUILT_IN_CUBE_ASSET_ID, GE::AssetPath<GE::Mesh>() }
+    };
+    desc.entities = {
+        {
+            0, {
+               GE::NameComponent{"cube"},
+               GE::TransformComponent{},
+               GE::MeshComponent{GE::BUILT_IN_CUBE_ASSET_ID}
+            }
+        },
+        {
+            1, {
+               GE::NameComponent{"camera"},
+               GE::HierarchyComponent{ .firstChild = 2 },
+               GE::TransformComponent{
+                   .position = {  3.0f, 3.0f, 5.0f },
+                   .rotation = { -0.5f, 0.5f, 0.0f },
+                   .scale    = {  1.0f, 1.0f, 1.0f }
+               },
+               GE::CameraComponent{}
+            }
+        },
+        {
+            2, {
+               GE::NameComponent{"light"},
+               GE::HierarchyComponent{ .parent = 1 },
+               GE::TransformComponent{},
+               GE::LightComponent{}
+            }
+        }
+    };
 }
 
 }

@@ -27,8 +27,8 @@
 namespace GE
 {
 
-FlatGeometryPassBuilder::FlatGeometryPassBuilder(const Scene* scene, AssetManager* assetManager)
-    : m_scene(scene), m_assetManager(assetManager)
+FlatGeometryPassBuilder::FlatGeometryPassBuilder(const Scene* scene)
+    : m_scene(scene)
 {
 }
 
@@ -108,7 +108,7 @@ FramePass FlatGeometryPassBuilder::build() const
         material.shininess = 0.0f;
     };
 
-    framePass.execute = [scene=m_scene, assetManager=m_assetManager](FramePassExecuteContext& ctx)
+    framePass.execute = [scene=m_scene](FramePassExecuteContext& ctx)
     {
         assert(scene);
 
@@ -126,7 +126,7 @@ FramePass FlatGeometryPassBuilder::build() const
 
         const_ECSView<TransformComponent, MeshComponent>(&scene->ecsWorld()).onEach([&](const_Entity entity, const TransformComponent&, const MeshComponent meshId)
         {
-            std::shared_future<const std::shared_ptr<Mesh>&> meshFuture = assetManager->loadAsset<Mesh>(meshId);
+            std::shared_future<const std::shared_ptr<Mesh>&> meshFuture = scene->assetManagerView().loadAsset<Mesh>(meshId);
             if (meshFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
             {
                 std::shared_ptr<Mesh> mesh = meshFuture.get();

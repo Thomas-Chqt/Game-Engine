@@ -56,6 +56,7 @@ public:
     ECSWorld(ECSWorld&&) = default;
 
     EntityID newEntityID();
+    void registerEntityID(ECSWorld::EntityID);
 
     void deleteEntityID(EntityID);
 

@@ -9,7 +9,7 @@
 
 #include "Editor.hpp"
 
-#include "Game-Engine/Scene.hpp"
+#include "UI/ContentBrowserPanel.hpp"
 #include "UI/EntityInspectorPanel.hpp"
 #include "UI/MainMenuBar.hpp"
 #include "UI/SceneGraphPanel.hpp"
@@ -20,12 +20,15 @@
 #include <Game-Engine/FrameGraph.hpp>
 #include <Game-Engine/FramePassBuilder.hpp>
 #include <Game-Engine/Components.hpp>
+#include <Game-Engine/Scene.hpp>
 
 #include <Graphics/Enums.hpp>
 
 #include <imgui.h>
 
 #include <memory>
+#include <ranges>
+#include <utility>
 
 std::unique_ptr<GE::Application> createApplication(int argc, char* argv[])
 {
@@ -36,9 +39,9 @@ namespace GE_Editor
 {
 
 Editor::Editor()
+    : m_project{}, m_editedScene{m_project.startScene().first, GE::Scene(&assetManager(), m_project.startScene().second)}
 {
     rebuildFrameGraph();
-
 }
 
 void Editor::onUpdate()
@@ -64,7 +67,7 @@ void Editor::rebuildFrameGraph()
             { .name = "windowBackBuffer",   .size = window().frameBufferSize(), .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
         },
         .passes = {
-            GE::FlatGeometryPassBuilder(m_project.editedScene(), &assetManager())
+            GE::FlatGeometryPassBuilder(&m_editedScene.second)
                 .setColorAttachment("viewportBackBuffer")
                 .setDepthAttachment("depthBuffer"),
             GE::ImguiPassBuilder()
@@ -76,9 +79,6 @@ void Editor::rebuildFrameGraph()
 
 void Editor::renderImgui()
 {
-    GE::Scene* editedScene = m_project.editedScene();
-    GE::Entity selectedEntity = m_project.selectedEntity();
-
     ImGui::NewFrame();
 
     ImGui::DockSpaceOverViewport();
@@ -90,15 +90,16 @@ void Editor::renderImgui()
         .onResize([this](auto){ rebuildFrameGraph(); })
         .render();
 
-    SceneGraphPanel(editedScene, &selectedEntity)
+    SceneGraphPanel(&m_editedScene.second, &m_selectedEntity)
         .render();
 
-    EntityInspectorPanel(selectedEntity)
+    EntityInspectorPanel(m_selectedEntity)
         .render();
+
+    ContentBrowserPanel("Scenes", "scene_dnd", sizeof(GE::Scene::Descriptor))
+        .render(m_project.scenes() | std::views::transform([](auto& e) { return std::make_pair(e.second.name, (const void*)&e.second); }));
 
     ImGui::Render();
-
-    m_project.setSelectedEntity(selectedEntity);
 }
 
 } // namespace GE_Editor

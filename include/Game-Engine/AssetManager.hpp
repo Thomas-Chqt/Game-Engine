@@ -19,15 +19,12 @@
 #include <atomic>
 #include <cassert>
 #include <cstddef>
-#include <concepts>
 #include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <future>
-#include <limits>
 #include <map>
 #include <memory>
-#include <random>
 #include <ranges>
 #include <type_traits>
 #include <utility>
@@ -40,9 +37,23 @@ namespace GE
 template<typename T>
 concept ManagableAsset = std::is_same_v<std::remove_cvref_t<T>, Mesh> || std::is_same_v<std::remove_cvref_t<T>, gfx::Texture>;
 
-using AssetID = uint64_t;
+template<ManagableAsset T>
+struct AssetPath
+{
+    using AssetType = T;
+    std::filesystem::path path;
+    AssetPath() = default;
+    AssetPath(std::filesystem::path path) : path(std::move(path)) {}
+    inline operator std::filesystem::path& () { return path; }
+    inline operator const std::filesystem::path& () const { return path; }
+    friend bool operator==(const AssetPath&, const AssetPath&) = default;
+    friend bool operator<(const AssetPath& lhs, const AssetPath& rhs) { return lhs.path < rhs.path; }
+};
 
-constexpr AssetID BUILT_IN_CUBE_ASSET_ID = std::numeric_limits<uint64_t>::max();
+using VAssetPath = std::variant<AssetPath<Mesh>, AssetPath<gfx::Texture>>;
+
+template<typename T>
+concept VAssetPathSizedRange = std::ranges::sized_range<T> && std::is_same_v<std::ranges::range_value_t<T>, VAssetPath>;
 
 class AssetManager
 {
@@ -53,63 +64,26 @@ public:
 
     AssetManager(gfx::Device*);
 
-    template<ManagableAsset T>
-    AssetID registerAsset(const std::filesystem::path& path)
-    {
-        auto registredAssetsIt = m_registredAssets.find(path);
-        if (registredAssetsIt == m_registredAssets.end())
-        {
-            uint64_t newAssetId = 0;
-            static thread_local std::mt19937_64 rng(std::random_device{}());
-            static thread_local std::uniform_int_distribution<uint64_t> dist;
-            do newAssetId = dist(rng);
-            while (newAssetId == 0 || m_assets.contains(newAssetId));
-            registredAssetsIt = m_registredAssets.insert(std::make_pair(path, newAssetId)).first;
-            auto [assetIt, inserted] = m_assets.try_emplace(registredAssetsIt->second, std::in_place_type<AssetHandle<T>>);
-            assert(inserted);
-            auto& handle = std::get<AssetHandle<T>>(assetIt->second);
-            if constexpr (std::is_same_v<T, Mesh>)
-            {
-                handle.loader = [this, path=path](gfx::CommandBuffer& commandBuffer) -> std::shared_ptr<Mesh> {
-                    return std::make_shared<Mesh>(loadMesh(path, commandBuffer));
-                };
-            }
-            else if constexpr (std::is_same_v<T, gfx::Texture>)
-            {
-                handle.loader = [this, path=path](gfx::CommandBuffer& commandBuffer) -> std::shared_ptr<gfx::Texture> {
-                    return loadTexture(path, commandBuffer);
-                };
-            }
-        }
-        return registredAssetsIt->second;
-    }
+    void registerAsset(const VAssetPath&);
 
     template<ManagableAsset T>
-    const std::shared_future<const std::shared_ptr<T>&>& loadAsset(AssetID assetId)
-    {
-        auto it = m_assets.find(assetId);
-        assert(it != m_assets.end());
-        AssetHandle<T>& handle = std::get<AssetHandle<T>>(it->second);
-        return loadAsset(handle);
-    }
+    inline const std::shared_future<const std::shared_ptr<T>&>& loadAsset(const VAssetPath& vAssetPath) { return loadAssetHandle<T>(m_handles.at(vAssetPath)); }
 
-    const std::future<void> loadAssets(const std::ranges::sized_range auto& assetIds) requires std::convertible_to<std::ranges::range_value_t<decltype(assetIds)>, AssetID>
+    inline const std::shared_future<const std::shared_ptr<Mesh>&>& loadBuiltInCube() { return loadAssetHandle<Mesh>(m_builtInCubeHandle); }
+
+    const std::future<void> loadAssets(const VAssetPathSizedRange auto& vAssetPaths)
     {
-        std::unique_ptr<gfx::CommandBufferPool> commandBufferPool = nullptr;
-        std::shared_ptr<gfx::CommandBuffer> commandBuffer = nullptr;
         std::vector<std::future<void>> futures;
-        futures.reserve(std::ranges::size(assetIds));
+        futures.reserve(std::ranges::size(vAssetPaths));
 
-        for (AssetID assetId : assetIds)
+        for (VAssetPath& vAssetPath : vAssetPaths)
         {
-            auto it = m_assets.find(assetId);
-            assert(it != m_assets.end());
-
-            auto visitor = [&](auto& handle) {
-                const decltype(handle.future)& future = loadAsset(handle);
+            std::visit([&](auto& assetPath) {
+                using AssetType = typename std::remove_cvref_t<decltype(assetPath)>::AssetType;
+                const auto& future = loadAsset<AssetType>(vAssetPath);
                 futures.push_back(std::async(std::launch::deferred, [future = future]() { future.get(); }));
-            };
-            std::visit(std::move(visitor), it->second);
+            },
+            vAssetPath);
         }
         return std::async(std::launch::deferred, [futures = std::move(futures)]() mutable {
             for (auto& f : futures)
@@ -117,15 +91,15 @@ public:
         });
     }
 
-    void unloadAsset(AssetID);
+    inline void unloadAsset(const VAssetPath& vAssetPath) { unloadAssetHandle(m_handles.at(vAssetPath)); }
 
     template<ManagableAsset T>
-    inline const std::shared_ptr<T>& getAsset(AssetID assetId) { return loadAsset<T>(assetId).get(); }
+    inline const std::shared_ptr<T>& getAsset(VAssetPath& vAssetPath) { return loadAsset<T>(vAssetPath).get(); }
 
     ~AssetManager();
 
 private:
-    enum class LoadingStatus : std::uint8_t
+    enum class AssetHandleLoadingStatus : std::uint8_t
     {
         unloaded,
         loading,
@@ -135,18 +109,22 @@ private:
     template<ManagableAsset T>
     struct AssetHandle
     {
+        using AssetType = T;
+
         std::function<std::shared_ptr<T>(gfx::CommandBuffer&)> loader;
-        // std::function serializer ???
-        std::atomic<LoadingStatus> status = LoadingStatus::unloaded;
+        std::atomic<AssetHandleLoadingStatus> status = AssetHandleLoadingStatus::unloaded;
         std::shared_future<const std::shared_ptr<T>&> future;
         std::shared_ptr<T> asset;
     };
 
+    using VAssetHandle = std::variant<AssetHandle<Mesh>, AssetHandle<gfx::Texture>>;
+
     template<ManagableAsset T>
-    const std::shared_future<const std::shared_ptr<T>&>& loadAsset(AssetHandle<T>& handle)
+    const std::shared_future<const std::shared_ptr<T>&>& loadAssetHandle(VAssetHandle& vHandle)
     {
-        auto expected = LoadingStatus::unloaded;
-        if (handle.status.compare_exchange_strong(expected, LoadingStatus::loading))
+        auto& handle = std::get<AssetHandle<T>>(vHandle);
+        auto expected = AssetHandleLoadingStatus::unloaded;
+        if (handle.status.compare_exchange_strong(expected, AssetHandleLoadingStatus::loading))
         {
             handle.future = std::async(std::launch::async, [device = m_device, handle = &handle]() -> const std::shared_ptr<T>& {
                 std::unique_ptr<gfx::CommandBufferPool> commandBufferPool = device->newCommandBufferPool();
@@ -155,22 +133,24 @@ private:
                 assert(commandBuffer);
                 handle->asset = handle->loader(*commandBuffer);
                 device->submitCommandBuffers(commandBuffer);
-                handle->status.store(LoadingStatus::loaded);
+                handle->status.store(AssetHandleLoadingStatus::loaded);
                 return handle->asset;
             });
         }
         return handle.future;
     }
 
-    std::shared_ptr<gfx::Buffer> newDeviceLocalBuffer(gfx::CommandBuffer& commandBuffer, gfx::BufferUsage usage, const std::ranges::sized_range auto& data)
+    void unloadAssetHandle(VAssetHandle&);
+
+    static std::shared_ptr<gfx::Buffer> newDeviceLocalBuffer(gfx::Device& device, gfx::CommandBuffer& commandBuffer, gfx::BufferUsage usage, const std::ranges::sized_range auto& data)
     {
-        std::shared_ptr<gfx::Buffer> indexBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
+        std::shared_ptr<gfx::Buffer> indexBuffer = device.newBuffer(gfx::Buffer::Descriptor{
             .size = sizeof(std::ranges::range_value_t<decltype(data)>) * data.size(),
             .usages = usage | gfx::BufferUsage::copyDestination,
             .storageMode = gfx::ResourceStorageMode::deviceLocal });
         assert(indexBuffer);
 
-        std::shared_ptr<gfx::Buffer> stagingBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
+        std::shared_ptr<gfx::Buffer> stagingBuffer = device.newBuffer(gfx::Buffer::Descriptor{
             .size = indexBuffer->size(),
             .usages = gfx::BufferUsage::copySource,
             .storageMode = gfx::ResourceStorageMode::hostVisible });
@@ -183,15 +163,14 @@ private:
         return indexBuffer;
     }
 
-    Mesh loadMesh(const std::filesystem::path&, gfx::CommandBuffer&);
-    std::shared_ptr<gfx::Texture> loadTexture(const std::filesystem::path&, gfx::CommandBuffer&);
-    std::shared_ptr<gfx::Texture> loadTexture(const std::byte* bytes, uint32_t width, uint32_t height, gfx::CommandBuffer&);
-    void registerBuiltInCube();
-    Mesh loadBuiltInCube(gfx::CommandBuffer&);
+    static Mesh loadMesh(gfx::Device&, const std::filesystem::path&, gfx::CommandBuffer&);
+    static std::shared_ptr<gfx::Texture> loadTexture(gfx::Device&, const std::filesystem::path&, gfx::CommandBuffer&);
+    static std::shared_ptr<gfx::Texture> loadTexture(gfx::Device&, const std::byte* bytes, uint32_t width, uint32_t height, gfx::CommandBuffer&);
+    static Mesh loadBuiltInCube(gfx::Device&, gfx::CommandBuffer&);
 
     gfx::Device* m_device = nullptr;
-    std::map<std::filesystem::path, uint64_t> m_registredAssets;
-    std::map<uint64_t, std::variant<AssetHandle<Mesh>, AssetHandle<gfx::Texture>>> m_assets;
+    std::map<VAssetPath, VAssetHandle> m_handles;
+    VAssetHandle m_builtInCubeHandle;
 
 public:
     AssetManager& operator=(const AssetManager&) = delete;

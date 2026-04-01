@@ -13,12 +13,13 @@
 #ifndef PROJECT_HPP
 #define PROJECT_HPP
 
-#include "Game-Engine/Entity.hpp"
 #include <Game-Engine/Scene.hpp>
 
+#include <cassert>
+#include <cstdint>
 #include <filesystem>
-#include <list>
-#include <type_traits>
+#include <map>
+#include <utility>
 
 namespace GE_Editor
 {
@@ -26,28 +27,21 @@ namespace GE_Editor
 class Project
 {
 public:
-    Project(); // new project, not yet saved to disk
+    Project(); // new project with defautl scene
     Project(const Project&) = delete;
     Project(Project&&) = delete;
 
     Project(const std::filesystem::path&);
 
-    inline auto& scenes(this auto&& self) { return self.m_scenes; }
-    inline auto startScene(this auto&& self) -> std::conditional_t<std::is_const_v<std::remove_reference_t<decltype(self)>>, const GE::Scene*, GE::Scene*> { return self.m_startScene; }
+    inline const std::map<uint32_t, GE::Scene::Descriptor>& scenes() const { return m_scenes; }
+    inline void setScene(uint32_t id, const GE::Scene::Descriptor& desc) { m_scenes.insert_or_assign(id, desc); }
 
-    inline auto editedScene(this auto&& self) -> std::conditional_t<std::is_const_v<std::remove_reference_t<decltype(self)>>, const GE::Scene*, GE::Scene*> { return self.m_editedScene; }
-
-    inline auto selectedEntity(this auto&& self) -> std::conditional_t<std::is_const_v<std::remove_reference_t<decltype(self)>>, GE::const_Entity, GE::Entity> { return self.m_selectedEntity; }
-    inline void setSelectedEntity(const GE::Entity& e) { m_selectedEntity = e; }
+    inline std::pair<uint32_t, GE::Scene::Descriptor> startScene() const { return *m_scenes.find(m_startScene); }
+    inline void setStartScene(uint32_t id) { assert(m_scenes.contains(id)); m_startScene = id; }
 
 private:
-    std::filesystem::path m_projectFilePath;
-
-    std::list<GE::Scene> m_scenes; // need no ref invalidation
-    GE::Scene* m_startScene;
-
-    GE::Scene* m_editedScene;
-    GE::Entity m_selectedEntity;
+    std::map<uint32_t, GE::Scene::Descriptor> m_scenes;
+    uint32_t m_startScene;
 
 public:
     Project& operator = (const Project&) = delete;
