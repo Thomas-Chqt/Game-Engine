@@ -7,10 +7,10 @@
  */
 
 #include "Game-Engine/FramePassBuilder.hpp"
-#include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Components.hpp"
 #include "Game-Engine/ECSView.hpp"
 #include "Game-Engine/Entity.hpp"
+#include "Game-Engine/ICamera.hpp"
 #include "Game-Engine/Mesh.hpp"
 
 #include "shaders/FrameData.slang"
@@ -27,9 +27,12 @@
 namespace GE
 {
 
-FlatGeometryPassBuilder::FlatGeometryPassBuilder(const Scene* scene)
+FlatGeometryPassBuilder::FlatGeometryPassBuilder(const Scene* scene, const ICamera* camera)
     : m_scene(scene)
+    , m_camera(camera)
 {
+    assert(m_scene);
+    assert(m_camera);
 }
 
 FramePass FlatGeometryPassBuilder::build() const
@@ -48,30 +51,14 @@ FramePass FlatGeometryPassBuilder::build() const
         "frameData", "material", "directionalLights", "pointLights"
     });
 
-    framePass.setup = [scene=m_scene, colorTexture=m_colorAttachment.texture](FramePassSetupContext& ctx)
+    framePass.setup = [scene=m_scene, camera=m_camera](FramePassSetupContext& ctx)
     {
         assert(scene);
-
-        auto& cameraTransform = scene->activeCamera().get<TransformComponent>();
-
-        auto rotationMat = glm::mat4x4(1.0f);
-        rotationMat = glm::rotate(rotationMat, cameraTransform.rotation.y, glm::vec3(0, 1, 0));
-        rotationMat = glm::rotate(rotationMat, cameraTransform.rotation.x, glm::vec3(1, 0, 0));
-        rotationMat = glm::rotate(rotationMat, cameraTransform.rotation.z, glm::vec3(0, 0, 1));
+        assert(camera);
 
         shader::FrameData& frameData = *ctx.constantBuffers.at("frameData")->content<shader::FrameData>();
-
-        glm::vec3 pos = cameraTransform.position;
-        glm::vec3 dir = rotationMat * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-        glm::vec3 up = rotationMat * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-
-        auto& tex = ctx.textureMap.at(colorTexture);
-        uint32_t texWidth = tex->width();
-        uint32_t texHeight = tex->height();
-        const float aspectRatio = static_cast<float>(texWidth) / static_cast<float>(texHeight == 0 ? 1 : texHeight);
-        frameData.vpMatrix = scene->activeCamera().get<CameraComponent>().projectionMatrix(aspectRatio) * glm::lookAt(pos, pos + dir, up);
-
-        frameData.cameraPosition = cameraTransform.position;
+        frameData.vpMatrix = camera->viewProjectionMatrix();
+        frameData.cameraPosition = camera->position();
         frameData.ambientLightColor = glm::vec3(1.0f, 1.0f, 1.0f) * 0.1f;
 
         std::vector<shader::DirectionalLight> directionalLights;

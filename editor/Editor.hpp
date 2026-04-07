@@ -10,7 +10,9 @@
 #ifndef EDITOR_HPP
 #define EDITOR_HPP
 
+#include "EditorCamera.hpp"
 #include "Project.hpp"
+#include "Viewport.hpp"
 
 #include <Game-Engine/Application.hpp>
 #include <Game-Engine/FrameGraph.hpp>
@@ -46,8 +48,9 @@ private:
     std::pair<uint32_t, GE::Scene> m_editedScene;
     GE::Entity m_selectedEntity;
 
-    std::pair<uint32_t, uint32_t> m_viewportSize = {0, 0};
+    EditorCamera m_editorCamera;
 
+    Viewport m_viewport;
     GE::FrameGraph m_frameGraph;
 
 public:

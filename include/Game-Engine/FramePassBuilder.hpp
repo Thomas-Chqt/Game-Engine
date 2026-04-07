@@ -10,8 +10,8 @@
 #define FRAMEPASSBUILDER_HPP
 
 #include "Game-Engine/FrameGraph.hpp"
+#include "Game-Engine/ICamera.hpp"
 #include "Game-Engine/Scene.hpp"
-
 
 #include <Graphics/Enums.hpp>
 #include <Graphics/ParameterBlock.hpp>
@@ -110,26 +110,16 @@ public:
     }
 };
 
-class ClearPassBuilder : public FramePassBuilderBase<ClearPassBuilder>
-{
-public:
-    inline constexpr FramePass build() const
-    {
-        GE::FramePass framePass = FramePassBuilderBase<ClearPassBuilder>::build();
-        framePass.execute = [](FramePassExecuteContext&) {};
-        return framePass;
-    }
-};
-
 class FlatGeometryPassBuilder : public FramePassBuilderBase<FlatGeometryPassBuilder>
 {
 public:
-    FlatGeometryPassBuilder(const Scene* scene);
+    FlatGeometryPassBuilder(const Scene*, const ICamera*);
 
     FramePass build() const;
 
 private:
     const Scene* m_scene;
+    const ICamera* m_camera = nullptr;
 };
 
 }

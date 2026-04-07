@@ -17,6 +17,7 @@
 #include "Game-Engine/Entity.hpp"
 
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace GE
@@ -47,12 +48,7 @@ public:
     inline const std::string& name() const { return m_name; }
     inline void setName(const std::string& s) { m_name = s; }
 
-    auto activeCamera(this auto&& self)
-    {
-        if (self.m_activeCamera == INVALID_ENTITY_ID)
-            return const_Entity();
-        return basic_entity(&self.m_ecsWorld, self.m_activeCamera);
-    }
+    inline auto activeCamera(this auto&& self) { return basic_entity{&self.m_ecsWorld, self.m_activeCamera}; }
 
     void setActiveCamera(const Entity& e);
 

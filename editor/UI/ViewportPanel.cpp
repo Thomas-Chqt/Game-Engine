@@ -19,7 +19,7 @@
 namespace GE_Editor
 {
 
-ViewportPanel::ViewportPanel(std::pair<uint32_t, uint32_t>* size)
+ViewportPanel::ViewportPanel(std::pair<uint32_t, uint32_t> size)
     : m_size(size)
 {
 }
@@ -35,12 +35,10 @@ void ViewportPanel::render()
 
         ImGui::Image(&textureIdPlaceholder, contentRegionAvai);
 
-        if (newWidth != m_size->first || newHeight != m_size->second)
+        if (newWidth != m_size.first || newHeight != m_size.second)
         {
-            m_size->first = newWidth;
-            m_size->second = newHeight;
             if (m_onResize)
-                m_onResize(*m_size);
+                m_onResize({newWidth, newHeight});
         }
     }
     ImGui::End();

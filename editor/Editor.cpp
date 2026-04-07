@@ -15,6 +15,8 @@
 #include "UI/SceneGraphPanel.hpp"
 #include "UI/ViewportPanel.hpp"
 
+#include <Game-Engine/Event.hpp>
+#include <Game-Engine/RawInput.hpp>
 #include <Game-Engine/AssetManager.hpp>
 #include <Game-Engine/Entity.hpp>
 #include <Game-Engine/FrameGraph.hpp>
@@ -39,8 +41,11 @@ namespace GE_Editor
 {
 
 Editor::Editor()
-    : m_project{}, m_editedScene{m_project.startScene().first, GE::Scene(&assetManager(), m_project.startScene().second)}
+    : m_project{}
+    , m_editedScene{m_project.startScene().first, GE::Scene(&assetManager(), m_project.startScene().second)}
+
 {
+    m_viewport.setCamera(&m_editorCamera);
     rebuildFrameGraph();
 }
 
@@ -55,6 +60,13 @@ void Editor::onEvent(GE::Event& event)
         return;
     if (event.dispatch<GE::WindowResizeEvent>([&](GE::WindowResizeEvent&) { rebuildFrameGraph(); }))
         return;
+    if (event.dispatch<GE::KeyDownEvent>([&](GE::KeyDownEvent& event) {
+        if (event.isRepeat()) return;
+        if (event.keyCode() == static_cast<int>(GE::KeyboardButton::one))
+            m_viewport.setCamera(&m_editorCamera);
+        if (event.keyCode() == static_cast<int>(GE::KeyboardButton::two))
+            m_viewport.setCamera(m_editedScene.second.activeCamera());
+    })) return;
 }
 
 void Editor::rebuildFrameGraph()
@@ -62,12 +74,12 @@ void Editor::rebuildFrameGraph()
     m_frameGraph = GE::FrameGraph(GE::FrameGraph::Descriptor{
         .backBufferName = "windowBackBuffer",
         .textures = {
-            { .name = "viewportBackBuffer", .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
-            { .name = "depthBuffer",        .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::Depth32Float },
+            { .name = "viewportBackBuffer", .size = m_viewport.size(),          .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
+            { .name = "depthBuffer",        .size = m_viewport.size(),          .pixelFormat = gfx::PixelFormat::Depth32Float },
             { .name = "windowBackBuffer",   .size = window().frameBufferSize(), .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
         },
         .passes = {
-            GE::FlatGeometryPassBuilder(&m_editedScene.second)
+            GE::FlatGeometryPassBuilder(&m_editedScene.second, m_viewport.camera())
                 .setColorAttachment("viewportBackBuffer")
                 .setDepthAttachment("depthBuffer"),
             GE::ImguiPassBuilder()
@@ -86,8 +98,11 @@ void Editor::renderImgui()
     MainMenuBar()
         .render();
 
-    ViewportPanel(&m_viewportSize)
-        .onResize([this](auto){ rebuildFrameGraph(); })
+    ViewportPanel(m_viewport.size())
+        .onResize([this](const std::pair<uint32_t, uint32_t> & size){
+            m_viewport.setSize(size);
+            rebuildFrameGraph();
+        })
         .render();
 
     SceneGraphPanel(&m_editedScene.second, &m_selectedEntity)

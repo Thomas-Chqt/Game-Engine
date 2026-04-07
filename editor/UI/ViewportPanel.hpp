@@ -26,17 +26,17 @@ public:
     ViewportPanel(const ViewportPanel&) = delete;
     ViewportPanel(ViewportPanel&&) = delete;
 
-    ViewportPanel(std::pair<uint32_t, uint32_t>* size);
+    ViewportPanel(std::pair<uint32_t, uint32_t> size);
 
-    inline ViewportPanel& onResize(std::function<void(std::pair<uint32_t, uint32_t>)>&& f) { return m_onResize = std::move(f), *this; }
+    inline ViewportPanel& onResize(std::function<void(const std::pair<uint32_t, uint32_t>&)>&& f) { return m_onResize = std::move(f), *this; }
 
     void render();
 
     ~ViewportPanel() = default;
 
 private:
-    std::pair<uint32_t, uint32_t>* m_size;
-    std::function<void(std::pair<uint32_t, uint32_t>)> m_onResize;
+    std::pair<uint32_t, uint32_t> m_size;
+    std::function<void(const std::pair<uint32_t, uint32_t>&)> m_onResize;
 
 public:
     ViewportPanel& operator=(const ViewportPanel&) = delete;
