@@ -13,6 +13,7 @@
 #include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Event.hpp"
 #include "Game-Engine/FrameGraph.hpp"
+#include "Game-Engine/InputContext.hpp"
 #include "Game-Engine/Window.hpp"
 #include "Game-Engine/Renderer.hpp"
 
@@ -21,6 +22,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <vector>
 
 namespace GE
 {
@@ -37,6 +39,8 @@ public:
 
     void run();
     inline void terminate() { m_running = false; }
+    void pushInputContext(InputContext*);
+    void popInputContext();
 
     virtual void onUpdate() = 0;
     virtual void onEvent(Event&) = 0;
@@ -55,6 +59,7 @@ private:
     std::unique_ptr<AssetManager> m_assetManager = nullptr;
 
     bool m_running = false;
+    std::vector<InputContext*> m_inputContextStack;
 
 public:
     Application& operator = (const Application&) = delete;

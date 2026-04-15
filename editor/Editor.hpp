@@ -11,11 +11,14 @@
 #define EDITOR_HPP
 
 #include "EditorCamera.hpp"
+#include "ImGuiInputContext.hpp"
 #include "Project.hpp"
 #include "Viewport.hpp"
 
 #include <Game-Engine/Application.hpp>
 #include <Game-Engine/FrameGraph.hpp>
+#include <Game-Engine/InputContext.hpp>
+#include <Game-Engine/Input.hpp>
 #include <Game-Engine/Scene.hpp>
 
 #include <imgui.h>
@@ -49,6 +52,9 @@ private:
     GE::Entity m_selectedEntity;
 
     EditorCamera m_editorCamera;
+
+    GE::InputContext m_editorInputContext;
+    ImGuiInputContext m_imguiInputContext;
 
     Viewport m_viewport;
     GE::FrameGraph m_frameGraph;

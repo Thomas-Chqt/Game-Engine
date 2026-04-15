@@ -43,7 +43,20 @@ Application::Application()
         .title = ""
     });
 
-    m_window->addEventCallBack(this, [&](Event& event){ onEvent(event); });
+    m_window->addEventCallBack(this, [&](Event& event)
+    {
+        event.dispatch<InputEvent>([this](InputEvent& inputEvent)
+        {
+            for (auto it = m_inputContextStack.rbegin(); it != m_inputContextStack.rend(); it++)
+            {
+                (*it)->onInputEvent(inputEvent);
+                if (inputEvent.processed())
+                    break;
+            }
+        });
+        if (event.processed() == false)
+            onEvent(event);
+    });
     m_window->createSurface(m_instance.get());
 
     m_device = m_instance->newDevice(gfx::Device::Descriptor{
@@ -92,6 +105,10 @@ void Application::run()
     while (true)
     {
         ::glfwPollEvents();
+
+        for (InputContext* inputContext : m_inputContextStack)
+            inputContext->dispatchInputs();
+
         if (m_running == false)
             break;
 
@@ -102,6 +119,18 @@ void Application::run()
 
         m_renderer->renderFrame(frameGraph());
     }
+}
+
+void Application::pushInputContext(InputContext* inputContext)
+{
+    assert(inputContext != nullptr);
+    m_inputContextStack.push_back(inputContext);
+}
+
+void Application::popInputContext()
+{
+    assert(m_inputContextStack.size() > 0);
+    m_inputContextStack.pop_back();
 }
 
 }

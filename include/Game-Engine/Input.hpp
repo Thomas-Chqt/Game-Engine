@@ -14,6 +14,8 @@
 #include "Game-Engine/RawInput.hpp"
 
 #include <functional>
+#include <optional>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <concepts>
@@ -27,7 +29,7 @@ struct Input
     std::function<void(const T&)> callback;
     T value;
 
-    VInputMapper mapper;
+    std::optional<VInputMapper> mapper;
     bool triggered = false;
 
     template<RawInput RI, typename... Args>
@@ -36,7 +38,7 @@ struct Input
         using Mapper = InputMapper<RI, Input<Class, T>>;
 
         mapper = Mapper(std::forward<Args>(args)...);
-        std::get<Mapper>(mapper).input = this;
+        std::get<Mapper>(*mapper).input = this;
     }
 
     void dispatch()
@@ -46,6 +48,23 @@ struct Input
         if constexpr (Class == InputClass::action)
             triggered = false;
     }
+
+    Input() = default;
+    Input(const Input& other)
+        : callback(other.callback)
+        , value(other.value)
+        , mapper(other.mapper)
+        , triggered(other.triggered)
+    {
+        if (!mapper)
+            return;
+        std::visit([&](auto& m)
+        {
+            if constexpr (std::is_same_v<typename std::remove_cvref_t<decltype(m)>::InputType, Input<Class, T>>)
+                m.input = this;
+        },
+        *mapper);
+    }
 };
 
 template<InputClass Class>
@@ -53,7 +72,7 @@ struct Input<Class, void>
 {
     std::function<void()> callback;
 
-    VInputMapper mapper;
+    std::optional<VInputMapper> mapper;
     bool triggered = false;
 
     template<RawInput RI, typename... Args>
@@ -62,7 +81,7 @@ struct Input<Class, void>
         using Mapper = InputMapper<RI, Input<Class, void>>;
 
         mapper = Mapper(std::forward<Args>(args)...);
-        std::get<Mapper>(mapper).input = this;
+        std::get<Mapper>(*mapper).input = this;
     }
 
     void dispatch()
@@ -71,6 +90,22 @@ struct Input<Class, void>
             callback();
         if constexpr (Class == InputClass::action)
             triggered = false;
+    }
+
+    Input() = default;
+    Input(const Input& other)
+        : callback(other.callback)
+        , mapper(other.mapper)
+        , triggered(other.triggered)
+    {
+        if (!mapper)
+            return;
+        std::visit([&](auto& m)
+        {
+            if constexpr (std::is_same_v<typename std::remove_cvref_t<decltype(m)>::InputType, Input<Class, void>>)
+                m.input = this;
+        },
+        *mapper);
     }
 };
 

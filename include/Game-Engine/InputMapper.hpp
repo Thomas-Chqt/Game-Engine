@@ -23,8 +23,10 @@ template<RawInput RI, typename I> struct InputMapper;
 template<>
 struct InputMapper<KeyboardButton, ActionInput>
 {
+    using InputType = ActionInput;
+
     KeyboardButton button;
-    ActionInput* input;
+    ActionInput* input = nullptr;
 
     InputMapper(KeyboardButton);
     void onInputEvent(InputEvent& event);
@@ -33,8 +35,10 @@ struct InputMapper<KeyboardButton, ActionInput>
 template<>
 struct InputMapper<KeyboardButton, StateInput>
 {
+    using InputType = StateInput;
+
     KeyboardButton button;
-    StateInput* input;
+    StateInput* input = nullptr;
 
     InputMapper(KeyboardButton);
     void onInputEvent(InputEvent& event);
@@ -43,10 +47,12 @@ struct InputMapper<KeyboardButton, StateInput>
 template<>
 struct InputMapper<KeyboardButton, RangeInput>
 {
+    using InputType = RangeInput;
+
     KeyboardButton button;
     float scale = 1.0f;
 
-    RangeInput* input;
+    RangeInput* input = nullptr;
 
     InputMapper(KeyboardButton, float scale);
     void onInputEvent(InputEvent& event);
@@ -55,6 +61,8 @@ struct InputMapper<KeyboardButton, RangeInput>
 template<>
 struct InputMapper<KeyboardButton, Range2DInput>
 {
+    using InputType = Range2DInput;
+
     struct Descriptor
     {
         KeyboardButton xPos;
@@ -74,7 +82,7 @@ struct InputMapper<KeyboardButton, Range2DInput>
     KeyboardButton yNeg;
     float yScale = 1.0f;
 
-    Range2DInput* input;
+    Range2DInput* input = nullptr;
 
     InputMapper(const Descriptor&);
     void onInputEvent(InputEvent& event);

@@ -26,8 +26,10 @@ public:
 
     void addInput(const VInput&);
 
-    void onInputEvent(InputEvent&);
+    virtual void onInputEvent(InputEvent&);
     void dispatchInputs();
+
+    virtual ~InputContext() = default;
 
 private:
     std::vector<VInput> m_inputs;
