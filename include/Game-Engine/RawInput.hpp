@@ -12,6 +12,8 @@
 
 #include "GLFW/glfw3.h"
 
+#include <type_traits>
+
 namespace GE
 {
 
@@ -37,6 +39,9 @@ enum class MouseButton : unsigned int
     l = GLFW_MOUSE_BUTTON_1,
     r = GLFW_MOUSE_BUTTON_2
 };
+
+template<typename T>
+concept RawInput = std::is_same_v<T, KeyboardButton> || std::is_same_v<T, MouseButton>;
 
 }
 

@@ -1,0 +1,42 @@
+/*
+ * ---------------------------------------------------
+ * InputContext.hpp
+ *
+ * Author: Thomas Choquet <semoir.dense-0h@icloud.com>
+ * ---------------------------------------------------
+ */
+
+#ifndef INPUTCONTEXT_HPP
+#define INPUTCONTEXT_HPP
+
+#include "Game-Engine/Event.hpp"
+#include "Game-Engine/Input.hpp"
+
+#include <vector>
+
+namespace GE
+{
+
+class InputContext
+{
+public:
+    InputContext() = default;
+    InputContext(const InputContext&) = delete;
+    InputContext(InputContext&&) = delete;
+
+    void addInput(const VInput&);
+
+    void onInputEvent(InputEvent&);
+    void dispatchInputs();
+
+private:
+    std::vector<VInput> m_inputs;
+
+public:
+    InputContext& operator = (const InputContext&) = delete;
+    InputContext& operator = (InputContext&&) = delete;
+};
+
+}
+
+#endif

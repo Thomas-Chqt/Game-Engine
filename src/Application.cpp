@@ -66,10 +66,10 @@ Application::Application()
     switch (m_device->backend())
     {
         case gfx::Backend::vulkan:
-            ImGui_ImplGlfw_InitForVulkan(m_window->glfwWindow(), true);
+            ImGui_ImplGlfw_InitForVulkan(m_window->glfwWindow(), false);
             break;
         default:
-            ImGui_ImplGlfw_InitForOther(m_window->glfwWindow(), true);
+            ImGui_ImplGlfw_InitForOther(m_window->glfwWindow(), false);
             break;
     }
     m_device->imguiInit({gfx::PixelFormat::BGRA8Unorm});
