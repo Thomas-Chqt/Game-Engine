@@ -17,7 +17,6 @@
 #include "Game-Engine/Entity.hpp"
 
 #include <string>
-#include <type_traits>
 #include <vector>
 
 namespace GE

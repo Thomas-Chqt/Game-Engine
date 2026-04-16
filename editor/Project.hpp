@@ -4,10 +4,6 @@
  *
  * Author: Thomas Choquet <semoir.dense-0h@icloud.com>
  * ---------------------------------------------------
- *
- * interface to the project file
- * load, reload, save, get values, set values
- *
  */
 
 #ifndef PROJECT_HPP
