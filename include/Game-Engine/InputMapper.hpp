@@ -13,6 +13,8 @@
 #include "Game-Engine/InputFwd.hpp"
 #include "Game-Engine/RawInput.hpp"
 
+#include <glm/glm.hpp>
+
 #include <variant>
 
 namespace GE
@@ -72,6 +74,8 @@ struct InputMapper<KeyboardButton, Range2DInput>
         KeyboardButton yPos;
         KeyboardButton yNeg;
         float yScale = 1.0f;
+
+        float triggerValue = 0.5f;
     };
 
     KeyboardButton xPos;
@@ -81,6 +85,8 @@ struct InputMapper<KeyboardButton, Range2DInput>
     KeyboardButton yPos;
     KeyboardButton yNeg;
     float yScale = 1.0f;
+    float triggerValue = 0.5f;
+    glm::vec2 rawValue = { 0.0f, 0.0f };
 
     Range2DInput* input = nullptr;
 

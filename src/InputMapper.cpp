@@ -9,6 +9,9 @@
 #include "Game-Engine/InputMapper.hpp"
 #include "Game-Engine/Input.hpp" // IWYU pragma: keep
 
+#include <cmath>
+#include <glm/geometric.hpp>
+
 namespace GE
 {
 
@@ -91,6 +94,7 @@ void InputMapper<KeyboardButton, RangeInput>::onInputEvent(InputEvent& event)
 InputMapper<KeyboardButton, Range2DInput>::InputMapper(const Descriptor& desc)
     : xPos(desc.xPos) , xNeg(desc.xNeg) , xScale(desc.xScale)
     , yPos(desc.yPos) , yNeg(desc.yNeg) , yScale(desc.yScale)
+    , triggerValue(desc.triggerValue)
 {
 }
 
@@ -98,49 +102,50 @@ void InputMapper<KeyboardButton, Range2DInput>::onInputEvent(InputEvent& event)
 {
     if (input == nullptr)
         return;
-    event.dispatch<KeyDownEvent>([this, &event](const KeyDownEvent& keyDownEvent)
+
+    event.dispatch<KeyDownEvent>([&](const KeyDownEvent& keyDownEvent)
     {
+        if (keyDownEvent.isRepeat())
+            return;
+
         if (keyDownEvent.keyCode() == static_cast<int>(xPos))
-        {
-            input->value.first = xScale;
-            input->triggered = true;
-            event.markAsProcessed();
-        }
+            rawValue.x += xScale;
         else if (keyDownEvent.keyCode() == static_cast<int>(xNeg))
-        {
-            input->value.first = -xScale;
-            input->triggered = true;
-            event.markAsProcessed();
-        }
+            rawValue.x -= xScale;
         else if (keyDownEvent.keyCode() == static_cast<int>(yPos))
-        {
-            input->value.second = yScale;
-            input->triggered = true;
-            event.markAsProcessed();
-        }
+            rawValue.y += yScale;
         else if (keyDownEvent.keyCode() == static_cast<int>(yNeg))
-        {
-            input->value.second = -yScale;
-            input->triggered = true;
-            event.markAsProcessed();
-        }
+            rawValue.y -= yScale;
+        else
+            return;
+
+        event.markAsProcessed();
     });
 
-    event.dispatch<KeyUpEvent>([this, &event](const KeyUpEvent& keyUpEvent)
+    event.dispatch<KeyUpEvent>([&](const KeyUpEvent& keyUpEvent)
     {
-        if (keyUpEvent.keyCode() == static_cast<int>(xPos) || keyUpEvent.keyCode() == static_cast<int>(xNeg))
-            input->value.first = 0.0f;
-        if (keyUpEvent.keyCode() == static_cast<int>(yPos) || keyUpEvent.keyCode() == static_cast<int>(yNeg))
-            input->value.second = 0.0f;
+        if (keyUpEvent.keyCode() == static_cast<int>(xPos))
+            rawValue.x -= xScale;
+        else if (keyUpEvent.keyCode() == static_cast<int>(xNeg))
+            rawValue.x += xScale;
+        else if (keyUpEvent.keyCode() == static_cast<int>(yPos))
+            rawValue.y -= yScale;
+        else if (keyUpEvent.keyCode() == static_cast<int>(yNeg))
+            rawValue.y += yScale;
+        else
+            return;
 
-        if (input->value.first == 0.0f && input->value.second == 0.0f)
-            input->triggered = false;
-
-        if (keyUpEvent.keyCode() == static_cast<int>(xPos)
-            || keyUpEvent.keyCode() == static_cast<int>(xNeg)
-            || keyUpEvent.keyCode() == static_cast<int>(yPos)
-            || keyUpEvent.keyCode() == static_cast<int>(yNeg)) event.markAsProcessed();
+        event.markAsProcessed();
     });
+
+    if (event.processed())
+    {
+        if (std::abs(rawValue.x) > 0.0f || std::abs(rawValue.y) > 0.0f)
+            input->value = glm::normalize(rawValue);
+        else
+            input->value = {0.0f, 0.0f};
+        input->triggered = std::abs(input->value.x) >= triggerValue || std::abs(input->value.y) >= triggerValue;
+    }
 }
 
 }

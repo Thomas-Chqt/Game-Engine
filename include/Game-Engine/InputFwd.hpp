@@ -9,7 +9,7 @@
 #ifndef INPUTFWD_HPP
 #define INPUTFWD_HPP
 
-#include <utility>
+#include <glm/glm.hpp>
 
 namespace GE
 {
@@ -26,7 +26,7 @@ struct Input;
 using ActionInput  = Input<InputClass::action>;
 using StateInput   = Input<InputClass::state>;
 using RangeInput   = Input<InputClass::state, float>;
-using Range2DInput = Input<InputClass::state, std::pair<float, float>>;
+using Range2DInput = Input<InputClass::state, glm::vec2>;
 
 }
 

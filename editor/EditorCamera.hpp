@@ -30,9 +30,13 @@ public:
     EditorCamera(EditorCamera&&) = delete;
 
     inline glm::vec3 position() const { return m_position; }
+    void onMoveInput(const glm::vec2& value);
+    void onRotationInput(const glm::vec2& value);
     glm::mat4 viewProjectionMatrix(float aspectRatio) const;
 
 private:
+    glm::mat4 rotationMatrix() const;
+
     glm::vec3 m_position = { 0.0f, 0.0f, 0.0f };
     glm::vec3 m_rotation = { 0.0f, 0.0f, 0.0f };
     float m_fov = glm::radians(60.0f);

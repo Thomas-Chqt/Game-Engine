@@ -46,16 +46,26 @@ Editor::Editor()
     , m_editedScene{m_project.startScene().first, GE::Scene(&assetManager(), m_project.startScene().second)}
 
 {
-    GE::ActionInput editorCameraInput;
-    editorCameraInput.callback = [this]() { m_viewport.setCamera(&m_editorCamera); };
-    editorCameraInput.setMapper<GE::KeyboardButton>(GE::KeyboardButton::one);
+    GE::Range2DInput editorCameraMoveInput;
+    editorCameraMoveInput.callback = [editorCamera=&m_editorCamera](const glm::vec2& value) { editorCamera->onMoveInput(value); };
+    editorCameraMoveInput.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
+        .xPos = GE::KeyboardButton::d,
+        .xNeg = GE::KeyboardButton::a,
+        .yPos = GE::KeyboardButton::w,
+        .yNeg = GE::KeyboardButton::s,
+    });
 
-    GE::ActionInput sceneCameraInput;
-    sceneCameraInput.callback = [this]() { m_viewport.setCamera(m_editedScene.second.activeCamera()); };
-    sceneCameraInput.setMapper<GE::KeyboardButton>(GE::KeyboardButton::two);
+    GE::Range2DInput editorCameraRotationInput;
+    editorCameraRotationInput.callback = [editorCamera=&m_editorCamera](const glm::vec2& value) { editorCamera->onRotationInput(value); };
+    editorCameraRotationInput.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
+        .xPos = GE::KeyboardButton::up,
+        .xNeg = GE::KeyboardButton::down,
+        .yPos = GE::KeyboardButton::right,
+        .yNeg = GE::KeyboardButton::left,
+    });
 
-    m_editorInputContext.addInput(editorCameraInput);
-    m_editorInputContext.addInput(sceneCameraInput);
+    m_editorInputContext.addInput(editorCameraMoveInput);
+    m_editorInputContext.addInput(editorCameraRotationInput);
 
     pushInputContext(&m_editorInputContext);
     pushInputContext(&m_imguiInputContext);
