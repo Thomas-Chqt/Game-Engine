@@ -11,17 +11,17 @@
 #include "Game-Engine/AssetManager.hpp"
 
 #include <cassert>
+#include <ranges>
+#include <utility>
 
 namespace GE
 {
 
 Game::Game(AssetManager* assetManager, const Descriptor& desc)
-    : m_inputContext(desc.inputContext)
+    : m_scenes(std::from_range, desc.scenes | std::views::transform([&](const auto& sceneDesc){ return std::make_pair(sceneDesc.first, Scene(assetManager, sceneDesc.second)); }))
+    , m_activeScene(&m_scenes.at(desc.activeScene))
+    , m_inputContext(desc.inputContext)
 {
-    for (const auto& sceneDesc : desc.scenes)
-        m_scenes.emplace(sceneDesc.name, Scene(assetManager, sceneDesc));
-
-    m_activeScene = &m_scenes.at(desc.activeScene);
 }
 
 void Game::switchActiveScene(const std::string& name)

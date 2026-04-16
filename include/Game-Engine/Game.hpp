@@ -24,7 +24,7 @@ class Game
 public:
     struct Descriptor
     {
-        std::set<Scene::Descriptor> scenes;
+        std::map<std::string, Scene::Descriptor> scenes;
         std::string activeScene;
         InputContext inputContext;
     };

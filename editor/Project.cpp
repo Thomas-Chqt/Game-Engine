@@ -16,6 +16,8 @@
 #include <Game-Engine/AssetManagerView.hpp>
 
 #include <cassert>
+#include <ranges>
+#include <string>
 #include <utility>
 
 namespace GE_Editor
@@ -60,6 +62,19 @@ Project::Project()
                GE::LightComponent{}
             }
         }
+    };
+
+    m_startScene = it->first;
+}
+
+GE::Game::Descriptor Project::gameDescriptor() const
+{
+    return {
+        .scenes =  std::map<std::string, GE::Scene::Descriptor>(
+            std::from_range,
+            m_scenes | std::views::transform([](const auto& pair){ return std::make_pair(pair.second.name, pair.second); })
+        ),
+        .activeScene = startScene().second.name
     };
 }
 
