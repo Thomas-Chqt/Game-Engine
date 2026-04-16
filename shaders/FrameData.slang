@@ -11,8 +11,8 @@
 
 #include "shader.h"
 
-SLANG_MODULE_DEF(frameData);
-SLANG_MODULE_IMP(light);
+SLANG_MODULE_DEF(FrameData);
+SLANG_MODULE_IMP(Light);
 
 namespace shader
 {

@@ -18,6 +18,7 @@
 #include <cstring>
 #include <cassert>
 #include <numbers>
+#include <utility>
 
 namespace GE_Editor
 {
@@ -62,13 +63,11 @@ void EntityInspectorPanel::componentEditWidget<GE::LightComponent>()
 {
     auto typeToStr = [](const GE::LightComponent::Type& type){
         switch (type) {
-            case GE::LightComponent::Type::directional:
-            return "directional";
-            break;
-            case GE::LightComponent::Type::point:
-            return "point";
-            break;
+            case GE::LightComponent::Type::directional: return "directional";
+            case GE::LightComponent::Type::point: return "point";
         }
+        std::unreachable();
+        return "";
     };
 
     GE::LightComponent& lightComponent = m_entity.get<GE::LightComponent>();

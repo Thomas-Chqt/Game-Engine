@@ -23,11 +23,38 @@
 namespace GE
 {
 
+template<typename T>
+struct InputCallback
+{
+    using type = std::function<void(const T&)>;
+};
+
+template<>
+struct InputCallback<void>
+{
+    using type = std::function<void()>;
+};
+
+template<typename T>
+struct InputValue
+{
+    using type = T;
+};
+
+template<>
+struct InputValue<void>
+{
+    using type = std::monostate;
+};
+
 template<InputClass Class, typename T>
 struct Input
 {
-    std::function<void(const T&)> callback;
-    T value;
+    using CallbackType = typename InputCallback<T>::type;
+    using ValueType = typename InputValue<T>::type;
+
+    CallbackType callback;
+    ValueType value;
 
     std::optional<VInputMapper> mapper;
     bool triggered = false;
@@ -44,7 +71,12 @@ struct Input
     void dispatch()
     {
         if (triggered)
-            callback(value);
+        {
+            if constexpr (std::is_void_v<T>)
+                callback();
+            else
+                callback(value);
+        }
         if constexpr (Class == InputClass::action)
             triggered = false;
     }
@@ -61,48 +93,6 @@ struct Input
         std::visit([&](auto& m)
         {
             if constexpr (std::is_same_v<typename std::remove_cvref_t<decltype(m)>::InputType, Input<Class, T>>)
-                m.input = this;
-        },
-        *mapper);
-    }
-};
-
-template<InputClass Class>
-struct Input<Class, void>
-{
-    std::function<void()> callback;
-
-    std::optional<VInputMapper> mapper;
-    bool triggered = false;
-
-    template<RawInput RI, typename... Args>
-    void setMapper(Args&&... args) requires std::constructible_from<InputMapper<RI, Input<Class, void>>, Args...>
-    {
-        using Mapper = InputMapper<RI, Input<Class, void>>;
-
-        mapper = Mapper(std::forward<Args>(args)...);
-        std::get<Mapper>(*mapper).input = this;
-    }
-
-    void dispatch()
-    {
-        if (triggered)
-            callback();
-        if constexpr (Class == InputClass::action)
-            triggered = false;
-    }
-
-    Input() = default;
-    Input(const Input& other)
-        : callback(other.callback)
-        , mapper(other.mapper)
-        , triggered(other.triggered)
-    {
-        if (!mapper)
-            return;
-        std::visit([&](auto& m)
-        {
-            if constexpr (std::is_same_v<typename std::remove_cvref_t<decltype(m)>::InputType, Input<Class, void>>)
                 m.input = this;
         },
         *mapper);

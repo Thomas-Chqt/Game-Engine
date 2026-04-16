@@ -8,8 +8,8 @@
 
 #include "shader.h"
 
-SLANG_MODULE_IMP(light);
-SLANG_MODULE_IMP(frameData);
+SLANG_MODULE_IMP(Light);
+SLANG_MODULE_IMP(FrameData);
 SLANG_MODULE_IMP(phong_shading);
 
 namespace shader::flat_color

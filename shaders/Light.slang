@@ -11,7 +11,7 @@
 
 #include "shader.h"
 
-SLANG_MODULE_DEF(light);
+SLANG_MODULE_DEF(Light);
 
 namespace shader
 {

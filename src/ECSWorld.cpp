@@ -51,7 +51,8 @@ void ECSWorld::registerEntityID(ECSWorld::EntityID id)
     else
     {
         if (id > m_entityDatas.size()) {
-            m_availableEntityIDs.insert_range(std::views::iota(m_entityDatas.size(), id));
+            for (auto availableID : std::views::iota(m_entityDatas.size(), id))
+                m_availableEntityIDs.insert(availableID);
             m_entityDatas.resize(id);
         }
         m_entityDatas.push_back(EntityData{newEntityArcId, newEntityIdx});

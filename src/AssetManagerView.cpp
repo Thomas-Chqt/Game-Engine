@@ -23,7 +23,11 @@ AssetManagerView::AssetManagerView(AssetManager* assetManager, const std::map<As
     : m_assetManager(assetManager)
 {
     assert(m_assetManager);
-    m_assets.insert_range(registredAssets | std::views::filter([](auto& element){ return element.first != BUILT_IN_CUBE_ASSET_ID; }));
+    for (const auto& [assetID, assetPath] : registredAssets)
+    {
+        if (assetID != BUILT_IN_CUBE_ASSET_ID)
+            m_assets.insert({assetID, assetPath});
+    }
     s_nextAssetId = std::ranges::max(m_assets | std::views::transform([](auto& element){ return element.first; })) + 1;
 }
 

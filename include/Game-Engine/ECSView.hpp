@@ -117,7 +117,8 @@ private:
     static std::set<typename ECSWorldT::ComponentID> makePredicate()
     {
         auto predicate = makePredicate<T>();
-        predicate.insert_range(makePredicate<Y, Ys...>());
+        auto tail = makePredicate<Y, Ys...>();
+        predicate.insert(tail.begin(), tail.end());
         return predicate;
     }
 

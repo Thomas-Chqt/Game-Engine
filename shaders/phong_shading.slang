@@ -7,7 +7,7 @@
  */
 
 module phong_shading;
-import light;
+import Light;
 
 namespace shader::phong
 {
