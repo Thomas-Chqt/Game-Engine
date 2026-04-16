@@ -253,6 +253,33 @@ public:
     KeyUpEvent& operator = (KeyUpEvent&&)      = delete;
 };
 
+class CharEvent final : public InputEvent
+{
+public:
+    CharEvent()                 = delete;
+    CharEvent(const CharEvent&) = delete;
+    CharEvent(CharEvent&&)      = delete;
+
+    inline CharEvent(Window& window, unsigned int codePoint)
+        : InputEvent(window)
+        , m_codePoint(codePoint)
+    {
+    }
+
+    inline unsigned int codePoint() const { return m_codePoint; }
+
+    ~CharEvent() override = default;
+
+private:
+    inline std::string to_string() const override { return std::format("(CharEvent) -> Window: {:x} codePoint: {}", (std::uintptr_t)&m_window, m_codePoint); }
+
+    unsigned int m_codePoint;
+
+public:
+    CharEvent& operator = (const CharEvent&) = delete;
+    CharEvent& operator = (CharEvent&&)      = delete;
+};
+
 class MouseEvent : public InputEvent
 {
 public:

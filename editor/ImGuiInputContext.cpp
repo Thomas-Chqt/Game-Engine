@@ -165,6 +165,11 @@ void ImGuiInputContext::onInputEvent(GE::InputEvent& event)
         if (io.WantCaptureKeyboard)
             event.markAsProcessed();
     });
+    event.dispatch<GE::CharEvent>([&](GE::CharEvent& charEvent) {
+        io.AddInputCharacter(charEvent.codePoint());
+        if (io.WantCaptureKeyboard)
+            event.markAsProcessed();
+    });
     event.dispatch<GE::MouseDownEvent>([&](GE::MouseDownEvent& mouseDownEvent) {
         io.AddMouseButtonEvent(mouseDownEvent.mouseCode(), true);
         if (io.WantCaptureMouse)

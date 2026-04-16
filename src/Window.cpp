@@ -105,6 +105,18 @@ Window::Window(const Descriptor& desc)
         }
     });
 
+    ::glfwSetCharCallback(m_glfwWindow, [](::GLFWwindow* glfwWindow, unsigned int codepoint) {
+        Window& window = *static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
+        CallbackMap callbackMap = window.m_eventCallbacks;
+
+        CharEvent charEvent(window, codepoint);
+        for (auto& [key, val] : callbackMap)
+        {
+            for (auto& callback : val)
+                callback(charEvent);
+        }
+    });
+
     ::glfwSetCursorPosCallback(m_glfwWindow, [](::GLFWwindow* glfwWindow, double x, double y) {
         Window& window = *static_cast<Window*>(glfwGetWindowUserPointer(glfwWindow));
         CallbackMap callbackMap = window.m_eventCallbacks;
