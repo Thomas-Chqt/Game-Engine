@@ -36,7 +36,7 @@ public:
     inline std::pair<uint32_t, GE::Scene::Descriptor> startScene() const { return *m_scenes.find(m_startScene); }
     inline void setStartScene(uint32_t id) { assert(m_scenes.contains(id)); m_startScene = id; }
 
-    GE::Game::Descriptor gameDescriptor() const;
+    GE::Game::Descriptor makeGameDescriptor() const;
 
 private:
     std::map<uint32_t, GE::Scene::Descriptor> m_scenes;

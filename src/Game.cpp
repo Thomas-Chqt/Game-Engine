@@ -24,15 +24,4 @@ Game::Game(AssetManager* assetManager, const Descriptor& desc)
 {
 }
 
-void Game::switchActiveScene(const std::string& name)
-{
-    Scene* newActiveScene = &m_scenes.at(name);
-    /*
-    if (newActiveScene->isLoaded() == false) {
-        newActiveScene->load();
-        block until scene is loaded
-    }
-    */
-}
-
 }

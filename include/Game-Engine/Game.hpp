@@ -37,7 +37,7 @@ public:
     Game(AssetManager*, const Descriptor&);
 
     auto& activeScene(this auto&& self) { return *self.m_activeScene; }
-    void switchActiveScene(const std::string& name);
+    void setActiveScene(const std::string& name) { m_activeScene = &m_scenes.at(name); }
 
 private:
     std::map<std::string, Scene> m_scenes;

@@ -113,6 +113,8 @@ FramePass FlatGeometryPassBuilder::build() const
 
         const_ECSView<TransformComponent, MeshComponent>(&scene->ecsWorld()).onEach([&](const_Entity entity, const TransformComponent&, const MeshComponent meshId)
         {
+            // ? maybe i should not load asset here, just skip them, so user is require to load assets befor using
+            // ? loading here could cause unexpected asset load
             std::shared_future<const std::shared_ptr<Mesh>&> meshFuture = scene->assetManagerView().loadAsset<Mesh>(meshId);
             if (meshFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
             {

@@ -67,7 +67,7 @@ Project::Project()
     m_startScene = it->first;
 }
 
-GE::Game::Descriptor Project::gameDescriptor() const
+GE::Game::Descriptor Project::makeGameDescriptor() const
 {
     return {
         .scenes =  std::map<std::string, GE::Scene::Descriptor>(
