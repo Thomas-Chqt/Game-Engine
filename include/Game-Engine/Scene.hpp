@@ -16,6 +16,7 @@
 #include "Game-Engine/ECSWorld.hpp"
 #include "Game-Engine/Entity.hpp"
 
+#include <future>
 #include <string>
 #include <vector>
 
@@ -48,10 +49,13 @@ public:
     inline void setName(const std::string& s) { m_name = s; }
 
     inline auto activeCamera(this auto&& self) { return basic_entity{&self.m_ecsWorld, self.m_activeCamera}; }
-
     void setActiveCamera(const Entity& e);
 
     Entity newEntity(const std::string& name);
+
+    inline bool isLoaded() const { return m_assetManagerView.areAllAssetsLoaded(); }
+    inline std::future<void> load() const { return m_assetManagerView.loadAllAssets(); }
+    inline void unload() { m_assetManagerView.unloadAllAssets(); }
 
     ~Scene() = default;
 

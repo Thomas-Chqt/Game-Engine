@@ -11,6 +11,7 @@
 
 #include "Game-Engine/AssetManager.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <concepts>
@@ -25,7 +26,7 @@ using AssetID = uint64_t;
 constexpr AssetID BUILT_IN_CUBE_ASSET_ID = std::numeric_limits<uint64_t>::max();
 
 template<typename T>
-concept AssetIdSizedRange = std::ranges::sized_range<T> && std::convertible_to<std::ranges::range_value_t<T>, AssetID>;
+concept AssetIdRange = std::ranges::range<T> && std::convertible_to<std::ranges::range_value_t<T>, AssetID>;
 
 class AssetManagerView
 {
@@ -57,7 +58,7 @@ public:
             return m_assetManager->loadAsset<T>(m_assets.at(assetId));
     }
 
-    const std::future<void> loadAssets(const AssetIdSizedRange auto& assetIds) const
+    std::future<void> loadAssets(AssetIdRange auto&& assetIds) const
     {
         assert(m_assetManager);
         std::array<std::future<void>, 2> futures;
@@ -68,6 +69,7 @@ public:
                                                       return id != BUILT_IN_CUBE_ASSET_ID;
                                                   })
                                                 | std::ranges::views::transform([&](const auto& assetId) { return m_assets.at(assetId); }));
+
         return std::async(std::launch::deferred, [futures = std::move(futures)]() mutable {
             for (auto& f : futures)
                 if (f.valid())
@@ -75,7 +77,39 @@ public:
         });
     }
 
+    inline std::future<void> loadAllAssets() const { return loadAssets(m_assets | std::views::transform([](const auto& asset) { return asset.first; })); }
+
+    inline bool isAssetLoaded(AssetID assetId) const
+    {
+        assert(m_assetManager);
+        if (assetId == BUILT_IN_CUBE_ASSET_ID)
+            return m_assetManager->isBuiltInCubeLoaded();
+        return m_assetManager->isAssetLoaded(m_assets.at(assetId));
+    }
+
+    bool areAssetsLoaded(AssetIdRange auto&& assetIds) const
+    {
+        return std::ranges::all_of(assetIds, [this](const auto& assetId) {
+            return isAssetLoaded(assetId);
+        });
+    }
+
+    inline bool areAllAssetsLoaded() const { return areAssetsLoaded(m_assets | std::views::transform([](const auto& asset) { return asset.first; })); }
+
+    void unloadAssets(AssetIdRange auto&& assetIds)
+    {
+        assert(m_assetManager);
+        m_assetManager->unloadAssets(assetIds
+                                     | std::views::filter([&](const auto& id) {
+                                           if (id == BUILT_IN_CUBE_ASSET_ID)
+                                               m_assetManager->unloadBuiltInCube();
+                                           return id != BUILT_IN_CUBE_ASSET_ID;
+                                       })
+                                     | std::views::transform([&](const auto& assetId) { return m_assets.at(assetId); }));
+    }
+
     void unloadAsset(AssetID);
+    void unloadAllAssets();
 
     template<ManagableAsset T>
     inline const std::shared_ptr<T>& getAsset(AssetID assetId) { return loadAsset<T>(assetId).get(); }

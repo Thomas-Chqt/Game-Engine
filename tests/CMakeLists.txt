@@ -19,18 +19,21 @@ file(GLOB_RECURSE SRC "*.cpp")
 target_sources(GE_test PRIVATE ${SRC})
 
 target_include_directories(GE_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(GE_test PRIVATE GE_TEST_RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources")
 
 FetchContent_Declare(googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
     GIT_TAG        main
     GIT_SHALLOW    v1.15.2
 )
-set(BUILD_GMOCK OFF)
+set(BUILD_GMOCK ON)
 set(INSTALL_GTEST OFF)
 FetchContent_MakeAvailable(googletest)
 set_target_properties(gtest PROPERTIES FOLDER "dependencies")
 set_target_properties(gtest_main PROPERTIES FOLDER "dependencies")
+set_target_properties(gmock PROPERTIES FOLDER "dependencies")
+set_target_properties(gmock_main PROPERTIES FOLDER "dependencies")
 
-target_link_libraries(GE_test PRIVATE GTest::gtest_main Game-Engine)
+target_link_libraries(GE_test PRIVATE GTest::gmock GTest::gtest_main Game-Engine)
 
 gtest_discover_tests(GE_test)

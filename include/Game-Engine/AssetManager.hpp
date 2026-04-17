@@ -12,6 +12,7 @@
 
 #include "Game-Engine/Mesh.hpp"
 
+#include <algorithm>
 #include <Graphics/Device.hpp>
 #include <Graphics/Texture.hpp>
 #include <Graphics/CommandBuffer.hpp>
@@ -53,7 +54,7 @@ struct AssetPath
 using VAssetPath = std::variant<AssetPath<Mesh>, AssetPath<gfx::Texture>>;
 
 template<typename T>
-concept VAssetPathSizedRange = std::ranges::sized_range<T> && std::is_same_v<std::ranges::range_value_t<T>, VAssetPath>;
+concept VAssetPathRange = std::ranges::range<T> && std::is_same_v<std::ranges::range_value_t<T>, VAssetPath>;
 
 class AssetManager
 {
@@ -69,16 +70,14 @@ public:
     template<ManagableAsset T>
     inline const std::shared_future<const std::shared_ptr<T>&>& loadAsset(const VAssetPath& vAssetPath) { return loadAssetHandle<T>(m_handles.at(vAssetPath)); }
 
-    inline const std::shared_future<const std::shared_ptr<Mesh>&>& loadBuiltInCube() { return loadAssetHandle<Mesh>(m_builtInCubeHandle); }
-
-    const std::future<void> loadAssets(const VAssetPathSizedRange auto& vAssetPaths)
-    {
+    std::future<void> loadAssets(VAssetPathRange auto&& vAssetPaths) {
         std::vector<std::future<void>> futures;
-        futures.reserve(std::ranges::size(vAssetPaths));
+        if constexpr (std::ranges::sized_range<std::remove_cvref_t<decltype(vAssetPaths)>>)
+            futures.reserve(std::ranges::size(vAssetPaths));
 
-        for (VAssetPath& vAssetPath : vAssetPaths)
+        for (const VAssetPath& vAssetPath : vAssetPaths)
         {
-            std::visit([&](auto& assetPath) {
+            std::visit([&](const auto& assetPath) {
                 using AssetType = typename std::remove_cvref_t<decltype(assetPath)>::AssetType;
                 const auto& future = loadAsset<AssetType>(vAssetPath);
                 futures.push_back(std::async(std::launch::deferred, [future = future]() { future.get(); }));
@@ -91,7 +90,26 @@ public:
         });
     }
 
+    inline const std::shared_future<const std::shared_ptr<Mesh>&>& loadBuiltInCube() { return loadAssetHandle<Mesh>(m_builtInCubeHandle); }
+
+    inline bool isAssetLoaded(const VAssetPath& vAssetPath) const { return isAssetHandleLoaded(m_handles.at(vAssetPath)); }
+
+    bool areAssetsLoaded(VAssetPathRange auto&& vAssetPaths) const {
+        return std::ranges::all_of(vAssetPaths, [this](const VAssetPath& vAssetPath) {
+            return isAssetLoaded(vAssetPath);
+        });
+    }
+
+    inline bool isBuiltInCubeLoaded() const { return isAssetHandleLoaded(m_builtInCubeHandle); }
+
     inline void unloadAsset(const VAssetPath& vAssetPath) { unloadAssetHandle(m_handles.at(vAssetPath)); }
+
+    void unloadAssets(VAssetPathRange auto&& vAssetPaths) {
+        for (const VAssetPath& vAssetPath : vAssetPaths)
+            unloadAsset(vAssetPath);
+    }
+
+    inline void unloadBuiltInCube() { unloadAssetHandle(m_builtInCubeHandle); }
 
     template<ManagableAsset T>
     inline const std::shared_ptr<T>& getAsset(VAssetPath& vAssetPath) { return loadAsset<T>(vAssetPath).get(); }
@@ -120,8 +138,7 @@ private:
     using VAssetHandle = std::variant<AssetHandle<Mesh>, AssetHandle<gfx::Texture>>;
 
     template<ManagableAsset T>
-    const std::shared_future<const std::shared_ptr<T>&>& loadAssetHandle(VAssetHandle& vHandle)
-    {
+    const std::shared_future<const std::shared_ptr<T>&>& loadAssetHandle(VAssetHandle& vHandle) {
         auto& handle = std::get<AssetHandle<T>>(vHandle);
         auto expected = AssetHandleLoadingStatus::unloaded;
         if (handle.status.compare_exchange_strong(expected, AssetHandleLoadingStatus::loading))
@@ -140,10 +157,16 @@ private:
         return handle.future;
     }
 
+    bool isAssetHandleLoaded(const VAssetHandle& vHandle) const {
+        return std::visit([](const auto& handle) {
+            return handle.status.load() == AssetHandleLoadingStatus::loaded;
+        },
+        vHandle);
+    }
+
     void unloadAssetHandle(VAssetHandle&);
 
-    static std::shared_ptr<gfx::Buffer> newDeviceLocalBuffer(gfx::Device& device, gfx::CommandBuffer& commandBuffer, gfx::BufferUsage usage, const std::ranges::sized_range auto& data)
-    {
+    static std::shared_ptr<gfx::Buffer> newDeviceLocalBuffer(gfx::Device& device, gfx::CommandBuffer& commandBuffer, gfx::BufferUsage usage, const std::ranges::sized_range auto& data) {
         std::shared_ptr<gfx::Buffer> indexBuffer = device.newBuffer(gfx::Buffer::Descriptor{
             .size = sizeof(std::ranges::range_value_t<decltype(data)>) * data.size(),
             .usages = usage | gfx::BufferUsage::copyDestination,

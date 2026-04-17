@@ -96,7 +96,8 @@ void AssetManager::registerAsset(const VAssetPath& vAssetPath)
 void AssetManager::unloadAssetHandle(VAssetHandle& vHandle)
 {
     std::visit([](auto& handle) {
-        handle.future.wait(); // dont need to propagate errors
+        if (handle.future.valid())
+            handle.future.wait(); // dont need to propagate errors
         auto expected = AssetHandleLoadingStatus::loaded;
         if (handle.status.compare_exchange_strong(expected, AssetHandleLoadingStatus::unloaded))
             handle.asset.reset();

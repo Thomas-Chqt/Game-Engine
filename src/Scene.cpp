@@ -22,7 +22,9 @@ Scene::Scene(AssetManager* assetManager, const std::string& name)
 }
 
 Scene::Scene(AssetManager* assetManager, const Descriptor& desc)
-    : Scene(assetManager, desc.name)
+    : m_assetManagerView(assetManager, desc.registredAssets)
+    , m_name(desc.name)
+    , m_activeCamera(desc.activeCamera)
 {
     for (auto& [id, vComponents] : desc.entities) {
         m_ecsWorld.registerEntityID(id);
@@ -32,7 +34,6 @@ Scene::Scene(AssetManager* assetManager, const Descriptor& desc)
             }, vComponent);
         }
     }
-    m_activeCamera = desc.activeCamera;
 }
 
 void Scene::setActiveCamera(const Entity& e)
