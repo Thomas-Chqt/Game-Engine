@@ -95,7 +95,9 @@ void Editor::rebuildFrameGraph()
             { .name = "windowBackBuffer",   .size = window().frameBufferSize(), .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
         },
         .passes = {
-            GE::FlatGeometryPassBuilder(&m_editedScene.second, m_viewport.camera())
+            GE::FlatGeometryPassBuilder(
+                [this]() { return &m_editedScene.second; },
+                [this]() { return m_viewport.camera(); })
                 .setColorAttachment("viewportBackBuffer")
                 .setDepthAttachment("depthBuffer"),
             GE::ImguiPassBuilder()

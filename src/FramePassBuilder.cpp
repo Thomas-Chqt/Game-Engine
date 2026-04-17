@@ -20,6 +20,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <cassert>
+#include <functional>
 #include <memory>
 #include <vector>
 #include <future>
@@ -28,11 +29,18 @@ namespace GE
 {
 
 FlatGeometryPassBuilder::FlatGeometryPassBuilder(const Scene* scene, const ICamera* camera)
-    : m_scene(scene)
-    , m_camera(camera)
+    : FlatGeometryPassBuilder(
+        [scene]() { return scene; },
+        [camera]() { return camera; })
 {
-    assert(m_scene);
-    assert(m_camera);
+}
+
+FlatGeometryPassBuilder::FlatGeometryPassBuilder(std::function<const Scene*()> sceneProvider, std::function<const ICamera*()> cameraProvider)
+    : m_sceneProvider(std::move(sceneProvider))
+    , m_cameraProvider(std::move(cameraProvider))
+{
+    assert(m_sceneProvider);
+    assert(m_cameraProvider);
 }
 
 FramePass FlatGeometryPassBuilder::build() const
@@ -51,14 +59,39 @@ FramePass FlatGeometryPassBuilder::build() const
         "frameData", "material", "directionalLights", "pointLights"
     });
 
-    framePass.setup = [scene=m_scene, camera=m_camera](FramePassSetupContext& ctx)
+    framePass.setup = [sceneProvider=m_sceneProvider, cameraProvider=m_cameraProvider](FramePassSetupContext& ctx)
     {
+        const Scene* scene = sceneProvider();
+        const ICamera* camera = cameraProvider();
         assert(scene);
-        assert(camera);
 
         shader::FrameData& frameData = *ctx.constantBuffers.at("frameData")->content<shader::FrameData>();
-        frameData.vpMatrix = camera->viewProjectionMatrix();
-        frameData.cameraPosition = camera->position();
+        if (camera != nullptr)
+        {
+            frameData.vpMatrix = camera->viewProjectionMatrix();
+            frameData.cameraPosition = camera->position();
+        }
+        else
+        {
+            const_Entity activeCamera = scene->activeCamera();
+            assert(activeCamera.world != nullptr);
+            assert(activeCamera.world->isValidEntityID(activeCamera.entityId));
+            assert(activeCamera.has<TransformComponent>());
+            assert(activeCamera.has<CameraComponent>());
+
+            const auto& transform = activeCamera.get<TransformComponent>();
+            auto rotationMat = glm::mat4x4(1.0f);
+            rotationMat = glm::rotate(rotationMat, transform.rotation.y, glm::vec3(0, 1, 0));
+            rotationMat = glm::rotate(rotationMat, transform.rotation.x, glm::vec3(1, 0, 0));
+            rotationMat = glm::rotate(rotationMat, transform.rotation.z, glm::vec3(0, 0, 1));
+
+            const glm::vec3 position = activeCamera.worldTransform()[3];
+            const glm::vec3 direction = rotationMat * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+            const glm::vec3 up = rotationMat * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+
+            frameData.vpMatrix = activeCamera.get<CameraComponent>().projectionMatrix(16.0f / 9.0f) * glm::lookAt(position, position + direction, up);
+            frameData.cameraPosition = position;
+        }
         frameData.ambientLightColor = glm::vec3(1.0f, 1.0f, 1.0f) * 0.1f;
 
         std::vector<shader::DirectionalLight> directionalLights;
@@ -95,8 +128,9 @@ FramePass FlatGeometryPassBuilder::build() const
         material.shininess = 0.0f;
     };
 
-    framePass.execute = [scene=m_scene](FramePassExecuteContext& ctx)
+    framePass.execute = [sceneProvider=m_sceneProvider](FramePassExecuteContext& ctx)
     {
+        const Scene* scene = sceneProvider();
         assert(scene);
 
         std::shared_ptr<gfx::ParameterBlock> frameDataPBlock = ctx.parameterBlockPool.get(ctx.frameDataBlockLayout);

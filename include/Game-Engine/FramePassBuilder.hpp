@@ -114,12 +114,13 @@ class FlatGeometryPassBuilder : public FramePassBuilderBase<FlatGeometryPassBuil
 {
 public:
     FlatGeometryPassBuilder(const Scene*, const ICamera*);
+    FlatGeometryPassBuilder(std::function<const Scene*()>, std::function<const ICamera*()>);
 
     FramePass build() const;
 
 private:
-    const Scene* m_scene;
-    const ICamera* m_camera = nullptr;
+    std::function<const Scene*()> m_sceneProvider;
+    std::function<const ICamera*()> m_cameraProvider;
 };
 
 }
