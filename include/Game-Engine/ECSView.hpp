@@ -67,6 +67,10 @@ private:
 
 public:
     using value_type = ecs_view_item<ECSWorldT, Cs...>;
+    class iterator;
+    class reverse_iterator;
+    using const_iterator = iterator;
+    using const_reverse_iterator = reverse_iterator;
 
     class iterator
     {
@@ -137,6 +141,102 @@ public:
         }
     };
 
+    class reverse_iterator
+    {
+    public:
+        using iterator_concept = std::input_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+        using value_type = ecs_view_item<ECSWorldT, Cs...>;
+
+        reverse_iterator() = default;
+
+        reverse_iterator(ECSWorldT* world,
+            const std::set<typename ECSWorldT::ComponentID>* predicate,
+            ArchetypeIterator archBegin,
+            ArchetypeIterator archEnd)
+            : m_world(world)
+            , m_predicate(predicate)
+            , m_archetypeBegin(archBegin)
+            , m_archetypeIt(archEnd)
+        {
+            if (m_archetypeBegin == archEnd)
+                return;
+
+            --m_archetypeIt;
+            m_componentIdx = m_archetypeIt->second.size() > 0 ? m_archetypeIt->second.size() - 1 : 0;
+            retreatUntilMatch();
+        }
+
+        inline value_type operator*() const
+        {
+            auto& archetype = m_archetypeIt->second;
+            return value_type(
+                m_world,
+                archetype.getEntityID(m_componentIdx),
+                *archetype.template getComponentPointer<Cs>(m_componentIdx)...
+            );
+        }
+
+        inline reverse_iterator& operator++()
+        {
+            if (m_isEnd)
+                return *this;
+
+            if (m_componentIdx > 0)
+            {
+                --m_componentIdx;
+                return *this;
+            }
+
+            if (m_archetypeIt == m_archetypeBegin)
+            {
+                m_isEnd = true;
+                return *this;
+            }
+
+            --m_archetypeIt;
+            m_componentIdx = m_archetypeIt->second.size() > 0 ? m_archetypeIt->second.size() - 1 : 0;
+            retreatUntilMatch();
+            return *this;
+        }
+
+        inline void operator++(int) { ++(*this); }
+
+        inline bool operator==(std::default_sentinel_t) const { return m_isEnd; }
+
+    private:
+        ECSWorldT* m_world = nullptr;
+        const std::set<typename ECSWorldT::ComponentID>* m_predicate = nullptr;
+        ArchetypeIterator m_archetypeBegin;
+        ArchetypeIterator m_archetypeIt;
+        uint64_t m_componentIdx = 0;
+        bool m_isEnd = true;
+
+        inline void retreatUntilMatch()
+        {
+            while (true)
+            {
+                if (std::ranges::includes(m_archetypeIt->first, *m_predicate))
+                {
+                    if (m_archetypeIt->second.size() > 0 && m_componentIdx < m_archetypeIt->second.size())
+                    {
+                        m_isEnd = false;
+                        return;
+                    }
+                }
+
+                if (m_archetypeIt == m_archetypeBegin)
+                {
+                    m_isEnd = true;
+                    return;
+                }
+
+                --m_archetypeIt;
+                m_componentIdx = m_archetypeIt->second.size() > 0 ? m_archetypeIt->second.size() - 1 : 0;
+            }
+        }
+    };
+
     basic_ecsView()
         : m_predicate(makePredicate<Cs...>())
     {
@@ -165,6 +265,19 @@ public:
     }
 
     inline std::default_sentinel_t end() const { return std::default_sentinel; }
+    inline const_iterator cbegin() const { return begin(); }
+    inline std::default_sentinel_t cend() const { return std::default_sentinel; }
+
+    inline reverse_iterator rbegin() const
+    {
+        if (m_world == nullptr)
+            return reverse_iterator();
+        return reverse_iterator(m_world, &m_predicate, m_world->m_archetypes.cbegin(), m_world->m_archetypes.cend());
+    }
+
+    inline std::default_sentinel_t rend() const { return std::default_sentinel; }
+    inline reverse_iterator crbegin() const { return rbegin(); }
+    inline std::default_sentinel_t crend() const { return std::default_sentinel; }
 
     uint32_t count() const
     {

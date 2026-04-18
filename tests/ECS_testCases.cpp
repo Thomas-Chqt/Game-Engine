@@ -13,6 +13,7 @@
 #include "Game-Engine/ECSView.hpp"
 
 #include <set>
+#include <vector>
 
 namespace GE_tests
 {
@@ -301,15 +302,29 @@ TEST(ECSTest, view)
         EXPECT_NO_THROW({
             std::set<EntityID> entities;
             std::set<int> values;
+            std::vector<EntityID> idsForward;
+            std::vector<EntityID> idsReverse;
 
-            for (auto row : view)
+            for (auto it = view.cbegin(); it != view.cend(); ++it)
             {
-                entities.insert(static_cast<EntityID>(row));
-                values.insert(GE::get<0>(row).val());
+                entities.insert(static_cast<EntityID>(*it));
+                values.insert(GE::get<0>(*it).val());
+                idsForward.push_back(static_cast<EntityID>(*it));
+            }
+
+            for (auto it = view.rbegin(); it != view.rend(); ++it)
+            {
+                idsReverse.push_back(static_cast<EntityID>(*it));
             }
 
             EXPECT_EQ(entities.size(), 2);
             EXPECT_EQ(values.size(), 2);
+            EXPECT_EQ(idsForward.size(), 2);
+            EXPECT_EQ(idsReverse.size(), 2);
+            EXPECT_EQ(idsForward[0], entity1);
+            EXPECT_EQ(idsForward[1], entity3);
+            EXPECT_EQ(idsReverse[0], entity3);
+            EXPECT_EQ(idsReverse[1], entity1);
         });
     }
     {
@@ -319,15 +334,29 @@ TEST(ECSTest, view)
         EXPECT_NO_THROW({
             std::set<EntityID> entities;
             std::set<int> values;
+            std::vector<EntityID> idsForward;
+            std::vector<EntityID> idsReverse;
 
-            for (auto row : view)
+            for (auto it = view.cbegin(); it != view.cend(); ++it)
             {
-                entities.insert(static_cast<EntityID>(row));
-                values.insert(GE::get<0>(row).val());
+                entities.insert(static_cast<EntityID>(*it));
+                values.insert(GE::get<0>(*it).val());
+                idsForward.push_back(static_cast<EntityID>(*it));
+            }
+
+            for (auto it = view.crbegin(); it != view.crend(); ++it)
+            {
+                idsReverse.push_back(static_cast<EntityID>(*it));
             }
 
             EXPECT_EQ(entities.size(), 2);
             EXPECT_EQ(values.size(), 2);
+            EXPECT_EQ(idsForward.size(), 2);
+            EXPECT_EQ(idsReverse.size(), 2);
+            EXPECT_EQ(idsForward[0], entity1);
+            EXPECT_EQ(idsForward[1], entity3);
+            EXPECT_EQ(idsReverse[0], entity3);
+            EXPECT_EQ(idsReverse[1], entity1);
         });
     }
     {
@@ -381,15 +410,29 @@ TEST(ECSTest, constView)
         EXPECT_NO_THROW({
             std::set<EntityID> entities;
             std::set<int> values;
+            std::vector<EntityID> idsForward;
+            std::vector<EntityID> idsReverse;
 
-            for (auto row : view)
+            for (auto it = view.cbegin(); it != view.cend(); ++it)
             {
-                entities.insert(static_cast<EntityID>(row));
-                values.insert(GE::get<0>(row).val());
+                entities.insert(static_cast<EntityID>(*it));
+                values.insert(GE::get<0>(*it).val());
+                idsForward.push_back(static_cast<EntityID>(*it));
+            }
+
+            for (auto it = view.crbegin(); it != view.crend(); ++it)
+            {
+                idsReverse.push_back(static_cast<EntityID>(*it));
             }
 
             EXPECT_EQ(entities.size(), 2);
             EXPECT_EQ(values.size(), 2);
+            EXPECT_EQ(idsForward.size(), 2);
+            EXPECT_EQ(idsReverse.size(), 2);
+            EXPECT_EQ(idsForward[0], entity1);
+            EXPECT_EQ(idsForward[1], entity3);
+            EXPECT_EQ(idsReverse[0], entity3);
+            EXPECT_EQ(idsReverse[1], entity1);
         });
     }
     {
