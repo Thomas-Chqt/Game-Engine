@@ -103,6 +103,56 @@ ECSWorld::Iterator ECSWorld::end() const
     return Iterator(*this, m_entityDatas.size());
 }
 
+ECSWorld::Iterator ECSWorld::begin()
+{
+    return static_cast<const ECSWorld&>(*this).begin();
+}
+
+ECSWorld::Iterator ECSWorld::end()
+{
+    return static_cast<const ECSWorld&>(*this).end();
+}
+
+ECSWorld::Iterator ECSWorld::cbegin() const
+{
+    return begin();
+}
+
+ECSWorld::Iterator ECSWorld::cend() const
+{
+    return end();
+}
+
+ECSWorld::reverse_iterator ECSWorld::rbegin()
+{
+    return reverse_iterator(end());
+}
+
+ECSWorld::reverse_iterator ECSWorld::rend()
+{
+    return reverse_iterator(begin());
+}
+
+ECSWorld::const_reverse_iterator ECSWorld::rbegin() const
+{
+    return const_reverse_iterator(end());
+}
+
+ECSWorld::const_reverse_iterator ECSWorld::rend() const
+{
+    return const_reverse_iterator(begin());
+}
+
+ECSWorld::const_reverse_iterator ECSWorld::crbegin() const
+{
+    return const_reverse_iterator(cend());
+}
+
+ECSWorld::const_reverse_iterator ECSWorld::crend() const
+{
+    return const_reverse_iterator(cbegin());
+}
+
 ECSWorld::ComponentID ECSWorld::nextComponentID()
 {
     // start at 1 because 0 is reserved for the entity id

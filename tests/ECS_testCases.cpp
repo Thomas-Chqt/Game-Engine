@@ -14,6 +14,7 @@
 
 #include <set>
 #include <vector>
+#include <ranges>
 
 namespace GE_tests
 {
@@ -245,6 +246,44 @@ TEST(ECSTest, multipleEntityTwoComponent)
     EXPECT_EQ(world.entityCount(), 3);
     EXPECT_EQ(world.archetypeCount(), 3);
     EXPECT_EQ(world.componentCount(), 6);
+}
+
+TEST(ECSTest, worldRange)
+{
+    GE::ECSWorld world;
+
+    EntityID entity1 = world.newEntityID();
+    EntityID entity2 = world.newEntityID();
+    EntityID entity3 = world.newEntityID();
+
+    world.deleteEntityID(entity2);
+
+    EXPECT_EQ(std::ranges::distance(world), 2);
+    EXPECT_EQ(std::ranges::distance(world.cbegin(), world.cend()), 2);
+
+    std::vector<EntityID> forward;
+    for (EntityID id : world)
+        forward.push_back(id);
+
+    std::vector<EntityID> reverse;
+    for (auto it = world.rbegin(); it != world.rend(); ++it)
+        reverse.push_back(*it);
+
+    std::vector<EntityID> constReverse;
+    const GE::ECSWorld& constWorld = world;
+    for (auto it = constWorld.crbegin(); it != constWorld.crend(); ++it)
+        constReverse.push_back(*it);
+
+    ASSERT_EQ(forward.size(), 2);
+    ASSERT_EQ(reverse.size(), 2);
+    ASSERT_EQ(constReverse.size(), 2);
+
+    EXPECT_EQ(forward[0], entity1);
+    EXPECT_EQ(forward[1], entity3);
+    EXPECT_EQ(reverse[0], entity3);
+    EXPECT_EQ(reverse[1], entity1);
+    EXPECT_EQ(constReverse[0], entity3);
+    EXPECT_EQ(constReverse[1], entity1);
 }
 
 TYPED_TEST(ECSTest, componentEdit)

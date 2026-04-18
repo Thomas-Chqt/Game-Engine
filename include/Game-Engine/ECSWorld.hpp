@@ -18,6 +18,7 @@
 #include <set>
 #include <functional>
 #include <map>
+#include <iterator>
 #include <type_traits>
 
 #define INVALID_ENTITY_ID ULONG_MAX
@@ -39,6 +40,10 @@ public:
     using EntityID = uint64_t;
 
     class Iterator;
+    using iterator = Iterator;
+    using const_iterator = Iterator;
+    using reverse_iterator = std::reverse_iterator<Iterator>;
+    using const_reverse_iterator = std::reverse_iterator<Iterator>;
 
 private:
     template<ECSWorldLike ECSWorldT, Component  ... Cs> requires(sizeof...(Cs) > 0) friend class basic_ecsView;
@@ -81,8 +86,18 @@ public:
     inline uint32_t archetypeCount() { return m_archetypes.size(); }
     uint32_t componentCount();
 
+    Iterator begin();
+    Iterator end();
     Iterator begin() const;
     Iterator end() const;
+    Iterator cbegin() const;
+    Iterator cend() const;
+    reverse_iterator rbegin();
+    reverse_iterator rend();
+    const_reverse_iterator rbegin() const;
+    const_reverse_iterator rend() const;
+    const_reverse_iterator crbegin() const;
+    const_reverse_iterator crend() const;
 
     ~ECSWorld() = default;
 
@@ -217,6 +232,12 @@ public:
         friend class ECSWorld;
 
     public:
+        using iterator_category = std::bidirectional_iterator_tag;
+        using iterator_concept = std::bidirectional_iterator_tag;
+        using value_type = EntityID;
+        using difference_type = std::ptrdiff_t;
+        using reference = EntityID;
+
         Iterator() = default;
         Iterator(const Iterator& cp) = default;
         Iterator(Iterator&& mv) = default;
