@@ -40,10 +40,11 @@ public:
     using EntityID = uint64_t;
 
     class Iterator;
+    class ConstIterator;
     using iterator = Iterator;
-    using const_iterator = Iterator;
+    using const_iterator = ConstIterator;
     using reverse_iterator = std::reverse_iterator<Iterator>;
-    using const_reverse_iterator = std::reverse_iterator<Iterator>;
+    using const_reverse_iterator = std::reverse_iterator<ConstIterator>;
 
 private:
     template<ECSWorldLike ECSWorldT, Component  ... Cs> requires(sizeof...(Cs) > 0) friend class basic_ecsView;
@@ -88,10 +89,10 @@ public:
 
     Iterator begin();
     Iterator end();
-    Iterator begin() const;
-    Iterator end() const;
-    Iterator cbegin() const;
-    Iterator cend() const;
+    const_iterator begin() const;
+    const_iterator end() const;
+    const_iterator cbegin() const;
+    const_iterator cend() const;
     reverse_iterator rbegin();
     reverse_iterator rend();
     const_reverse_iterator rbegin() const;
@@ -102,103 +103,7 @@ public:
     ~ECSWorld() = default;
 
 private:
-    class Archetype
-    {
-    public:
-        Archetype();
-        Archetype(const Archetype&); // copy constructor make no sense inside the same ECSWorld. ment to be used only when copying the ECSWorld
-        Archetype(Archetype&&);
-
-        uint64_t size() const { return m_size; }
-
-        // must be use on empty achetype that are not inserted `ECSWorld::m_archetypes`
-        template<typename T>
-        void addRowType()
-        {
-            // clang-format off
-            m_rows.insert(std::make_pair(componentID<T>(), Row{
-                operator new (componentSize<T>() * m_capacity),
-                componentSize<T>(),
-                componentCopyConstructor<T>(),
-                componentMoveConstructor<T>(),
-                componentDestructor<T>(),
-            }));
-            // clang-format on
-        }
-
-        // must be use on empty achetype that are not inserted `ECSWorld::m_archetypes`
-        template<typename T>
-        void rmvRowType()
-        {
-            {
-                Row& row = m_rows.at(componentID<T>());
-                if (row.buffer != nullptr)
-                {
-                    for (uint64_t i = 0; i < m_size; i++)
-                        row.destructor(static_cast<std::byte*>(row.buffer) + (row.componentSize * i));
-                    operator delete(row.buffer);
-                }
-            }
-            m_rows.erase(componentID<T>());
-        }
-
-        // only duplicate the component infos (no component duplicated)
-        Archetype duplicateRowTypes();
-
-        // only extend the size (and capacity if needed) and return last index
-        uint64_t allocateCollum();
-
-        template<Component T>
-        T* getComponentPointer(uint64_t idx)
-        {
-            Row& row = m_rows.at(componentID<T>());
-            return static_cast<T*>(row.buffer) + idx;
-        }
-
-        template<Component T>
-        const T* getComponentPointer(uint64_t idx) const
-        {
-            const Row& row = m_rows.at(componentID<T>());
-            return static_cast<T*>(row.buffer) + idx;
-        }
-
-        EntityID& getEntityID(uint64_t idx);
-        const EntityID& getEntityID(uint64_t idx) const;
-
-        // destination should be garbage memory
-        // only call the move constructor
-        static void moveComponents(Archetype& arcSrc, uint64_t idxSrc, Archetype& arcDst, uint64_t idxDst);
-
-        // only call the destructor
-        void destructCollum(uint64_t idx);
-
-        // only reduce the size (and capacity if needed)
-        void freeLastCollum();
-
-        ~Archetype();
-
-    private:
-        struct Row
-        {
-            void* buffer = nullptr;
-            const uint64_t componentSize;
-            const CopyConstructor copyConstructor;
-            const MoveConstructor moveConstructor;
-            const Destructor destructor;
-        };
-
-        std::map<ComponentID, Row> m_rows;
-        uint64_t m_size;
-        uint64_t m_capacity;
-
-        void setCapacity(uint64_t);
-        inline void extendCapacity() { setCapacity(m_capacity * 2); }
-        inline void reduceCapacity() { setCapacity(m_capacity / 2 > 0 ? m_capacity / 2 : 1); }
-
-    public:
-        Archetype& operator=(const Archetype&);
-        Archetype& operator=(Archetype&&);
-    };
+    #include "Game-Engine/detail/ECSWorldArchetype.inl"
 
     struct EntityData
     {
@@ -226,69 +131,7 @@ public:
     // friend void from_json(const nlohmann::json&, ECSWorld&);
 
 public:
-    class Iterator
-    {
-    private:
-        friend class ECSWorld;
-
-    public:
-        using iterator_category = std::bidirectional_iterator_tag;
-        using iterator_concept = std::bidirectional_iterator_tag;
-        using value_type = EntityID;
-        using difference_type = std::ptrdiff_t;
-        using reference = EntityID;
-
-        Iterator() = default;
-        Iterator(const Iterator& cp) = default;
-        Iterator(Iterator&& mv) = default;
-
-        ~Iterator() = default;
-
-    private:
-        Iterator(const ECSWorld& world, EntityID id) : m_world(&world), m_id(id) {}
-
-        const ECSWorld* m_world = nullptr;
-        EntityID m_id = INVALID_ENTITY_ID;
-
-    public:
-        Iterator& operator=(const Iterator& cp) = default;
-        Iterator& operator=(Iterator&& mv) = default;
-
-        inline EntityID operator*() const { return m_id; }
-
-        inline Iterator& operator++()
-        {
-            do
-            {
-                ++m_id;
-            } while (m_world->m_availableEntityIDs.contains(m_id));
-            return *this;
-        }
-        inline Iterator operator++(int)
-        {
-            Iterator temp(*this);
-            ++(*this);
-            return temp;
-        }
-
-        inline Iterator& operator--()
-        {
-            do
-            {
-                --m_id;
-            } while (m_world->m_availableEntityIDs.contains(m_id));
-            return *this;
-        }
-        inline Iterator operator--(int)
-        {
-            Iterator temp(*this);
-            --(*this);
-            return temp;
-        }
-
-        inline bool operator==(const Iterator& rhs) const { return m_world == rhs.m_world && m_id == rhs.m_id; }
-        inline bool operator!=(const Iterator& rhs) const { return !(*this == rhs); }
-    };
+    #include "Game-Engine/detail/ECSWorldIterator.inl"
 };
 
 template<Component T, typename... Args>

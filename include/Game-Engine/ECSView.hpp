@@ -98,14 +98,14 @@ public:
             auto& archetype = m_archetypeIt->second;
             return value_type(
                 m_world,
-                archetype.getEntityID(m_componentIdx),
-                *archetype.template getComponentPointer<Cs>(m_componentIdx)...
+                *m_componentIt,
+                *archetype.template getComponentPointer<Cs>(m_componentIt.index())...
             );
         }
 
         inline iterator& operator++()
         {
-            ++m_componentIdx;
+            ++m_componentIt;
             advanceUntilMatch();
             return *this;
         }
@@ -119,7 +119,8 @@ public:
         const std::set<typename ECSWorldT::ComponentID>* m_predicate = nullptr;
         ArchetypeIterator m_archetypeIt;
         ArchetypeIterator m_archetypeEnd;
-        uint64_t m_componentIdx = 0;
+        typename std::remove_const_t<typename ArchetypeIterator::value_type::second_type>::const_iterator m_componentIt;
+        typename std::remove_const_t<typename ArchetypeIterator::value_type::second_type>::const_iterator m_componentEnd;
 
         inline void advanceUntilMatch()
         {
@@ -128,15 +129,23 @@ public:
                 if (!std::ranges::includes(m_archetypeIt->first, *m_predicate))
                 {
                     ++m_archetypeIt;
-                    m_componentIdx = 0;
+                    m_componentIt = {};
+                    m_componentEnd = {};
                     continue;
                 }
 
-                if (m_componentIdx < m_archetypeIt->second.size())
+                if (m_componentIt == typename std::remove_const_t<typename ArchetypeIterator::value_type::second_type>::const_iterator())
+                {
+                    m_componentIt = m_archetypeIt->second.cbegin();
+                    m_componentEnd = m_archetypeIt->second.cend();
+                }
+
+                if (m_componentIt != m_componentEnd)
                     break;
 
                 ++m_archetypeIt;
-                m_componentIdx = 0;
+                m_componentIt = {};
+                m_componentEnd = {};
             }
         }
     };

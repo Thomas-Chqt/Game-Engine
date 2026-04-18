@@ -90,7 +90,20 @@ uint32_t ECSWorld::componentCount()
     return count;
 }
 
-ECSWorld::Iterator ECSWorld::begin() const
+ECSWorld::const_iterator ECSWorld::begin() const
+{
+    EntityID id = 0;
+    while (m_availableEntityIDs.contains(id))
+        id++;
+    return const_iterator(*this, id);
+}
+
+ECSWorld::const_iterator ECSWorld::end() const
+{
+    return const_iterator(*this, m_entityDatas.size());
+}
+
+ECSWorld::Iterator ECSWorld::begin()
 {
     EntityID id = 0;
     while (m_availableEntityIDs.contains(id))
@@ -98,27 +111,17 @@ ECSWorld::Iterator ECSWorld::begin() const
     return Iterator(*this, id);
 }
 
-ECSWorld::Iterator ECSWorld::end() const
+ECSWorld::Iterator ECSWorld::end()
 {
     return Iterator(*this, m_entityDatas.size());
 }
 
-ECSWorld::Iterator ECSWorld::begin()
-{
-    return static_cast<const ECSWorld&>(*this).begin();
-}
-
-ECSWorld::Iterator ECSWorld::end()
-{
-    return static_cast<const ECSWorld&>(*this).end();
-}
-
-ECSWorld::Iterator ECSWorld::cbegin() const
+ECSWorld::const_iterator ECSWorld::cbegin() const
 {
     return begin();
 }
 
-ECSWorld::Iterator ECSWorld::cend() const
+ECSWorld::const_iterator ECSWorld::cend() const
 {
     return end();
 }
