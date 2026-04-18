@@ -27,8 +27,19 @@ namespace GE
 template<ECSWorldLike ECSWorldT, Component... Cs>
 struct ecs_view_item
 {
+    template<typename C>
+    using ComponentReference = std::conditional_t<std::is_const_v<ECSWorldT>, const C&, C&>;
+
     ECSWorldT* world = nullptr;
     typename ECSWorldT::EntityID entityId = INVALID_ENTITY_ID;
+    std::tuple<ComponentReference<Cs>...> components;
+
+    ecs_view_item(ECSWorldT* w, typename ECSWorldT::EntityID id, ComponentReference<Cs>... cs)
+        : world(w)
+        , entityId(id)
+        , components(cs...)
+    {
+    }
 
     inline operator typename ECSWorldT::EntityID() const { return entityId; }
 
@@ -44,11 +55,7 @@ struct ecs_view_item
 template<std::size_t I, ECSWorldLike ECSWorldT, Component... Cs>
 inline auto& get(const ecs_view_item<ECSWorldT, Cs...>& item)
 {
-    using C = std::tuple_element_t<I, std::tuple<Cs...>>;
-    if constexpr (std::is_const_v<ECSWorldT>)
-        return static_cast<const ECSWorld*>(item.world)->template get<C>(item.entityId);
-    else
-        return item.world->template get<C>(item.entityId);
+    return std::get<I>(item.components);
 }
 
 template<ECSWorldLike ECSWorldT, Component... Cs> requires(sizeof...(Cs) > 0)
@@ -84,10 +91,12 @@ public:
 
         inline value_type operator*() const
         {
-            return value_type{
-                .world = m_world,
-                .entityId = m_archetypeIt->second.getEntityID(m_componentIdx),
-            };
+            auto& archetype = m_archetypeIt->second;
+            return value_type(
+                m_world,
+                archetype.getEntityID(m_componentIdx),
+                *archetype.template getComponentPointer<Cs>(m_componentIdx)...
+            );
         }
 
         inline iterator& operator++()
