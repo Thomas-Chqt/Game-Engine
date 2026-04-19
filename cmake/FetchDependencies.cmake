@@ -160,4 +160,17 @@ function(fetch_dependencies)
             set_target_properties(assimp PROPERTIES FOLDER "dependencies")
         endif()
     endif()
+
+    # -----------------------------
+    # yaml-cpp
+    # -----------------------------
+    FetchContent_Declare(yaml-cpp
+        GIT_REPOSITORY    https://github.com/jbeder/yaml-cpp.git
+        GIT_TAG           yaml-cpp-0.9.0
+        GIT_SHALLOW       1
+        GIT_PROGRESS      TRUE
+        FIND_PACKAGE_ARGS
+    )
+    FetchContent_MakeAvailable(yaml-cpp)
+    set_target_properties(yaml-cpp PROPERTIES FOLDER "dependencies")
 endfunction()
