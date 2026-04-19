@@ -12,10 +12,11 @@
 
 #include "Game-Engine/Mesh.hpp"
 
-#include <algorithm>
 #include <Graphics/Device.hpp>
 #include <Graphics/Texture.hpp>
 #include <Graphics/CommandBuffer.hpp>
+
+#include <yaml-cpp/yaml.h>
 
 #include <atomic>
 #include <cassert>
@@ -27,10 +28,12 @@
 #include <map>
 #include <memory>
 #include <ranges>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
+#include <algorithm>
 
 namespace GE
 {
@@ -49,6 +52,21 @@ struct AssetPath
     inline operator const std::filesystem::path& () const { return path; }
     friend bool operator==(const AssetPath&, const AssetPath&) = default;
     friend bool operator<(const AssetPath& lhs, const AssetPath& rhs) { return lhs.path < rhs.path; }
+};
+
+template<typename T>
+struct AssetPathYamlTraits;
+
+template<>
+struct AssetPathYamlTraits<AssetPath<Mesh>>
+{
+    static constexpr std::string_view assetTypeStr = "Mesh";
+};
+
+template<>
+struct AssetPathYamlTraits<AssetPath<gfx::Texture>>
+{
+    static constexpr std::string_view assetTypeStr = "Texture";
 };
 
 using VAssetPath = std::variant<AssetPath<Mesh>, AssetPath<gfx::Texture>>;
@@ -202,4 +220,37 @@ public:
 
 } // namespace GE
 
+namespace YAML
+{
+
+template<>
+struct convert<GE::VAssetPath>
+{
+    static Node encode(const GE::VAssetPath& rhs)
+    {
+        Node node;
+        std::visit([&](auto& assetPath)
+        {
+            using AssetPathT = std::remove_cvref_t<decltype(assetPath)>;
+            node["type"] = std::string(GE::AssetPathYamlTraits<AssetPathT>::assetTypeStr);
+            node["path"] = std::string(assetPath.path);
+        },
+        rhs);
+        return node;
+    }
+
+    static bool decode(const Node& node, GE::VAssetPath& rhs)
+    {
+        if (!node.IsMap() || !node["type"] || !node["path"])
+            return false;
+        const std::string type = node["type"].as<std::string>();
+        if (type == "Mesh")
+            rhs = GE::AssetPath<GE::Mesh>(std::filesystem::path(node["path"].as<std::string>()));
+        if (type == "Texture")
+            rhs = GE::AssetPath<gfx::Texture>(std::filesystem::path(node["path"].as<std::string>()));
+        return true;
+    }
+};
+
+}
 #endif // ASSETMANAGER_HPP
