@@ -109,49 +109,63 @@ void InputMapper<KeyboardButton, Range2DInput>::onInputEvent(InputEvent& event)
     if (input == nullptr)
         return;
 
+    auto updateInputValue = [&]()
+    {
+        glm::vec2 rawValue = { 0.0f, 0.0f };
+
+        if (xPosPressed)
+            rawValue.x += xScale;
+        if (xNegPressed)
+            rawValue.x -= xScale;
+        if (yPosPressed)
+            rawValue.y += yScale;
+        if (yNegPressed)
+            rawValue.y -= yScale;
+
+        if (std::abs(rawValue.x) > 0.0f || std::abs(rawValue.y) > 0.0f)
+            input->value = glm::normalize(rawValue);
+        else
+            input->value = {0.0f, 0.0f};
+
+        input->triggered = std::abs(input->value.x) >= triggerValue || std::abs(input->value.y) >= triggerValue;
+    };
+
     event.dispatch<KeyDownEvent>([&](const KeyDownEvent& keyDownEvent)
     {
         if (event.processed() || keyDownEvent.isRepeat())
             return;
 
         if (keyDownEvent.keyCode() == static_cast<int>(xPos))
-            rawValue.x += xScale;
+            xPosPressed = true;
         else if (keyDownEvent.keyCode() == static_cast<int>(xNeg))
-            rawValue.x -= xScale;
+            xNegPressed = true;
         else if (keyDownEvent.keyCode() == static_cast<int>(yPos))
-            rawValue.y += yScale;
+            yPosPressed = true;
         else if (keyDownEvent.keyCode() == static_cast<int>(yNeg))
-            rawValue.y -= yScale;
+            yNegPressed = true;
         else
             return;
 
+        updateInputValue();
         event.markAsProcessed();
     });
 
     event.dispatch<KeyUpEvent>([&](const KeyUpEvent& keyUpEvent)
     {
         if (keyUpEvent.keyCode() == static_cast<int>(xPos))
-            rawValue.x -= xScale;
+            xPosPressed = false;
         else if (keyUpEvent.keyCode() == static_cast<int>(xNeg))
-            rawValue.x += xScale;
+            xNegPressed = false;
         else if (keyUpEvent.keyCode() == static_cast<int>(yPos))
-            rawValue.y -= yScale;
+            yPosPressed = false;
         else if (keyUpEvent.keyCode() == static_cast<int>(yNeg))
-            rawValue.y += yScale;
+            yNegPressed = false;
         else
             return;
 
+        updateInputValue();
         event.markAsProcessed();
     });
-
-    if (event.processed())
-    {
-        if (std::abs(rawValue.x) > 0.0f || std::abs(rawValue.y) > 0.0f)
-            input->value = glm::normalize(rawValue);
-        else
-            input->value = {0.0f, 0.0f};
-        input->triggered = std::abs(input->value.x) >= triggerValue || std::abs(input->value.y) >= triggerValue;
-    }
 }
 
 }

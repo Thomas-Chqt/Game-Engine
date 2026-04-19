@@ -85,8 +85,13 @@ struct InputMapper<KeyboardButton, Range2DInput>
     KeyboardButton yPos;
     KeyboardButton yNeg;
     float yScale = 1.0f;
+
     float triggerValue = 0.5f;
-    glm::vec2 rawValue = { 0.0f, 0.0f };
+
+    bool xPosPressed = false;
+    bool xNegPressed = false;
+    bool yPosPressed = false;
+    bool yNegPressed = false;
 
     Range2DInput* input = nullptr;
 
