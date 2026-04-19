@@ -246,8 +246,10 @@ struct convert<GE::VAssetPath>
         const std::string type = node["type"].as<std::string>();
         if (type == "Mesh")
             rhs = GE::AssetPath<GE::Mesh>(std::filesystem::path(node["path"].as<std::string>()));
-        if (type == "Texture")
+        else if (type == "Texture")
             rhs = GE::AssetPath<gfx::Texture>(std::filesystem::path(node["path"].as<std::string>()));
+        else
+            return false;
         return true;
     }
 };

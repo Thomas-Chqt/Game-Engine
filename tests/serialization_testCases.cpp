@@ -9,11 +9,14 @@
 #include <gtest/gtest.h>
 
 #include "Game-Engine/Components.hpp"
+#include "Game-Engine/AssetManager.hpp"
+
+#include <Graphics/Texture.hpp>
+
+#include <yaml-cpp/yaml.h>
 
 #include <map>
 #include <vector>
-
-#include <yaml-cpp/yaml.h>
 
 namespace GE_tests
 {
@@ -79,6 +82,65 @@ TEST(SerializationTest, componentVariantMapYamlRoundTrip)
     EXPECT_EQ(std::get<GE::HierarchyComponent>(decoded.at(7)[0]).parent, 2u);
     EXPECT_EQ(std::get<GE::LightComponent>(decoded.at(7)[1]).type, GE::LightComponent::Type::directional);
     EXPECT_EQ(std::get<GE::MeshComponent>(decoded.at(7)[2]).id, GE::BUILT_IN_CUBE_ASSET_ID);
+}
+
+TEST(AssetPathYamlConversion, encodesMeshAssetPathWithTypeAndPath)
+{
+    const std::filesystem::path meshPath("meshes/cube.obj");
+    const GE::VAssetPath assetPath = GE::AssetPath<GE::Mesh>(meshPath);
+
+    const YAML::Node node = YAML::convert<GE::VAssetPath>::encode(assetPath);
+
+    ASSERT_TRUE(node.IsMap());
+    EXPECT_EQ(node["type"].as<std::string>(), "Mesh");
+    EXPECT_EQ(node["path"].as<std::string>(), meshPath.string());
+}
+
+TEST(AssetPathYamlConversion, decodesMeshAssetPathFromYaml)
+{
+    YAML::Node node;
+    node["type"] = "Mesh";
+    node["path"] = "meshes/cube.obj";
+
+    GE::VAssetPath assetPath;
+    ASSERT_TRUE(YAML::convert<GE::VAssetPath>::decode(node, assetPath));
+
+    ASSERT_TRUE(std::holds_alternative<GE::AssetPath<GE::Mesh>>(assetPath));
+    EXPECT_EQ(std::get<GE::AssetPath<GE::Mesh>>(assetPath).path, std::filesystem::path("meshes/cube.obj"));
+}
+
+TEST(AssetPathYamlConversion, roundTripsTextureAssetPathThroughYamlNode)
+{
+    const GE::VAssetPath assetPath = GE::AssetPath<gfx::Texture>(std::filesystem::path("textures/dummy.png"));
+
+    const YAML::Node encoded = YAML::convert<GE::VAssetPath>::encode(assetPath);
+    const GE::VAssetPath decoded = encoded.as<GE::VAssetPath>();
+
+    ASSERT_TRUE(std::holds_alternative<GE::AssetPath<gfx::Texture>>(decoded));
+    EXPECT_EQ(std::get<GE::AssetPath<gfx::Texture>>(decoded).path, std::filesystem::path("textures/dummy.png"));
+}
+
+TEST(AssetPathYamlConversion, rejectsYamlWithoutRequiredKeys)
+{
+    YAML::Node missingPath;
+    missingPath["type"] = "Mesh";
+
+    YAML::Node missingType;
+    missingType["path"] = "meshes/cube.obj";
+
+    GE::VAssetPath assetPath;
+    EXPECT_FALSE(YAML::convert<GE::VAssetPath>::decode(missingPath, assetPath));
+    EXPECT_FALSE(YAML::convert<GE::VAssetPath>::decode(missingType, assetPath));
+}
+
+TEST(AssetPathYamlConversion, rejectsUnknownAssetType)
+{
+    YAML::Node node;
+    node["type"] = "Material";
+    node["path"] = "materials/default.mat";
+
+    GE::VAssetPath assetPath;
+    EXPECT_FALSE(YAML::convert<GE::VAssetPath>::decode(node, assetPath));
 }
 
 } // namespace GE_tests
