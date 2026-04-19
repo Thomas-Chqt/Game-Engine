@@ -101,8 +101,11 @@ FramePass FlatGeometryPassBuilder::build() const
 
         std::vector<shader::DirectionalLight> directionalLights;
         std::vector<shader::PointLight> pointLights;
-        const_ECSView<TransformComponent, LightComponent>(&scene->ecsWorld()).onEach([&](const_Entity entity, const TransformComponent&, const LightComponent& light)
+        for (GE::const_Entity entity : scene->ecsWorld()
+                                       | const_ECSView<TransformComponent, LightComponent>()
+                                       | std::views::transform([&](auto id){ return GE::const_Entity{&scene->ecsWorld(), id}; }))
         {
+            const LightComponent& light = entity.get<LightComponent>();
             switch (light.type)
             {
             case LightComponent::Type::directional:
@@ -119,7 +122,7 @@ FramePass FlatGeometryPassBuilder::build() const
                 });
                 break;
             }
-        });
+        }
 
         frameData.directionalLightCount = directionalLights.size();
         frameData.pointLightCount = pointLights.size();
@@ -150,11 +153,12 @@ FramePass FlatGeometryPassBuilder::build() const
         ctx.commandBuffer.setParameterBlock(frameDataPBlock, 0);
         ctx.commandBuffer.setParameterBlock(materialPBlock, 1);
 
-        const_ECSView<TransformComponent, MeshComponent>(&scene->ecsWorld()).onEach([&](const_Entity entity, const TransformComponent&, const MeshComponent meshId)
+        for (auto entity : scene->ecsWorld() | const_ECSView<TransformComponent, MeshComponent>() | std::views::transform([&](auto id){ return GE::const_Entity{&scene->ecsWorld(), id}; }))
         {
+            const MeshComponent& mesh = entity.get<MeshComponent>();
             // ? maybe i should not load asset here, just skip them, so user is require to load assets befor using
             // ? loading here could cause unexpected asset load
-            std::shared_future<const std::shared_ptr<Mesh>&> meshFuture = scene->assetManagerView().loadAsset<Mesh>(meshId);
+            std::shared_future<const std::shared_ptr<Mesh>&> meshFuture = scene->assetManagerView().loadAsset<Mesh>(mesh);
             if (meshFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
             {
                 std::shared_ptr<Mesh> mesh = meshFuture.get();
@@ -173,7 +177,7 @@ FramePass FlatGeometryPassBuilder::build() const
                 for (auto& submesh : mesh->subMeshes)
                     drawSubmesh(submesh, entity.worldTransform());
             }
-        });
+        }
     };
 
     return framePass;

@@ -18,6 +18,7 @@
 #include <set>
 #include <functional>
 #include <map>
+#include <iterator>
 #include <type_traits>
 
 #define INVALID_ENTITY_ID ULONG_MAX
@@ -38,7 +39,8 @@ class ECSWorld
 public:
     using EntityID = uint64_t;
 
-    class Iterator;
+    struct Iterator;
+    using iterator = Iterator;
 
 private:
     template<ECSWorldLike ECSWorldT, Component  ... Cs> requires(sizeof...(Cs) > 0) friend class basic_ecsView;
@@ -57,133 +59,25 @@ public:
 
     EntityID newEntityID();
     void registerEntityID(ECSWorld::EntityID);
-
     void deleteEntityID(EntityID);
-
     inline bool isValidEntityID(EntityID id) const { return id < m_entityDatas.size() && m_availableEntityIDs.contains(id) == false; }
 
-    template<Component T, typename... Args>
-    T& emplace(EntityID entityId, Args&&... args);
-
-    template<Component T>
-    void remove(EntityID);
-
-    template<Component T>
-    bool has(EntityID) const;
-
-    template<Component T>
-    T& get(EntityID);
-
-    template<Component T>
-    const T& get(EntityID) const;
+    template<Component T, typename... Args> T& emplace(EntityID entityId, Args&&... args);
+    template<Component T> void remove(EntityID);
+    template<Component T> bool has(EntityID) const;
+    template<Component T> auto& get(this auto&& self, EntityID);
 
     inline uint32_t entityCount() { return m_entityDatas.size() - m_availableEntityIDs.size(); }
     inline uint32_t archetypeCount() { return m_archetypes.size(); }
     uint32_t componentCount();
 
-    Iterator begin() const;
-    Iterator end() const;
+    inline Iterator begin() const;
+    inline std::default_sentinel_t end() const { return std::default_sentinel; }
 
     ~ECSWorld() = default;
 
 private:
-    class Archetype
-    {
-    public:
-        Archetype();
-        Archetype(const Archetype&); // copy constructor make no sense inside the same ECSWorld. ment to be used only when copying the ECSWorld
-        Archetype(Archetype&&);
-
-        uint64_t size() const { return m_size; }
-
-        // must be use on empty achetype that are not inserted `ECSWorld::m_archetypes`
-        template<typename T>
-        void addRowType()
-        {
-            // clang-format off
-            m_rows.insert(std::make_pair(componentID<T>(), Row{
-                operator new (componentSize<T>() * m_capacity),
-                componentSize<T>(),
-                componentCopyConstructor<T>(),
-                componentMoveConstructor<T>(),
-                componentDestructor<T>(),
-            }));
-            // clang-format on
-        }
-
-        // must be use on empty achetype that are not inserted `ECSWorld::m_archetypes`
-        template<typename T>
-        void rmvRowType()
-        {
-            {
-                Row& row = m_rows.at(componentID<T>());
-                if (row.buffer != nullptr)
-                {
-                    for (uint64_t i = 0; i < m_size; i++)
-                        row.destructor(static_cast<std::byte*>(row.buffer) + (row.componentSize * i));
-                    operator delete(row.buffer);
-                }
-            }
-            m_rows.erase(componentID<T>());
-        }
-
-        // only duplicate the component infos (no component duplicated)
-        Archetype duplicateRowTypes();
-
-        // only extend the size (and capacity if needed) and return last index
-        uint64_t allocateCollum();
-
-        template<Component T>
-        T* getComponentPointer(uint64_t idx)
-        {
-            Row& row = m_rows.at(componentID<T>());
-            return static_cast<T*>(row.buffer) + idx;
-        }
-
-        template<Component T>
-        const T* getComponentPointer(uint64_t idx) const
-        {
-            const Row& row = m_rows.at(componentID<T>());
-            return static_cast<T*>(row.buffer) + idx;
-        }
-
-        EntityID& getEntityID(uint64_t idx);
-        const EntityID& getEntityID(uint64_t idx) const;
-
-        // destination should be garbage memory
-        // only call the move constructor
-        static void moveComponents(Archetype& arcSrc, uint64_t idxSrc, Archetype& arcDst, uint64_t idxDst);
-
-        // only call the destructor
-        void destructCollum(uint64_t idx);
-
-        // only reduce the size (and capacity if needed)
-        void freeLastCollum();
-
-        ~Archetype();
-
-    private:
-        struct Row
-        {
-            void* buffer = nullptr;
-            const uint64_t componentSize;
-            const CopyConstructor copyConstructor;
-            const MoveConstructor moveConstructor;
-            const Destructor destructor;
-        };
-
-        std::map<ComponentID, Row> m_rows;
-        uint64_t m_size;
-        uint64_t m_capacity;
-
-        void setCapacity(uint64_t);
-        inline void extendCapacity() { setCapacity(m_capacity * 2); }
-        inline void reduceCapacity() { setCapacity(m_capacity / 2 > 0 ? m_capacity / 2 : 1); }
-
-    public:
-        Archetype& operator=(const Archetype&);
-        Archetype& operator=(Archetype&&);
-    };
+    #include "Game-Engine/Archetype.inl"
 
     struct EntityData
     {
@@ -207,68 +101,17 @@ public:
     ECSWorld& operator=(const ECSWorld&) = default;
     ECSWorld& operator=(ECSWorld&&) = default;
 
-    // friend void to_json(nlohmann::json&, const ECSWorld&);
-    // friend void from_json(const nlohmann::json&, ECSWorld&);
-
 public:
-    class Iterator
-    {
-    private:
-        friend class ECSWorld;
-
-    public:
-        Iterator() = default;
-        Iterator(const Iterator& cp) = default;
-        Iterator(Iterator&& mv) = default;
-
-        ~Iterator() = default;
-
-    private:
-        Iterator(const ECSWorld& world, EntityID id) : m_world(&world), m_id(id) {}
-
-        const ECSWorld* m_world = nullptr;
-        EntityID m_id = INVALID_ENTITY_ID;
-
-    public:
-        Iterator& operator=(const Iterator& cp) = default;
-        Iterator& operator=(Iterator&& mv) = default;
-
-        inline EntityID operator*() const { return m_id; }
-
-        inline Iterator& operator++()
-        {
-            do
-            {
-                ++m_id;
-            } while (m_world->m_availableEntityIDs.contains(m_id));
-            return *this;
-        }
-        inline Iterator operator++(int)
-        {
-            Iterator temp(*this);
-            ++(*this);
-            return temp;
-        }
-
-        inline Iterator& operator--()
-        {
-            do
-            {
-                --m_id;
-            } while (m_world->m_availableEntityIDs.contains(m_id));
-            return *this;
-        }
-        inline Iterator operator--(int)
-        {
-            Iterator temp(*this);
-            --(*this);
-            return temp;
-        }
-
-        inline bool operator==(const Iterator& rhs) const { return m_world == rhs.m_world && m_id == rhs.m_id; }
-        inline bool operator!=(const Iterator& rhs) const { return !(*this == rhs); }
-    };
+    #include "Game-Engine/ECSWorldIterator.inl"
 };
+
+inline ECSWorld::Iterator ECSWorld::begin() const
+{
+    auto id = 0;
+    while (m_availableEntityIDs.contains(id))
+        id++;
+    return Iterator(this, id);
+}
 
 template<Component T, typename... Args>
 T& ECSWorld::emplace(EntityID entityId, Args&&... args)
@@ -298,8 +141,11 @@ T& ECSWorld::emplace(EntityID entityId, Args&&... args)
 
     m_entityDatas[entityArch.getEntityID(entityArch.size() - 1)].idx = entityIdx;
 
-    entityArch.destructCollum(entityIdx);
-    Archetype::moveComponents(entityArch, entityArch.size() - 1, entityArch, entityIdx);
+    if (entityIdx != entityArch.size() - 1)
+    {
+        entityArch.destructCollum(entityIdx);
+        Archetype::moveComponents(entityArch, entityArch.size() - 1, entityArch, entityIdx);
+    }
     entityArch.destructCollum(entityArch.size() - 1);
     entityArch.freeLastCollum();
 
@@ -359,27 +205,15 @@ bool ECSWorld::has(EntityID entityId) const
 }
 
 template<Component T>
-T& ECSWorld::get(EntityID entityId)
+auto& ECSWorld::get(this auto&& self, EntityID entityId)
 {
-    assert(isValidEntityID(entityId));
-    assert(has<T>(entityId));
+    assert(self.isValidEntityID(entityId));
+    assert(self.template has<T>(entityId));
 
-    Archetype& entityArch = m_archetypes[m_entityDatas[entityId].archetypeId];
-    uint64_t& entityIdx = m_entityDatas[entityId].idx;
+    auto& entityArch = self.m_archetypes.at(self.m_entityDatas[entityId].archetypeId);
+    uint64_t entityIdx = self.m_entityDatas.at(entityId).idx;
 
-    return *entityArch.getComponentPointer<T>(entityIdx);
-}
-
-template<Component T>
-const T& ECSWorld::get(EntityID entityId) const
-{
-    assert(isValidEntityID(entityId));
-    assert(has<T>(entityId));
-
-    const Archetype& entityArch = m_archetypes.at(m_entityDatas[entityId].archetypeId);
-    const uint64_t& entityIdx = m_entityDatas[entityId].idx;
-
-    return *entityArch.getComponentPointer<T>(entityIdx);
+    return *entityArch.template getComponentPointer<T>(entityIdx);
 }
 
 template<Component T>
@@ -415,6 +249,40 @@ ECSWorld::Destructor ECSWorld::componentDestructor()
 {
     auto fn = [](void* ptr) { ((T*)ptr)->~T(); };
     return fn;
+}
+
+template<typename T>
+void ECSWorld::Archetype::addRowType()
+{
+    m_rows.insert(std::make_pair(componentID<T>(), Row{
+        operator new (componentSize<T>() * m_capacity),
+        componentSize<T>(),
+        componentCopyConstructor<T>(),
+        componentMoveConstructor<T>(),
+        componentDestructor<T>(),
+    }));
+}
+
+template<typename T>
+void ECSWorld::Archetype::rmvRowType()
+{
+    Row& row = m_rows.at(componentID<T>());
+    if (row.buffer != nullptr)
+    {
+        for (uint64_t i = 0; i < m_size; i++)
+            row.destructor(static_cast<std::byte*>(row.buffer) + (row.componentSize * i));
+        operator delete(row.buffer);
+    }
+    m_rows.erase(componentID<T>());
+}
+
+template<Component T>
+auto* ECSWorld::Archetype::getComponentPointer(this auto&& self, uint64_t idx)
+{
+    using Self = std::remove_reference_t<decltype(self)>;
+    using ComponentPtr = std::conditional_t<std::is_const_v<Self>, const T*, T*>;
+    auto& row = self.m_rows.at(componentID<T>());
+    return static_cast<ComponentPtr>(row.buffer) + idx;
 }
 
 } // namespace GE
