@@ -38,12 +38,16 @@ public:
     inline std::pair<uint32_t, GE::Scene::Descriptor> startScene() const { return *m_scenes.find(m_startScene); }
     inline void setStartScene(uint32_t id) { assert(m_scenes.contains(id)); m_startScene = id; }
 
+    inline const std::string& imguiSettings() const { return m_imguiSettings; }
+    inline void setImguiSettings(std::string imguiSettings) { m_imguiSettings = std::move(imguiSettings); }
+
     GE::Game::Descriptor makeGameDescriptor() const;
 
 private:
     std::string m_name;
     std::map<uint32_t, GE::Scene::Descriptor> m_scenes;
     uint32_t m_startScene;
+    std::string m_imguiSettings;
 
 public:
     Project& operator = (const Project&) = delete;
@@ -64,6 +68,7 @@ struct convert<GE_Editor::Project>
     {
         Node node;
         node["name"] = rhs.m_name;
+        node["imguiSettings"] = rhs.m_imguiSettings;
         for (const auto& [_, scene] : rhs.m_scenes)
             node["scenes"].push_back(scene);
         node["startScene"] = rhs.startScene().second.name;
@@ -78,6 +83,7 @@ struct convert<GE_Editor::Project>
             return false;
 
         rhs.m_name = node["name"].as<std::string>();
+        rhs.m_imguiSettings = node["imguiSettings"] ? node["imguiSettings"].as<std::string>() : std::string();
 
         rhs.m_scenes.clear();
         uint32_t sceneId = 0;

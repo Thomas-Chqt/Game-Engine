@@ -51,6 +51,8 @@ Editor::Editor()
     : m_project{}
     , m_editedScene{m_project.startScene().first, GE::Scene(&assetManager(), m_project.startScene().second)}
 {
+    ImGui::LoadIniSettingsFromMemory(m_project.imguiSettings().c_str());
+
     GE::Range2DInput editorCameraMoveInput;
     editorCameraMoveInput.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
         .xPos = GE::KeyboardButton::d, .xNeg = GE::KeyboardButton::a, .yPos = GE::KeyboardButton::w, .yNeg = GE::KeyboardButton::s,
@@ -199,6 +201,12 @@ void Editor::renderImgui()
         .render();
 
     ImGui::Render();
+
+    if (ImGui::GetIO().WantSaveIniSettings)
+    {
+        m_project.setImguiSettings(ImGui::SaveIniSettingsToMemory());
+        ImGui::GetIO().WantSaveIniSettings = false;
+    }
 }
 
 } // namespace GE_Editor

@@ -72,6 +72,7 @@ Application::Application()
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.IniFilename = nullptr;
     switch (m_device->backend())
     {
         case gfx::Backend::vulkan:
