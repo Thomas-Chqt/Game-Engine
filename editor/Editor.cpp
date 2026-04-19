@@ -103,6 +103,8 @@ void Editor::loadProject(const std::filesystem::path& path)
     if (YAML::convert<Project>::decode(projectNode, m_project) == false)
         throw std::runtime_error("unable to load project file");
 
+    ImGui::LoadIniSettingsFromMemory(m_project.imguiSettings().c_str());
+
     m_projectFilePath = path;
     m_editedScene = {m_project.startScene().first, GE::Scene(&assetManager(), m_project.startScene().second)};
     m_selectedEntity = {};
