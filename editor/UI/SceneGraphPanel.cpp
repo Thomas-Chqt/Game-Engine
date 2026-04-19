@@ -31,10 +31,12 @@ void SceneGraphPanel::render()
         {
             if (m_scene)
             {
-                GE::ECSView<GE::NameComponent>(&m_scene->ecsWorld()).onEach([&](GE::Entity entity, GE::NameComponent&) {
+                for (GE::ECSWorld::EntityID entityId : m_scene->ecsWorld() | GE::ECSView<GE::NameComponent>())
+                {
+                    GE::Entity entity = { .world = &m_scene->ecsWorld(), .entityId = entityId };
                     if (entity.parent().has_value() == false)
                         renderEntityRow(entity);
-                });
+                }
             }
             else
             {

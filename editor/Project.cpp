@@ -16,7 +16,6 @@
 #include <Game-Engine/AssetManagerView.hpp>
 
 #include <cassert>
-#include <ranges>
 #include <string>
 #include <utility>
 
@@ -69,11 +68,12 @@ Project::Project()
 
 GE::Game::Descriptor Project::gameDescriptor() const
 {
+    std::map<std::string, GE::Scene::Descriptor> scenes;
+    for (const auto& [sceneId, sceneDesc] : m_scenes)
+        scenes.insert(std::make_pair(sceneDesc.name, sceneDesc));
+
     return {
-        .scenes =  std::map<std::string, GE::Scene::Descriptor>(
-            std::from_range,
-            m_scenes | std::views::transform([](const auto& pair){ return std::make_pair(pair.second.name, pair.second); })
-        ),
+        .scenes = scenes,
         .activeScene = startScene().second.name
     };
 }

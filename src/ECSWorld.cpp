@@ -90,7 +90,20 @@ uint32_t ECSWorld::componentCount()
     return count;
 }
 
-ECSWorld::Iterator ECSWorld::begin() const
+ECSWorld::const_iterator ECSWorld::begin() const
+{
+    EntityID id = 0;
+    while (m_availableEntityIDs.contains(id))
+        id++;
+    return const_iterator(*this, id);
+}
+
+ECSWorld::const_iterator ECSWorld::end() const
+{
+    return const_iterator(*this, m_entityDatas.size());
+}
+
+ECSWorld::Iterator ECSWorld::begin()
 {
     EntityID id = 0;
     while (m_availableEntityIDs.contains(id))
@@ -98,9 +111,49 @@ ECSWorld::Iterator ECSWorld::begin() const
     return Iterator(*this, id);
 }
 
-ECSWorld::Iterator ECSWorld::end() const
+ECSWorld::Iterator ECSWorld::end()
 {
     return Iterator(*this, m_entityDatas.size());
+}
+
+ECSWorld::const_iterator ECSWorld::cbegin() const
+{
+    return begin();
+}
+
+ECSWorld::const_iterator ECSWorld::cend() const
+{
+    return end();
+}
+
+ECSWorld::reverse_iterator ECSWorld::rbegin()
+{
+    return reverse_iterator(end());
+}
+
+ECSWorld::reverse_iterator ECSWorld::rend()
+{
+    return reverse_iterator(begin());
+}
+
+ECSWorld::const_reverse_iterator ECSWorld::rbegin() const
+{
+    return const_reverse_iterator(end());
+}
+
+ECSWorld::const_reverse_iterator ECSWorld::rend() const
+{
+    return const_reverse_iterator(begin());
+}
+
+ECSWorld::const_reverse_iterator ECSWorld::crbegin() const
+{
+    return const_reverse_iterator(cend());
+}
+
+ECSWorld::const_reverse_iterator ECSWorld::crend() const
+{
+    return const_reverse_iterator(cbegin());
 }
 
 ECSWorld::ComponentID ECSWorld::nextComponentID()

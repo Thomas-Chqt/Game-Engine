@@ -63,8 +63,10 @@ FramePass FlatGeometryPassBuilder::build() const
 
         std::vector<shader::DirectionalLight> directionalLights;
         std::vector<shader::PointLight> pointLights;
-        const_ECSView<TransformComponent, LightComponent>(&scene->ecsWorld()).onEach([&](const_Entity entity, const TransformComponent&, const LightComponent& light)
+        for (auto row : scene->ecsWorld() | const_ECSView<TransformComponent, LightComponent>())
         {
+            const_Entity entity = { .world = &scene->ecsWorld(), .entityId = static_cast<ECSWorld::EntityID>(row) };
+            const LightComponent& light = GE::get<1>(row);
             switch (light.type)
             {
             case LightComponent::Type::directional:
@@ -81,7 +83,7 @@ FramePass FlatGeometryPassBuilder::build() const
                 });
                 break;
             }
-        });
+        }
 
         frameData.directionalLightCount = directionalLights.size();
         frameData.pointLightCount = pointLights.size();
@@ -111,8 +113,10 @@ FramePass FlatGeometryPassBuilder::build() const
         ctx.commandBuffer.setParameterBlock(frameDataPBlock, 0);
         ctx.commandBuffer.setParameterBlock(materialPBlock, 1);
 
-        const_ECSView<TransformComponent, MeshComponent>(&scene->ecsWorld()).onEach([&](const_Entity entity, const TransformComponent&, const MeshComponent meshId)
+        for (auto row : scene->ecsWorld() | const_ECSView<TransformComponent, MeshComponent>())
         {
+            const_Entity entity = { .world = &scene->ecsWorld(), .entityId = static_cast<ECSWorld::EntityID>(row) };
+            const MeshComponent meshId = GE::get<1>(row);
             std::shared_future<const std::shared_ptr<Mesh>&> meshFuture = scene->assetManagerView().loadAsset<Mesh>(meshId);
             if (meshFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
             {
@@ -132,7 +136,7 @@ FramePass FlatGeometryPassBuilder::build() const
                 for (auto& submesh : mesh->subMeshes)
                     drawSubmesh(submesh, entity.worldTransform());
             }
-        });
+        }
     };
 
     return framePass;

@@ -13,6 +13,8 @@
 #include "Game-Engine/ECSView.hpp"
 
 #include <set>
+#include <vector>
+#include <ranges>
 
 namespace GE_tests
 {
@@ -246,6 +248,44 @@ TEST(ECSTest, multipleEntityTwoComponent)
     EXPECT_EQ(world.componentCount(), 6);
 }
 
+TEST(ECSTest, worldRange)
+{
+    GE::ECSWorld world;
+
+    EntityID entity1 = world.newEntityID();
+    EntityID entity2 = world.newEntityID();
+    EntityID entity3 = world.newEntityID();
+
+    world.deleteEntityID(entity2);
+
+    EXPECT_EQ(std::ranges::distance(world), 2);
+    EXPECT_EQ(std::ranges::distance(world.cbegin(), world.cend()), 2);
+
+    std::vector<EntityID> forward;
+    for (EntityID id : world)
+        forward.push_back(id);
+
+    std::vector<EntityID> reverse;
+    for (auto it = world.rbegin(); it != world.rend(); ++it)
+        reverse.push_back(*it);
+
+    std::vector<EntityID> constReverse;
+    const GE::ECSWorld& constWorld = world;
+    for (auto it = constWorld.crbegin(); it != constWorld.crend(); ++it)
+        constReverse.push_back(*it);
+
+    ASSERT_EQ(forward.size(), 2);
+    ASSERT_EQ(reverse.size(), 2);
+    ASSERT_EQ(constReverse.size(), 2);
+
+    EXPECT_EQ(forward[0], entity1);
+    EXPECT_EQ(forward[1], entity3);
+    EXPECT_EQ(reverse[0], entity3);
+    EXPECT_EQ(reverse[1], entity1);
+    EXPECT_EQ(constReverse[0], entity3);
+    EXPECT_EQ(constReverse[1], entity1);
+}
+
 TYPED_TEST(ECSTest, componentEdit)
 {
     GE::ECSWorld world;
@@ -295,55 +335,91 @@ TEST(ECSTest, view)
     world.emplace<Component2>(entity3, 3);
 
     {
-        GE::ECSView<Component1> view(&world);
+        GE::ECSView<Component1> view = world | GE::ECSView<Component1>();
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
             std::set<EntityID> entities;
             std::set<int> values;
+            std::vector<EntityID> idsForward;
+            std::vector<EntityID> idsReverse;
 
-            view.onEach([&](EntityID entityId, Component1& comp){
-                entities.insert(entityId);
-                values.insert(comp.val());
-            });
+            for (auto it = view.cbegin(); it != view.cend(); ++it)
+            {
+                entities.insert(static_cast<EntityID>(*it));
+                values.insert(GE::get<0>(*it).val());
+                idsForward.push_back(static_cast<EntityID>(*it));
+            }
+
+            for (auto it = view.rbegin(); it != view.rend(); ++it)
+            {
+                idsReverse.push_back(static_cast<EntityID>(*it));
+            }
 
             EXPECT_EQ(entities.size(), 2);
             EXPECT_EQ(values.size(), 2);
+            EXPECT_EQ(idsForward.size(), 2);
+            EXPECT_EQ(idsReverse.size(), 2);
+            EXPECT_EQ(idsForward[0], entity1);
+            EXPECT_EQ(idsForward[1], entity3);
+            EXPECT_EQ(idsReverse[0], entity3);
+            EXPECT_EQ(idsReverse[1], entity1);
         });
     }
     {
-        GE::ECSView<Component2> view(&world);
+        GE::ECSView<Component2> view = world | GE::ECSView<Component2>();
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
             std::set<EntityID> entities;
             std::set<int> values;
+            std::vector<EntityID> idsForward;
+            std::vector<EntityID> idsReverse;
 
-            view.onEach([&](EntityID entityId, Component2& comp){
-                entities.insert(entityId);
-                values.insert(comp.val());
-            });
+            for (auto it = view.cbegin(); it != view.cend(); ++it)
+            {
+                entities.insert(static_cast<EntityID>(*it));
+                values.insert(GE::get<0>(*it).val());
+                idsForward.push_back(static_cast<EntityID>(*it));
+            }
+
+            for (auto it = view.crbegin(); it != view.crend(); ++it)
+            {
+                idsReverse.push_back(static_cast<EntityID>(*it));
+            }
 
             EXPECT_EQ(entities.size(), 2);
             EXPECT_EQ(values.size(), 2);
+            EXPECT_EQ(idsForward.size(), 2);
+            EXPECT_EQ(idsReverse.size(), 2);
+            EXPECT_EQ(idsForward[0], entity1);
+            EXPECT_EQ(idsForward[1], entity3);
+            EXPECT_EQ(idsReverse[0], entity3);
+            EXPECT_EQ(idsReverse[1], entity1);
         });
     }
     {
-        GE::ECSView<Component1, Component2> view(&world);
+        GE::ECSView<Component1, Component2> view = world | GE::ECSView<Component1, Component2>();
         EXPECT_EQ(view.count(), 1);
 
         EXPECT_NO_THROW({
-            std::set<EntityID> entities;
+            std::set<EntityID> entityIds;
             std::set<int> values1;
             std::set<int> values2;
 
-            view.onEach([&](EntityID entityId, Component1& comp1, Component2& comp2){
-                entities.insert(entityId);
-                values1.insert(comp1.val());
-                values2.insert(comp2.val());
-            });
+            for (EntityID id : view)
+                entityIds.insert(id);
 
-            EXPECT_EQ(entities.size(), 1);
+            for (EntityID id : world | GE::ECSView<Component1, Component2>())
+                entityIds.insert(id);
+
+            for (auto [component1, component2] : world | GE::ECSView<Component1, Component2>())
+            {
+                values1.insert(component1.val());
+                values2.insert(component2.val());
+            }
+
+            EXPECT_EQ(entityIds.size(), 1);
             EXPECT_EQ(values1.size(), 1);
             EXPECT_EQ(values2.size(), 1);
         });
@@ -364,56 +440,80 @@ TEST(ECSTest, constView)
     world.emplace<Component1>(entity3, 3);
     world.emplace<Component2>(entity3, 3);
 
+    const GE::ECSWorld& constWorld = world;
+
     {
-        GE::const_ECSView<Component1> view(&world);
+        GE::const_ECSView<Component1> view = constWorld | GE::const_ECSView<Component1>();
+        EXPECT_EQ(view.count(), 2);
+
+        EXPECT_NO_THROW({
+            std::set<EntityID> entities;
+            std::set<int> values;
+            std::vector<EntityID> idsForward;
+            std::vector<EntityID> idsReverse;
+
+            for (auto it = view.cbegin(); it != view.cend(); ++it)
+            {
+                entities.insert(static_cast<EntityID>(*it));
+                values.insert(GE::get<0>(*it).val());
+                idsForward.push_back(static_cast<EntityID>(*it));
+            }
+
+            for (auto it = view.crbegin(); it != view.crend(); ++it)
+            {
+                idsReverse.push_back(static_cast<EntityID>(*it));
+            }
+
+            EXPECT_EQ(entities.size(), 2);
+            EXPECT_EQ(values.size(), 2);
+            EXPECT_EQ(idsForward.size(), 2);
+            EXPECT_EQ(idsReverse.size(), 2);
+            EXPECT_EQ(idsForward[0], entity1);
+            EXPECT_EQ(idsForward[1], entity3);
+            EXPECT_EQ(idsReverse[0], entity3);
+            EXPECT_EQ(idsReverse[1], entity1);
+        });
+    }
+    {
+        GE::const_ECSView<Component2> view = constWorld | GE::const_ECSView<Component2>();
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
             std::set<EntityID> entities;
             std::set<int> values;
 
-            view.onEach([&](EntityID entityId, const Component1& comp){
-                entities.insert(entityId);
-                values.insert(comp.val());
-            });
+            for (auto row : view)
+            {
+                entities.insert(static_cast<EntityID>(row));
+                values.insert(GE::get<0>(row).val());
+            }
 
             EXPECT_EQ(entities.size(), 2);
             EXPECT_EQ(values.size(), 2);
         });
     }
     {
-        GE::const_ECSView<Component2> view(&world);
-        EXPECT_EQ(view.count(), 2);
-
-        EXPECT_NO_THROW({
-            std::set<EntityID> entities;
-            std::set<int> values;
-
-            view.onEach([&](EntityID entityId, const Component2& comp){
-                entities.insert(entityId);
-                values.insert(comp.val());
-            });
-
-            EXPECT_EQ(entities.size(), 2);
-            EXPECT_EQ(values.size(), 2);
-        });
-    }
-    {
-        GE::const_ECSView<Component1, Component2> view(&world);
+        GE::const_ECSView<Component1, Component2> view = constWorld | GE::const_ECSView<Component1, Component2>();
         EXPECT_EQ(view.count(), 1);
 
         EXPECT_NO_THROW({
-            std::set<EntityID> entities;
+            std::set<EntityID> entityIds;
             std::set<int> values1;
             std::set<int> values2;
 
-            view.onEach([&](EntityID entityId, const Component1& comp1, const Component2& comp2){
-                entities.insert(entityId);
-                values1.insert(comp1.val());
-                values2.insert(comp2.val());
-            });
+            for (EntityID id : view)
+                entityIds.insert(id);
 
-            EXPECT_EQ(entities.size(), 1);
+            for (EntityID id : constWorld | GE::const_ECSView<Component1, Component2>())
+                entityIds.insert(id);
+
+            for (auto [component1, component2] : constWorld | GE::const_ECSView<Component1, Component2>())
+            {
+                values1.insert(component1.val());
+                values2.insert(component2.val());
+            }
+
+            EXPECT_EQ(entityIds.size(), 1);
             EXPECT_EQ(values1.size(), 1);
             EXPECT_EQ(values2.size(), 1);
         });
