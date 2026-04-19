@@ -29,7 +29,6 @@
 
 #include <Graphics/Enums.hpp>
 
-#include <cassert>
 #include <imgui.h>
 
 #include <filesystem>
@@ -38,6 +37,7 @@
 #include <ranges>
 #include <functional>
 #include <utility>
+#include <cassert>
 
 std::unique_ptr<GE::Application> createApplication(int argc, char* argv[])
 {
