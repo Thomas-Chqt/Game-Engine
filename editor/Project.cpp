@@ -17,6 +17,7 @@
 
 #include <cassert>
 #include <ranges>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -65,6 +66,13 @@ Project::Project()
     };
 
     m_startScene = it->first;
+}
+
+Project::Project(const std::filesystem::path& path)
+    : m_startScene(0)
+{
+    if (!YAML::convert<Project>::decode(YAML::LoadFile(path.string()), *this))
+        throw std::runtime_error("failed to decode project file");
 }
 
 GE::Game::Descriptor Project::makeGameDescriptor() const

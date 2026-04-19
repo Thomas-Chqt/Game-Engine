@@ -45,6 +45,40 @@ private:
 public:
     Project& operator = (const Project&) = delete;
     Project& operator = (Project&&) = delete;
+
+    friend struct YAML::convert<Project>;
+};
+
+}
+
+namespace YAML
+{
+
+template<>
+struct convert<GE_Editor::Project>
+{
+    static Node encode(const GE_Editor::Project& rhs)
+    {
+        Node node;
+        node["startScene"] = rhs.m_startScene;
+        node["scenes"] = rhs.m_scenes;
+        return node;
+    }
+
+    static bool decode(const Node& node, GE_Editor::Project& rhs)
+    {
+        if (!node.IsMap() || !node["startScene"] || !node["scenes"])
+            return false;
+
+        const auto startScene = node["startScene"].as<uint32_t>();
+        const auto scenes = node["scenes"].as<std::map<uint32_t, GE::Scene::Descriptor>>();
+        if (!scenes.contains(startScene))
+            return false;
+
+        rhs.m_scenes = scenes;
+        rhs.m_startScene = startScene;
+        return true;
+    }
 };
 
 }
