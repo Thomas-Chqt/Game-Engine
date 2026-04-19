@@ -39,12 +39,8 @@ class ECSWorld
 public:
     using EntityID = uint64_t;
 
-    class Iterator;
-    class ConstIterator;
+    struct Iterator;
     using iterator = Iterator;
-    using const_iterator = ConstIterator;
-    using reverse_iterator = std::reverse_iterator<Iterator>;
-    using const_reverse_iterator = std::reverse_iterator<ConstIterator>;
 
 private:
     template<ECSWorldLike ECSWorldT, Component  ... Cs> requires(sizeof...(Cs) > 0) friend class basic_ecsView;
@@ -63,47 +59,25 @@ public:
 
     EntityID newEntityID();
     void registerEntityID(ECSWorld::EntityID);
-
     void deleteEntityID(EntityID);
-
     inline bool isValidEntityID(EntityID id) const { return id < m_entityDatas.size() && m_availableEntityIDs.contains(id) == false; }
 
-    template<Component T, typename... Args>
-    T& emplace(EntityID entityId, Args&&... args);
-
-    template<Component T>
-    void remove(EntityID);
-
-    template<Component T>
-    bool has(EntityID) const;
-
-    template<Component T>
-    T& get(EntityID);
-
-    template<Component T>
-    const T& get(EntityID) const;
+    template<Component T, typename... Args> T& emplace(EntityID entityId, Args&&... args);
+    template<Component T> void remove(EntityID);
+    template<Component T> bool has(EntityID) const;
+    template<Component T> auto& get(this auto self, EntityID);
 
     inline uint32_t entityCount() { return m_entityDatas.size() - m_availableEntityIDs.size(); }
     inline uint32_t archetypeCount() { return m_archetypes.size(); }
     uint32_t componentCount();
 
-    Iterator begin();
-    Iterator end();
-    const_iterator begin() const;
-    const_iterator end() const;
-    const_iterator cbegin() const;
-    const_iterator cend() const;
-    reverse_iterator rbegin();
-    reverse_iterator rend();
-    const_reverse_iterator rbegin() const;
-    const_reverse_iterator rend() const;
-    const_reverse_iterator crbegin() const;
-    const_reverse_iterator crend() const;
+    inline Iterator begin() const { return Iterator(this, m_entityDatas.begin()); }
+    inline std::default_sentinel_t end() { return std::default_sentinel; }
 
     ~ECSWorld() = default;
 
 private:
-    #include "Game-Engine/detail/ECSWorldArchetype.inl"
+    #include "Game-Engine/Archetype.inl"
 
     struct EntityData
     {
@@ -127,11 +101,8 @@ public:
     ECSWorld& operator=(const ECSWorld&) = default;
     ECSWorld& operator=(ECSWorld&&) = default;
 
-    // friend void to_json(nlohmann::json&, const ECSWorld&);
-    // friend void from_json(const nlohmann::json&, ECSWorld&);
-
 public:
-    #include "Game-Engine/detail/ECSWorldIterator.inl"
+    #include "Game-Engine/ECSWorldIterator.inl"
 };
 
 template<Component T, typename... Args>
@@ -223,27 +194,15 @@ bool ECSWorld::has(EntityID entityId) const
 }
 
 template<Component T>
-T& ECSWorld::get(EntityID entityId)
+auto& ECSWorld::get(this auto self, EntityID entityId)
 {
-    assert(isValidEntityID(entityId));
-    assert(has<T>(entityId));
+    assert(self.isValidEntityID(entityId));
+    assert(self.template has<T>(entityId));
 
-    Archetype& entityArch = m_archetypes[m_entityDatas[entityId].archetypeId];
-    uint64_t& entityIdx = m_entityDatas[entityId].idx;
+    auto& entityArch = self.m_archetypes.at(self.m_entityDatas[entityId].archetypeId);
+    uint64_t entityIdx = self.m_entityDatas.at(entityId).idx;
 
-    return *entityArch.getComponentPointer<T>(entityIdx);
-}
-
-template<Component T>
-const T& ECSWorld::get(EntityID entityId) const
-{
-    assert(isValidEntityID(entityId));
-    assert(has<T>(entityId));
-
-    const Archetype& entityArch = m_archetypes.at(m_entityDatas[entityId].archetypeId);
-    const uint64_t& entityIdx = m_entityDatas[entityId].idx;
-
-    return *entityArch.getComponentPointer<T>(entityIdx);
+    return *entityArch.template getComponentPointer<T>(entityIdx);
 }
 
 template<Component T>
@@ -279,6 +238,39 @@ ECSWorld::Destructor ECSWorld::componentDestructor()
 {
     auto fn = [](void* ptr) { ((T*)ptr)->~T(); };
     return fn;
+}
+
+template<typename T>
+void ECSWorld::Archetype::addRowType()
+{
+    m_rows.insert(std::make_pair(componentID<T>(), Row{
+        operator new (componentSize<T>() * m_capacity),
+        componentSize<T>(),
+        componentCopyConstructor<T>(),
+        componentMoveConstructor<T>(),
+        componentDestructor<T>(),
+    }));
+}
+
+template<typename T>
+void ECSWorld::Archetype::rmvRowType()
+{
+    Row& row = m_rows.at(componentID<T>());
+    if (row.buffer != nullptr)
+    {
+        for (uint64_t i = 0; i < m_size; i++)
+            row.destructor(static_cast<std::byte*>(row.buffer) + (row.componentSize * i));
+        operator delete(row.buffer);
+    }
+    m_rows.erase(componentID<T>());
+}
+
+template<Component T>
+auto* ECSWorld::Archetype::getComponentPointer(this auto self, uint64_t idx)
+{
+    using ComponentPtr = std::conditional_t<std::is_const_v<decltype(self)>, const T*, T*>;
+    auto& row = self.m_rows.at(componentID<T>());
+    return static_cast<ComponentPtr>(row.buffer) + idx;
 }
 
 } // namespace GE

@@ -38,7 +38,7 @@ else()
     target_compile_options(Game-Engine PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wno-missing-field-initializers>)
 endif()
 
-file(GLOB_RECURSE GE_SRC "include/*.hpp" "src/*.cpp" "src/*.hpp")
+file(GLOB_RECURSE GE_SRC "include/*.hpp" "include/*.inl" "src/*.cpp" "src/*.hpp")
 target_sources(Game-Engine PRIVATE ${GE_SRC} ${GFX_INC})
 
 target_include_directories(Game-Engine
