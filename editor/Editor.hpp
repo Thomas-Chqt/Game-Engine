@@ -23,6 +23,7 @@
 #include <imgui.h>
 
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <utility>
 
@@ -43,6 +44,7 @@ public:
 
 private:
     void saveEditedScene();
+    void saveProject();
     void startGame();
     void stopGame();
 

@@ -14,6 +14,7 @@
 #include "UI/ContentBrowserPanel.hpp"
 #include "UI/EntityInspectorPanel.hpp"
 #include "UI/MainMenuBar.hpp"
+#include "UI/ProjectPropertiesPanel.hpp"
 #include "UI/SceneGraphPanel.hpp"
 #include "UI/ViewportPanel.hpp"
 
@@ -31,6 +32,8 @@
 #include <cassert>
 #include <imgui.h>
 
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <ranges>
 #include <functional>
@@ -47,7 +50,6 @@ namespace GE_Editor
 Editor::Editor()
     : m_project{}
     , m_editedScene{m_project.startScene().first, GE::Scene(&assetManager(), m_project.startScene().second)}
-
 {
     GE::Range2DInput editorCameraMoveInput;
     editorCameraMoveInput.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
@@ -84,6 +86,26 @@ void Editor::onEvent(GE::Event& event)
 void Editor::saveEditedScene()
 {
     m_project.setScene(m_editedScene.first, m_editedScene.second.makeDescriptor());
+}
+
+void Editor::saveProject()
+{
+    saveEditedScene();
+    if (m_projectFilePath.has_parent_path())
+        std::filesystem::create_directories(m_projectFilePath.parent_path());
+
+    YAML::Emitter out;
+    out << YAML::convert<Project>::encode(m_project);
+    if (!out.good())
+        throw std::runtime_error("failed to serialize project");
+
+    std::ofstream file(m_projectFilePath);
+    if (!file.is_open())
+        throw std::runtime_error("failed to open project file for writing");
+
+    file << out.c_str();
+    if (!file.good())
+        throw std::runtime_error("failed to write project file");
 }
 
 void Editor::startGame()
@@ -144,16 +166,18 @@ void Editor::rebuildFrameGraph()
 
 void Editor::renderImgui()
 {
+    static bool projectPropertiesOpen = false;
+
     ImGui::NewFrame();
 
     ImGui::DockSpaceOverViewport();
 
-    MainMenuBar menuBar;
-    if (m_game.has_value())
-        menuBar.on_Project_Stop([this]() { stopGame(); });
-    else
-        menuBar.on_Project_Run([this]() { startGame(); });
-    menuBar.render();
+    MainMenuBar()
+        .on_File_Save(!m_projectFilePath.empty() ? [this]() { saveProject(); } : std::function<void()>())
+        .on_Project_Properties([]() { projectPropertiesOpen = true; })
+        .on_Project_Stop(m_game.has_value() ? [this]() { stopGame(); } : std::function<void()>())
+        .on_Project_Run(!m_game.has_value() ? [this]() { startGame(); } : std::function<void()>())
+        .render();
 
     ViewportPanel(m_viewportSize)
         .onResize([this](const std::pair<uint32_t, uint32_t> & size){
@@ -170,6 +194,9 @@ void Editor::renderImgui()
 
     ContentBrowserPanel("Scenes", "scene_dnd", sizeof(GE::Scene::Descriptor))
         .render(m_project.scenes() | std::views::transform([](auto& e) { return std::make_pair(e.second.name, (const void*)&e.second); }));
+
+    ProjectPropertiesPanel(&m_project, &m_projectFilePath, &projectPropertiesOpen)
+        .render();
 
     ImGui::Render();
 }

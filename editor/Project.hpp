@@ -12,10 +12,11 @@
 #include <Game-Engine/Game.hpp>
 #include <Game-Engine/Scene.hpp>
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
-#include <filesystem>
 #include <map>
+#include <string>
 #include <utility>
 
 namespace GE_Editor
@@ -24,11 +25,12 @@ namespace GE_Editor
 class Project
 {
 public:
-    Project(); // new project with defautl scene
+    Project(); // new project with default scene
     Project(const Project&) = delete;
     Project(Project&&) = delete;
 
-    Project(const std::filesystem::path&);
+    inline const std::string& name() const { return m_name; }
+    inline void setName(const std::string& name) { m_name = name; }
 
     inline const std::map<uint32_t, GE::Scene::Descriptor>& scenes() const { return m_scenes; }
     inline void setScene(uint32_t id, const GE::Scene::Descriptor& desc) { m_scenes.insert_or_assign(id, desc); }
@@ -39,6 +41,7 @@ public:
     GE::Game::Descriptor makeGameDescriptor() const;
 
 private:
+    std::string m_name;
     std::map<uint32_t, GE::Scene::Descriptor> m_scenes;
     uint32_t m_startScene;
 
@@ -60,23 +63,35 @@ struct convert<GE_Editor::Project>
     static Node encode(const GE_Editor::Project& rhs)
     {
         Node node;
-        node["startScene"] = rhs.m_startScene;
-        node["scenes"] = rhs.m_scenes;
+        node["name"] = rhs.m_name;
+        for (const auto& [_, scene] : rhs.m_scenes)
+            node["scenes"].push_back(scene);
+        node["startScene"] = rhs.startScene().second.name;
         return node;
     }
 
     static bool decode(const Node& node, GE_Editor::Project& rhs)
     {
-        if (!node.IsMap() || !node["startScene"] || !node["scenes"])
+        if (!node.IsMap() || !node["name"] || !node["startScene"])
+            return false;
+        if (!node["scenes"] || !node["scenes"].IsSequence() || node["scenes"].size() == 0)
             return false;
 
-        const auto startScene = node["startScene"].as<uint32_t>();
-        const auto scenes = node["scenes"].as<std::map<uint32_t, GE::Scene::Descriptor>>();
-        if (!scenes.contains(startScene))
-            return false;
+        rhs.m_name = node["name"].as<std::string>();
 
-        rhs.m_scenes = scenes;
-        rhs.m_startScene = startScene;
+        rhs.m_scenes.clear();
+        uint32_t sceneId = 0;
+        for (const Node& sceneNode : node["scenes"])
+            rhs.m_scenes.emplace(sceneId++, sceneNode.as<GE::Scene::Descriptor>());
+
+        const std::string startSceneName = node["startScene"].as<std::string>();
+        auto startScene = std::ranges::find_if(rhs.m_scenes, [&](auto& scene) -> bool {
+            return scene.second.name == startSceneName;
+        });
+        if (startScene == rhs.m_scenes.end())
+            return false;
+        rhs.m_startScene = startScene->first;
+
         return true;
     }
 };
