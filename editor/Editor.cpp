@@ -87,11 +87,6 @@ void Editor::onEvent(GE::Event& event)
     if (event.dispatch<GE::WindowResizeEvent>([&](auto&) { rebuildFrameGraph(); })) return;
 }
 
-void Editor::saveEditedScene()
-{
-    m_project.setScene(m_editedScene.first, m_editedScene.second.makeDescriptor());
-}
-
 void Editor::loadProject(const std::filesystem::path& path)
 {
     std::ifstream file(path);
@@ -110,13 +105,9 @@ void Editor::loadProject(const std::filesystem::path& path)
     m_selectedEntity = {};
 }
 
-void Editor::processDropedFiles()
+void Editor::saveEditedScene()
 {
-    while (const std::optional<std::filesystem::path> droppedFile = window().popDroppedFile())
-    {
-        if (std::filesystem::is_regular_file(*droppedFile) && droppedFile->extension() == ".geproj")
-            loadProject(*droppedFile);
-    }
+    m_project.setScene(m_editedScene.first, m_editedScene.second.makeDescriptor());
 }
 
 void Editor::saveProject()
@@ -161,6 +152,15 @@ void Editor::setPrimaryInputContext(GE::InputContext& inputContext)
 
     pushInputContext(&inputContext);
     pushInputContext(&m_imguiInputContext);
+}
+
+void Editor::processDropedFiles()
+{
+    while (const std::optional<std::filesystem::path> droppedFile = window().popDroppedFile())
+    {
+        if (std::filesystem::is_regular_file(*droppedFile) && droppedFile->extension() == ".geproj")
+            loadProject(*droppedFile);
+    }
 }
 
 void Editor::rebuildFrameGraph()
