@@ -37,6 +37,7 @@ public:
     Game(AssetManager*, const Descriptor&);
 
     auto& activeScene(this auto&& self) { return *self.m_activeScene; }
+    auto& inputContext(this auto&& self) { return self.m_inputContext; }
     void setActiveScene(const std::string& name) { m_activeScene = &m_scenes.at(name); }
 
 private:

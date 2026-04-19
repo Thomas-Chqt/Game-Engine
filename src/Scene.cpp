@@ -9,6 +9,8 @@
 
 #include "Game-Engine/Scene.hpp"
 
+#include "Game-Engine/Components.hpp"
+
 #include <type_traits>
 #include <variant>
 
@@ -49,37 +51,35 @@ Entity Scene::newEntity(const std::string& name)
     return newEntity;
 }
 
-// void to_json(json& jsn, const Scene& scene)
-// {
-//     jsn["name"] = std::string(scene.name());
-//     jsn["ecsWorld"] = scene.m_ecsWorld;
-//     if (scene.m_activeCamera != INVALID_ENTITY_ID)
-//         jsn["activeCamera"] = scene.m_activeCamera;
-//     jsn["assetManager"] = scene.m_assetManager;
-// }
+Scene::Descriptor Scene::makeDescriptor() const
+{
+    Scene::Descriptor desc;
+    desc.name = m_name;
+    desc.activeCamera = m_activeCamera;
+    desc.registredAssets = m_assetManagerView.registredAssets();
 
-// void from_json(const json& jsn, Scene& scene)
-// {
-//     auto nameIt = jsn.find("name");
-//     scene.m_name = nameIt == jsn.end() ? utils::String("no_name") : utils::String(nameIt->template get<std::string>().c_str());
+    for (ECSWorld::EntityID entityId : m_ecsWorld)
+    {
+        std::vector<ComponentVariant> components;
+        const_Entity entity{&m_ecsWorld, entityId};
 
-//     auto ecsWorldIt = jsn.find("ecsWorld");
-//     if (ecsWorldIt != jsn.end())
-//         scene.m_ecsWorld = ecsWorldIt->template get<ECSWorld>();
+        if (entity.has<NameComponent>())
+            components.emplace_back(entity.get<NameComponent>());
+        if (entity.has<HierarchyComponent>())
+            components.emplace_back(entity.get<HierarchyComponent>());
+        if (entity.has<TransformComponent>())
+            components.emplace_back(entity.get<TransformComponent>());
+        if (entity.has<CameraComponent>())
+            components.emplace_back(entity.get<CameraComponent>());
+        if (entity.has<LightComponent>())
+            components.emplace_back(entity.get<LightComponent>());
+        if (entity.has<MeshComponent>())
+            components.emplace_back(entity.get<MeshComponent>());
 
-//     auto activeCameraIt = jsn.find("activeCamera");
-//     if (activeCameraIt != jsn.end())
-//     {
-//         ECSWorld::EntityID activeCameraId = activeCameraIt->template get<ECSWorld::EntityID>();
-//         if (scene.ecsWorld().isValidEntityID(activeCameraId) && scene.ecsWorld().has<CameraComponent>(activeCameraId))
-//             scene.m_activeCamera = activeCameraId;
-//         else
-//             scene.m_activeCamera = INVALID_ENTITY_ID;
-//     }
+        desc.entities.emplace(entityId, std::move(components));
+    }
 
-//     auto assetManagerIt = jsn.find("assetManager");
-//     if (assetManagerIt != jsn.end())
-//         scene.m_assetManager = assetManagerIt->template get<AssetManager>();
-// }
+    return desc;
+}
 
 }

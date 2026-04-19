@@ -95,6 +95,7 @@ public:
     }
 
     inline bool areAllAssetsLoaded() const { return areAssetsLoaded(m_assets | std::views::transform([](const auto& asset) { return asset.first; })); }
+    inline const std::map<AssetID, VAssetPath>& registredAssets() const { return m_assets; }
 
     void unloadAssets(AssetIdRange auto&& assetIds)
     {

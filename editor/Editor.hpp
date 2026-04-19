@@ -13,7 +13,6 @@
 #include "EditorCamera.hpp"
 #include "ImGuiInputContext.hpp"
 #include "Project.hpp"
-#include "Viewport.hpp"
 
 #include <Game-Engine/Application.hpp>
 #include <Game-Engine/FrameGraph.hpp>
@@ -23,8 +22,9 @@
 
 #include <imgui.h>
 
-#include <utility>
 #include <cstdint>
+#include <optional>
+#include <utility>
 
 namespace GE_Editor
 {
@@ -42,6 +42,12 @@ public:
     inline const GE::FrameGraph& frameGraph() override { return m_frameGraph; }
 
 private:
+    void saveEditedScene();
+    void startGame();
+    void stopGame();
+
+    void setPrimaryInputContext(GE::InputContext&);
+
     void rebuildFrameGraph();
     void renderImgui();
 
@@ -50,13 +56,14 @@ private:
 
     std::pair<uint32_t, GE::Scene> m_editedScene;
     GE::Entity m_selectedEntity;
-
     EditorCamera m_editorCamera;
 
     GE::InputContext m_editorInputContext;
     ImGuiInputContext m_imguiInputContext;
 
-    Viewport m_viewport;
+    std::optional<GE::Game> m_game;
+
+    std::pair<uint32_t, uint32_t> m_viewportSize = {0, 0};
     GE::FrameGraph m_frameGraph;
 
 public:

@@ -28,6 +28,17 @@ constexpr float kRotateStepPerFrame = 1.5f / 60.0f;
 
 }
 
+glm::mat4 EditorCamera::viewProjectionMatrix(float aspectRatio) const
+{
+    auto rotationMat = rotationMatrix();
+
+    glm::vec3 pos = m_position;
+    glm::vec3 dir = rotationMat * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+    glm::vec3 up = rotationMat * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+
+    return glm::perspective(m_fov, aspectRatio, m_zNear, m_zFar) * glm::lookAt(pos, pos + dir, up);
+}
+
 void EditorCamera::onMoveInput(const glm::vec2& value)
 {
     m_position += glm::vec3(rotationMatrix() * glm::vec4(glm::vec3{ value.x, 0.0f, -value.y } * kMoveStepPerFrame, 0.0f));
@@ -46,17 +57,6 @@ glm::mat4 EditorCamera::rotationMatrix() const
     rotationMat = glm::rotate(rotationMat, m_rotation.x, glm::vec3(1, 0, 0));
     rotationMat = glm::rotate(rotationMat, m_rotation.z, glm::vec3(0, 0, 1));
     return rotationMat;
-}
-
-glm::mat4 EditorCamera::viewProjectionMatrix(float aspectRatio) const
-{
-    auto rotationMat = rotationMatrix();
-
-    glm::vec3 pos = m_position;
-    glm::vec3 dir = rotationMat * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-    glm::vec3 up = rotationMat * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-
-    return glm::perspective(m_fov, aspectRatio, m_zNear, m_zFar) * glm::lookAt(pos, pos + dir, up);
 }
 
 }

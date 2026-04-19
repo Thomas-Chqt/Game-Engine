@@ -57,6 +57,8 @@ public:
     inline std::future<void> load() const { return m_assetManagerView.loadAllAssets(); }
     inline void unload() { m_assetManagerView.unloadAllAssets(); }
 
+    Descriptor makeDescriptor() const;
+
     ~Scene() = default;
 
 private:

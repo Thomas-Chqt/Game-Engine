@@ -4,11 +4,6 @@
  *
  * Author: Thomas Choquet <semoir.dense-0h@icloud.com>
  * ---------------------------------------------------
- *
- * Camera used to view the scene in the editor,
- * it can forward to the scene's active camera in
- * case of this scene or game running in the editor
- *
  */
 
 #ifndef EDITORCAMERA_HPP
@@ -22,17 +17,18 @@
 namespace GE_Editor
 {
 
-class EditorCamera
+class EditorCamera : public GE::ICamera
 {
 public:
     EditorCamera() = default;
     EditorCamera(const EditorCamera&) = delete;
     EditorCamera(EditorCamera&&) = delete;
 
-    inline glm::vec3 position() const { return m_position; }
+    inline glm::vec3 position() const override { return m_position; }
+    glm::mat4 viewProjectionMatrix(float aspectRatio) const override;
+
     void onMoveInput(const glm::vec2& value);
     void onRotationInput(const glm::vec2& value);
-    glm::mat4 viewProjectionMatrix(float aspectRatio) const;
 
 private:
     glm::mat4 rotationMatrix() const;

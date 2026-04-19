@@ -22,7 +22,7 @@ class ICamera
 {
 public:
     virtual glm::vec3 position() const = 0;
-    virtual glm::mat4 viewProjectionMatrix() const = 0;
+    virtual glm::mat4 viewProjectionMatrix(float aspectRatio) const = 0;
 
     virtual ~ICamera() = default;
 };
