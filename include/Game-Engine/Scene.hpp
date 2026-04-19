@@ -16,6 +16,8 @@
 #include "Game-Engine/ECSWorld.hpp"
 #include "Game-Engine/Entity.hpp"
 
+#include "yaml-cpp/yaml.h"
+
 #include <future>
 #include <string>
 #include <vector>
@@ -74,5 +76,35 @@ public:
 };
 
 } // namespace GE
+
+namespace YAML
+{
+
+template<>
+struct convert<GE::Scene::Descriptor>
+{
+    static Node encode(const GE::Scene::Descriptor& rhs)
+    {
+        Node node;
+        node["name"] = rhs.name;
+        node["activeCamera"] = rhs.activeCamera;
+        node["registredAssets"] = rhs.registredAssets;
+        node["entities"] = rhs.entities;
+        return node;
+    }
+
+    static bool decode(const Node& node, GE::Scene::Descriptor& rhs)
+    {
+        if (!node.IsMap() || !node["name"] || !node["activeCamera"] || !node["registredAssets"])
+            return false;
+        rhs.name = node["name"].as<std::string>();
+        rhs.activeCamera = node["activeCamera"].as<GE::ECSWorld::EntityID>();
+        rhs.registredAssets = node["registredAssets"].as<std::map<GE::AssetID, GE::VAssetPath>>();
+        rhs.entities = node["entities"].as<std::map<GE::ECSWorld::EntityID, std::vector<GE::ComponentVariant>>>();
+        return true;
+    }
+};
+
+}
 
 #endif // SCENE_HPP
