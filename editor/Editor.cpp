@@ -36,6 +36,7 @@
 #include <memory>
 #include <ranges>
 #include <functional>
+#include <stdexcept>
 #include <utility>
 #include <cassert>
 
@@ -76,6 +77,7 @@ Editor::Editor()
 
 void Editor::onUpdate()
 {
+    processDropedFiles();
     renderImgui();
 }
 
@@ -88,6 +90,31 @@ void Editor::onEvent(GE::Event& event)
 void Editor::saveEditedScene()
 {
     m_project.setScene(m_editedScene.first, m_editedScene.second.makeDescriptor());
+}
+
+void Editor::loadProject(const std::filesystem::path& path)
+{
+    std::ifstream file(path);
+    if (file.is_open() == false)
+        throw std::runtime_error("unable to load project file");
+
+    YAML::Node projectNode = YAML::Load(file);
+
+    if (YAML::convert<Project>::decode(projectNode, m_project) == false)
+        throw std::runtime_error("unable to load project file");
+
+    m_projectFilePath = path;
+    m_editedScene = {m_project.startScene().first, GE::Scene(&assetManager(), m_project.startScene().second)};
+    m_selectedEntity = {};
+}
+
+void Editor::processDropedFiles()
+{
+    while (const std::optional<std::filesystem::path> droppedFile = window().popDroppedFile())
+    {
+        if (std::filesystem::is_regular_file(*droppedFile) && droppedFile->extension() == ".geproj")
+            loadProject(*droppedFile);
+    }
 }
 
 void Editor::saveProject()

@@ -43,12 +43,14 @@ public:
     inline const GE::FrameGraph& frameGraph() override { return m_frameGraph; }
 
 private:
+    void loadProject(const std::filesystem::path&);
     void saveEditedScene();
     void saveProject();
     void startGame();
     void stopGame();
 
     void setPrimaryInputContext(GE::InputContext&);
+    void processDropedFiles();
 
     void rebuildFrameGraph();
     void renderImgui();
@@ -58,6 +60,7 @@ private:
 
     std::pair<uint32_t, GE::Scene> m_editedScene;
     GE::Entity m_selectedEntity;
+
     EditorCamera m_editorCamera;
 
     GE::InputContext m_editorInputContext;
