@@ -48,11 +48,7 @@ Application::Application()
         event.dispatch<InputEvent>([this](InputEvent& inputEvent)
         {
             for (auto it = m_inputContextStack.rbegin(); it != m_inputContextStack.rend(); it++)
-            {
                 (*it)->onInputEvent(inputEvent);
-                if (inputEvent.processed())
-                    break;
-            }
         });
         if (event.processed() == false)
             onEvent(event);

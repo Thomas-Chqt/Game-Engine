@@ -29,9 +29,6 @@ void InputContext::onInputEvent(InputEvent& event)
             std::visit([&](auto& mapper){ mapper.onInputEvent(event); }, *input.mapper);
         },
         vInput);
-
-        if (event.processed())
-            break;
     }
 }
 

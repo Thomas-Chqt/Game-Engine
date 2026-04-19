@@ -26,6 +26,8 @@ void InputMapper<KeyboardButton, ActionInput>::onInputEvent(InputEvent& event)
         return;
     event.dispatch<KeyDownEvent>([this, &event](const KeyDownEvent& keyDownEvent)
     {
+        if (event.processed())
+            return;
         if (keyDownEvent.keyCode() == static_cast<int>(button) && keyDownEvent.isRepeat() == false)
         {
             input->triggered = true;
@@ -45,6 +47,8 @@ void InputMapper<KeyboardButton, StateInput>::onInputEvent(InputEvent& event)
         return;
     event.dispatch<KeyDownEvent>([this, &event](const KeyDownEvent& keyDownEvent)
     {
+        if (event.processed())
+            return;
         if (keyDownEvent.keyCode() == static_cast<int>(button))
         {
             input->triggered = true;
@@ -73,6 +77,8 @@ void InputMapper<KeyboardButton, RangeInput>::onInputEvent(InputEvent& event)
         return;
     event.dispatch<KeyDownEvent>([this, &event](const KeyDownEvent& keyDownEvent)
     {
+        if (event.processed())
+            return;
         if (keyDownEvent.keyCode() == static_cast<int>(button))
         {
             input->value = scale;
@@ -105,7 +111,7 @@ void InputMapper<KeyboardButton, Range2DInput>::onInputEvent(InputEvent& event)
 
     event.dispatch<KeyDownEvent>([&](const KeyDownEvent& keyDownEvent)
     {
-        if (keyDownEvent.isRepeat())
+        if (event.processed() || keyDownEvent.isRepeat())
             return;
 
         if (keyDownEvent.keyCode() == static_cast<int>(xPos))
