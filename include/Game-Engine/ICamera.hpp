@@ -13,12 +13,14 @@
 #ifndef ICAMERA_HPP
 #define ICAMERA_HPP
 
+#include "Game-Engine/Export.hpp"
+
 #include <glm/glm.hpp>
 
 namespace GE
 {
 
-class ICamera
+class GE_API ICamera
 {
 public:
     virtual glm::vec3 position() const = 0;

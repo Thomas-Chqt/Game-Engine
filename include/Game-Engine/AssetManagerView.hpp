@@ -10,6 +10,7 @@
 #define ASSETMANAGERVIEW_HPP
 
 #include "Game-Engine/AssetManager.hpp"
+#include "Game-Engine/Export.hpp"
 
 #include <algorithm>
 #include <array>
@@ -28,7 +29,7 @@ constexpr AssetID BUILT_IN_CUBE_ASSET_ID = std::numeric_limits<uint64_t>::max();
 template<typename T>
 concept AssetIdRange = std::ranges::range<T> && std::convertible_to<std::ranges::range_value_t<T>, AssetID>;
 
-class AssetManagerView
+class GE_API AssetManagerView
 {
 public:
     AssetManagerView() = delete;

@@ -63,6 +63,15 @@ void ProjectPropertiesPanel::render()
 
         ImGui::Spacing();
 
+        char scriptLibPath[512];
+        ImGui::TextUnformatted("Script library");
+        std::strncpy(scriptLibPath, m_project->scriptLib().string().c_str(), sizeof(scriptLibPath));
+        scriptLibPath[511] = '\0';
+        if (ImGui::InputText("##script_lib", scriptLibPath, sizeof(scriptLibPath)))
+            m_project->setScriptLib(scriptLibPath);
+
+        ImGui::Spacing();
+
         const auto& scenes = m_project->scenes();
         const auto currentStartScene = scenes.find(m_project->startScene().first);
         ImGui::TextUnformatted("Start scene");

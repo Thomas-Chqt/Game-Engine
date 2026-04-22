@@ -9,6 +9,8 @@
 #ifndef FRAMEGRAPH_HPP
 #define FRAMEGRAPH_HPP
 
+#include "Game-Engine/Export.hpp"
+
 #include <Graphics/CommandBuffer.hpp>
 #include <Graphics/ParameterBlockPool.hpp>
 #include <Graphics/Enums.hpp>
@@ -102,7 +104,7 @@ struct FramePass
     FramePass(const FramePassBuilder auto& builder) : FramePass(builder.build()) {}
 };
 
-class FrameGraph
+class GE_API FrameGraph
 {
 public:
     struct Descriptor

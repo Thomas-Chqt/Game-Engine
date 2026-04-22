@@ -12,12 +12,16 @@
 
 #include "Game-Engine/AssetManagerView.hpp"
 #include "Game-Engine/ECSWorld.hpp"
+#include "Game-Engine/Script.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <string>
 #include <string_view>
+#include <map>
+#include <memory>
+#include <type_traits>
 #include <variant>
 
 #include <yaml-cpp/yaml.h>
@@ -94,48 +98,49 @@ struct MeshComponent
     inline operator const AssetID& () const { return id; }
 };
 
-using ComponentVariant = std::variant<NameComponent, HierarchyComponent, TransformComponent, CameraComponent, LightComponent, MeshComponent>;
-
-template<>
-struct ECSComponentYamlTraits<NameComponent>
+struct ScriptComponent
 {
-    static constexpr std::string_view name = "NameComponent";
+    std::string name;
+    std::map<std::string, ScriptValue> parameters;
+    std::shared_ptr<Script> instance;
 };
 
-template<>
-struct ECSComponentYamlTraits<HierarchyComponent>
-{
-    static constexpr std::string_view name = "HierarchyComponent";
-};
+using ComponentVariant = std::variant<NameComponent, HierarchyComponent, TransformComponent, CameraComponent, LightComponent, MeshComponent, ScriptComponent>;
 
-template<>
-struct ECSComponentYamlTraits<TransformComponent>
-{
-    static constexpr std::string_view name = "TransformComponent";
-};
-
-template<>
-struct ECSComponentYamlTraits<CameraComponent>
-{
-    static constexpr std::string_view name = "CameraComponent";
-};
-
-template<>
-struct ECSComponentYamlTraits<LightComponent>
-{
-    static constexpr std::string_view name = "LightComponent";
-};
-
-template<>
-struct ECSComponentYamlTraits<MeshComponent>
-{
-    static constexpr std::string_view name = "MeshComponent";
-};
+template<> struct ECSComponentYamlTraits<NameComponent>      { static constexpr std::string_view name = "NameComponent";      };
+template<> struct ECSComponentYamlTraits<HierarchyComponent> { static constexpr std::string_view name = "HierarchyComponent"; };
+template<> struct ECSComponentYamlTraits<TransformComponent> { static constexpr std::string_view name = "TransformComponent"; };
+template<> struct ECSComponentYamlTraits<CameraComponent>    { static constexpr std::string_view name = "CameraComponent";    };
+template<> struct ECSComponentYamlTraits<LightComponent>     { static constexpr std::string_view name = "LightComponent";     };
+template<> struct ECSComponentYamlTraits<MeshComponent>      { static constexpr std::string_view name = "MeshComponent";      };
+template<> struct ECSComponentYamlTraits<ScriptComponent>    { static constexpr std::string_view name = "ScriptComponent";    };
 
 } // namespace GE
 
 namespace YAML
 {
+
+template<>
+struct convert<glm::vec2>
+{
+    static Node encode(const glm::vec2& rhs)
+    {
+        Node node(NodeType::Sequence);
+        node.push_back(rhs.x);
+        node.push_back(rhs.y);
+        return node;
+    }
+
+    static bool decode(const Node& node, glm::vec2& rhs)
+    {
+        if (!node.IsSequence() || node.size() != 2)
+            return false;
+
+        rhs.x = node[0].as<float>();
+        rhs.y = node[1].as<float>();
+        return true;
+    }
+};
 
 template<>
 struct convert<glm::vec3>
@@ -330,6 +335,79 @@ struct convert<GE::MeshComponent>
 };
 
 template<>
+struct convert<GE::ScriptValue>
+{
+    static Node encode(const GE::ScriptValue& rhs)
+    {
+        Node node;
+        std::visit([&](const auto& value) {
+            using T = std::remove_cvref_t<decltype(value)>;
+            if constexpr (std::is_same_v<T, bool>)
+                node["type"] = "bool";
+            else if constexpr (std::is_same_v<T, int64_t>)
+                node["type"] = "int";
+            else if constexpr (std::is_same_v<T, float>)
+                node["type"] = "float";
+            else if constexpr (std::is_same_v<T, glm::vec2>)
+                node["type"] = "vec2";
+            else if constexpr (std::is_same_v<T, glm::vec3>)
+                node["type"] = "vec3";
+            else if constexpr (std::is_same_v<T, std::string>)
+                node["type"] = "string";
+            node["data"] = value;
+        }, rhs);
+        return node;
+    }
+
+    static bool decode(const Node& node, GE::ScriptValue& rhs)
+    {
+        if (!node.IsMap() || !node["type"] || !node["data"])
+            return false;
+
+        const std::string type = node["type"].as<std::string>();
+        const Node data = node["data"];
+        if (type == "bool")
+            rhs = data.as<bool>();
+        else if (type == "int")
+            rhs = data.as<int64_t>();
+        else if (type == "float")
+            rhs = data.as<float>();
+        else if (type == "vec2")
+            rhs = data.as<glm::vec2>();
+        else if (type == "vec3")
+            rhs = data.as<glm::vec3>();
+        else if (type == "string")
+            rhs = data.as<std::string>();
+        else
+            return false;
+
+        return true;
+    }
+};
+
+template<>
+struct convert<GE::ScriptComponent>
+{
+    static Node encode(const GE::ScriptComponent& rhs)
+    {
+        Node node;
+        node["name"] = rhs.name;
+        node["parameters"] = rhs.parameters;
+        return node;
+    }
+
+    static bool decode(const Node& node, GE::ScriptComponent& rhs)
+    {
+        if (!node.IsMap() || !node["name"])
+            return false;
+
+        rhs.name = node["name"].as<std::string>();
+        rhs.parameters = node["parameters"] ? node["parameters"].as<std::map<std::string, GE::ScriptValue>>() : std::map<std::string, GE::ScriptValue>();
+        return true;
+    }
+};
+
+template<>
 struct convert<GE::ComponentVariant>
 {
     static Node encode(const GE::ComponentVariant& rhs)
@@ -366,6 +444,8 @@ struct convert<GE::ComponentVariant>
             rhs = data.as<GE::LightComponent>();
         else if (type == "MeshComponent")
             rhs = data.as<GE::MeshComponent>();
+        else if (type == "ScriptComponent")
+            rhs = data.as<GE::ScriptComponent>();
         else
             return false;
 

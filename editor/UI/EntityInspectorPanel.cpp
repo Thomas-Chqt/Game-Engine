@@ -12,12 +12,16 @@
 #include <Game-Engine/Components.hpp>
 #include <Game-Engine/ECSWorld.hpp>
 #include <Game-Engine/Entity.hpp>
+#include <Game-Engine/Script.hpp>
 
 #include <imgui.h>
 
 #include <cstring>
 #include <cassert>
+#include <cstdint>
 #include <numbers>
+#include <string>
+#include <type_traits>
 #include <utility>
 
 namespace GE_Editor
@@ -47,11 +51,6 @@ template<>
 void EntityInspectorPanel::componentEditWidget<GE::CameraComponent>()
 {
     GE::CameraComponent& cameraComponent = m_entity.get<GE::CameraComponent>();
-
-    // if (m_scene->activeCamera() == m_selectedEntity)
-    //     ImGui::Text("Active");
-    // else if (ImGui::Button("Make active"))
-    //     m_scene->setActiveCamera(m_selectedEntity);
 
     ImGui::DragFloat("fov##CameraComponent_fov",     &cameraComponent.fov,   0.01f,  -2*std::numbers::pi_v<float>, 2*std::numbers::pi_v<float>);
     ImGui::DragFloat("zFar##CameraComponent_zFar",   &cameraComponent.zFar,  0.01f, 0.001f, 10000.0f);
@@ -89,48 +88,74 @@ void EntityInspectorPanel::componentEditWidget<GE::LightComponent>()
         ImGui::DragFloat("attenuation##LightComponent_attenuation", &lightComponent.attenuation, 0.01, 0.0f, 1.0f);
 }
 
-// template<>
-// void EntityInspectorPanel::componentEditWidget<MeshComponent>()
-// {
-//     assert(m_scene != nullptr);
+template<>
+void EntityInspectorPanel::componentEditWidget<GE::ScriptComponent>()
+{
+    GE::ScriptComponent& scriptComponent = m_entity.get<GE::ScriptComponent>();
 
-//     MeshComponent& meshComponent = m_selectedEntity.get<MeshComponent>();
+    const char* previewValue = scriptComponent.name.empty() ? "none" : scriptComponent.name.c_str();
+    if (ImGui::BeginCombo("Script##ScriptComponent_name", previewValue))
+    {
+        assert(m_listScriptNames);
+        for (const std::string& scriptName : m_listScriptNames())
+        {
+            const bool isSelected = scriptComponent.name == scriptName;
+            if (ImGui::Selectable(scriptName.c_str(), isSelected))
+            {
+                scriptComponent.name = scriptName;
+                scriptComponent.parameters.clear();
+                assert(m_listScriptParameters);
+                for (const GE::ScriptParameterDescriptor& parameter : m_listScriptParameters(scriptName))
+                {
+                    auto [parameterIt, inserted] = scriptComponent.parameters.try_emplace(parameter.name, parameter.defaultValue);
+                    assert(inserted);
+                }
+            }
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
 
-//     if (ImGui::BeginCombo("Mesh##MeshComponent_mesh", meshComponent.assetId.is_nil() ? utils::String("") : m_scene->assetManager().loadedMeshes()[meshComponent.assetId].name))
-//     {
-//         for (auto& [id, mesh] : m_scene->assetManager().loadedMeshes())
-//         {
-//             const bool is_selected = (meshComponent == id);
-//             if (ImGui::Selectable(mesh.name, is_selected))
-//                 meshComponent.assetId = id;
-//             if (is_selected)
-//                 ImGui::SetItemDefaultFocus();
-//         }
-//         ImGui::EndCombo();
-//     }
-//     if (ImGui::BeginDragDropTarget())
-//     {
-//         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("mesh_dnd"))
-//             meshComponent.assetId = *(AssetID*)payload->Data;
-//         ImGui::EndDragDropTarget();
-//     }
-// }
+    for (auto& [name, value] : scriptComponent.parameters)
+    {
+        std::visit([&](auto& typedValue)
+        {
+            using T = std::remove_cvref_t<decltype(typedValue)>;
+            if constexpr (std::is_same_v<T, bool>)
+                ImGui::Checkbox(name.c_str(), &typedValue);
+            else if constexpr (std::is_same_v<T, int64_t>)
+            {
+                int64_t value64 = typedValue;
+                if (ImGui::DragScalar(name.c_str(), ImGuiDataType_S64, &value64))
+                    typedValue = value64;
+            }
+            else if constexpr (std::is_same_v<T, float>)
+                ImGui::DragFloat(name.c_str(), &typedValue, 0.01f);
+            else if constexpr (std::is_same_v<T, glm::vec2>)
+                ImGui::DragFloat2(name.c_str(), &typedValue.x, 0.01f);
+            else if constexpr (std::is_same_v<T, glm::vec3>)
+                ImGui::DragFloat3(name.c_str(), &typedValue.x, 0.01f);
+            else if constexpr (std::is_same_v<T, std::string>)
+            {
+                char buffer[256];
+                std::strncpy(buffer, typedValue.c_str(), sizeof(buffer));
+                buffer[sizeof(buffer) - 1] = '\0';
+                if (ImGui::InputText(name.c_str(), buffer, sizeof(buffer)))
+                    typedValue = buffer;
+            }
+        }, value);
+    }
+}
 
-// template<>
-// void EntityInspectorPanel::componentEditWidget<ScriptComponent>()
-// {
-//     ScriptComponent& scriptComponent = m_selectedEntity.get<ScriptComponent>();
-//     ImGui::Text("%s", scriptComponent.name.isEmpty() ? "no script" : (const char*)scriptComponent.name);
-//     if (ImGui::BeginDragDropTarget())
-//     {
-//         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("script_dnd"))
-//             scriptComponent.name = utils::String((char*)payload->Data);
-//         ImGui::EndDragDropTarget();
-//     }
-// }
-
-EntityInspectorPanel::EntityInspectorPanel(const GE::Entity& entity)
+EntityInspectorPanel::EntityInspectorPanel(
+    const GE::Entity& entity,
+    std::function<std::vector<std::string>()> listScriptNames,
+    std::function<std::vector<GE::ScriptParameterDescriptor>(const std::string&)> listScriptParameters
+)
     : m_entity(entity)
+    , m_listScriptNames(std::move(listScriptNames))
+    , m_listScriptParameters(std::move(listScriptParameters))
 {
 }
 
@@ -150,10 +175,8 @@ void EntityInspectorPanel::render()
                 componentEditWidget<GE::CameraComponent>();
             if (m_entity.has<GE::LightComponent>() && componentEditHeader<GE::LightComponent>("Light component"))
                 componentEditWidget<GE::LightComponent>();
-            // if (m_entity.has<GE::MeshComponent>() && componentEditHeader<GE::MeshComponent>("Mesh component"))
-            //     componentEditWidget<GE::MeshComponent>();
-            // if (m_entity.has<GE::ScriptComponent>() && componentEditHeader<ScriptComponent>("Script component"))
-            //     componentEditWidget<ScriptComponent>();
+            if (m_entity.has<GE::ScriptComponent>() && componentEditHeader<GE::ScriptComponent>("Script component"))
+                componentEditWidget<GE::ScriptComponent>();
 
             ImGui::Spacing();
             ImGui::Separator();
@@ -196,11 +219,8 @@ void EntityInspectorPanel::addComponentPopUp()
         if (m_entity.has<GE::LightComponent>() == false && ImGui::Selectable("Light component"))
             m_entity.emplace<GE::LightComponent>();
 
-        // if (m_entity.has<GE::MeshComponent>() == false && ImGui::Selectable("Mesh component"))
-        //     m_entity.emplace<GE::MeshComponent>();
-
-        // if (m_entity.has<GE::ScriptComponent>() == false && ImGui::Selectable("Script component"))
-        //     m_entity.emplace<GE::ScriptComponent>();
+        if (m_entity.has<GE::ScriptComponent>() == false && ImGui::Selectable("Script component"))
+            m_entity.emplace<GE::ScriptComponent>();
 
         ImGui::EndPopup();
     }

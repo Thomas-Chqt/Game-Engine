@@ -9,6 +9,7 @@
 #ifndef INPUTMAPPER_HPP
 #define INPUTMAPPER_HPP
 
+#include "Game-Engine/Export.hpp"
 #include "Game-Engine/Event.hpp"
 #include "Game-Engine/InputFwd.hpp"
 #include "Game-Engine/RawInput.hpp"
@@ -23,7 +24,7 @@ namespace GE
 template<RawInput RI, typename I> struct InputMapper;
 
 template<>
-struct InputMapper<KeyboardButton, ActionInput>
+struct GE_API InputMapper<KeyboardButton, ActionInput>
 {
     using InputType = ActionInput;
 
@@ -35,7 +36,7 @@ struct InputMapper<KeyboardButton, ActionInput>
 };
 
 template<>
-struct InputMapper<KeyboardButton, StateInput>
+struct GE_API InputMapper<KeyboardButton, StateInput>
 {
     using InputType = StateInput;
 
@@ -47,7 +48,7 @@ struct InputMapper<KeyboardButton, StateInput>
 };
 
 template<>
-struct InputMapper<KeyboardButton, RangeInput>
+struct GE_API InputMapper<KeyboardButton, RangeInput>
 {
     using InputType = RangeInput;
 
@@ -61,7 +62,7 @@ struct InputMapper<KeyboardButton, RangeInput>
 };
 
 template<>
-struct InputMapper<KeyboardButton, Range2DInput>
+struct GE_API InputMapper<KeyboardButton, Range2DInput>
 {
     using InputType = Range2DInput;
 

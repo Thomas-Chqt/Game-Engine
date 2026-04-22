@@ -9,6 +9,7 @@
 #ifndef INPUTCONTEXT_HPP
 #define INPUTCONTEXT_HPP
 
+#include "Game-Engine/Export.hpp"
 #include "Game-Engine/Event.hpp"
 #include "Game-Engine/Input.hpp"
 
@@ -17,7 +18,7 @@
 namespace GE
 {
 
-class InputContext
+class GE_API InputContext
 {
 public:
     InputContext() = default;

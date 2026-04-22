@@ -12,6 +12,7 @@
 
 #include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Event.hpp"
+#include "Game-Engine/Export.hpp"
 #include "Game-Engine/FrameGraph.hpp"
 #include "Game-Engine/InputContext.hpp"
 #include "Game-Engine/Window.hpp"
@@ -27,7 +28,7 @@
 namespace GE
 {
 
-class Application
+class GE_API Application
 {
 public:
     Application();

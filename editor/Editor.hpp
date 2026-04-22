@@ -18,14 +18,22 @@
 #include <Game-Engine/FrameGraph.hpp>
 #include <Game-Engine/InputContext.hpp>
 #include <Game-Engine/Input.hpp>
+#include <Game-Engine/Script.hpp>
 #include <Game-Engine/Scene.hpp>
+
+#include <dlLoad/dlLoad.h>
 
 #include <imgui.h>
 
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <optional>
+#include <string>
+#include <type_traits>
 #include <utility>
+#include <vector>
+#include <functional>
 
 namespace GE_Editor
 {
@@ -42,10 +50,23 @@ public:
 
     inline const GE::FrameGraph& frameGraph() override { return m_frameGraph; }
 
+    ~Editor() override = default;
+
 private:
+    struct DlHandleDeleter
+    {
+        void operator()(DlHandle handle) const
+        {
+            if (handle != nullptr)
+                dlFree(handle);
+        }
+    };
+    using UniqueDlHandle = std::unique_ptr<std::remove_pointer_t<DlHandle>, DlHandleDeleter>;
+
     void loadProject(const std::filesystem::path&);
     void saveEditedScene();
     void saveProject();
+    void reloadScriptLib();
     void startGame();
     void stopGame();
 
@@ -54,6 +75,11 @@ private:
 
     void rebuildFrameGraph();
     void renderImgui();
+
+    UniqueDlHandle m_scriptLibHandle; // need to be before m_edited scene so it is destroyed after
+    std::function<std::vector<std::string>()> m_listScriptNames;
+    std::function<std::vector<GE::ScriptParameterDescriptor>(const std::string&)> m_listScriptParameters;
+    std::function<std::shared_ptr<GE::Script>(const std::string&)> m_makeScriptInstance;
 
     std::filesystem::path m_projectFilePath;
     Project m_project;
@@ -69,7 +95,7 @@ private:
     std::optional<GE::Game> m_game;
 
     std::pair<uint32_t, uint32_t> m_viewportSize = {0, 0};
-    GE::FrameGraph m_frameGraph;
+    GE::FrameGraph m_frameGraph; // TODO move into render (something like render->setGraph())
 
 public:
     Editor& operator=(const Editor&) = delete;

@@ -10,6 +10,8 @@
 #ifndef ECSWORLD_HPP
 #define ECSWORLD_HPP
 
+#include "Game-Engine/Export.hpp"
+
 #include <cassert>
 #include <climits>
 #include <cstddef>
@@ -20,6 +22,7 @@
 #include <map>
 #include <iterator>
 #include <type_traits>
+#include <typeinfo>
 
 #define INVALID_ENTITY_ID ULONG_MAX
 
@@ -34,7 +37,7 @@ concept ECSWorldLike = std::is_same_v<std::remove_const_t<T>, GE::ECSWorld>;
 template<typename T>
 concept Component = std::is_copy_constructible_v<T> && std::is_move_constructible_v<T> && std::is_destructible_v<T>;
 
-class ECSWorld
+class GE_API ECSWorld
 {
 public:
     using EntityID = uint64_t;
@@ -86,7 +89,9 @@ private:
     };
 
     static ComponentID nextComponentID();
+    static ComponentID componentID(const std::type_info&);
     template<Component T> static ComponentID componentID();
+
     template<Component T> static uint64_t componentSize();
     template<Component T> static CopyConstructor componentCopyConstructor();
     template<Component T> static MoveConstructor componentMoveConstructor();
@@ -219,7 +224,7 @@ auto& ECSWorld::get(this auto&& self, EntityID entityId)
 template<Component T>
 ECSWorld::ComponentID ECSWorld::componentID()
 {
-    static ComponentID id = nextComponentID();
+    static const ComponentID id = componentID(typeid(T));
     return id;
 }
 

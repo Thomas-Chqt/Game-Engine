@@ -9,8 +9,6 @@
 
 #include "Editor.hpp"
 
-#include "Game-Engine/ICamera.hpp"
-#include "Game-Engine/InputFwd.hpp"
 #include "UI/ContentBrowserPanel.hpp"
 #include "UI/EntityInspectorPanel.hpp"
 #include "UI/MainMenuBar.hpp"
@@ -21,14 +19,19 @@
 #include <Game-Engine/Event.hpp>
 #include <Game-Engine/RawInput.hpp>
 #include <Game-Engine/AssetManager.hpp>
+#include <Game-Engine/ECSView.hpp>
 #include <Game-Engine/Entity.hpp>
 #include <Game-Engine/FrameGraph.hpp>
 #include <Game-Engine/FramePassBuilder.hpp>
 #include <Game-Engine/Components.hpp>
+#include <Game-Engine/Script.hpp>
 #include <Game-Engine/Scene.hpp>
+#include <Game-Engine/ICamera.hpp>
+#include <Game-Engine/InputFwd.hpp>
 
 #include <Graphics/Enums.hpp>
 
+#include <format>
 #include <imgui.h>
 
 #include <filesystem>
@@ -78,6 +81,18 @@ Editor::Editor()
 void Editor::onUpdate()
 {
     processDropedFiles();
+
+    if (m_game.has_value())
+    {
+        // game update
+        // TODO ? maybe move into game class
+        for (auto [scriptComponent] : m_game->activeScene().ecsWorld() | GE::ECSView<GE::ScriptComponent>())
+        {
+            assert(scriptComponent.instance);
+            scriptComponent.instance->onUpdate();
+        }
+    }
+
     renderImgui();
 }
 
@@ -91,18 +106,24 @@ void Editor::loadProject(const std::filesystem::path& path)
 {
     std::ifstream file(path);
     if (file.is_open() == false)
-        throw std::runtime_error("unable to load project file");
+        throw std::runtime_error(std::format("unable to open project file : {}", path.string()));
 
     YAML::Node projectNode = YAML::Load(file);
 
     if (YAML::convert<Project>::decode(projectNode, m_project) == false)
-        throw std::runtime_error("unable to load project file");
+        throw std::runtime_error(std::format("unable to load project file : {}", path.string()));
 
     ImGui::LoadIniSettingsFromMemory(m_project.imguiSettings().c_str());
 
+    reloadScriptLib();
+
     m_projectFilePath = path;
-    m_editedScene = {m_project.startScene().first, GE::Scene(&assetManager(), m_project.startScene().second)};
+    m_editedScene = {
+        m_project.startScene().first,
+        GE::Scene(&assetManager(), m_project.startScene().second)
+    };
     m_selectedEntity = {};
+    m_editorCamera = {};
 }
 
 void Editor::saveEditedScene()
@@ -130,11 +151,69 @@ void Editor::saveProject()
         throw std::runtime_error("failed to write project file");
 }
 
+void Editor::reloadScriptLib()
+{
+    assert(m_game.has_value() == false);
+
+    assert(std::ranges::all_of(
+        m_editedScene.second.ecsWorld() | GE::ECSView<GE::ScriptComponent>(),
+        [](const auto& e) -> bool { return e.template get<0>().instance == nullptr; }
+    ));
+
+    m_listScriptNames = {};
+    m_listScriptParameters = {};
+    m_makeScriptInstance = {};
+
+    if (m_project.scriptLib().empty())
+        m_scriptLibHandle.reset();
+    else
+        m_scriptLibHandle.reset(dlLoad(m_project.scriptLib().string().c_str()));
+
+    if (m_scriptLibHandle == nullptr)
+        throw std::runtime_error(std::format("unable to load shared lib : {}", m_project.scriptLib().string()));
+
+    void* listScriptNamesSym = getSym(m_scriptLibHandle.get(), "listScriptNames");
+    void* listScriptParametersSym = getSym(m_scriptLibHandle.get(), "listScriptParameters");
+    void* makeScriptInstanceSym = getSym(m_scriptLibHandle.get(), "makeScriptInstance");
+
+    if (listScriptNamesSym == nullptr || listScriptParametersSym == nullptr || makeScriptInstanceSym == nullptr)
+    {
+        m_scriptLibHandle.reset();
+        throw std::runtime_error(std::format("unable to get symbols in lib : {}", m_project.scriptLib().string()));
+    }
+
+    m_listScriptNames = [listScriptNamesSym]() -> std::vector<std::string> {
+        const char** names = nullptr;
+        unsigned long count = 0;
+        reinterpret_cast<GE::ListScriptNamesFn>(listScriptNamesSym)(&names, &count);
+        std::vector<std::string> output;
+        for (unsigned long i = 0; i < count; i++)
+            if (names[i] != nullptr)
+                output.emplace_back(names[i]);
+        return output;
+    };
+
+    m_listScriptParameters = [listScriptParametersSym](const std::string& name) -> std::vector<GE::ScriptParameterDescriptor> {
+        const GE::ScriptParameterDescriptor* parameters = nullptr;
+        unsigned long count = 0;
+        reinterpret_cast<GE::ListScriptParametersFn>(listScriptParametersSym)(name.c_str(), &parameters, &count);
+        std::vector<GE::ScriptParameterDescriptor> output;
+        output.reserve(count);
+        for (unsigned long i = 0; i < count; i++)
+            output.emplace_back(parameters[i]);
+        return output;
+    };
+
+    m_makeScriptInstance = [makeScriptInstanceSym](const std::string& name) -> std::shared_ptr<GE::Script> {
+        return std::shared_ptr<GE::Script>(reinterpret_cast<GE::MakeScriptInstanceFn>(makeScriptInstanceSym)(name.c_str()));
+    };
+}
+
 void Editor::startGame()
 {
     assert(m_game.has_value() == false);
     saveEditedScene();
-    m_game.emplace(&assetManager(), m_project.makeGameDescriptor());
+    m_game.emplace(&assetManager(), m_makeScriptInstance, m_listScriptParameters, m_project.makeGameDescriptor());
     setPrimaryInputContext(m_game->inputContext());
 }
 
@@ -206,6 +285,7 @@ void Editor::renderImgui()
     MainMenuBar()
         .on_File_Save(!m_projectFilePath.empty() ? [this]() { saveProject(); } : std::function<void()>())
         .on_Project_Properties([]() { projectPropertiesOpen = true; })
+        .on_Project_ReloadScriptLib(!m_game.has_value() ? [this]() { reloadScriptLib(); } : std::function<void()>())
         .on_Project_Stop(m_game.has_value() ? [this]() { stopGame(); } : std::function<void()>())
         .on_Project_Run(!m_game.has_value() ? [this]() { startGame(); } : std::function<void()>())
         .render();
@@ -220,7 +300,7 @@ void Editor::renderImgui()
     SceneGraphPanel(&m_editedScene.second, &m_selectedEntity)
         .render();
 
-    EntityInspectorPanel(m_selectedEntity)
+    EntityInspectorPanel(m_selectedEntity, m_listScriptNames, m_listScriptParameters)
         .render();
 
     ContentBrowserPanel("Scenes", "scene_dnd", sizeof(GE::Scene::Descriptor))

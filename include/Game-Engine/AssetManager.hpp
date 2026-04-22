@@ -10,6 +10,7 @@
 #ifndef ASSETMANAGER_HPP
 #define ASSETMANAGER_HPP
 
+#include "Game-Engine/Export.hpp"
 #include "Game-Engine/Mesh.hpp"
 
 #include <Graphics/Device.hpp>
@@ -74,7 +75,7 @@ using VAssetPath = std::variant<AssetPath<Mesh>, AssetPath<gfx::Texture>>;
 template<typename T>
 concept VAssetPathRange = std::ranges::range<T> && std::is_same_v<std::ranges::range_value_t<T>, VAssetPath>;
 
-class AssetManager
+class GE_API AssetManager
 {
 public:
     AssetManager() = delete;

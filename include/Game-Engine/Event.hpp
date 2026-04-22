@@ -10,6 +10,7 @@
 #ifndef EVENT_HPP
 #define EVENT_HPP
 
+#include "Game-Engine/Export.hpp"
 #include "Game-Engine/Window.hpp"
 
 #include <cstdint>
@@ -20,7 +21,7 @@
 namespace GE
 {
 
-class Event
+class GE_API Event
 {
 public:
     Event(const Event&) = delete;
@@ -55,7 +56,7 @@ public:
     Event& operator = (Event&&)      = delete;
 };
 
-class ApplicationRequestTerminationEvent final : public Event
+class GE_API ApplicationRequestTerminationEvent final : public Event
 {
 public:
     ApplicationRequestTerminationEvent()                                          = default;
@@ -72,7 +73,7 @@ public:
     ApplicationRequestTerminationEvent& operator = (ApplicationRequestTerminationEvent&&)      = delete;
 };
 
-class WindowEvent : public Event
+class GE_API WindowEvent : public Event
 {
 public:
     WindowEvent()                   = delete;
@@ -100,7 +101,7 @@ public:
     WindowEvent& operator = (WindowEvent&&)      = delete;
 };
 
-class WindowResizeEvent final : public WindowEvent
+class GE_API WindowResizeEvent final : public WindowEvent
 {
 public:
     WindowResizeEvent()                         = delete;
@@ -130,7 +131,7 @@ public:
     WindowResizeEvent& operator = (WindowResizeEvent&&)      = delete;
 };
 
-class WindowRequestCloseEvent final : public WindowEvent
+class GE_API WindowRequestCloseEvent final : public WindowEvent
 {
 public:
     WindowRequestCloseEvent()                               = delete;
@@ -152,7 +153,7 @@ public:
     WindowRequestCloseEvent& operator = (WindowRequestCloseEvent&&)      = delete;
 };
 
-class InputEvent : public WindowEvent
+class GE_API InputEvent : public WindowEvent
 {
 public:
     InputEvent()                  = delete;
@@ -175,7 +176,7 @@ public:
     InputEvent& operator = (InputEvent&&)      = delete;
 };
 
-class KeyboardEvent : public InputEvent
+class GE_API KeyboardEvent : public InputEvent
 {
 public:
     KeyboardEvent()                     = delete;
@@ -204,7 +205,7 @@ public:
     KeyboardEvent& operator = (KeyboardEvent&&)      = delete;
 };
 
-class KeyDownEvent final : public KeyboardEvent
+class GE_API KeyDownEvent final : public KeyboardEvent
 {
 public:
     KeyDownEvent()                    = delete;
@@ -231,7 +232,7 @@ public:
     KeyDownEvent& operator = (KeyDownEvent&&)      = delete;
 };
 
-class KeyUpEvent final : public KeyboardEvent
+class GE_API KeyUpEvent final : public KeyboardEvent
 {
 public:
     KeyUpEvent()                  = delete;
@@ -253,7 +254,7 @@ public:
     KeyUpEvent& operator = (KeyUpEvent&&)      = delete;
 };
 
-class CharEvent final : public InputEvent
+class GE_API CharEvent final : public InputEvent
 {
 public:
     CharEvent()                 = delete;
@@ -280,7 +281,7 @@ public:
     CharEvent& operator = (CharEvent&&)      = delete;
 };
 
-class MouseEvent : public InputEvent
+class GE_API MouseEvent : public InputEvent
 {
 public:
     MouseEvent()                  = delete;
@@ -311,7 +312,7 @@ public:
     MouseEvent& operator = (MouseEvent&&)      = delete;
 };
 
-class ScrollEvent final : public MouseEvent
+class GE_API ScrollEvent final : public MouseEvent
 {
 public:
     ScrollEvent()                   = delete;
@@ -342,7 +343,7 @@ public:
     ScrollEvent& operator = (ScrollEvent&&)      = delete;
 };
 
-class MouseMoveEvent final : public MouseEvent
+class GE_API MouseMoveEvent final : public MouseEvent
 {
 public:
     MouseMoveEvent()                      = delete;
@@ -364,7 +365,7 @@ public:
     MouseMoveEvent& operator = (MouseMoveEvent&&)      = delete;
 };
 
-class MouseButtonEvent : public MouseEvent
+class GE_API MouseButtonEvent : public MouseEvent
 {
 public:
     MouseButtonEvent()                        = delete;
@@ -393,7 +394,7 @@ public:
 
 };
 
-class MouseDownEvent final : public MouseButtonEvent
+class GE_API MouseDownEvent final : public MouseButtonEvent
 {
 public:
     MouseDownEvent()                      = delete;
@@ -415,7 +416,7 @@ public:
     MouseDownEvent& operator = (MouseDownEvent&&)      = delete;
 };
 
-class MouseUpEvent final : public MouseButtonEvent
+class GE_API MouseUpEvent final : public MouseButtonEvent
 {
 public:
     MouseUpEvent()                    = delete;

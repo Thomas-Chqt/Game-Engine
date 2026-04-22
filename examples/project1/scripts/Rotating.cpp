@@ -1,24 +1,31 @@
 /*
  * ---------------------------------------------------
  * Rotating.cpp
- *
- * Author: Thomas Choquet <semoir.dense-0h@icloud.com>
- * Date: 2024/10/24 12:13:30
  * ---------------------------------------------------
  */
 
-#include "Script.hpp"
-#include "ScriptLib.hpp"
+#include <Game-Engine/Components.hpp>
+#include <Game-Engine/Entity.hpp>
+#include <Game-Engine/Game.hpp>
+#include <Game-Engine/Script.hpp>
 
-class Rotating : public GE::Script
+class Rotating final : public GE::Script
 {
-public:
-    using GE::Script::Script;
+    GE_SCRIPT(Rotating, "Rotating");
+    GE_SCRIPT_PARAM(float, speed, 0.02f);
+
+    void setup(GE::Entity& entity, GE::Game& game) override
+    {
+        (void)game;
+        m_entity = entity;
+    }
 
     void onUpdate() override
     {
-        m_entity.rotation() += { 0.0, 0.02, 0.0 };
+        auto& transform = m_entity.get<GE::TransformComponent>();
+        transform.rotation.y += speed;
     }
-};
 
-REGISTER_SCRIPT(Rotating);
+private:
+    GE::Entity m_entity;
+};

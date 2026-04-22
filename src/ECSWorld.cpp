@@ -11,7 +11,10 @@
 
 #include <cassert>
 #include <cstddef>
+#include <mutex>
 #include <ranges>
+#include <string>
+#include <typeinfo>
 
 namespace GE
 {
@@ -94,5 +97,19 @@ ECSWorld::ComponentID ECSWorld::nextComponentID()
     static ComponentID id = 1;
     return id++;
 };
+
+ECSWorld::ComponentID ECSWorld::componentID(const std::type_info& typeInfo)
+{
+    static std::mutex mutex;
+    static std::map<std::string, ComponentID> componentIDs;
+
+    std::lock_guard lock(mutex);
+
+    auto [it, inserted] = componentIDs.emplace(typeInfo.name(), 0);
+    if (inserted)
+        it->second = nextComponentID();
+
+    return it->second;
+}
 
 }

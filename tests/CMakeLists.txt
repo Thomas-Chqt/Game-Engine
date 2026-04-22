@@ -7,15 +7,15 @@
 
 include(FetchContent)
 include(GoogleTest)
-
+include(../cmake/ScriptLibrary.cmake)
 
 add_executable(GE_test)
+set_target_properties(GE_test PROPERTIES ENABLE_EXPORTS ON)
 
-# test file only require 11, will be higher when linking to something that need higher
-target_compile_features(GE_test PUBLIC cxx_std_11)
+target_compile_features(GE_test PUBLIC cxx_std_23)
 set_target_properties(GE_test PROPERTIES FOLDER "tests")
 
-file(GLOB_RECURSE SRC "*.cpp")
+file(GLOB SRC "*.cpp")
 target_sources(GE_test PRIVATE ${SRC})
 
 target_include_directories(GE_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -35,5 +35,10 @@ set_target_properties(gmock PROPERTIES FOLDER "dependencies")
 set_target_properties(gmock_main PROPERTIES FOLDER "dependencies")
 
 target_link_libraries(GE_test PRIVATE GTest::gmock GTest::gtest_main Game-Engine)
+target_include_directories(GE_test INTERFACE $<TARGET_PROPERTY:Game-Engine,INTERFACE_INCLUDE_DIRECTORIES>)
+
+add_subdirectory(scriptLib)
+
+target_compile_definitions(GE_test PRIVATE GE_TEST_SCRIPT_LIB="$<TARGET_FILE:GE_test_scriptLib>")
 
 gtest_discover_tests(GE_test)

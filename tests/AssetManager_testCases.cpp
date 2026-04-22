@@ -19,7 +19,6 @@
 #include <Graphics/Device.hpp>
 #include <Graphics/Texture.hpp>
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>

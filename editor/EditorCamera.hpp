@@ -22,7 +22,7 @@ class EditorCamera : public GE::ICamera
 public:
     EditorCamera() = default;
     EditorCamera(const EditorCamera&) = delete;
-    EditorCamera(EditorCamera&&) = delete;
+    EditorCamera(EditorCamera&&) = default;
 
     inline glm::vec3 position() const override { return m_position; }
     glm::mat4 viewProjectionMatrix(float aspectRatio) const override;
@@ -41,7 +41,7 @@ private:
 
 public:
     EditorCamera& operator=(const EditorCamera&) = delete;
-    EditorCamera& operator=(EditorCamera&&) = delete;
+    EditorCamera& operator=(EditorCamera&&) = default;
 };
 
 } // namespace GE_Editor

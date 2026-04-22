@@ -15,6 +15,7 @@
 #include "Game-Engine/Components.hpp"
 #include "Game-Engine/ECSWorld.hpp"
 #include "Game-Engine/Entity.hpp"
+#include "Game-Engine/Export.hpp"
 
 #include "yaml-cpp/yaml.h"
 
@@ -25,7 +26,7 @@
 namespace GE
 {
 
-class Scene
+class GE_API Scene
 {
 public:
     struct Descriptor

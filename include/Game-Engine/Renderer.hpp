@@ -10,6 +10,7 @@
 #ifndef RENDERER_HPP
 #define RENDERER_HPP
 
+#include "Game-Engine/Export.hpp"
 #include "Game-Engine/FrameGraph.hpp"
 
 #include <Graphics/Device.hpp>
@@ -32,7 +33,7 @@ namespace GE
 
 constexpr uint8_t maxFrameInFlight = 3;
 
-class Renderer
+class GE_API Renderer
 {
 public:
     Renderer() = delete;

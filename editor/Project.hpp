@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <filesystem>
 #include <map>
 #include <string>
 #include <utility>
@@ -41,6 +42,9 @@ public:
     inline const std::string& imguiSettings() const { return m_imguiSettings; }
     inline void setImguiSettings(std::string imguiSettings) { m_imguiSettings = std::move(imguiSettings); }
 
+    inline const std::filesystem::path& scriptLib() const { return m_scriptLib; }
+    inline void setScriptLib(std::filesystem::path scriptLib) { m_scriptLib = std::move(scriptLib); }
+
     GE::Game::Descriptor makeGameDescriptor() const;
 
 private:
@@ -48,6 +52,7 @@ private:
     std::map<uint32_t, GE::Scene::Descriptor> m_scenes;
     uint32_t m_startScene;
     std::string m_imguiSettings;
+    std::filesystem::path m_scriptLib;
 
 public:
     Project& operator = (const Project&) = delete;
@@ -69,6 +74,7 @@ struct convert<GE_Editor::Project>
         Node node;
         node["name"] = rhs.m_name;
         node["imguiSettings"] = rhs.m_imguiSettings;
+        node["scriptsLib"] = rhs.m_scriptLib.string();
         for (const auto& [_, scene] : rhs.m_scenes)
             node["scenes"].push_back(scene);
         node["startScene"] = rhs.startScene().second.name;
@@ -84,6 +90,7 @@ struct convert<GE_Editor::Project>
 
         rhs.m_name = node["name"].as<std::string>();
         rhs.m_imguiSettings = node["imguiSettings"] ? node["imguiSettings"].as<std::string>() : std::string();
+        rhs.m_scriptLib = node["scriptsLib"] ? std::filesystem::path(node["scriptsLib"].as<std::string>()) : std::filesystem::path();
 
         rhs.m_scenes.clear();
         uint32_t sceneId = 0;

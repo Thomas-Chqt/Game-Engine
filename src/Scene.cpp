@@ -75,6 +75,12 @@ Scene::Descriptor Scene::makeDescriptor() const
             components.emplace_back(entity.get<LightComponent>());
         if (entity.has<MeshComponent>())
             components.emplace_back(entity.get<MeshComponent>());
+        if (entity.has<ScriptComponent>()) {
+            ScriptComponent scriptComponent = entity.get<ScriptComponent>();
+            // TODO find a solution to not have to do that
+            scriptComponent.instance.reset();
+            components.emplace_back(std::move(scriptComponent));
+        }
 
         desc.entities.emplace(entityId, std::move(components));
     }

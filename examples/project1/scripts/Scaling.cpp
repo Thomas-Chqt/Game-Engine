@@ -1,32 +1,38 @@
 /*
  * ---------------------------------------------------
  * Scaling.cpp
- *
- * Author: Thomas Choquet <semoir.dense-0h@icloud.com>
- * Date: 2024/11/06 17:20:14
  * ---------------------------------------------------
  */
 
-#include "Math/Vector.hpp"
-#include "Script.hpp"
-#include "ScriptLib.hpp"
+#include <Game-Engine/Components.hpp>
+#include <Game-Engine/Entity.hpp>
+#include <Game-Engine/Game.hpp>
+#include <Game-Engine/Script.hpp>
 
-class Scaling : public GE::Script
+class Scaling final : public GE::Script
 {
-public:
-    using GE::Script::Script;
-    
+    GE_SCRIPT(Scaling, "Scaling");
+    GE_SCRIPT_PARAM(float, speed, 0.02f);
+    GE_SCRIPT_PARAM(bool, increasing, true);
+
+    void setup(GE::Entity& entity, GE::Game& game) override
+    {
+        (void)game;
+        m_entity = entity;
+    }
+
     void onUpdate() override
     {
-        m_entity.scale() += m_increasing ? math::vec3f{0.02, 0.02, 0.02} : math::vec3f{-0.02, -0.02, -0.02};
-        if (m_entity.scale().x >= 5)
-            m_increasing = false;
-        if (m_entity.scale().y <= 1)
-            m_increasing = true;
+        auto& transform = m_entity.get<GE::TransformComponent>();
+        const float delta = increasing ? speed : -speed;
+        transform.scale += glm::vec3(delta);
+
+        if (transform.scale.x >= 5.0f)
+            increasing = false;
+        if (transform.scale.x <= 1.0f)
+            increasing = true;
     }
 
 private:
-    bool m_increasing = true;
+    GE::Entity m_entity;
 };
-
-REGISTER_SCRIPT(Scaling);

@@ -10,6 +10,7 @@
 #ifndef WINDOW_HPP
 #define WINDOW_HPP
 
+#include "Game-Engine/Export.hpp"
 #include "Game-Engine/RawInput.hpp"
 
 #include <Graphics/Instance.hpp>
@@ -33,7 +34,7 @@ namespace GE
 
 class Event;
 
-class Window
+class GE_API Window
 {
 public:
     struct Descriptor

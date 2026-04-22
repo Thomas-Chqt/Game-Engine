@@ -29,7 +29,13 @@ fetch_dependencies()
 
 add_library(Game-Engine ${GE_LIB_TYPE})
 
+set_target_properties(Game-Engine PROPERTIES
+    CXX_VISIBILITY_PRESET     hidden
+    VISIBILITY_INLINES_HIDDEN YES
+)
+
 target_compile_features(Game-Engine PUBLIC cxx_std_23)
+target_compile_definitions(Game-Engine PRIVATE GE_BUILDING_ENGINE)
 
 if(MSVC)
     target_compile_options(Game-Engine PRIVATE /W4)
@@ -56,10 +62,10 @@ target_compile_definitions(Game-Engine PRIVATE "SHADER_DIR=\"${SHADER_DIR}\"")
 
 add_subdirectory("editor")
 
-# if(GE_BUILD_EXAMPLES)
-#     add_subdirectory("examples/project1")
-# endif()
-#
+if(GE_BUILD_EXAMPLES)
+    add_subdirectory("examples/project1")
+endif()
+
 if (GE_BUILD_TESTS)
     enable_testing() # need to be in the top level cmakelists
     add_subdirectory("tests")

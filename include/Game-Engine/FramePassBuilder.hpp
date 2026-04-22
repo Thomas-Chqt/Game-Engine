@@ -9,6 +9,7 @@
 #ifndef FRAMEPASSBUILDER_HPP
 #define FRAMEPASSBUILDER_HPP
 
+#include "Game-Engine/Export.hpp"
 #include "Game-Engine/FrameGraph.hpp"
 #include "Game-Engine/ICamera.hpp"
 #include "Game-Engine/Scene.hpp"
@@ -75,7 +76,7 @@ protected:
     std::vector<std::string> m_usedBufferNames;
 };
 
-class ImguiPassBuilder : public FramePassBuilderBase<ImguiPassBuilder>
+class GE_API ImguiPassBuilder : public FramePassBuilderBase<ImguiPassBuilder>
 {
 public:
     inline constexpr FramePass build() const
@@ -108,7 +109,7 @@ public:
     }
 };
 
-class FlatGeometryPassBuilder : public FramePassBuilderBase<FlatGeometryPassBuilder>
+class GE_API FlatGeometryPassBuilder : public FramePassBuilderBase<FlatGeometryPassBuilder>
 {
 public:
     FlatGeometryPassBuilder(const Scene*, const ICamera*);
