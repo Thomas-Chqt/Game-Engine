@@ -28,7 +28,7 @@ class Project
 public:
     Project(); // new project with default scene
     Project(const Project&) = delete;
-    Project(Project&&) = delete;
+    Project(Project&&) = default;
 
     inline const std::string& name() const { return m_name; }
     inline void setName(const std::string& name) { m_name = name; }
@@ -56,7 +56,7 @@ private:
 
 public:
     Project& operator = (const Project&) = delete;
-    Project& operator = (Project&&) = delete;
+    Project& operator = (Project&&) = default;
 
     friend struct YAML::convert<Project>;
 };

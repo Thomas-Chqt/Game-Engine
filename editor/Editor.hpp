@@ -41,9 +41,11 @@ namespace GE_Editor
 class Editor : public GE::Application
 {
 public:
-    Editor();
+    Editor() = delete;
     Editor(const Editor&) = delete;
     Editor(Editor&&) = delete;
+
+    Editor(int argc, char* argv[]);
 
     void onUpdate() override;
     void onEvent(GE::Event& event) override;
@@ -83,10 +85,9 @@ private:
 
     std::filesystem::path m_projectFilePath;
     Project m_project;
-
     std::pair<uint32_t, GE::Scene> m_editedScene;
-    GE::Entity m_selectedEntity;
 
+    GE::Entity m_selectedEntity;
     EditorCamera m_editorCamera;
 
     GE::InputContext m_editorInputContext;

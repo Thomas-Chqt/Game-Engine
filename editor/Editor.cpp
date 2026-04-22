@@ -9,6 +9,7 @@
 
 #include "Editor.hpp"
 
+#include "Project.hpp"
 #include "UI/ContentBrowserPanel.hpp"
 #include "UI/EntityInspectorPanel.hpp"
 #include "UI/MainMenuBar.hpp"
@@ -45,18 +46,38 @@
 
 std::unique_ptr<GE::Application> createApplication(int argc, char* argv[])
 {
-    return std::make_unique<GE_Editor::Editor>();
+    return std::make_unique<GE_Editor::Editor>(argc, argv);
 }
 
 namespace GE_Editor
 {
 
-Editor::Editor()
-    : m_project{}
+namespace
+{
+
+Project loadProjectFile(const std::filesystem::path& path)
+{
+    Project project;
+
+    std::ifstream file(path);
+    if (file.is_open() == false)
+        throw std::runtime_error(std::format("unable to open file : {}", path.string()));
+
+    YAML::Node projectNode = YAML::Load(file);
+
+    if (YAML::convert<Project>::decode(projectNode, project) == false)
+        throw std::runtime_error(std::format("unable to load project file : {}", path.string()));
+
+    return project;
+}
+
+}
+
+Editor::Editor(int argc, char* argv[])
+    : m_projectFilePath(argc == 2 ? std::filesystem::path(argv[1]) : std::filesystem::path())
+    , m_project(m_projectFilePath.empty() ? Project() : loadProjectFile(m_projectFilePath))
     , m_editedScene{m_project.startScene().first, GE::Scene(&assetManager(), m_project.startScene().second)}
 {
-    ImGui::LoadIniSettingsFromMemory(m_project.imguiSettings().c_str());
-
     GE::Range2DInput editorCameraMoveInput;
     editorCameraMoveInput.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
         .xPos = GE::KeyboardButton::d, .xNeg = GE::KeyboardButton::a, .yPos = GE::KeyboardButton::w, .yNeg = GE::KeyboardButton::s,
@@ -76,6 +97,11 @@ Editor::Editor()
     pushInputContext(&m_imguiInputContext);
 
     rebuildFrameGraph();
+
+    ImGui::LoadIniSettingsFromMemory(m_project.imguiSettings().c_str());
+
+    if (std::filesystem::exists(m_project.scriptLib()))
+        reloadScriptLib();
 }
 
 void Editor::onUpdate()
@@ -104,24 +130,20 @@ void Editor::onEvent(GE::Event& event)
 
 void Editor::loadProject(const std::filesystem::path& path)
 {
-    std::ifstream file(path);
-    if (file.is_open() == false)
-        throw std::runtime_error(std::format("unable to open project file : {}", path.string()));
+    m_projectFilePath = path; // if we allow file loading error (not terminating the program on load error)
+                              // this will need to go after the yaml parsing
+    m_project = loadProjectFile(path);
 
-    YAML::Node projectNode = YAML::Load(file);
-
-    if (YAML::convert<Project>::decode(projectNode, m_project) == false)
-        throw std::runtime_error(std::format("unable to load project file : {}", path.string()));
-
-    ImGui::LoadIniSettingsFromMemory(m_project.imguiSettings().c_str());
-
-    reloadScriptLib();
-
-    m_projectFilePath = path;
     m_editedScene = {
         m_project.startScene().first,
         GE::Scene(&assetManager(), m_project.startScene().second)
     };
+
+    ImGui::LoadIniSettingsFromMemory(m_project.imguiSettings().c_str());
+
+    if (std::filesystem::exists(m_project.scriptLib()))
+        reloadScriptLib();
+
     m_selectedEntity = {};
     m_editorCamera = {};
 }
@@ -154,11 +176,11 @@ void Editor::saveProject()
 void Editor::reloadScriptLib()
 {
     assert(m_game.has_value() == false);
-
     assert(std::ranges::all_of(
         m_editedScene.second.ecsWorld() | GE::ECSView<GE::ScriptComponent>(),
         [](const auto& e) -> bool { return e.template get<0>().instance == nullptr; }
     ));
+    assert(std::filesystem::exists(m_project.scriptLib()));
 
     m_listScriptNames = {};
     m_listScriptParameters = {};
