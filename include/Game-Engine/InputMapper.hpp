@@ -21,7 +21,7 @@
 namespace GE
 {
 
-template<RawInput RI, typename I> struct InputMapper;
+template<RawInput RI, InputType I> struct InputMapper;
 
 template<>
 struct GE_API InputMapper<KeyboardButton, ActionInput>

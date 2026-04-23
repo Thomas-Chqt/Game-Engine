@@ -29,6 +29,7 @@
 #include <Game-Engine/Scene.hpp>
 #include <Game-Engine/ICamera.hpp>
 #include <Game-Engine/InputFwd.hpp>
+#include <Game-Engine/InputContext.hpp>
 
 #include <Graphics/Enums.hpp>
 
@@ -71,6 +72,21 @@ Project loadProjectFile(const std::filesystem::path& path)
     return project;
 }
 
+void makeEditorInputs(GE::InputContext& context)
+{
+    GE::Range2DInput editorCameraMoveInput;
+    editorCameraMoveInput.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
+        .xPos = GE::KeyboardButton::d, .xNeg = GE::KeyboardButton::a, .yPos = GE::KeyboardButton::w, .yNeg = GE::KeyboardButton::s,
+    });
+    context.addInput("camera_move", editorCameraMoveInput);
+
+    GE::Range2DInput editorCameraRotationInput;
+    editorCameraRotationInput.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
+        .xPos = GE::KeyboardButton::up, .xNeg = GE::KeyboardButton::down, .yPos = GE::KeyboardButton::right, .yNeg = GE::KeyboardButton::left,
+    });
+    context.addInput("camera_rotate", editorCameraRotationInput);
+}
+
 }
 
 Editor::Editor(int argc, char* argv[])
@@ -78,20 +94,10 @@ Editor::Editor(int argc, char* argv[])
     , m_project(m_projectFilePath.empty() ? Project() : loadProjectFile(m_projectFilePath))
     , m_editedScene{m_project.startScene().first, GE::Scene(&assetManager(), m_project.startScene().second)}
 {
-    GE::Range2DInput editorCameraMoveInput;
-    editorCameraMoveInput.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
-        .xPos = GE::KeyboardButton::d, .xNeg = GE::KeyboardButton::a, .yPos = GE::KeyboardButton::w, .yNeg = GE::KeyboardButton::s,
-    });
-    GE::Range2DInput editorCameraRotationInput;
-    editorCameraRotationInput.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
-        .xPos = GE::KeyboardButton::up, .xNeg = GE::KeyboardButton::down, .yPos = GE::KeyboardButton::right, .yNeg = GE::KeyboardButton::left,
-    });
+    makeEditorInputs(m_editorInputContext);
 
-    editorCameraMoveInput.callback = [editorCamera=&m_editorCamera](const glm::vec2& value) { editorCamera->onMoveInput(value); };
-    editorCameraRotationInput.callback = [editorCamera=&m_editorCamera](const glm::vec2& value) { editorCamera->onRotationInput(value); };
-
-    m_editorInputContext.addInput(editorCameraMoveInput);
-    m_editorInputContext.addInput(editorCameraRotationInput);
+    m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_move", [editorCamera=&m_editorCamera](const glm::vec2& value) { editorCamera->onMoveInput(value); }) ;
+    m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_rotate", [editorCamera=&m_editorCamera](const glm::vec2& value) { editorCamera->onRotationInput(value); });
 
     pushInputContext(&m_editorInputContext);
     pushInputContext(&m_imguiInputContext);

@@ -11,6 +11,8 @@
 
 #include <glm/glm.hpp>
 
+#include <type_traits>
+
 namespace GE
 {
 
@@ -22,6 +24,15 @@ enum class InputClass
 
 template<InputClass Class, typename T = void>
 struct Input;
+
+template<typename T>
+struct IsInput : std::false_type {};
+
+template<InputClass Class, typename T>
+struct IsInput<Input<Class, T>> : std::true_type {};
+
+template<typename T>
+concept InputType = IsInput<std::remove_cvref_t<T>>::value;
 
 using ActionInput  = Input<InputClass::action>;
 using StateInput   = Input<InputClass::state>;

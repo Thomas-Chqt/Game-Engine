@@ -8,19 +8,22 @@
 
 #include "Game-Engine/InputContext.hpp"
 
+#include <cassert>
 #include <optional>
+#include <utility>
 
 namespace GE
 {
 
-void InputContext::addInput(const VInput& input)
+void InputContext::addInput(const std::string& name, const VInput& input)
 {
-    m_inputs.push_back(input);
+    auto [_, insterted] = m_inputs.insert(std::make_pair(name, input));
+    assert(insterted);
 }
 
 void InputContext::onInputEvent(InputEvent& event)
 {
-    for (auto& vInput : m_inputs)
+    for (auto& [_, vInput] : m_inputs)
     {
         std::visit([&](auto& input)
         {
@@ -34,7 +37,7 @@ void InputContext::onInputEvent(InputEvent& event)
 
 void InputContext::dispatchInputs()
 {
-    for (auto& vInput : m_inputs)
+    for (auto& [_, vInput] : m_inputs)
         std::visit([](auto& input) { input.dispatch(); }, vInput);
 }
 
