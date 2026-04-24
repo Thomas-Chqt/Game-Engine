@@ -102,10 +102,12 @@ Project::Project()
 GE::Game::Descriptor Project::makeGameDescriptor() const
 {
     return {
-        .scenes =  std::map<std::string, GE::Scene::Descriptor>(
-            std::from_range,
-            m_scenes | std::views::transform([](const auto& pair){ return std::make_pair(pair.second.name, pair.second); })
-        ),
+        .scenes = m_scenes
+                  | std::views::values
+                  | std::views::transform([](const GE::Scene::Descriptor& sceneDescriptor) {
+                        return std::make_pair(sceneDescriptor.name, sceneDescriptor);
+                    })
+                  | std::ranges::to<std::map<std::string, GE::Scene::Descriptor>>(),
         .activeScene = startScene().second.name
     };
 }
