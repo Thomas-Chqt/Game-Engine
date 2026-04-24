@@ -7,12 +7,15 @@
  */
 
 #include "Game-Engine/Game.hpp"
+#include "Game-Engine/ScriptLibraryManager.hpp"
 #include "Game-Engine/ECSView.hpp"
 #include "Game-Engine/Scene.hpp"
 #include "Game-Engine/AssetManager.hpp"
 
+#include <format>
 #include <cassert>
 #include <ranges>
+#include <stdexcept>
 #include <utility>
 
 namespace GE
@@ -24,8 +27,7 @@ namespace
 void setupScene(
     Game& game,
     Scene& scene,
-    const std::function<std::shared_ptr<Script>(const std::string&)>& makeScriptInstance,
-    const std::function<std::vector<ScriptParameterDescriptor>(const std::string&)>& listScriptParameters
+    ScriptLibraryManager* scriptLibrary
 )
 {
     scene.load();
@@ -33,12 +35,12 @@ void setupScene(
                              | ECSView<ScriptComponent>()
                              | std::views::transform([&](auto id) { return Entity{ &scene.ecsWorld(), id }; }))
     {
-        assert(makeScriptInstance);
-        assert(listScriptParameters);
+        if (scriptLibrary == nullptr)
+            throw std::runtime_error(std::format("unable to create script '{}' without a loaded script library", entity.get<ScriptComponent>().name));
         ScriptComponent& scriptComponent = entity.get<ScriptComponent>();
-        scriptComponent.instance = makeScriptInstance(scriptComponent.name);
+        scriptComponent.instance = scriptLibrary->makeScriptInstance(scriptComponent.name);
         assert(scriptComponent.instance);
-        for (const ScriptParameterDescriptor& parameter : listScriptParameters(scriptComponent.name))
+        for (const ScriptParameterDescriptor& parameter : scriptLibrary->listScriptParameters(scriptComponent.name))
         {
             auto it = scriptComponent.parameters.find(parameter.name);
             parameter.set(*scriptComponent.instance, it == scriptComponent.parameters.end() ? parameter.defaultValue : it->second);
@@ -65,12 +67,10 @@ void tearDownScene(Game& game, Scene& scene)
 
 Game::Game(
     AssetManager* assetManager,
-    std::function<std::shared_ptr<Script>(const std::string&)> makeScriptInstance,
-    std::function<std::vector<ScriptParameterDescriptor>(const std::string&)> listScriptParameters,
+    ScriptLibraryManager* scriptLibrary,
     const Descriptor& descriptor
 )
-    : m_makeScriptInstance(std::move(makeScriptInstance))
-    , m_listScriptParameters(std::move(listScriptParameters))
+    : m_scriptLibrary(scriptLibrary)
     , m_scenes(std::from_range, descriptor.scenes | std::views::transform([&](const auto& sceneDesc){ return std::make_pair(sceneDesc.first, Scene(assetManager, sceneDesc.second)); }))
     , m_inputContext(descriptor.inputContext)
 {
@@ -82,7 +82,7 @@ void Game::setActiveScene(const std::string& name)
     if (m_activeScene)
         tearDownScene(*this, *m_activeScene);
     m_activeScene = &m_scenes.at(name);
-    setupScene(*this, *m_activeScene, m_makeScriptInstance, m_listScriptParameters);
+    setupScene(*this, *m_activeScene, m_scriptLibrary);
 }
 
 Game::~Game()

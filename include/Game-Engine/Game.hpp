@@ -13,13 +13,10 @@
 #include "Game-Engine/InputContext.hpp"
 #include "Game-Engine/Scene.hpp"
 #include "Game-Engine/AssetManager.hpp"
-#include "Game-Engine/Script.hpp"
+#include "Game-Engine/ScriptLibraryManager.hpp"
 
 #include <map>
-#include <memory>
 #include <string>
-#include <functional>
-#include <vector>
 
 namespace GE
 {
@@ -41,8 +38,7 @@ public:
 
     Game(
         AssetManager* assetManager,
-        std::function<std::shared_ptr<GE::Script>(const std::string&)> makeScriptInstance,
-        std::function<std::vector<GE::ScriptParameterDescriptor>(const std::string&)> listScriptParameters,
+        ScriptLibraryManager* scriptLibrary,
         const Descriptor& descriptor
     );
 
@@ -54,8 +50,7 @@ public:
     ~Game();
 
 private:
-    std::function<std::shared_ptr<GE::Script>(const std::string&)> m_makeScriptInstance;
-    std::function<std::vector<GE::ScriptParameterDescriptor>(const std::string&)> m_listScriptParameters;
+    ScriptLibraryManager* m_scriptLibrary = nullptr;
     std::map<std::string, Scene> m_scenes;
     Scene* m_activeScene = nullptr;
     InputContext m_inputContext;

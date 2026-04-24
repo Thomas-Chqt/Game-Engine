@@ -11,10 +11,9 @@
 #define ENTITYINSPECTORPANEL_HPP
 
 #include <Game-Engine/Entity.hpp>
-#include <Game-Engine/Script.hpp>
+#include <Game-Engine/ScriptLibraryManager.hpp>
+
 #include <functional>
-#include <string>
-#include <vector>
 
 namespace GE_Editor
 {
@@ -28,8 +27,7 @@ public:
 
     EntityInspectorPanel(
         const GE::Entity& entity,
-        std::function<std::vector<std::string>()> listScriptNames,
-        std::function<std::vector<GE::ScriptParameterDescriptor>(const std::string&)> listScriptParameters
+        const GE::ScriptLibraryManager* scriptLibrary
     );
 
     EntityInspectorPanel& onEntityDelete(std::function<void()>&& f) { return m_onEntityDelete = std::move(f), *this; }
@@ -44,8 +42,7 @@ private:
     void addComponentPopUp();
 
     GE::Entity m_entity;
-    std::function<std::vector<std::string>()> m_listScriptNames;
-    std::function<std::vector<GE::ScriptParameterDescriptor>(const std::string&)> m_listScriptParameters;
+    const GE::ScriptLibraryManager* m_scriptLibrary = nullptr;
 
     std::function<void()> m_onEntityDelete;
 

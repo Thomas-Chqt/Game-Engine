@@ -1,4 +1,5 @@
 #include <Game-Engine/Script.hpp>
+#include <Game-Engine/ScriptLibraryManager.hpp>
 
 #include <dlLoad/dlLoad.h>
 #include <gtest/gtest.h>
@@ -96,4 +97,26 @@ TEST(ScriptLibraryTest, loadsGeneratedScriptLibraryExports)
     EXPECT_EQ(std::get<float>(speed->get(*script)), 7.0f);
     EXPECT_EQ(std::get<bool>(enabled->get(*script)), false);
     EXPECT_EQ(std::get<std::string>(label->get(*script)), "changed");
+}
+
+TEST(ScriptLibraryManagerTest, keepsLibraryAliveForScriptInstanceLifetime)
+{
+    GE::ScriptLibraryManager manager;
+    manager.load(GE_TEST_SCRIPT_LIB);
+
+    std::vector<GE::ScriptParameterDescriptor> parameters = manager.listScriptParameters("TestScript");
+    ASSERT_EQ(parameters.size(), 3u);
+    const GE::ScriptParameterDescriptor* speed = findParameter(parameters.data(), parameters.size(), "speed");
+    ASSERT_NE(speed, nullptr);
+
+    std::shared_ptr<GE::Script> script = manager.makeScriptInstance("TestScript");
+    ASSERT_NE(script, nullptr);
+
+    manager.unload();
+    EXPECT_FALSE(manager.isLoaded());
+
+    speed->set(*script, 11.0f);
+    EXPECT_EQ(std::get<float>(speed->get(*script)), 11.0f);
+
+    script.reset();
 }
