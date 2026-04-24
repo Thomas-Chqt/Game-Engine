@@ -71,10 +71,11 @@ Game::Game(
 )
     : m_makeScriptInstance(std::move(makeScriptInstance))
     , m_listScriptParameters(std::move(listScriptParameters))
-    , m_scenes(std::ranges::to<std::map<std::string, Scene>>(
-          descriptor.scenes | std::views::transform([&](const auto& sceneDesc) {
-              return std::make_pair(sceneDesc.first, Scene(assetManager, sceneDesc.second));
-          })))
+    , m_scenes(descriptor.scenes
+               | std::views::transform([&](const auto& sceneDesc) {
+                     return std::make_pair(sceneDesc.first, Scene(assetManager, sceneDesc.second));
+                 })
+               | std::ranges::to<std::map<std::string, Scene>>())
     , m_inputContext(descriptor.inputContext)
 {
     setActiveScene(descriptor.activeScene);
