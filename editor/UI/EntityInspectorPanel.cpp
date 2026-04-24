@@ -92,7 +92,7 @@ template<>
 void EntityInspectorPanel::componentEditWidget<GE::ScriptComponent>()
 {
     GE::ScriptComponent& scriptComponent = m_entity.get<GE::ScriptComponent>();
-    if (m_scriptLibrary == nullptr)
+    if (m_scriptLibraryFunctions == nullptr || !*m_scriptLibraryFunctions)
     {
         ImGui::TextDisabled("No script library loaded");
         return;
@@ -101,14 +101,14 @@ void EntityInspectorPanel::componentEditWidget<GE::ScriptComponent>()
     const char* previewValue = scriptComponent.name.empty() ? "none" : scriptComponent.name.c_str();
     if (ImGui::BeginCombo("Script##ScriptComponent_name", previewValue))
     {
-        for (const std::string& scriptName : m_scriptLibrary->listScriptNames())
+        for (const std::string& scriptName : m_scriptLibraryFunctions->listScriptNames())
         {
             const bool isSelected = scriptComponent.name == scriptName;
             if (ImGui::Selectable(scriptName.c_str(), isSelected))
             {
                 scriptComponent.name = scriptName;
                 scriptComponent.parameters.clear();
-                for (const GE::ScriptParameterDescriptor& parameter : m_scriptLibrary->listScriptParameters(scriptName))
+                for (const GE::ScriptParameterDescriptor& parameter : m_scriptLibraryFunctions->listScriptParameters(scriptName))
                 {
                     auto [parameterIt, inserted] = scriptComponent.parameters.try_emplace(parameter.name, parameter.defaultValue);
                     assert(inserted);
@@ -153,10 +153,10 @@ void EntityInspectorPanel::componentEditWidget<GE::ScriptComponent>()
 
 EntityInspectorPanel::EntityInspectorPanel(
     const GE::Entity& entity,
-    const GE::ScriptLibraryManager* scriptLibrary
+    const GE::ScriptLibraryFunctions* scriptLibraryFunctions
 )
     : m_entity(entity)
-    , m_scriptLibrary(scriptLibrary)
+    , m_scriptLibraryFunctions(scriptLibraryFunctions)
 {
 }
 

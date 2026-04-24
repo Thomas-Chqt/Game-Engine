@@ -60,7 +60,7 @@ private:
     void rebuildFrameGraph();
     void renderImgui();
 
-    std::optional<GE::ScriptLibraryManager> m_scriptLibrary;
+    GE::ScriptLibraryFunctions m_scriptLibraryFunctions;
 
     std::filesystem::path m_projectFilePath;
     Project m_project;

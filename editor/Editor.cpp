@@ -162,19 +162,18 @@ void Editor::reloadScriptLib()
 
     if (m_project.scriptLib().empty())
     {
-        m_scriptLibrary.reset();
+        m_scriptLibraryFunctions = {};
         return;
     }
 
-    m_scriptLibrary.emplace();
-    m_scriptLibrary->load(m_project.scriptLib());
+    m_scriptLibraryFunctions = GE::ScriptLibraryManager::loadFunctions(m_project.scriptLib());
 }
 
 void Editor::startGame()
 {
     assert(m_game.has_value() == false);
     saveEditedScene();
-    m_game.emplace(&assetManager(), m_scriptLibrary.has_value() ? &*m_scriptLibrary : nullptr, m_project.makeGameDescriptor());
+    m_game.emplace(&assetManager(), m_scriptLibraryFunctions, m_project.makeGameDescriptor());
     setPrimaryInputContext(m_game->inputContext());
 }
 
@@ -261,7 +260,7 @@ void Editor::renderImgui()
     SceneGraphPanel(&m_editedScene.second, &m_selectedEntity)
         .render();
 
-    EntityInspectorPanel(m_selectedEntity, m_scriptLibrary.has_value() ? &*m_scriptLibrary : nullptr)
+    EntityInspectorPanel(m_selectedEntity, &m_scriptLibraryFunctions)
         .render();
 
     ContentBrowserPanel("Scenes", "scene_dnd", sizeof(GE::Scene::Descriptor))

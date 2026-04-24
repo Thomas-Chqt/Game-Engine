@@ -17,21 +17,59 @@
 namespace GE
 {
 
-struct ScriptLibraryManager::LibraryHandle
+namespace
 {
-    explicit LibraryHandle(DlHandle handle)
-        : value(handle)
-    {
-    }
 
-    ~LibraryHandle()
-    {
-        if (value != nullptr)
-            dlFree(value);
-    }
+std::vector<std::string> listScriptNames(std::shared_ptr<void> libraryHandle, ListScriptNamesFn fn)
+{
+    (void)libraryHandle;
+    if (fn == nullptr)
+        return {};
 
-    DlHandle value = nullptr;
-};
+    const char** names = nullptr;
+    unsigned long count = 0;
+    fn(&names, &count);
+
+    std::vector<std::string> output;
+    output.reserve(count);
+    for (unsigned long i = 0; i < count; i++)
+        if (names[i] != nullptr)
+            output.emplace_back(names[i]);
+    return output;
+}
+
+std::vector<ScriptParameterDescriptor> listScriptParameters(std::shared_ptr<void> libraryHandle, ListScriptParametersFn fn, const std::string& scriptName)
+{
+    (void)libraryHandle;
+    if (fn == nullptr)
+        return {};
+
+    const ScriptParameterDescriptor* parameters = nullptr;
+    unsigned long count = 0;
+    fn(scriptName.c_str(), &parameters, &count);
+
+    std::vector<ScriptParameterDescriptor> output;
+    output.reserve(count);
+    for (unsigned long i = 0; i < count; i++)
+        output.emplace_back(parameters[i]);
+    return output;
+}
+
+std::shared_ptr<Script> makeScriptInstance(std::shared_ptr<void> libraryHandle, MakeScriptInstanceFn fn, const std::string& scriptName)
+{
+    if (fn == nullptr)
+        return {};
+
+    Script* script = fn(scriptName.c_str());
+    if (script == nullptr)
+        return {};
+
+    return std::shared_ptr<Script>(script, [libraryHandle = std::move(libraryHandle)](Script* ptr) {
+        delete ptr;
+    });
+}
+
+} // namespace
 
 void ScriptLibraryManager::load(const std::filesystem::path& path)
 {
@@ -41,7 +79,10 @@ void ScriptLibraryManager::load(const std::filesystem::path& path)
     if (handle == nullptr)
         throw std::runtime_error(std::format("unable to load shared lib : {}", path.string()));
 
-    m_libraryHandle = std::make_shared<LibraryHandle>(handle);
+    m_libraryHandle = std::shared_ptr<void>(handle, [](void* ptr){
+        if (ptr != nullptr)
+            dlFree(ptr);
+    });
     m_listScriptNames = reinterpret_cast<ListScriptNamesFn>(getSym(handle, "listScriptNames"));
     m_listScriptParameters = reinterpret_cast<ListScriptParametersFn>(getSym(handle, "listScriptParameters"));
     m_makeScriptInstance = reinterpret_cast<MakeScriptInstanceFn>(getSym(handle, "makeScriptInstance"));
@@ -68,64 +109,62 @@ bool ScriptLibraryManager::isLoaded() const
 
 std::vector<std::string> ScriptLibraryManager::listScriptNames() const
 {
-    if (m_listScriptNames == nullptr)
-        return {};
-
-    const char** names = nullptr;
-    unsigned long count = 0;
-    m_listScriptNames(&names, &count);
-
-    std::vector<std::string> output;
-    output.reserve(count);
-    for (unsigned long i = 0; i < count; i++)
-        if (names[i] != nullptr)
-            output.emplace_back(names[i]);
-    return output;
+    return GE::listScriptNames(m_libraryHandle, m_listScriptNames);
 }
 
 std::vector<ScriptParameterDescriptor> ScriptLibraryManager::listScriptParameters(const std::string& scriptName) const
 {
-    if (m_listScriptParameters == nullptr)
-        return {};
-
-    const ScriptParameterDescriptor* parameters = nullptr;
-    unsigned long count = 0;
-    m_listScriptParameters(scriptName.c_str(), &parameters, &count);
-
-    std::vector<ScriptParameterDescriptor> output;
-    output.reserve(count);
-    for (unsigned long i = 0; i < count; i++)
-        output.emplace_back(parameters[i]);
-    return output;
+    return GE::listScriptParameters(m_libraryHandle, m_listScriptParameters, scriptName);
 }
 
 std::shared_ptr<Script> ScriptLibraryManager::makeScriptInstance(const std::string& scriptName) const
 {
-    struct ScriptInstanceDeleter
-    {
-        std::shared_ptr<LibraryHandle> libraryHandle;
+    return GE::makeScriptInstance(m_libraryHandle, m_makeScriptInstance, scriptName);
+}
 
-        void operator()(Script* ptr) const
-        {
-            delete ptr;
-        }
+ScriptLibraryFunctions ScriptLibraryManager::functions() const
+{
+    return ScriptLibraryFunctions{
+        .listScriptNames = ScriptLibraryListScriptNames{
+            .libraryHandle = m_libraryHandle,
+            .fn = m_listScriptNames
+        },
+        .listScriptParameters = ScriptLibraryListScriptParameters{
+            .libraryHandle = m_libraryHandle,
+            .fn = m_listScriptParameters
+        },
+        .makeScriptInstance = ScriptLibraryMakeScriptInstance{
+            .libraryHandle = m_libraryHandle,
+            .fn = m_makeScriptInstance
+        },
     };
+}
 
-    if (m_makeScriptInstance == nullptr)
-        return {};
-
-    Script* script = m_makeScriptInstance(scriptName.c_str());
-    if (script == nullptr)
-        return {};
-
-    return std::shared_ptr<Script>(script, ScriptInstanceDeleter{
-        .libraryHandle = m_libraryHandle
-    });
+ScriptLibraryFunctions ScriptLibraryManager::loadFunctions(const std::filesystem::path& path)
+{
+    ScriptLibraryManager manager;
+    manager.load(path);
+    return manager.functions();
 }
 
 ScriptLibraryManager::~ScriptLibraryManager()
 {
     unload();
+}
+
+std::vector<std::string> ScriptLibraryListScriptNames::operator()() const
+{
+    return GE::listScriptNames(libraryHandle, fn);
+}
+
+std::vector<ScriptParameterDescriptor> ScriptLibraryListScriptParameters::operator()(const std::string& scriptName) const
+{
+    return GE::listScriptParameters(libraryHandle, fn, scriptName);
+}
+
+std::shared_ptr<Script> ScriptLibraryMakeScriptInstance::operator()(const std::string& scriptName) const
+{
+    return GE::makeScriptInstance(libraryHandle, fn, scriptName);
 }
 
 } // namespace GE

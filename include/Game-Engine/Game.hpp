@@ -38,7 +38,7 @@ public:
 
     Game(
         AssetManager* assetManager,
-        ScriptLibraryManager* scriptLibrary,
+        ScriptLibraryFunctions scriptLibraryFunctions,
         const Descriptor& descriptor
     );
 
@@ -50,7 +50,7 @@ public:
     ~Game();
 
 private:
-    ScriptLibraryManager* m_scriptLibrary = nullptr;
+    ScriptLibraryFunctions m_scriptLibraryFunctions;
     std::map<std::string, Scene> m_scenes;
     Scene* m_activeScene = nullptr;
     InputContext m_inputContext;
