@@ -47,34 +47,16 @@ struct GE_API ScriptLibraryMakeScriptInstance
     [[nodiscard]] inline explicit operator bool() const { return fn != nullptr; }
 };
 
-struct GE_API ScriptLibraryFunctions
-{
-    ScriptLibraryListScriptNames listScriptNames;
-    ScriptLibraryListScriptParameters listScriptParameters;
-    ScriptLibraryMakeScriptInstance makeScriptInstance;
-
-    [[nodiscard]] inline explicit operator bool() const
-    {
-        return static_cast<bool>(listScriptNames) && static_cast<bool>(listScriptParameters) && static_cast<bool>(makeScriptInstance);
-    }
-};
-
 class GE_API ScriptLibraryManager
 {
 public:
-    ScriptLibraryManager() = default;
+    ScriptLibraryManager(const std::filesystem::path& path);
     ScriptLibraryManager(const ScriptLibraryManager&) = delete;
     ScriptLibraryManager(ScriptLibraryManager&&) = default;
 
-    void load(const std::filesystem::path& path);
-    void unload();
-    [[nodiscard]] bool isLoaded() const;
-
-    [[nodiscard]] std::vector<std::string> listScriptNames() const;
-    [[nodiscard]] std::vector<ScriptParameterDescriptor> listScriptParameters(const std::string& scriptName) const;
-    [[nodiscard]] std::shared_ptr<Script> makeScriptInstance(const std::string& scriptName) const;
-    [[nodiscard]] ScriptLibraryFunctions functions() const;
-    [[nodiscard]] static ScriptLibraryFunctions loadFunctions(const std::filesystem::path& path);
+    [[nodiscard]] ScriptLibraryListScriptNames listScriptNamesFunction() const;
+    [[nodiscard]] ScriptLibraryListScriptParameters listScriptParametersFunction() const;
+    [[nodiscard]] ScriptLibraryMakeScriptInstance makeScriptInstanceFunction() const;
 
     ~ScriptLibraryManager();
 

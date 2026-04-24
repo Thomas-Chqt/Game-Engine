@@ -101,19 +101,21 @@ TEST(ScriptLibraryTest, loadsGeneratedScriptLibraryExports)
 
 TEST(ScriptLibraryManagerTest, keepsLibraryAliveForScriptInstanceLifetime)
 {
-    GE::ScriptLibraryManager manager;
-    manager.load(GE_TEST_SCRIPT_LIB);
+    GE::ScriptLibraryListScriptParameters listScriptParameters;
+    GE::ScriptLibraryMakeScriptInstance makeScriptInstance;
+    {
+        GE::ScriptLibraryManager manager(GE_TEST_SCRIPT_LIB);
+        listScriptParameters = manager.listScriptParametersFunction();
+        makeScriptInstance = manager.makeScriptInstanceFunction();
+    }
 
-    std::vector<GE::ScriptParameterDescriptor> parameters = manager.listScriptParameters("TestScript");
+    std::vector<GE::ScriptParameterDescriptor> parameters = listScriptParameters("TestScript");
     ASSERT_EQ(parameters.size(), 3u);
     const GE::ScriptParameterDescriptor* speed = findParameter(parameters.data(), parameters.size(), "speed");
     ASSERT_NE(speed, nullptr);
 
-    std::shared_ptr<GE::Script> script = manager.makeScriptInstance("TestScript");
+    std::shared_ptr<GE::Script> script = makeScriptInstance("TestScript");
     ASSERT_NE(script, nullptr);
-
-    manager.unload();
-    EXPECT_FALSE(manager.isLoaded());
 
     speed->set(*script, 11.0f);
     EXPECT_EQ(std::get<float>(speed->get(*script)), 11.0f);

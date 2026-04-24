@@ -92,7 +92,7 @@ template<>
 void EntityInspectorPanel::componentEditWidget<GE::ScriptComponent>()
 {
     GE::ScriptComponent& scriptComponent = m_entity.get<GE::ScriptComponent>();
-    if (m_scriptLibraryFunctions == nullptr || !*m_scriptLibraryFunctions)
+    if (!m_listScriptNames || !m_listScriptParameters)
     {
         ImGui::TextDisabled("No script library loaded");
         return;
@@ -101,14 +101,14 @@ void EntityInspectorPanel::componentEditWidget<GE::ScriptComponent>()
     const char* previewValue = scriptComponent.name.empty() ? "none" : scriptComponent.name.c_str();
     if (ImGui::BeginCombo("Script##ScriptComponent_name", previewValue))
     {
-        for (const std::string& scriptName : m_scriptLibraryFunctions->listScriptNames())
+        for (const std::string& scriptName : m_listScriptNames())
         {
             const bool isSelected = scriptComponent.name == scriptName;
             if (ImGui::Selectable(scriptName.c_str(), isSelected))
             {
                 scriptComponent.name = scriptName;
                 scriptComponent.parameters.clear();
-                for (const GE::ScriptParameterDescriptor& parameter : m_scriptLibraryFunctions->listScriptParameters(scriptName))
+                for (const GE::ScriptParameterDescriptor& parameter : m_listScriptParameters(scriptName))
                 {
                     auto [parameterIt, inserted] = scriptComponent.parameters.try_emplace(parameter.name, parameter.defaultValue);
                     assert(inserted);
@@ -153,10 +153,12 @@ void EntityInspectorPanel::componentEditWidget<GE::ScriptComponent>()
 
 EntityInspectorPanel::EntityInspectorPanel(
     const GE::Entity& entity,
-    const GE::ScriptLibraryFunctions* scriptLibraryFunctions
+    GE::ScriptLibraryListScriptNames listScriptNames,
+    GE::ScriptLibraryListScriptParameters listScriptParameters
 )
     : m_entity(entity)
-    , m_scriptLibraryFunctions(scriptLibraryFunctions)
+    , m_listScriptNames(std::move(listScriptNames))
+    , m_listScriptParameters(std::move(listScriptParameters))
 {
 }
 
