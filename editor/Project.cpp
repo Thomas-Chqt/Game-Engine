@@ -101,12 +101,13 @@ Project::Project()
 
 GE::Game::Descriptor Project::makeGameDescriptor() const
 {
-    std::map<std::string, GE::Scene::Descriptor> scenes;
-    for (const auto& [_, sceneDescriptor] : m_scenes)
-        scenes.emplace(sceneDescriptor.name, sceneDescriptor);
-
     return {
-        .scenes = std::move(scenes),
+        .scenes = m_scenes
+                  | std::views::values
+                  | std::views::transform([](const GE::Scene::Descriptor& sceneDescriptor) {
+                        return std::make_pair(sceneDescriptor.name, sceneDescriptor);
+                    })
+                  | std::ranges::to<std::map<std::string, GE::Scene::Descriptor>>(),
         .activeScene = startScene().second.name
     };
 }
