@@ -60,9 +60,9 @@ private:
     void rebuildFrameGraph();
     void renderImgui();
 
-    GE::ScriptLibraryListScriptNames m_listScriptNames;
-    GE::ScriptLibraryListScriptParameters m_listScriptParameters;
-    GE::ScriptLibraryMakeScriptInstance m_makeScriptInstance;
+    GE::ScriptLibraryManager::ListScriptNames m_listScriptNames;
+    GE::ScriptLibraryManager::ListScriptParameters m_listScriptParameters;
+    GE::ScriptLibraryManager::MakeScriptInstance m_makeScriptInstance;
 
     std::filesystem::path m_projectFilePath;
     Project m_project;

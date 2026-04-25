@@ -101,8 +101,8 @@ TEST(ScriptLibraryTest, loadsGeneratedScriptLibraryExports)
 
 TEST(ScriptLibraryManagerTest, keepsLibraryAliveForScriptInstanceLifetime)
 {
-    GE::ScriptLibraryListScriptParameters listScriptParameters;
-    GE::ScriptLibraryMakeScriptInstance makeScriptInstance;
+    GE::ScriptLibraryManager::ListScriptParameters listScriptParameters;
+    GE::ScriptLibraryManager::MakeScriptInstance makeScriptInstance;
     {
         GE::ScriptLibraryManager manager(GE_TEST_SCRIPT_LIB);
         listScriptParameters = manager.listScriptParametersFunction();

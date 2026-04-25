@@ -87,7 +87,7 @@ ScriptLibraryManager::ScriptLibraryManager(const std::filesystem::path& path)
         throw std::runtime_error(std::format("unable to get symbols in lib : {}", path.string()));
 }
 
-ScriptLibraryListScriptNames ScriptLibraryManager::listScriptNamesFunction() const
+ScriptLibraryManager::ListScriptNames ScriptLibraryManager::listScriptNamesFunction() const
 {
     return [libraryHandle = m_libraryHandle, listScriptNamesFn = m_listScriptNames]() -> std::vector<std::string> {
         (void)libraryHandle;
@@ -95,7 +95,7 @@ ScriptLibraryListScriptNames ScriptLibraryManager::listScriptNamesFunction() con
     };
 }
 
-ScriptLibraryListScriptParameters ScriptLibraryManager::listScriptParametersFunction() const
+ScriptLibraryManager::ListScriptParameters ScriptLibraryManager::listScriptParametersFunction() const
 {
     return [libraryHandle = m_libraryHandle, listScriptParametersFn = m_listScriptParameters](const std::string& scriptName) -> std::vector<ScriptParameterDescriptor> {
         (void)libraryHandle;
@@ -103,7 +103,7 @@ ScriptLibraryListScriptParameters ScriptLibraryManager::listScriptParametersFunc
     };
 }
 
-ScriptLibraryMakeScriptInstance ScriptLibraryManager::makeScriptInstanceFunction() const
+ScriptLibraryManager::MakeScriptInstance ScriptLibraryManager::makeScriptInstanceFunction() const
 {
     return [libraryHandle = m_libraryHandle, makeScriptInstanceFn = m_makeScriptInstance](const std::string& scriptName) -> std::shared_ptr<Script> {
         return GE::makeScriptInstance(libraryHandle, makeScriptInstanceFn, scriptName);

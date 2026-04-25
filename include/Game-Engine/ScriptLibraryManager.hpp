@@ -21,20 +21,20 @@
 namespace GE
 {
 
-using ScriptLibraryListScriptNames = std::function<std::vector<std::string>()>;
-using ScriptLibraryListScriptParameters = std::function<std::vector<ScriptParameterDescriptor>(const std::string&)>;
-using ScriptLibraryMakeScriptInstance = std::function<std::shared_ptr<Script>(const std::string&)>;
-
 class GE_API ScriptLibraryManager
 {
 public:
+    using ListScriptNames = std::function<std::vector<std::string>()>;
+    using ListScriptParameters = std::function<std::vector<ScriptParameterDescriptor>(const std::string&)>;
+    using MakeScriptInstance = std::function<std::shared_ptr<Script>(const std::string&)>;
+
     ScriptLibraryManager(const std::filesystem::path& path);
     ScriptLibraryManager(const ScriptLibraryManager&) = delete;
     ScriptLibraryManager(ScriptLibraryManager&&) = default;
 
-    [[nodiscard]] ScriptLibraryListScriptNames listScriptNamesFunction() const;
-    [[nodiscard]] ScriptLibraryListScriptParameters listScriptParametersFunction() const;
-    [[nodiscard]] ScriptLibraryMakeScriptInstance makeScriptInstanceFunction() const;
+    [[nodiscard]] ListScriptNames listScriptNamesFunction() const;
+    [[nodiscard]] ListScriptParameters listScriptParametersFunction() const;
+    [[nodiscard]] MakeScriptInstance makeScriptInstanceFunction() const;
 
     ~ScriptLibraryManager();
 

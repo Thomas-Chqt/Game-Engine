@@ -27,8 +27,8 @@ public:
 
     EntityInspectorPanel(
         const GE::Entity& entity,
-        GE::ScriptLibraryListScriptNames listScriptNames,
-        GE::ScriptLibraryListScriptParameters listScriptParameters
+        GE::ScriptLibraryManager::ListScriptNames listScriptNames,
+        GE::ScriptLibraryManager::ListScriptParameters listScriptParameters
     );
 
     EntityInspectorPanel& onEntityDelete(std::function<void()>&& f) { return m_onEntityDelete = std::move(f), *this; }
@@ -43,8 +43,8 @@ private:
     void addComponentPopUp();
 
     GE::Entity m_entity;
-    GE::ScriptLibraryListScriptNames m_listScriptNames;
-    GE::ScriptLibraryListScriptParameters m_listScriptParameters;
+    GE::ScriptLibraryManager::ListScriptNames m_listScriptNames;
+    GE::ScriptLibraryManager::ListScriptParameters m_listScriptParameters;
 
     std::function<void()> m_onEntityDelete;
 

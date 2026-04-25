@@ -27,8 +27,8 @@ namespace
 void setupScene(
     Game& game,
     Scene& scene,
-    const ScriptLibraryMakeScriptInstance& makeScriptInstance,
-    const ScriptLibraryListScriptParameters& listScriptParameters
+    const ScriptLibraryManager::MakeScriptInstance& makeScriptInstance,
+    const ScriptLibraryManager::ListScriptParameters& listScriptParameters
 )
 {
     scene.load();
@@ -68,8 +68,8 @@ void tearDownScene(Game& game, Scene& scene)
 
 Game::Game(
     AssetManager* assetManager,
-    ScriptLibraryMakeScriptInstance makeScriptInstance,
-    ScriptLibraryListScriptParameters listScriptParameters,
+    ScriptLibraryManager::MakeScriptInstance makeScriptInstance,
+    ScriptLibraryManager::ListScriptParameters listScriptParameters,
     const Descriptor& descriptor
 )
     : m_makeScriptInstance(std::move(makeScriptInstance))
