@@ -13,6 +13,7 @@
 #include "Game-Engine/Script.hpp"
 
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -20,32 +21,9 @@
 namespace GE
 {
 
-struct GE_API ScriptLibraryListScriptNames
-{
-    std::shared_ptr<void> libraryHandle;
-    ListScriptNamesFn fn = nullptr;
-
-    [[nodiscard]] std::vector<std::string> operator()() const;
-    [[nodiscard]] inline explicit operator bool() const { return fn != nullptr; }
-};
-
-struct GE_API ScriptLibraryListScriptParameters
-{
-    std::shared_ptr<void> libraryHandle;
-    ListScriptParametersFn fn = nullptr;
-
-    [[nodiscard]] std::vector<ScriptParameterDescriptor> operator()(const std::string& scriptName) const;
-    [[nodiscard]] inline explicit operator bool() const { return fn != nullptr; }
-};
-
-struct GE_API ScriptLibraryMakeScriptInstance
-{
-    std::shared_ptr<void> libraryHandle;
-    MakeScriptInstanceFn fn = nullptr;
-
-    [[nodiscard]] std::shared_ptr<Script> operator()(const std::string& scriptName) const;
-    [[nodiscard]] inline explicit operator bool() const { return fn != nullptr; }
-};
+using ScriptLibraryListScriptNames = std::function<std::vector<std::string>()>;
+using ScriptLibraryListScriptParameters = std::function<std::vector<ScriptParameterDescriptor>(const std::string&)>;
+using ScriptLibraryMakeScriptInstance = std::function<std::shared_ptr<Script>(const std::string&)>;
 
 class GE_API ScriptLibraryManager
 {

@@ -89,25 +89,24 @@ ScriptLibraryManager::ScriptLibraryManager(const std::filesystem::path& path)
 
 ScriptLibraryListScriptNames ScriptLibraryManager::listScriptNamesFunction() const
 {
-    return ScriptLibraryListScriptNames{
-        .libraryHandle = m_libraryHandle,
-        .fn = m_listScriptNames
+    return [libraryHandle = m_libraryHandle, listScriptNamesFn = m_listScriptNames]() -> std::vector<std::string> {
+        (void)libraryHandle;
+        return GE::listScriptNames(listScriptNamesFn);
     };
 }
 
 ScriptLibraryListScriptParameters ScriptLibraryManager::listScriptParametersFunction() const
 {
-    return ScriptLibraryListScriptParameters{
-        .libraryHandle = m_libraryHandle,
-        .fn = m_listScriptParameters
+    return [libraryHandle = m_libraryHandle, listScriptParametersFn = m_listScriptParameters](const std::string& scriptName) -> std::vector<ScriptParameterDescriptor> {
+        (void)libraryHandle;
+        return GE::listScriptParameters(listScriptParametersFn, scriptName);
     };
 }
 
 ScriptLibraryMakeScriptInstance ScriptLibraryManager::makeScriptInstanceFunction() const
 {
-    return ScriptLibraryMakeScriptInstance{
-        .libraryHandle = m_libraryHandle,
-        .fn = m_makeScriptInstance
+    return [libraryHandle = m_libraryHandle, makeScriptInstanceFn = m_makeScriptInstance](const std::string& scriptName) -> std::shared_ptr<Script> {
+        return GE::makeScriptInstance(libraryHandle, makeScriptInstanceFn, scriptName);
     };
 }
 
@@ -117,21 +116,6 @@ ScriptLibraryManager::~ScriptLibraryManager()
     m_listScriptParameters = nullptr;
     m_makeScriptInstance = nullptr;
     m_libraryHandle.reset();
-}
-
-std::vector<std::string> ScriptLibraryListScriptNames::operator()() const
-{
-    return GE::listScriptNames(fn);
-}
-
-std::vector<ScriptParameterDescriptor> ScriptLibraryListScriptParameters::operator()(const std::string& scriptName) const
-{
-    return GE::listScriptParameters(fn, scriptName);
-}
-
-std::shared_ptr<Script> ScriptLibraryMakeScriptInstance::operator()(const std::string& scriptName) const
-{
-    return GE::makeScriptInstance(libraryHandle, fn, scriptName);
 }
 
 } // namespace GE
