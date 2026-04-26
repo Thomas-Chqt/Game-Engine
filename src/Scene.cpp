@@ -63,7 +63,7 @@ Scene::Descriptor Scene::makeDescriptor() const
         std::vector<ComponentVariant> components;
         const_Entity entity{&m_ecsWorld, entityId};
 
-        forEachECSComponentType([&]<typename ComponentT>() {
+        forEachType<ECSComponentTypes>([&]<typename ComponentT>() {
             if (!entity.has<ComponentT>())
                 return;
 

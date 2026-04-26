@@ -13,6 +13,7 @@
 #include "Game-Engine/AssetManagerView.hpp"
 #include "Game-Engine/ECSWorld.hpp"
 #include "Game-Engine/Script.hpp"
+#include "Game-Engine/TypeList.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -22,8 +23,6 @@
 #include <map>
 #include <memory>
 #include <type_traits>
-#include <tuple>
-#include <utility>
 #include <variant>
 
 #include <yaml-cpp/yaml.h>
@@ -107,47 +106,8 @@ struct ScriptComponent
     std::shared_ptr<Script> instance;
 };
 
-using ECSComponentTypes = std::tuple<NameComponent, HierarchyComponent, TransformComponent, CameraComponent, LightComponent, MeshComponent, ScriptComponent>;
-
-template<typename T>
-struct TupleToVariant;
-
-template<typename... Ts>
-struct TupleToVariant<std::tuple<Ts...>>
-{
-    using type = std::variant<Ts...>;
-};
-
-template<typename T>
-using TupleToVariant_t = typename TupleToVariant<T>::type;
-
-using ComponentVariant = TupleToVariant_t<ECSComponentTypes>;
-
-template<typename Fn, typename... Ts>
-inline constexpr void forEachECSComponentTypeImpl(Fn&& fn, std::tuple<Ts...>*)
-{
-    auto&& callback = fn;
-    (callback.template operator()<Ts>(), ...);
-}
-
-template<typename Fn>
-inline constexpr void forEachECSComponentType(Fn&& fn)
-{
-    forEachECSComponentTypeImpl(std::forward<Fn>(fn), static_cast<ECSComponentTypes*>(nullptr));
-}
-
-template<typename Fn, typename... Ts>
-inline constexpr bool anyECSComponentTypeImpl(Fn&& fn, std::tuple<Ts...>*)
-{
-    auto&& callback = fn;
-    return (callback.template operator()<Ts>() || ...);
-}
-
-template<typename Fn>
-inline constexpr bool anyECSComponentType(Fn&& fn)
-{
-    return anyECSComponentTypeImpl(std::forward<Fn>(fn), static_cast<ECSComponentTypes*>(nullptr));
-}
+using ECSComponentTypes = TypeList<NameComponent, HierarchyComponent, TransformComponent, CameraComponent, LightComponent, MeshComponent, ScriptComponent>;
+using ComponentVariant = ECSComponentTypes::into<std::variant>;
 
 template<> struct ECSComponentYamlTraits<NameComponent>      { static constexpr std::string_view name = "NameComponent";      };
 template<> struct ECSComponentYamlTraits<HierarchyComponent> { static constexpr std::string_view name = "HierarchyComponent"; };
@@ -473,7 +433,7 @@ struct convert<GE::ComponentVariant>
 
         const std::string type = node["type"].as<std::string>();
         const Node data = node["data"];
-        return GE::anyECSComponentType([&]<typename ComponentT>() {
+        return GE::anyType<GE::ECSComponentTypes>([&]<typename ComponentT>() {
             if (type != GE::ECSComponentYamlTraits<ComponentT>::name)
                 return false;
 
