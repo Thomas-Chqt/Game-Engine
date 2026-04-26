@@ -188,53 +188,18 @@ void Editor::reloadScriptLib()
     ));
     assert(std::filesystem::exists(m_project.scriptLib()));
 
-    m_listScriptNames = {};
-    m_listScriptParameters = {};
-    m_makeScriptInstance = {};
-
     if (m_project.scriptLib().empty())
-        m_scriptLibHandle.reset();
-    else
-        m_scriptLibHandle.reset(dlLoad(m_project.scriptLib().string().c_str()));
-
-    if (m_scriptLibHandle == nullptr)
-        throw std::runtime_error(std::format("unable to load shared lib : {}", m_project.scriptLib().string()));
-
-    void* listScriptNamesSym = getSym(m_scriptLibHandle.get(), "listScriptNames");
-    void* listScriptParametersSym = getSym(m_scriptLibHandle.get(), "listScriptParameters");
-    void* makeScriptInstanceSym = getSym(m_scriptLibHandle.get(), "makeScriptInstance");
-
-    if (listScriptNamesSym == nullptr || listScriptParametersSym == nullptr || makeScriptInstanceSym == nullptr)
     {
-        m_scriptLibHandle.reset();
-        throw std::runtime_error(std::format("unable to get symbols in lib : {}", m_project.scriptLib().string()));
+        m_listScriptNames = {};
+        m_listScriptParameters = {};
+        m_makeScriptInstance = {};
+        return;
     }
 
-    m_listScriptNames = [listScriptNamesSym]() -> std::vector<std::string> {
-        const char** names = nullptr;
-        unsigned long count = 0;
-        reinterpret_cast<GE::ListScriptNamesFn>(listScriptNamesSym)(&names, &count);
-        std::vector<std::string> output;
-        for (unsigned long i = 0; i < count; i++)
-            if (names[i] != nullptr)
-                output.emplace_back(names[i]);
-        return output;
-    };
-
-    m_listScriptParameters = [listScriptParametersSym](const std::string& name) -> std::vector<GE::ScriptParameterDescriptor> {
-        const GE::ScriptParameterDescriptor* parameters = nullptr;
-        unsigned long count = 0;
-        reinterpret_cast<GE::ListScriptParametersFn>(listScriptParametersSym)(name.c_str(), &parameters, &count);
-        std::vector<GE::ScriptParameterDescriptor> output;
-        output.reserve(count);
-        for (unsigned long i = 0; i < count; i++)
-            output.emplace_back(parameters[i]);
-        return output;
-    };
-
-    m_makeScriptInstance = [makeScriptInstanceSym](const std::string& name) -> std::shared_ptr<GE::Script> {
-        return std::shared_ptr<GE::Script>(reinterpret_cast<GE::MakeScriptInstanceFn>(makeScriptInstanceSym)(name.c_str()));
-    };
+    GE::ScriptLibraryManager manager(m_project.scriptLib());
+    m_listScriptNames = manager.listScriptNamesFunction();
+    m_listScriptParameters = manager.listScriptParametersFunction();
+    m_makeScriptInstance = manager.makeScriptInstanceFunction();
 }
 
 void Editor::startGame()

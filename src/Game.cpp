@@ -7,6 +7,7 @@
  */
 
 #include "Game-Engine/Game.hpp"
+#include "Game-Engine/ScriptLibraryManager.hpp"
 #include "Game-Engine/ECSView.hpp"
 #include "Game-Engine/Scene.hpp"
 #include "Game-Engine/AssetManager.hpp"
@@ -21,12 +22,7 @@ namespace GE
 namespace
 {
 
-void setupScene(
-    Game& game,
-    Scene& scene,
-    const std::function<std::shared_ptr<Script>(const std::string&)>& makeScriptInstance,
-    const std::function<std::vector<ScriptParameterDescriptor>(const std::string&)>& listScriptParameters
-)
+void setupScene(Game& game, Scene& scene, const MakeScriptInstanceFn& makeScriptInstance, const ListScriptParametersFn& listScriptParameters)
 {
     scene.load();
     for (Entity entity : scene.ecsWorld()
@@ -63,21 +59,18 @@ void tearDownScene(Game& game, Scene& scene)
 
 }
 
-Game::Game(
-    AssetManager* assetManager,
-    std::function<std::shared_ptr<Script>(const std::string&)> makeScriptInstance,
-    std::function<std::vector<ScriptParameterDescriptor>(const std::string&)> listScriptParameters,
-    const Descriptor& descriptor
-)
-    : m_makeScriptInstance(std::move(makeScriptInstance))
-    , m_listScriptParameters(std::move(listScriptParameters))
-    , m_scenes(descriptor.scenes
+Game::Game(AssetManager* assetManager, MakeScriptInstanceFn makeScriptInstance, ListScriptParametersFn listScriptParameters, const Descriptor& descriptor)
+    : m_scenes(descriptor.scenes
                | std::views::transform([&](const auto& sceneDesc) {
                      return std::make_pair(sceneDesc.first, Scene(assetManager, sceneDesc.second));
                  })
                | std::ranges::to<std::map<std::string, Scene>>())
     , m_inputContext(descriptor.inputContext)
+    , m_makeScriptInstance(std::move(makeScriptInstance))
+    , m_listScriptParameters(std::move(listScriptParameters))
 {
+    assert(m_makeScriptInstance);
+    assert(m_listScriptParameters);
     setActiveScene(descriptor.activeScene);
 }
 

@@ -13,13 +13,10 @@
 #include "Game-Engine/InputContext.hpp"
 #include "Game-Engine/Scene.hpp"
 #include "Game-Engine/AssetManager.hpp"
-#include "Game-Engine/Script.hpp"
+#include "Game-Engine/ScriptLibraryManager.hpp"
 
 #include <map>
-#include <memory>
 #include <string>
-#include <functional>
-#include <vector>
 
 namespace GE
 {
@@ -39,12 +36,7 @@ public:
     Game(const Game&) = delete;
     Game(Game&&) = delete;
 
-    Game(
-        AssetManager* assetManager,
-        std::function<std::shared_ptr<GE::Script>(const std::string&)> makeScriptInstance,
-        std::function<std::vector<GE::ScriptParameterDescriptor>(const std::string&)> listScriptParameters,
-        const Descriptor& descriptor
-    );
+    Game(AssetManager* assetManager, MakeScriptInstanceFn makeScriptInstance, ListScriptParametersFn listScriptParameters, const Descriptor& descriptor);
 
     auto& activeScene(this auto&& self) { return *self.m_activeScene; }
     void setActiveScene(const std::string& name);
@@ -54,11 +46,12 @@ public:
     ~Game();
 
 private:
-    std::function<std::shared_ptr<GE::Script>(const std::string&)> m_makeScriptInstance;
-    std::function<std::vector<GE::ScriptParameterDescriptor>(const std::string&)> m_listScriptParameters;
     std::map<std::string, Scene> m_scenes;
     Scene* m_activeScene = nullptr;
     InputContext m_inputContext;
+
+    MakeScriptInstanceFn m_makeScriptInstance;
+    ListScriptParametersFn m_listScriptParameters;
 
 public:
     Game& operator = (const Game&) = delete;

@@ -12,7 +12,7 @@
 #include <Game-Engine/Components.hpp>
 #include <Game-Engine/ECSWorld.hpp>
 #include <Game-Engine/Entity.hpp>
-#include <Game-Engine/Script.hpp>
+#include <Game-Engine/ScriptLibraryManager.hpp>
 
 #include <imgui.h>
 
@@ -92,11 +92,15 @@ template<>
 void EntityInspectorPanel::componentEditWidget<GE::ScriptComponent>()
 {
     GE::ScriptComponent& scriptComponent = m_entity.get<GE::ScriptComponent>();
+    if (!m_listScriptNames || !m_listScriptParameters)
+    {
+        ImGui::TextDisabled("No script library loaded");
+        return;
+    }
 
     const char* previewValue = scriptComponent.name.empty() ? "none" : scriptComponent.name.c_str();
     if (ImGui::BeginCombo("Script##ScriptComponent_name", previewValue))
     {
-        assert(m_listScriptNames);
         for (const std::string& scriptName : m_listScriptNames())
         {
             const bool isSelected = scriptComponent.name == scriptName;
@@ -104,7 +108,6 @@ void EntityInspectorPanel::componentEditWidget<GE::ScriptComponent>()
             {
                 scriptComponent.name = scriptName;
                 scriptComponent.parameters.clear();
-                assert(m_listScriptParameters);
                 for (const GE::ScriptParameterDescriptor& parameter : m_listScriptParameters(scriptName))
                 {
                     auto [parameterIt, inserted] = scriptComponent.parameters.try_emplace(parameter.name, parameter.defaultValue);
@@ -148,12 +151,8 @@ void EntityInspectorPanel::componentEditWidget<GE::ScriptComponent>()
     }
 }
 
-EntityInspectorPanel::EntityInspectorPanel(
-    const GE::Entity& entity,
-    std::function<std::vector<std::string>()> listScriptNames,
-    std::function<std::vector<GE::ScriptParameterDescriptor>(const std::string&)> listScriptParameters
-)
-    : m_entity(entity)
+EntityInspectorPanel::EntityInspectorPanel(GE::Entity entity, GE::ListScriptNamesFn listScriptNames, GE::ListScriptParametersFn listScriptParameters)
+    : m_entity(std::move(entity))
     , m_listScriptNames(std::move(listScriptNames))
     , m_listScriptParameters(std::move(listScriptParameters))
 {
