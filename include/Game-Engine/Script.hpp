@@ -24,6 +24,7 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include <string_view>
 
 namespace GE
 {
@@ -39,6 +40,16 @@ using ScriptValue = ScriptValueTypes::into<std::variant>;
 
 template<typename T>
 concept ScriptValueType = IsTypeInList<std::remove_cvref_t<T>, ScriptValueTypes>;
+
+template<typename T>
+struct ScriptValueTraits;
+
+template<> struct ScriptValueTraits<bool>        { static constexpr std::string_view typeName = "bool"; };
+template<> struct ScriptValueTraits<int64_t>     { static constexpr std::string_view typeName = "int"; };
+template<> struct ScriptValueTraits<float>       { static constexpr std::string_view typeName = "float"; };
+template<> struct ScriptValueTraits<glm::vec2>   { static constexpr std::string_view typeName = "vec2"; };
+template<> struct ScriptValueTraits<glm::vec3>   { static constexpr std::string_view typeName = "vec3"; };
+template<> struct ScriptValueTraits<std::string> { static constexpr std::string_view typeName = "string"; };
 
 struct ScriptParameterDescriptor
 {

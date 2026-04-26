@@ -104,7 +104,7 @@ struct GE_API InputMapper<KeyboardButton, Range2DInput>
 template<typename InputT>
 using KeyboardButtonInputMapper = InputMapper<KeyboardButton, InputT>;
 
-using InputMapperTypes = TypeListMap_t<InputTypes, KeyboardButtonInputMapper>;
+using InputMapperTypes = InputTypes::wrapped<KeyboardButtonInputMapper>;
 
 using VInputMapper = InputMapperTypes::into<std::variant>;
 

@@ -76,7 +76,7 @@ struct AssetPathYamlTraits<AssetPath<gfx::Texture>>
 template<typename AssetT>
 using AssetPathType = AssetPath<AssetT>;
 
-using AssetPathTypes = TypeListMap_t<ManagableAssetTypes, AssetPathType>;
+using AssetPathTypes = ManagableAssetTypes::wrapped<AssetPathType>;
 using VAssetPath = AssetPathTypes::into<std::variant>;
 
 template<typename T>
@@ -164,7 +164,7 @@ private:
     template<typename AssetT>
     using AssetHandleType = AssetHandle<AssetT>;
 
-    using AssetHandleTypes = TypeListMap_t<ManagableAssetTypes, AssetHandleType>;
+    using AssetHandleTypes = ManagableAssetTypes::wrapped<AssetHandleType>;
     using VAssetHandle = AssetHandleTypes::into<std::variant>;
 
     template<ManagableAsset T>

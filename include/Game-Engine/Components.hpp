@@ -344,18 +344,7 @@ struct convert<GE::ScriptValue>
         Node node;
         std::visit([&](const auto& value) {
             using T = std::remove_cvref_t<decltype(value)>;
-            if constexpr (std::is_same_v<T, bool>)
-                node["type"] = "bool";
-            else if constexpr (std::is_same_v<T, int64_t>)
-                node["type"] = "int";
-            else if constexpr (std::is_same_v<T, float>)
-                node["type"] = "float";
-            else if constexpr (std::is_same_v<T, glm::vec2>)
-                node["type"] = "vec2";
-            else if constexpr (std::is_same_v<T, glm::vec3>)
-                node["type"] = "vec3";
-            else if constexpr (std::is_same_v<T, std::string>)
-                node["type"] = "string";
+            node["type"] = std::string(GE::ScriptValueTraits<T>::typeName);
             node["data"] = value;
         }, rhs);
         return node;
@@ -368,22 +357,17 @@ struct convert<GE::ScriptValue>
 
         const std::string type = node["type"].as<std::string>();
         const Node data = node["data"];
-        if (type == "bool")
-            rhs = data.as<bool>();
-        else if (type == "int")
-            rhs = data.as<int64_t>();
-        else if (type == "float")
-            rhs = data.as<float>();
-        else if (type == "vec2")
-            rhs = data.as<glm::vec2>();
-        else if (type == "vec3")
-            rhs = data.as<glm::vec3>();
-        else if (type == "string")
-            rhs = data.as<std::string>();
-        else
-            return false;
+        bool isDecoded = false;
 
-        return true;
+        GE::forEachType<GE::ScriptValueTypes>([&]<typename ValueT>() {
+            if (isDecoded || type != GE::ScriptValueTraits<ValueT>::typeName)
+                return;
+
+            rhs = data.as<ValueT>();
+            isDecoded = true;
+        });
+
+        return isDecoded;
     }
 };
 
