@@ -23,6 +23,7 @@ namespace GE
 {
 
 template<RawInput RI, InputType I> struct InputMapper;
+template<RawInput RI, typename TList> struct InputMapperTypeList;
 
 template<>
 struct GE_API InputMapper<KeyboardButton, ActionInput>
@@ -101,12 +102,16 @@ struct GE_API InputMapper<KeyboardButton, Range2DInput>
     void onInputEvent(InputEvent& event);
 };
 
-using InputMapperTypes = TypeList<
-    InputMapper<KeyboardButton, ActionInput>,
-    InputMapper<KeyboardButton, StateInput>,
-    InputMapper<KeyboardButton, RangeInput>,
-    InputMapper<KeyboardButton, Range2DInput>
->;
+template<RawInput RI, typename... Ts>
+struct InputMapperTypeList<RI, TypeList<Ts...>>
+{
+    using type = TypeList<InputMapper<RI, Ts>...>;
+};
+
+template<RawInput RI, typename TList>
+using InputMapperTypeList_t = typename InputMapperTypeList<RI, TList>::type;
+
+using InputMapperTypes = InputMapperTypeList_t<KeyboardButton, InputTypes>;
 
 using VInputMapper = InputMapperTypes::into<std::variant>;
 
