@@ -11,6 +11,7 @@
 
 #include "Game-Engine/ECSWorld.hpp"
 #include "Game-Engine/Export.hpp"
+#include "Game-Engine/TypeList.hpp"
 
 #include <glm/glm.hpp>
 
@@ -33,15 +34,11 @@ template<ECSWorldLike ECSWorldT>
 struct basic_entity;
 using Entity = basic_entity<ECSWorld>;
 
-using ScriptValue = std::variant<bool, int64_t, float, glm::vec2, glm::vec3, std::string>;
+using ScriptValueTypes = TypeList<bool, int64_t, float, glm::vec2, glm::vec3, std::string>;
+using ScriptValue = ScriptValueTypes::into<std::variant>;
 
 template<typename T>
-concept ScriptValueType = std::same_as<std::remove_cvref_t<T>, bool>
-                          || std::same_as<std::remove_cvref_t<T>, int64_t>
-                          || std::same_as<std::remove_cvref_t<T>, float>
-                          || std::same_as<std::remove_cvref_t<T>, glm::vec2>
-                          || std::same_as<std::remove_cvref_t<T>, glm::vec3>
-                          || std::same_as<std::remove_cvref_t<T>, std::string>;
+concept ScriptValueType = IsTypeInList<std::remove_cvref_t<T>, ScriptValueTypes>;
 
 struct ScriptParameterDescriptor
 {

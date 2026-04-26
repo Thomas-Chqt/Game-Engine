@@ -12,6 +12,7 @@
 
 #include "Game-Engine/Export.hpp"
 #include "Game-Engine/Mesh.hpp"
+#include "Game-Engine/TypeList.hpp"
 
 #include <Graphics/Device.hpp>
 #include <Graphics/Texture.hpp>
@@ -39,8 +40,10 @@
 namespace GE
 {
 
+using ManagableAssetTypes = TypeList<Mesh, gfx::Texture>;
+
 template<typename T>
-concept ManagableAsset = std::is_same_v<std::remove_cvref_t<T>, Mesh> || std::is_same_v<std::remove_cvref_t<T>, gfx::Texture>;
+concept ManagableAsset = IsTypeInList<std::remove_cvref_t<T>, ManagableAssetTypes>;
 
 template<ManagableAsset T>
 struct AssetPath
@@ -70,7 +73,11 @@ struct AssetPathYamlTraits<AssetPath<gfx::Texture>>
     static constexpr std::string_view assetTypeStr = "Texture";
 };
 
-using VAssetPath = std::variant<AssetPath<Mesh>, AssetPath<gfx::Texture>>;
+template<typename AssetT>
+using AssetPathType = AssetPath<AssetT>;
+
+using AssetPathTypes = TypeListMap_t<ManagableAssetTypes, AssetPathType>;
+using VAssetPath = AssetPathTypes::into<std::variant>;
 
 template<typename T>
 concept VAssetPathRange = std::ranges::range<T> && std::is_same_v<std::ranges::range_value_t<T>, VAssetPath>;
@@ -154,7 +161,11 @@ private:
         std::shared_ptr<T> asset;
     };
 
-    using VAssetHandle = std::variant<AssetHandle<Mesh>, AssetHandle<gfx::Texture>>;
+    template<typename AssetT>
+    using AssetHandleType = AssetHandle<AssetT>;
+
+    using AssetHandleTypes = TypeListMap_t<ManagableAssetTypes, AssetHandleType>;
+    using VAssetHandle = AssetHandleTypes::into<std::variant>;
 
     template<ManagableAsset T>
     const std::shared_future<const std::shared_ptr<T>&>& loadAssetHandle(VAssetHandle& vHandle) {
@@ -244,14 +255,20 @@ struct convert<GE::VAssetPath>
     {
         if (!node.IsMap() || !node["type"] || !node["path"])
             return false;
+
         const std::string type = node["type"].as<std::string>();
-        if (type == "Mesh")
-            rhs = GE::AssetPath<GE::Mesh>(std::filesystem::path(node["path"].as<std::string>()));
-        else if (type == "Texture")
-            rhs = GE::AssetPath<gfx::Texture>(std::filesystem::path(node["path"].as<std::string>()));
-        else
-            return false;
-        return true;
+        const std::filesystem::path path = node["path"].as<std::string>();
+        bool isDecoded = false;
+
+        GE::forEachType<GE::AssetPathTypes>([&]<typename AssetPathT>() {
+            if (isDecoded || type != GE::AssetPathYamlTraits<AssetPathT>::assetTypeStr)
+                return;
+
+            rhs = AssetPathT(path);
+            isDecoded = true;
+        });
+
+        return isDecoded;
     }
 };
 

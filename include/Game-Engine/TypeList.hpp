@@ -34,6 +34,18 @@ struct TypeListContains<T, TypeList<Ts...>> : std::bool_constant<(std::is_same_v
 template<typename T, typename TList>
 concept IsTypeInList = TypeListContains<T, TList>::value;
 
+template<typename TList, template<typename> typename Mapper>
+struct TypeListMap;
+
+template<typename... Ts, template<typename> typename Mapper>
+struct TypeListMap<TypeList<Ts...>, Mapper>
+{
+    using type = TypeList<Mapper<Ts>...>;
+};
+
+template<typename TList, template<typename> typename Mapper>
+using TypeListMap_t = typename TypeListMap<TList, Mapper>::type;
+
 template<typename TList, typename Fn>
 inline constexpr void forEachType(Fn&& fn);
 
