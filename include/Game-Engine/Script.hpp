@@ -71,10 +71,6 @@ public:
 template<typename T>
 concept ScriptClass = std::derived_from<T, Script>;
 
-using MakeScriptInstanceFn = Script* (*)(const char*);
-using ListScriptNamesFn = void (*)(const char***, unsigned long*);
-using ListScriptParametersFn = void (*)(const char*, const ScriptParameterDescriptor**, unsigned long*);
-
 class GE_API ScriptRegistry
 {
 public:

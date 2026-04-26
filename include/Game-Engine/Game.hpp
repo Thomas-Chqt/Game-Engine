@@ -38,8 +38,8 @@ public:
 
     Game(
         AssetManager* assetManager,
-        ScriptLibraryManager::MakeScriptInstance makeScriptInstance,
-        ScriptLibraryManager::ListScriptParameters listScriptParameters,
+        MakeScriptInstanceFn makeScriptInstance,
+        ListScriptParametersFn listScriptParameters,
         const Descriptor& descriptor
     );
 
@@ -51,8 +51,8 @@ public:
     ~Game();
 
 private:
-    ScriptLibraryManager::MakeScriptInstance m_makeScriptInstance;
-    ScriptLibraryManager::ListScriptParameters m_listScriptParameters;
+    MakeScriptInstanceFn m_makeScriptInstance;
+    ListScriptParametersFn m_listScriptParameters;
     std::map<std::string, Scene> m_scenes;
     Scene* m_activeScene = nullptr;
     InputContext m_inputContext;

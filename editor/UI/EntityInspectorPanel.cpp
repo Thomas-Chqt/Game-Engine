@@ -153,8 +153,8 @@ void EntityInspectorPanel::componentEditWidget<GE::ScriptComponent>()
 
 EntityInspectorPanel::EntityInspectorPanel(
     const GE::Entity& entity,
-    GE::ScriptLibraryManager::ListScriptNames listScriptNames,
-    GE::ScriptLibraryManager::ListScriptParameters listScriptParameters
+    GE::ListScriptNamesFn listScriptNames,
+    GE::ListScriptParametersFn listScriptParameters
 )
     : m_entity(entity)
     , m_listScriptNames(std::move(listScriptNames))

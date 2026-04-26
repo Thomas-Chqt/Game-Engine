@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 static_assert(GE::ScriptValueType<bool>);
 static_assert(GE::ScriptValueType<int64_t>);
@@ -53,56 +54,50 @@ const GE::ScriptParameterDescriptor* findParameter(const GE::ScriptParameterDesc
 
 TEST(ScriptLibraryTest, loadsGeneratedScriptLibraryExports)
 {
-    UniqueDlHandle handle(dlLoad(GE_TEST_SCRIPT_LIB));
-    ASSERT_NE(handle, nullptr);
+    EXPECT_NO_THROW({
+        GE::ScriptLibraryManager manager(GE_TEST_SCRIPT_LIB);
+        GE::ListScriptNamesFn listScriptNames = manager.listScriptNamesFunction();
+        GE::ListScriptParametersFn listScriptParameters = manager.listScriptParametersFunction();
+        GE::MakeScriptInstanceFn makeScriptInstance = manager.makeScriptInstanceFunction();
 
-    auto listScriptNames = loadFunction<GE::ListScriptNamesFn>(handle.get(), "listScriptNames");
-    auto listScriptParameters = loadFunction<GE::ListScriptParametersFn>(handle.get(), "listScriptParameters");
-    auto makeScriptInstance = loadFunction<GE::MakeScriptInstanceFn>(handle.get(), "makeScriptInstance");
+        std::vector<std::string> names = listScriptNames();
 
-    const char** names = nullptr;
-    unsigned long nameCount = 0;
-    listScriptNames(&names, &nameCount);
+        ASSERT_EQ(names.size(), 1u);
+        EXPECT_EQ(names[0], std::string("TestScript"));
 
-    ASSERT_NE(names, nullptr);
-    ASSERT_EQ(nameCount, 1u);
-    EXPECT_STREQ(names[0], "TestScript");
+        std::vector<GE::ScriptParameterDescriptor> parameters = listScriptParameters("TestScript");
 
-    const GE::ScriptParameterDescriptor* parameters = nullptr;
-    unsigned long parameterCount = 0;
-    listScriptParameters("TestScript", &parameters, &parameterCount);
+        ASSERT_EQ(parameters.size(), 3u);
 
-    ASSERT_NE(parameters, nullptr);
-    ASSERT_EQ(parameterCount, 3u);
+        const GE::ScriptParameterDescriptor* speed = findParameter(parameters.data(), parameters.size(), "speed");
+        const GE::ScriptParameterDescriptor* enabled = findParameter(parameters.data(), parameters.size(), "enabled");
+        const GE::ScriptParameterDescriptor* label = findParameter(parameters.data(), parameters.size(), "label");
 
-    const GE::ScriptParameterDescriptor* speed = findParameter(parameters, parameterCount, "speed");
-    const GE::ScriptParameterDescriptor* enabled = findParameter(parameters, parameterCount, "enabled");
-    const GE::ScriptParameterDescriptor* label = findParameter(parameters, parameterCount, "label");
+        ASSERT_NE(speed, nullptr);
+        ASSERT_NE(enabled, nullptr);
+        ASSERT_NE(label, nullptr);
 
-    ASSERT_NE(speed, nullptr);
-    ASSERT_NE(enabled, nullptr);
-    ASSERT_NE(label, nullptr);
+        EXPECT_EQ(std::get<float>(speed->defaultValue), 2.5f);
+        EXPECT_EQ(std::get<bool>(enabled->defaultValue), true);
+        EXPECT_EQ(std::get<std::string>(label->defaultValue), "default");
 
-    EXPECT_EQ(std::get<float>(speed->defaultValue), 2.5f);
-    EXPECT_EQ(std::get<bool>(enabled->defaultValue), true);
-    EXPECT_EQ(std::get<std::string>(label->defaultValue), "default");
+        std::shared_ptr<GE::Script> script = makeScriptInstance("TestScript");
+        ASSERT_NE(script, nullptr);
 
-    std::unique_ptr<GE::Script> script(makeScriptInstance("TestScript"));
-    ASSERT_NE(script, nullptr);
+        speed->set(*script, 7.0f);
+        enabled->set(*script, false);
+        label->set(*script, std::string("changed"));
 
-    speed->set(*script, 7.0f);
-    enabled->set(*script, false);
-    label->set(*script, std::string("changed"));
-
-    EXPECT_EQ(std::get<float>(speed->get(*script)), 7.0f);
-    EXPECT_EQ(std::get<bool>(enabled->get(*script)), false);
-    EXPECT_EQ(std::get<std::string>(label->get(*script)), "changed");
+        EXPECT_EQ(std::get<float>(speed->get(*script)), 7.0f);
+        EXPECT_EQ(std::get<bool>(enabled->get(*script)), false);
+        EXPECT_EQ(std::get<std::string>(label->get(*script)), "changed");
+    });
 }
 
 TEST(ScriptLibraryManagerTest, keepsLibraryAliveForScriptInstanceLifetime)
 {
-    GE::ScriptLibraryManager::ListScriptParameters listScriptParameters;
-    GE::ScriptLibraryManager::MakeScriptInstance makeScriptInstance;
+    GE::ListScriptParametersFn listScriptParameters;
+    GE::MakeScriptInstanceFn makeScriptInstance;
     {
         GE::ScriptLibraryManager manager(GE_TEST_SCRIPT_LIB);
         listScriptParameters = manager.listScriptParametersFunction();

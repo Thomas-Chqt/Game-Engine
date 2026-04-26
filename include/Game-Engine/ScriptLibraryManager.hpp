@@ -21,20 +21,22 @@
 namespace GE
 {
 
+
+using ListScriptNamesFn = std::function<std::vector<std::string>()>;
+using ListScriptParametersFn = std::function<std::vector<ScriptParameterDescriptor>(const std::string&)>;
+using MakeScriptInstanceFn = std::function<std::shared_ptr<Script>(const std::string&)>;
+
 class GE_API ScriptLibraryManager
 {
 public:
-    using ListScriptNames = std::function<std::vector<std::string>()>;
-    using ListScriptParameters = std::function<std::vector<ScriptParameterDescriptor>(const std::string&)>;
-    using MakeScriptInstance = std::function<std::shared_ptr<Script>(const std::string&)>;
 
     ScriptLibraryManager(const std::filesystem::path& path);
     ScriptLibraryManager(const ScriptLibraryManager&) = delete;
     ScriptLibraryManager(ScriptLibraryManager&&) = default;
 
-    [[nodiscard]] ListScriptNames listScriptNamesFunction() const;
-    [[nodiscard]] ListScriptParameters listScriptParametersFunction() const;
-    [[nodiscard]] MakeScriptInstance makeScriptInstanceFunction() const;
+    ListScriptNamesFn listScriptNamesFunction() const;
+    ListScriptParametersFn listScriptParametersFunction() const;
+    MakeScriptInstanceFn makeScriptInstanceFunction() const;
 
     ~ScriptLibraryManager();
 
@@ -42,10 +44,15 @@ public:
     ScriptLibraryManager& operator=(ScriptLibraryManager&&) = default;
 
 private:
+    using MakeScriptInstanceSym = Script* (*)(const char*);
+    using ListScriptNamesSym = void (*)(const char***, unsigned long*);
+    using ListScriptParametersSym = void (*)(const char*, const ScriptParameterDescriptor**, unsigned long*);
+
     std::shared_ptr<void> m_libraryHandle;
-    ListScriptNamesFn m_listScriptNames = nullptr;
-    ListScriptParametersFn m_listScriptParameters = nullptr;
-    MakeScriptInstanceFn m_makeScriptInstance = nullptr;
+
+    ListScriptNamesSym m_listScriptNames = nullptr;
+    ListScriptParametersSym m_listScriptParameters = nullptr;
+    MakeScriptInstanceSym m_makeScriptInstance = nullptr;
 };
 
 } // namespace GE

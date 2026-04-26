@@ -26,7 +26,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
-#include <string>
 #include <utility>
 
 namespace GE_Editor
@@ -60,10 +59,6 @@ private:
     void rebuildFrameGraph();
     void renderImgui();
 
-    GE::ScriptLibraryManager::ListScriptNames m_listScriptNames;
-    GE::ScriptLibraryManager::ListScriptParameters m_listScriptParameters;
-    GE::ScriptLibraryManager::MakeScriptInstance m_makeScriptInstance;
-
     std::filesystem::path m_projectFilePath;
     Project m_project;
 
@@ -79,6 +74,10 @@ private:
 
     std::pair<uint32_t, uint32_t> m_viewportSize = {0, 0};
     GE::FrameGraph m_frameGraph; // TODO move into render (something like render->setGraph())
+
+    GE::ListScriptNamesFn m_listScriptNames;
+    GE::ListScriptParametersFn m_listScriptParameters;
+    GE::MakeScriptInstanceFn m_makeScriptInstance;
 
 public:
     Editor& operator=(const Editor&) = delete;

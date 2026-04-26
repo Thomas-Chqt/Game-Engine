@@ -25,15 +25,15 @@ ScriptLibraryManager::ScriptLibraryManager(const std::filesystem::path& path)
         if (ptr != nullptr)
             dlFree(ptr);
     });
-    m_listScriptNames = reinterpret_cast<ListScriptNamesFn>(getSym(handle, "listScriptNames"));
-    m_listScriptParameters = reinterpret_cast<ListScriptParametersFn>(getSym(handle, "listScriptParameters"));
-    m_makeScriptInstance = reinterpret_cast<MakeScriptInstanceFn>(getSym(handle, "makeScriptInstance"));
+    m_listScriptNames = reinterpret_cast<ListScriptNamesSym>(getSym(handle, "listScriptNames"));
+    m_listScriptParameters = reinterpret_cast<ListScriptParametersSym>(getSym(handle, "listScriptParameters"));
+    m_makeScriptInstance = reinterpret_cast<MakeScriptInstanceSym>(getSym(handle, "makeScriptInstance"));
 
     if (m_listScriptNames == nullptr || m_listScriptParameters == nullptr || m_makeScriptInstance == nullptr)
         throw std::runtime_error(std::format("unable to get symbols in lib : {}", path.string()));
 }
 
-ScriptLibraryManager::ListScriptNames ScriptLibraryManager::listScriptNamesFunction() const
+ListScriptNamesFn ScriptLibraryManager::listScriptNamesFunction() const
 {
     return [libraryHandle = m_libraryHandle, listScriptNamesFn = m_listScriptNames]() -> std::vector<std::string> {
         (void)libraryHandle;
@@ -53,7 +53,7 @@ ScriptLibraryManager::ListScriptNames ScriptLibraryManager::listScriptNamesFunct
     };
 }
 
-ScriptLibraryManager::ListScriptParameters ScriptLibraryManager::listScriptParametersFunction() const
+ListScriptParametersFn ScriptLibraryManager::listScriptParametersFunction() const
 {
     return [libraryHandle = m_libraryHandle, listScriptParametersFn = m_listScriptParameters](const std::string& scriptName) -> std::vector<ScriptParameterDescriptor> {
         (void)libraryHandle;
@@ -72,7 +72,7 @@ ScriptLibraryManager::ListScriptParameters ScriptLibraryManager::listScriptParam
     };
 }
 
-ScriptLibraryManager::MakeScriptInstance ScriptLibraryManager::makeScriptInstanceFunction() const
+MakeScriptInstanceFn ScriptLibraryManager::makeScriptInstanceFunction() const
 {
     return [libraryHandle = m_libraryHandle, makeScriptInstanceFn = m_makeScriptInstance](const std::string& scriptName) -> std::shared_ptr<Script> {
         if (makeScriptInstanceFn == nullptr)
