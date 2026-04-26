@@ -50,22 +50,6 @@ inline constexpr void forEachType(Fn&& fn)
     forEachType(TList{}, std::forward<Fn>(fn));
 }
 
-template<typename TList, typename Fn>
-inline constexpr bool anyType(Fn&& fn);
-
-template<typename... Ts, typename Fn>
-inline constexpr bool anyType(TypeList<Ts...>, Fn&& fn)
-{
-    auto&& callback = fn;
-    return (callback.template operator()<Ts>() || ...);
-}
-
-template<typename TList, typename Fn>
-inline constexpr bool anyType(Fn&& fn)
-{
-    return anyType(TList{}, std::forward<Fn>(fn));
-}
-
 } // namespace GE
 
 #endif // TYPELIST_HPP

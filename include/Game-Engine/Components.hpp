@@ -433,13 +433,17 @@ struct convert<GE::ComponentVariant>
 
         const std::string type = node["type"].as<std::string>();
         const Node data = node["data"];
-        return GE::anyType<GE::ECSComponentTypes>([&]<typename ComponentT>() {
-            if (type != GE::ECSComponentYamlTraits<ComponentT>::name)
-                return false;
+        bool isDecoded = false;
+
+        GE::forEachType<GE::ECSComponentTypes>([&]<typename ComponentT>() {
+            if (isDecoded || type != GE::ECSComponentYamlTraits<ComponentT>::name)
+                return;
 
             rhs = data.as<ComponentT>();
-            return true;
+            isDecoded = true;
         });
+
+        return isDecoded;
     }
 };
 
