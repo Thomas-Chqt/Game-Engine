@@ -36,7 +36,7 @@ struct basic_entity;
 using Entity = basic_entity<ECSWorld>;
 
 using ScriptValueTypes = TypeList<bool, int64_t, float, glm::vec2, glm::vec3, std::string>;
-using ScriptValue = ScriptValueTypes::into<std::variant>;
+using VScriptValue = ScriptValueTypes::into<std::variant>;
 
 template<typename T>
 concept ScriptValueType = IsTypeInList<std::remove_cvref_t<T>, ScriptValueTypes>;
@@ -44,19 +44,19 @@ concept ScriptValueType = IsTypeInList<std::remove_cvref_t<T>, ScriptValueTypes>
 template<typename T>
 struct ScriptValueTraits;
 
-template<> struct ScriptValueTraits<bool>        { static constexpr std::string_view typeName = "bool"; };
-template<> struct ScriptValueTraits<int64_t>     { static constexpr std::string_view typeName = "int"; };
-template<> struct ScriptValueTraits<float>       { static constexpr std::string_view typeName = "float"; };
-template<> struct ScriptValueTraits<glm::vec2>   { static constexpr std::string_view typeName = "vec2"; };
-template<> struct ScriptValueTraits<glm::vec3>   { static constexpr std::string_view typeName = "vec3"; };
-template<> struct ScriptValueTraits<std::string> { static constexpr std::string_view typeName = "string"; };
+template<> struct ScriptValueTraits<bool>        { static constexpr std::string_view name = "bool"; };
+template<> struct ScriptValueTraits<int64_t>     { static constexpr std::string_view name = "int"; };
+template<> struct ScriptValueTraits<float>       { static constexpr std::string_view name = "float"; };
+template<> struct ScriptValueTraits<glm::vec2>   { static constexpr std::string_view name = "vec2"; };
+template<> struct ScriptValueTraits<glm::vec3>   { static constexpr std::string_view name = "vec3"; };
+template<> struct ScriptValueTraits<std::string> { static constexpr std::string_view name = "string"; };
 
 struct ScriptParameterDescriptor
 {
     std::string name;
-    ScriptValue defaultValue;
-    std::function<ScriptValue(const Script&)> get;
-    std::function<void(Script&, const ScriptValue&)> set;
+    VScriptValue defaultValue;
+    std::function<VScriptValue(const Script&)> get;
+    std::function<void(Script&, const VScriptValue&)> set;
 };
 
 class GE_API Script
@@ -102,11 +102,11 @@ public:
     {
         m_parameters[scriptName].push_back(ScriptParameterDescriptor{
             .name = std::move(parameterName),
-            .defaultValue = ScriptValue(defaultValue),
-            .get = [member](const Script& script) -> ScriptValue {
+            .defaultValue = VScriptValue(defaultValue),
+            .get = [member](const Script& script) -> VScriptValue {
                 return static_cast<const ScriptT&>(script).*member;
             },
-            .set = [member](Script& script, const ScriptValue& value) {
+            .set = [member](Script& script, const VScriptValue& value) {
                 static_cast<ScriptT&>(script).*member = std::get<ValueT>(value);
             }
         });

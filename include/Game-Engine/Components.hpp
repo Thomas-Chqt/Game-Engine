@@ -102,7 +102,7 @@ struct MeshComponent
 struct ScriptComponent
 {
     std::string name;
-    std::map<std::string, ScriptValue> parameters;
+    std::map<std::string, VScriptValue> parameters;
     std::shared_ptr<Script> instance;
 };
 
@@ -337,20 +337,20 @@ struct convert<GE::MeshComponent>
 };
 
 template<>
-struct convert<GE::ScriptValue>
+struct convert<GE::VScriptValue>
 {
-    static Node encode(const GE::ScriptValue& rhs)
+    static Node encode(const GE::VScriptValue& rhs)
     {
         Node node;
         std::visit([&](const auto& value) {
             using T = std::remove_cvref_t<decltype(value)>;
-            node["type"] = std::string(GE::ScriptValueTraits<T>::typeName);
+            node["type"] = std::string(GE::ScriptValueTraits<T>::name);
             node["data"] = value;
         }, rhs);
         return node;
     }
 
-    static bool decode(const Node& node, GE::ScriptValue& rhs)
+    static bool decode(const Node& node, GE::VScriptValue& rhs)
     {
         if (!node.IsMap() || !node["type"] || !node["data"])
             return false;
@@ -360,7 +360,7 @@ struct convert<GE::ScriptValue>
         bool isDecoded = false;
 
         GE::forEachType<GE::ScriptValueTypes>([&]<typename ValueT>() {
-            if (isDecoded || type != GE::ScriptValueTraits<ValueT>::typeName)
+            if (isDecoded || type != GE::ScriptValueTraits<ValueT>::name)
                 return;
 
             rhs = data.as<ValueT>();
@@ -388,7 +388,7 @@ struct convert<GE::ScriptComponent>
             return false;
 
         rhs.name = node["name"].as<std::string>();
-        rhs.parameters = node["parameters"] ? node["parameters"].as<std::map<std::string, GE::ScriptValue>>() : std::map<std::string, GE::ScriptValue>();
+        rhs.parameters = node["parameters"] ? node["parameters"].as<std::map<std::string, GE::VScriptValue>>() : std::map<std::string, GE::VScriptValue>();
         return true;
     }
 };

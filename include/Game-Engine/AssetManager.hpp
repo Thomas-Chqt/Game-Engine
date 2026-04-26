@@ -64,13 +64,13 @@ struct AssetPathYamlTraits;
 template<>
 struct AssetPathYamlTraits<AssetPath<Mesh>>
 {
-    static constexpr std::string_view assetTypeStr = "Mesh";
+    static constexpr std::string_view name = "Mesh";
 };
 
 template<>
 struct AssetPathYamlTraits<AssetPath<gfx::Texture>>
 {
-    static constexpr std::string_view assetTypeStr = "Texture";
+    static constexpr std::string_view name = "Texture";
 };
 
 template<typename AssetT>
@@ -244,7 +244,7 @@ struct convert<GE::VAssetPath>
         std::visit([&](auto& assetPath)
         {
             using AssetPathT = std::remove_cvref_t<decltype(assetPath)>;
-            node["type"] = std::string(GE::AssetPathYamlTraits<AssetPathT>::assetTypeStr);
+            node["type"] = std::string(GE::AssetPathYamlTraits<AssetPathT>::name);
             node["path"] = std::string(assetPath.path);
         },
         rhs);
@@ -261,7 +261,7 @@ struct convert<GE::VAssetPath>
         bool isDecoded = false;
 
         GE::forEachType<GE::AssetPathTypes>([&]<typename AssetPathT>() {
-            if (isDecoded || type != GE::AssetPathYamlTraits<AssetPathT>::assetTypeStr)
+            if (isDecoded || type != GE::AssetPathYamlTraits<AssetPathT>::name)
                 return;
 
             rhs = AssetPathT(path);
