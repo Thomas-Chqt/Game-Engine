@@ -11,6 +11,7 @@ include(FetchContent)
 
 function(fetch_dependencies)
     set(FETCHCONTENT_QUIET OFF)
+    set(ENV{GIT_LFS_SKIP_SMUDGE} 1)
 
     # -----------------------------
     # Graphics
