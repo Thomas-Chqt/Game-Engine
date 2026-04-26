@@ -13,6 +13,8 @@
 #include <Game-Engine/ECSWorld.hpp>
 #include <Game-Engine/Entity.hpp>
 #include <Game-Engine/ScriptLibraryManager.hpp>
+#include <Game-Engine/Script.hpp>
+#include <Game-Engine/TypeList.hpp>
 
 #include <imgui.h>
 
@@ -26,6 +28,35 @@
 
 namespace GE_Editor
 {
+
+using EditableEntityComponents = GE::TypeList<GE::TransformComponent, GE::CameraComponent, GE::LightComponent, GE::ScriptComponent>;
+
+template<typename T>
+struct EditableEntityComponentTraits;
+
+template<>
+struct EditableEntityComponentTraits<GE::TransformComponent>
+{
+    static constexpr const char* label = "Transform component";
+};
+
+template<>
+struct EditableEntityComponentTraits<GE::CameraComponent>
+{
+    static constexpr const char* label = "Camera component";
+};
+
+template<>
+struct EditableEntityComponentTraits<GE::LightComponent>
+{
+    static constexpr const char* label = "Light component";
+};
+
+template<>
+struct EditableEntityComponentTraits<GE::ScriptComponent>
+{
+    static constexpr const char* label = "Script component";
+};
 
 template<>
 void EntityInspectorPanel::componentEditWidget<GE::NameComponent>()
@@ -168,14 +199,10 @@ void EntityInspectorPanel::render()
         else
         {
             componentEditWidget<GE::NameComponent>();
-            if (m_entity.has<GE::TransformComponent>() && componentEditHeader<GE::TransformComponent>("Transform component"))
-                componentEditWidget<GE::TransformComponent>();
-            if (m_entity.has<GE::CameraComponent>() && componentEditHeader<GE::CameraComponent>("Camera component"))
-                componentEditWidget<GE::CameraComponent>();
-            if (m_entity.has<GE::LightComponent>() && componentEditHeader<GE::LightComponent>("Light component"))
-                componentEditWidget<GE::LightComponent>();
-            if (m_entity.has<GE::ScriptComponent>() && componentEditHeader<GE::ScriptComponent>("Script component"))
-                componentEditWidget<GE::ScriptComponent>();
+            GE::forEachType<EditableEntityComponents>([&]<typename ComponentT>() {
+                if (m_entity.has<ComponentT>() && componentEditHeader<ComponentT>(EditableEntityComponentTraits<ComponentT>::label))
+                    componentEditWidget<ComponentT>();
+            });
 
             ImGui::Spacing();
             ImGui::Separator();
@@ -209,17 +236,10 @@ void EntityInspectorPanel::addComponentPopUp()
 {
     if (ImGui::BeginPopup("add_component_popup"))
     {
-        if (m_entity.has<GE::TransformComponent>() == false && ImGui::Selectable("Transform component"))
-            m_entity.emplace<GE::TransformComponent>();
-
-        if (m_entity.has<GE::CameraComponent>() == false && ImGui::Selectable("Camera component"))
-            m_entity.emplace<GE::CameraComponent>();
-
-        if (m_entity.has<GE::LightComponent>() == false && ImGui::Selectable("Light component"))
-            m_entity.emplace<GE::LightComponent>();
-
-        if (m_entity.has<GE::ScriptComponent>() == false && ImGui::Selectable("Script component"))
-            m_entity.emplace<GE::ScriptComponent>();
+        GE::forEachType<EditableEntityComponents>([&]<typename ComponentT>() {
+            if (m_entity.has<ComponentT>() == false && ImGui::Selectable(EditableEntityComponentTraits<ComponentT>::label))
+                m_entity.emplace<ComponentT>();
+        });
 
         ImGui::EndPopup();
     }

@@ -13,6 +13,8 @@
 #include "Game-Engine/Event.hpp"
 #include "Game-Engine/Input.hpp"
 
+#include <yaml-cpp/yaml.h>
+
 #include <map>
 #include <string>
 #include <type_traits>
@@ -29,6 +31,11 @@ public:
     InputContext(InputContext&&) = default;
 
     void addInput(const std::string& name, const VInput&);
+    void removeInput(const std::string& name);
+    bool renameInput(const std::string& oldName, const std::string& newName);
+
+    inline const std::map<std::string, VInput>& inputs() const { return m_inputs; }
+    inline std::map<std::string, VInput>& inputs() { return m_inputs; }
 
     template<InputType T>
     void setInputCallback(const std::string& name, const T::CallbackType&);
@@ -57,6 +64,31 @@ void InputContext::setInputCallback(const std::string& name, const T::CallbackTy
     m_inputs.at(name));
 }
 
-}
+} // namespace GE
+
+namespace YAML
+{
+
+template<>
+struct convert<GE::InputContext>
+{
+    static Node encode(const GE::InputContext& rhs)
+    {
+        Node node;
+        node["inputs"] = rhs.inputs();
+        return node;
+    }
+
+    static bool decode(const Node& node, GE::InputContext& rhs)
+    {
+        if (!node.IsMap() || !node["inputs"])
+            return false;
+
+        rhs.inputs() = node["inputs"].as<std::map<std::string, GE::VInput>>();
+        return true;
+    }
+};
+
+} // namespace YAML
 
 #endif
