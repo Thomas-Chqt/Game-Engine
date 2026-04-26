@@ -99,7 +99,7 @@ struct Input
     }
 };
 
-using VInput = std::variant<ActionInput, StateInput, RangeInput, Range2DInput>;
+using VInput = InputTypes::into<std::variant>;
 
 }
 

@@ -9,6 +9,8 @@
 #ifndef INPUTFWD_HPP
 #define INPUTFWD_HPP
 
+#include "Game-Engine/TypeList.hpp"
+
 #include <glm/glm.hpp>
 
 #include <type_traits>
@@ -38,6 +40,8 @@ using ActionInput  = Input<InputClass::action>;
 using StateInput   = Input<InputClass::state>;
 using RangeInput   = Input<InputClass::state, float>;
 using Range2DInput = Input<InputClass::state, glm::vec2>;
+
+using InputTypes = TypeList<ActionInput, StateInput, RangeInput, Range2DInput>;
 
 }
 

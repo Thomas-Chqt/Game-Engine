@@ -13,6 +13,7 @@
 #include "Game-Engine/Event.hpp"
 #include "Game-Engine/InputFwd.hpp"
 #include "Game-Engine/RawInput.hpp"
+#include "Game-Engine/TypeList.hpp"
 
 #include <glm/glm.hpp>
 
@@ -100,12 +101,14 @@ struct GE_API InputMapper<KeyboardButton, Range2DInput>
     void onInputEvent(InputEvent& event);
 };
 
-using VInputMapper = std::variant<
+using InputMapperTypes = TypeList<
     InputMapper<KeyboardButton, ActionInput>,
     InputMapper<KeyboardButton, StateInput>,
     InputMapper<KeyboardButton, RangeInput>,
     InputMapper<KeyboardButton, Range2DInput>
 >;
+
+using VInputMapper = InputMapperTypes::into<std::variant>;
 
 }
 
