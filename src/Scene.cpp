@@ -63,24 +63,18 @@ Scene::Descriptor Scene::makeDescriptor() const
         std::vector<ComponentVariant> components;
         const_Entity entity{&m_ecsWorld, entityId};
 
-        if (entity.has<NameComponent>())
-            components.emplace_back(entity.get<NameComponent>());
-        if (entity.has<HierarchyComponent>())
-            components.emplace_back(entity.get<HierarchyComponent>());
-        if (entity.has<TransformComponent>())
-            components.emplace_back(entity.get<TransformComponent>());
-        if (entity.has<CameraComponent>())
-            components.emplace_back(entity.get<CameraComponent>());
-        if (entity.has<LightComponent>())
-            components.emplace_back(entity.get<LightComponent>());
-        if (entity.has<MeshComponent>())
-            components.emplace_back(entity.get<MeshComponent>());
-        if (entity.has<ScriptComponent>()) {
-            ScriptComponent scriptComponent = entity.get<ScriptComponent>();
-            // TODO find a solution to not have to do that
-            scriptComponent.instance.reset();
-            components.emplace_back(std::move(scriptComponent));
-        }
+        forEachType<ECSComponentTypes>([&]<typename ComponentT>() {
+            if (!entity.has<ComponentT>())
+                return;
+
+            if constexpr (std::is_same_v<ComponentT, ScriptComponent>) {
+                ScriptComponent scriptComponent = entity.get<ScriptComponent>();
+                // TODO find a solution to not have to do that
+                scriptComponent.instance.reset();
+                components.emplace_back(std::move(scriptComponent));
+            } else
+                components.emplace_back(entity.get<ComponentT>());
+        });
 
         desc.entities.emplace(entityId, std::move(components));
     }

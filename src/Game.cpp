@@ -69,8 +69,6 @@ Game::Game(AssetManager* assetManager, MakeScriptInstanceFn makeScriptInstance, 
     , m_makeScriptInstance(std::move(makeScriptInstance))
     , m_listScriptParameters(std::move(listScriptParameters))
 {
-    assert(m_makeScriptInstance);
-    assert(m_listScriptParameters);
     setActiveScene(descriptor.activeScene);
 }
 

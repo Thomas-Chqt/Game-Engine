@@ -108,7 +108,8 @@ GE::Game::Descriptor Project::makeGameDescriptor() const
                         return std::make_pair(sceneDescriptor.name, sceneDescriptor);
                     })
                   | std::ranges::to<std::map<std::string, GE::Scene::Descriptor>>(),
-        .activeScene = startScene().second.name
+        .activeScene = startScene().second.name,
+        .inputContext = m_inputContext
     };
 }
 

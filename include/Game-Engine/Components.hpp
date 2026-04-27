@@ -13,6 +13,7 @@
 #include "Game-Engine/AssetManagerView.hpp"
 #include "Game-Engine/ECSWorld.hpp"
 #include "Game-Engine/Script.hpp"
+#include "Game-Engine/TypeList.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -101,11 +102,12 @@ struct MeshComponent
 struct ScriptComponent
 {
     std::string name;
-    std::map<std::string, ScriptValue> parameters;
+    std::map<std::string, VScriptValue> parameters;
     std::shared_ptr<Script> instance;
 };
 
-using ComponentVariant = std::variant<NameComponent, HierarchyComponent, TransformComponent, CameraComponent, LightComponent, MeshComponent, ScriptComponent>;
+using ECSComponentTypes = TypeList<NameComponent, HierarchyComponent, TransformComponent, CameraComponent, LightComponent, MeshComponent, ScriptComponent>;
+using ComponentVariant = ECSComponentTypes::into<std::variant>;
 
 template<> struct ECSComponentYamlTraits<NameComponent>      { static constexpr std::string_view name = "NameComponent";      };
 template<> struct ECSComponentYamlTraits<HierarchyComponent> { static constexpr std::string_view name = "HierarchyComponent"; };
@@ -335,53 +337,32 @@ struct convert<GE::MeshComponent>
 };
 
 template<>
-struct convert<GE::ScriptValue>
+struct convert<GE::VScriptValue>
 {
-    static Node encode(const GE::ScriptValue& rhs)
+    static Node encode(const GE::VScriptValue& rhs)
     {
         Node node;
         std::visit([&](const auto& value) {
             using T = std::remove_cvref_t<decltype(value)>;
-            if constexpr (std::is_same_v<T, bool>)
-                node["type"] = "bool";
-            else if constexpr (std::is_same_v<T, int64_t>)
-                node["type"] = "int";
-            else if constexpr (std::is_same_v<T, float>)
-                node["type"] = "float";
-            else if constexpr (std::is_same_v<T, glm::vec2>)
-                node["type"] = "vec2";
-            else if constexpr (std::is_same_v<T, glm::vec3>)
-                node["type"] = "vec3";
-            else if constexpr (std::is_same_v<T, std::string>)
-                node["type"] = "string";
+            node["type"] = std::string(GE::ScriptValueTraits<T>::name);
             node["data"] = value;
         }, rhs);
         return node;
     }
 
-    static bool decode(const Node& node, GE::ScriptValue& rhs)
+    static bool decode(const Node& node, GE::VScriptValue& rhs)
     {
         if (!node.IsMap() || !node["type"] || !node["data"])
             return false;
 
         const std::string type = node["type"].as<std::string>();
         const Node data = node["data"];
-        if (type == "bool")
-            rhs = data.as<bool>();
-        else if (type == "int")
-            rhs = data.as<int64_t>();
-        else if (type == "float")
-            rhs = data.as<float>();
-        else if (type == "vec2")
-            rhs = data.as<glm::vec2>();
-        else if (type == "vec3")
-            rhs = data.as<glm::vec3>();
-        else if (type == "string")
-            rhs = data.as<std::string>();
-        else
-            return false;
-
-        return true;
+        return GE::anyOfType<GE::ScriptValueTypes>([&]<typename ValueT>() {
+            if (type != GE::ScriptValueTraits<ValueT>::name)
+                return false;
+            rhs = data.as<ValueT>();
+            return true;
+        });
     }
 };
 
@@ -402,7 +383,7 @@ struct convert<GE::ScriptComponent>
             return false;
 
         rhs.name = node["name"].as<std::string>();
-        rhs.parameters = node["parameters"] ? node["parameters"].as<std::map<std::string, GE::ScriptValue>>() : std::map<std::string, GE::ScriptValue>();
+        rhs.parameters = node["parameters"] ? node["parameters"].as<std::map<std::string, GE::VScriptValue>>() : std::map<std::string, GE::VScriptValue>();
         return true;
     }
 };
@@ -431,25 +412,12 @@ struct convert<GE::ComponentVariant>
 
         const std::string type = node["type"].as<std::string>();
         const Node data = node["data"];
-
-        if (type == "NameComponent")
-            rhs = data.as<GE::NameComponent>();
-        else if (type == "HierarchyComponent")
-            rhs = data.as<GE::HierarchyComponent>();
-        else if (type == "TransformComponent")
-            rhs = data.as<GE::TransformComponent>();
-        else if (type == "CameraComponent")
-            rhs = data.as<GE::CameraComponent>();
-        else if (type == "LightComponent")
-            rhs = data.as<GE::LightComponent>();
-        else if (type == "MeshComponent")
-            rhs = data.as<GE::MeshComponent>();
-        else if (type == "ScriptComponent")
-            rhs = data.as<GE::ScriptComponent>();
-        else
-            return false;
-
-        return true;
+        return GE::anyOfType<GE::ECSComponentTypes>([&]<typename ComponentT>() {
+            if (type != GE::ECSComponentYamlTraits<ComponentT>::name)
+                return false;
+            rhs = data.as<ComponentT>();
+            return true;
+        });
     }
 };
 

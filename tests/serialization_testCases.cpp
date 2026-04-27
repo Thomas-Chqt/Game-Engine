@@ -10,6 +10,7 @@
 
 #include "Game-Engine/Components.hpp"
 #include "Game-Engine/AssetManager.hpp"
+#include "Game-Engine/InputContext.hpp"
 #include "Game-Engine/Scene.hpp"
 
 #include <Graphics/Texture.hpp>
@@ -284,6 +285,83 @@ TEST(SceneDescriptorYamlConversion, rejectsYamlWithoutRequiredKeys)
     EXPECT_FALSE(YAML::convert<GE::Scene::Descriptor>::decode(missingName, descriptor));
     EXPECT_FALSE(YAML::convert<GE::Scene::Descriptor>::decode(missingActiveCamera, descriptor));
     EXPECT_FALSE(YAML::convert<GE::Scene::Descriptor>::decode(missingRegistredAssets, descriptor));
+}
+
+TEST(InputContextYamlConversion, roundTripsConfiguredInputsThroughYamlNode)
+{
+    GE::InputContext inputContext;
+
+    GE::ActionInput jumpInput;
+    jumpInput.setMapper<GE::KeyboardButton>(GE::KeyboardButton::space);
+    inputContext.addInput("jump", jumpInput);
+
+    GE::StateInput brakeInput;
+    brakeInput.setMapper<GE::KeyboardButton>(GE::KeyboardButton::s);
+    inputContext.addInput("brake", brakeInput);
+
+    GE::RangeInput throttleInput;
+    throttleInput.setMapper<GE::KeyboardButton>(GE::KeyboardButton::w, 2.5f);
+    inputContext.addInput("throttle", throttleInput);
+
+    GE::Range2DInput moveInput;
+    moveInput.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
+        .xPos = GE::KeyboardButton::d,
+        .xNeg = GE::KeyboardButton::a,
+        .xScale = 2.0f,
+        .yPos = GE::KeyboardButton::w,
+        .yNeg = GE::KeyboardButton::s,
+        .yScale = 3.0f,
+        .triggerValue = 0.2f
+    });
+    inputContext.addInput("move", moveInput);
+
+    const YAML::Node encoded = YAML::convert<GE::InputContext>::encode(inputContext);
+    EXPECT_EQ(encoded["inputs"]["jump"]["type"].as<std::string>(), "Action");
+    EXPECT_EQ(encoded["inputs"]["jump"]["mapper"]["type"].as<std::string>(), "KeyboardButton");
+    EXPECT_EQ(encoded["inputs"]["brake"]["type"].as<std::string>(), "State");
+    const GE::InputContext decoded = encoded.as<GE::InputContext>();
+
+    ASSERT_EQ(decoded.inputs().size(), 4u);
+    ASSERT_TRUE(decoded.inputs().contains("jump"));
+    ASSERT_TRUE(decoded.inputs().contains("brake"));
+    ASSERT_TRUE(decoded.inputs().contains("throttle"));
+    ASSERT_TRUE(decoded.inputs().contains("move"));
+
+    const auto& jump = std::get<GE::ActionInput>(decoded.inputs().at("jump"));
+    ASSERT_TRUE(jump.mapper.has_value());
+    const auto& jumpMapper = std::get<GE::InputMapper<GE::KeyboardButton, GE::ActionInput>>(*jump.mapper);
+    EXPECT_EQ(jumpMapper.button, GE::KeyboardButton::space);
+
+    const auto& brake = std::get<GE::StateInput>(decoded.inputs().at("brake"));
+    ASSERT_TRUE(brake.mapper.has_value());
+    const auto& brakeMapper = std::get<GE::InputMapper<GE::KeyboardButton, GE::StateInput>>(*brake.mapper);
+    EXPECT_EQ(brakeMapper.button, GE::KeyboardButton::s);
+
+    const auto& throttle = std::get<GE::RangeInput>(decoded.inputs().at("throttle"));
+    ASSERT_TRUE(throttle.mapper.has_value());
+    const auto& throttleMapper = std::get<GE::InputMapper<GE::KeyboardButton, GE::RangeInput>>(*throttle.mapper);
+    EXPECT_EQ(throttleMapper.button, GE::KeyboardButton::w);
+    EXPECT_FLOAT_EQ(throttleMapper.scale, 2.5f);
+
+    const auto& move = std::get<GE::Range2DInput>(decoded.inputs().at("move"));
+    ASSERT_TRUE(move.mapper.has_value());
+    const auto& moveMapper = std::get<GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>>(*move.mapper);
+    EXPECT_EQ(moveMapper.xPos, GE::KeyboardButton::d);
+    EXPECT_EQ(moveMapper.xNeg, GE::KeyboardButton::a);
+    EXPECT_EQ(moveMapper.yPos, GE::KeyboardButton::w);
+    EXPECT_EQ(moveMapper.yNeg, GE::KeyboardButton::s);
+    EXPECT_FLOAT_EQ(moveMapper.xScale, 2.0f);
+    EXPECT_FLOAT_EQ(moveMapper.yScale, 3.0f);
+    EXPECT_FLOAT_EQ(moveMapper.triggerValue, 0.2f);
+}
+
+TEST(InputDispatch, emptyCallbackDoesNotThrowWhenInputIsTriggered)
+{
+    GE::ActionInput input;
+    input.triggered = true;
+
+    EXPECT_NO_THROW(input.dispatch());
+    EXPECT_FALSE(input.triggered);
 }
 
 } // namespace GE_tests

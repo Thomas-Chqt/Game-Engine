@@ -21,6 +21,24 @@ void InputContext::addInput(const std::string& name, const VInput& input)
     assert(insterted);
 }
 
+void InputContext::removeInput(const std::string& name)
+{
+    m_inputs.erase(name);
+}
+
+bool InputContext::renameInput(const std::string& oldName, const std::string& newName)
+{
+    if (oldName == newName)
+        return true;
+
+    assert(newName.empty() == false);
+    const VInput input = m_inputs.at(oldName);
+    m_inputs.erase(oldName);
+    auto [_, inserted] = m_inputs.emplace(newName, input);
+    assert(inserted);
+    return inserted;
+}
+
 void InputContext::onInputEvent(InputEvent& event)
 {
     for (auto& [_, vInput] : m_inputs)
