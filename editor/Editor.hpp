@@ -13,6 +13,7 @@
 #include "EditorCamera.hpp"
 #include "ImGuiInputContext.hpp"
 #include "Project.hpp"
+#include "UI/States.hpp"
 
 #include <Game-Engine/Application.hpp>
 #include <Game-Engine/FrameGraph.hpp>
@@ -79,6 +80,8 @@ private:
     GE::ListScriptNamesFn m_listScriptNames;
     GE::ListScriptParametersFn m_listScriptParameters;
     GE::MakeScriptInstanceFn m_makeScriptInstance;
+
+    UI::States m_uiStates;
 
 public:
     Editor& operator=(const Editor&) = delete;

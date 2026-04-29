@@ -10,11 +10,14 @@
 #include "Editor.hpp"
 
 #include "Project.hpp"
-#include "UI/ContentBrowserPanel.hpp"
 #include "UI/EntityInspectorPanel.hpp"
+#include "UI/Group.hpp"
 #include "UI/MainMenuBar.hpp"
+#include "UI/Pane.hpp"
 #include "UI/ProjectPropertiesPanel.hpp"
+#include "UI/RessourceBrowserPanel.hpp"
 #include "UI/SceneGraphPanel.hpp"
+#include "UI/TileGrid.hpp"
 #include "UI/ViewportPanel.hpp"
 
 #include <Game-Engine/Event.hpp>
@@ -296,11 +299,28 @@ void Editor::renderImgui()
     EntityInspectorPanel(m_selectedEntity, m_listScriptNames, m_listScriptParameters)
         .render();
 
-    ContentBrowserPanel("Scenes", "scene_dnd", sizeof(GE::Scene::Descriptor))
-        .render(m_project.scenes() | std::views::transform([](auto& e) { return std::make_pair(e.second.name, (const void*)&e.second); }));
+    constexpr float TILE_SIZE = 60.0f;
 
-    ProjectPropertiesPanel(&m_project, &m_projectFilePath, &projectPropertiesOpen)
-        .render();
+    UI::Pane("Scenes",
+        UI::TileGrid(m_project.scenes() | std::views::transform([](const auto& scene) {
+            return UI::Group(
+                UI::Button(scene.second.name)
+                    .size(TILE_SIZE, TILE_SIZE)
+                    .dragDropSource([name=scene.second.name](){
+                        ImGui::SetDragDropPayload("scene_dnd", name.c_str(), name.size());
+                        ImGui::Text("%s", name.c_str());
+                    }),
+                UI::Text(scene.second.name)
+                    .size(TILE_SIZE, ImGui::GetTextLineHeightWithSpacing())
+            );
+        }))
+    )
+    .render();
+
+    ProjectPropertiesPanel(&m_project, &m_projectFilePath, &projectPropertiesOpen).render();
+
+    if (std::filesystem::exists(m_project.resourceDir()))
+        UI::RessourceBrowserPanel(m_project.resourceDir()).render();
 
     ImGui::Render();
 

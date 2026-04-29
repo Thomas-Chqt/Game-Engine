@@ -45,8 +45,12 @@ public:
     inline const std::filesystem::path& scriptLib() const { return m_scriptLib; }
     inline void setScriptLib(std::filesystem::path scriptLib) { m_scriptLib = std::move(scriptLib); }
 
+    // TODO : use `Deducing this`
     inline const GE::InputContext& inputContext() const { return m_inputContext; }
     inline GE::InputContext& inputContext() { return m_inputContext; }
+
+    inline std::filesystem::path resourceDir() const { return m_resourceDir; }
+    inline void setResourceDir(std::filesystem::path p) { m_resourceDir = std::move(p); }
 
     GE::Game::Descriptor makeGameDescriptor() const;
 
@@ -57,6 +61,7 @@ private:
     std::string m_imguiSettings;
     std::filesystem::path m_scriptLib;
     GE::InputContext m_inputContext;
+    std::filesystem::path m_resourceDir;
 
 public:
     Project& operator = (const Project&) = delete;
@@ -80,6 +85,7 @@ struct convert<GE_Editor::Project>
         node["imguiSettings"] = rhs.m_imguiSettings;
         node["scriptsLib"] = rhs.m_scriptLib.string();
         node["inputContext"] = rhs.m_inputContext;
+        node["resourceDir"] = rhs.m_resourceDir.string();
         for (const auto& [_, scene] : rhs.m_scenes)
             node["scenes"].push_back(scene);
         node["startScene"] = rhs.startScene().second.name;
@@ -97,6 +103,7 @@ struct convert<GE_Editor::Project>
         rhs.m_imguiSettings = node["imguiSettings"] ? node["imguiSettings"].as<std::string>() : std::string();
         rhs.m_scriptLib = node["scriptsLib"] ? std::filesystem::path(node["scriptsLib"].as<std::string>()) : std::filesystem::path();
         rhs.m_inputContext = node["inputContext"] ? node["inputContext"].as<GE::InputContext>() : GE::InputContext();
+        rhs.m_resourceDir = node["resourceDir"] ? std::filesystem::path(node["resourceDir"].as<std::string>()) : std::filesystem::path();
 
         rhs.m_scenes.clear();
         uint32_t sceneId = 0;

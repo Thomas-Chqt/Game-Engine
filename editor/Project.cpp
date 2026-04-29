@@ -56,6 +56,7 @@ Project::Project()
     : m_name("Untitled Project")
     , m_startScene(0)
     , m_imguiSettings(DEFAULT_IMGUI_SETTINGS)
+    , m_resourceDir("resources")
 {
     auto [it, inserted] = m_scenes.emplace(0, GE::Scene::Descriptor());
     assert(inserted);
