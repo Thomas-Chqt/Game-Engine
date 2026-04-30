@@ -151,8 +151,8 @@ TEST(SceneDescriptorYamlConversion, encodesDescriptorFields)
         .name = "MainScene",
         .activeCamera = 42,
         .registredAssets = {
-            {3, GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/cube.obj"))},
-            {5, GE::AssetPath<gfx::Texture>(std::filesystem::path("textures/albedo.png"))}
+            {GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/cube.obj")), 3},
+            {GE::AssetPath<gfx::Texture>(std::filesystem::path("textures/albedo.png")), 5}
         },
         .entities = {
             {42, {
@@ -186,8 +186,10 @@ TEST(SceneDescriptorYamlConversion, encodesDescriptorFields)
     EXPECT_EQ(node["activeCamera"].as<GE::ECSWorld::EntityID>(), 42u);
     ASSERT_TRUE(node["registredAssets"].IsMap());
     ASSERT_TRUE(node["entities"].IsMap());
-    EXPECT_EQ(node["registredAssets"]["3"]["type"].as<std::string>(), "Mesh");
-    EXPECT_EQ(node["registredAssets"]["3"]["path"].as<std::string>(), "meshes/cube.obj");
+    const auto encodedAssets = node["registredAssets"].as<std::map<GE::VAssetPath, GE::AssetID>>();
+    const GE::VAssetPath cubePath = GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/cube.obj"));
+    ASSERT_TRUE(encodedAssets.contains(cubePath));
+    EXPECT_EQ(encodedAssets.at(cubePath), 3u);
     EXPECT_EQ(node["entities"]["42"][0]["type"].as<std::string>(), "NameComponent");
     EXPECT_EQ(node["entities"]["42"][0]["data"]["name"].as<std::string>(), "camera");
 }
@@ -197,8 +199,9 @@ TEST(SceneDescriptorYamlConversion, decodesDescriptorFromYaml)
     YAML::Node node;
     node["name"] = "LoadedScene";
     node["activeCamera"] = 7;
-    node["registredAssets"]["11"]["type"] = "Texture";
-    node["registredAssets"]["11"]["path"] = "textures/diffuse.png";
+    node["registredAssets"] = std::map<GE::VAssetPath, GE::AssetID>{
+        {GE::AssetPath<gfx::Texture>(std::filesystem::path("textures/diffuse.png")), 11}
+    };
     node["entities"]["7"].push_back(YAML::Load("{ type: NameComponent, data: { name: player } }"));
     node["entities"]["7"].push_back(YAML::Load(
         "{ type: TransformComponent, data: { position: [7.0, 8.0, 9.0], rotation: [0.0, 0.5, 1.0], scale: [1.0, 1.5, 2.0] } }"
@@ -213,12 +216,9 @@ TEST(SceneDescriptorYamlConversion, decodesDescriptorFromYaml)
     EXPECT_EQ(descriptor.name, "LoadedScene");
     EXPECT_EQ(descriptor.activeCamera, 7u);
     ASSERT_EQ(descriptor.registredAssets.size(), 1u);
-    ASSERT_TRUE(descriptor.registredAssets.contains(11));
-    ASSERT_TRUE(std::holds_alternative<GE::AssetPath<gfx::Texture>>(descriptor.registredAssets.at(11)));
-    EXPECT_EQ(
-        std::get<GE::AssetPath<gfx::Texture>>(descriptor.registredAssets.at(11)).path,
-        std::filesystem::path("textures/diffuse.png")
-    );
+    const GE::VAssetPath diffusePath = GE::AssetPath<gfx::Texture>(std::filesystem::path("textures/diffuse.png"));
+    ASSERT_TRUE(descriptor.registredAssets.contains(diffusePath));
+    EXPECT_EQ(descriptor.registredAssets.at(diffusePath), 11u);
 
     ASSERT_EQ(descriptor.entities.size(), 1u);
     ASSERT_TRUE(descriptor.entities.contains(7));
@@ -231,13 +231,33 @@ TEST(SceneDescriptorYamlConversion, decodesDescriptorFromYaml)
     EXPECT_FLOAT_EQ(std::get<GE::CameraComponent>(descriptor.entities.at(7)[2]).zNear, 0.3f);
 }
 
+TEST(SceneDescriptorYamlConversion, decodesLegacyIdToAssetPathYaml)
+{
+    YAML::Node node;
+    node["name"] = "LegacyScene";
+    node["activeCamera"] = 7;
+    node["registredAssets"]["11"]["type"] = "Texture";
+    node["registredAssets"]["11"]["path"] = "textures/diffuse.png";
+    node["entities"] = YAML::Node(YAML::NodeType::Map);
+
+    GE::Scene::Descriptor descriptor;
+    ASSERT_TRUE(YAML::convert<GE::Scene::Descriptor>::decode(node, descriptor));
+
+    EXPECT_EQ(descriptor.name, "LegacyScene");
+    EXPECT_EQ(descriptor.activeCamera, 7u);
+    ASSERT_EQ(descriptor.registredAssets.size(), 1u);
+    const GE::VAssetPath diffusePath = GE::AssetPath<gfx::Texture>(std::filesystem::path("textures/diffuse.png"));
+    ASSERT_TRUE(descriptor.registredAssets.contains(diffusePath));
+    EXPECT_EQ(descriptor.registredAssets.at(diffusePath), 11u);
+}
+
 TEST(SceneDescriptorYamlConversion, roundTripsDescriptorThroughYamlNode)
 {
     const GE::Scene::Descriptor descriptor{
         .name = "RoundTripScene",
         .activeCamera = 15,
         .registredAssets = {
-            {2, GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/player.obj"))}
+            {GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/player.obj")), 2}
         },
         .entities = {
             {15, {
@@ -253,11 +273,9 @@ TEST(SceneDescriptorYamlConversion, roundTripsDescriptorThroughYamlNode)
     EXPECT_EQ(decoded.name, descriptor.name);
     EXPECT_EQ(decoded.activeCamera, descriptor.activeCamera);
     ASSERT_EQ(decoded.registredAssets.size(), 1u);
-    ASSERT_TRUE(std::holds_alternative<GE::AssetPath<GE::Mesh>>(decoded.registredAssets.at(2)));
-    EXPECT_EQ(
-        std::get<GE::AssetPath<GE::Mesh>>(decoded.registredAssets.at(2)).path,
-        std::filesystem::path("meshes/player.obj")
-    );
+    const GE::VAssetPath playerPath = GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/player.obj"));
+    ASSERT_TRUE(decoded.registredAssets.contains(playerPath));
+    EXPECT_EQ(decoded.registredAssets.at(playerPath), 2u);
     ASSERT_EQ(decoded.entities.size(), 1u);
     ASSERT_EQ(decoded.entities.at(15).size(), 2u);
     EXPECT_EQ(std::get<GE::NameComponent>(decoded.entities.at(15)[0]).name, "player");

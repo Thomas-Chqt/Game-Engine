@@ -33,7 +33,7 @@ public:
     {
         std::string name;
         ECSWorld::EntityID activeCamera = INVALID_ENTITY_ID;
-        std::map<AssetID, VAssetPath> registredAssets;
+        std::map<VAssetPath, AssetID> registredAssets;
         std::map<ECSWorld::EntityID, std::vector<ComponentVariant>> entities;
     };
 
@@ -100,7 +100,28 @@ struct convert<GE::Scene::Descriptor>
             return false;
         rhs.name = node["name"].as<std::string>();
         rhs.activeCamera = node["activeCamera"].as<GE::ECSWorld::EntityID>();
-        rhs.registredAssets = node["registredAssets"].as<std::map<GE::AssetID, GE::VAssetPath>>();
+        const Node& registredAssets = node["registredAssets"];
+        if (!registredAssets.IsMap())
+            return false;
+
+        rhs.registredAssets.clear();
+        for (const auto& asset : registredAssets)
+        {
+            GE::VAssetPath vAssetPath;
+            GE::AssetID assetId;
+            if (asset.first.IsMap())
+            {
+                if (!YAML::convert<GE::VAssetPath>::decode(asset.first, vAssetPath) || !YAML::convert<GE::AssetID>::decode(asset.second, assetId))
+                    return false;
+            }
+            else if (!YAML::convert<GE::AssetID>::decode(asset.first, assetId) || !YAML::convert<GE::VAssetPath>::decode(asset.second, vAssetPath))
+            {
+                return false;
+            }
+
+            if (!rhs.registredAssets.emplace(vAssetPath, assetId).second)
+                return false;
+        }
         rhs.entities = node["entities"].as<std::map<GE::ECSWorld::EntityID, std::vector<GE::ComponentVariant>>>();
         return true;
     }

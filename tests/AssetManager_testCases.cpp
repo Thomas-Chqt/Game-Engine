@@ -197,7 +197,7 @@ TEST_F(AssetManagerMockDeviceTest, reportsBuiltInCubeLoadedState)
 {
     GE::AssetManager assetManager(&m_device);
     GE::AssetManagerView assetManagerView(&assetManager, {
-        { GE::BUILT_IN_CUBE_ASSET_ID, GE::AssetPath<GE::Mesh>() }
+        { GE::AssetPath<GE::Mesh>(), GE::BUILT_IN_CUBE_ASSET_ID }
     });
 
     EXPECT_FALSE(assetManagerView.isAssetLoaded(GE::BUILT_IN_CUBE_ASSET_ID));
@@ -223,8 +223,8 @@ TEST_F(AssetManagerMockDeviceTest, loadAndUnloadAffectsAllRegisteredAssets)
         .name = "test_scene",
         .activeCamera = INVALID_ENTITY_ID,
         .registredAssets = {
-            { GE::BUILT_IN_CUBE_ASSET_ID, GE::AssetPath<GE::Mesh>() },
-            { textureAssetId, textureAssetPath }
+            { GE::AssetPath<GE::Mesh>(), GE::BUILT_IN_CUBE_ASSET_ID },
+            { textureAssetPath, textureAssetId }
         },
         .entities = {}
     });

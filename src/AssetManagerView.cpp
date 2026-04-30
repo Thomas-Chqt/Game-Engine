@@ -9,6 +9,8 @@
 #include "Game-Engine/AssetManagerView.hpp"
 
 #include <algorithm>
+#include <cassert>
+#include <utility>
 
 namespace GE
 {
@@ -19,16 +21,17 @@ AssetManagerView::AssetManagerView(AssetManager* assetManager)
     assert(m_assetManager);
 }
 
-AssetManagerView::AssetManagerView(AssetManager* assetManager, const std::map<AssetID, VAssetPath>& registredAssets)
+AssetManagerView::AssetManagerView(AssetManager* assetManager, const std::map<VAssetPath, AssetID>& registredAssets)
     : m_assetManager(assetManager)
-    , m_assets(registredAssets)
+    , m_registredAssets(registredAssets)
 {
     assert(m_assetManager);
-    for (const auto& [assetID, vAssetPath] : m_assets)
+    for (const auto& [vAssetPath, assetID] : m_registredAssets)
     {
-        if (assetID == BUILT_IN_CUBE_ASSET_ID)
-            continue;
-        m_assetManager->registerAsset(vAssetPath); // TODO ? is it the right place to do that ??
+        if (assetID != BUILT_IN_CUBE_ASSET_ID)
+            m_assetManager->registerAsset(vAssetPath);
+        auto [it, inserted] = m_assets.insert(std::make_pair(assetID, vAssetPath));
+        assert(inserted);
         s_nextAssetId = std::max(s_nextAssetId, assetID + 1);
     }
 }

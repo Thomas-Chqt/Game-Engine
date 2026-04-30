@@ -38,16 +38,21 @@ public:
     AssetManagerView(AssetManagerView&&) = default;
 
     AssetManagerView(AssetManager*);
-    AssetManagerView(AssetManager*, const std::map<AssetID, VAssetPath>& registredAssets);
+    AssetManagerView(AssetManager*, const std::map<VAssetPath, AssetID>& registredAssets);
 
     template<ManagableAsset T>
     AssetID registerAsset(const std::filesystem::path& path)
     {
         assert(m_assetManager);
-        m_assetManager->registerAsset(AssetPath<T>(path));
-        auto [it, inserted] = m_assets.insert(std::make_pair(s_nextAssetId++, AssetPath<T>(path)));
-        assert(inserted);
-        return it->first;
+        const AssetID assetId = s_nextAssetId++;
+        auto [it, inserted] = m_registredAssets.insert(std::make_pair(AssetPath<T>(path), assetId));
+        if (inserted)
+        {
+            m_assetManager->registerAsset(AssetPath<T>(path));
+            auto [_, inserted] = m_assets.insert(std::make_pair(assetId, AssetPath<T>(path)));
+            assert(inserted);
+        }
+        return it->second;
     }
 
     template<ManagableAsset T>
@@ -98,7 +103,7 @@ public:
 
     inline bool areAllAssetsLoaded() const { return areAssetsLoaded(m_assets | std::views::transform([](const auto& asset) { return asset.first; })); }
 
-    inline const std::map<AssetID, VAssetPath>& registredAssets() const { return m_assets; }
+    inline const std::map<VAssetPath, AssetID>& registredAssets() const { return m_registredAssets; }
 
     void unloadAssets(AssetIdRange auto&& assetIds)
     {
@@ -124,6 +129,7 @@ private:
     AssetManager* m_assetManager = nullptr;
     inline static AssetID s_nextAssetId = 1; // 0 is builtin cube
 
+    std::map<VAssetPath, AssetID> m_registredAssets;
     std::map<AssetID, VAssetPath> m_assets;
 
 public:

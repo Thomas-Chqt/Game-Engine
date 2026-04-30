@@ -188,7 +188,12 @@ void EntityInspectorPanel::componentEditWidget<GE::MeshComponent>()
     if (meshComponent.id == GE::BUILT_IN_CUBE_ASSET_ID)
         currentMeshStem = "built_in_cube";
     else
-        currentMeshStem = std::visit([](auto& path){return path.path.stem().string();}, m_scene->assetManagerView().registredAssets().at(meshComponent.id));
+    {
+        const auto& registredAssets = m_scene->assetManagerView().registredAssets();
+        const auto assetIt = std::ranges::find_if(registredAssets, [&](const auto& asset) { return asset.second == meshComponent.id; });
+        if (assetIt != registredAssets.end())
+            currentMeshStem = std::visit([](auto& path){return path.path.stem().string();}, assetIt->first);
+    }
 
     if (ImGui::BeginCombo("Type##LightComponent_type", currentMeshStem.c_str()))
     {
@@ -197,7 +202,7 @@ void EntityInspectorPanel::componentEditWidget<GE::MeshComponent>()
         if (meshComponent.id == GE::BUILT_IN_CUBE_ASSET_ID)
             ImGui::SetItemDefaultFocus();
 
-        for (auto& [id, vAssetPath] : m_scene->assetManagerView().registredAssets())
+        for (auto& [vAssetPath, id] : m_scene->assetManagerView().registredAssets())
         {
             const bool is_selected = (id == meshComponent.id);
             std::string meshStem = std::visit([](auto& path){ return path.path.stem().string(); }, vAssetPath);

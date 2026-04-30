@@ -65,7 +65,7 @@ Project::Project()
     desc.name = "default_scene";
     desc.activeCamera = 1;
     desc.registredAssets = {
-        { GE::BUILT_IN_CUBE_ASSET_ID, GE::AssetPath<GE::Mesh>() }
+        { GE::AssetPath<GE::Mesh>(), GE::BUILT_IN_CUBE_ASSET_ID }
     };
     desc.entities = {
         {
