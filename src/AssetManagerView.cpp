@@ -24,9 +24,13 @@ AssetManagerView::AssetManagerView(AssetManager* assetManager, const std::map<As
     , m_assets(registredAssets)
 {
     assert(m_assetManager);
-    for (const auto& [assetID, _] : m_assets)
-        if (assetID != BUILT_IN_CUBE_ASSET_ID)
-            s_nextAssetId = std::max(s_nextAssetId, assetID + 1);
+    for (const auto& [assetID, vAssetPath] : m_assets)
+    {
+        if (assetID == BUILT_IN_CUBE_ASSET_ID)
+            continue;
+        m_assetManager->registerAsset(vAssetPath); // TODO ? is it the right place to do that ??
+        s_nextAssetId = std::max(s_nextAssetId, assetID + 1);
+    }
 }
 
 void AssetManagerView::unloadAsset(AssetID assetId)

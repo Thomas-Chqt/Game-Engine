@@ -296,7 +296,7 @@ void Editor::renderImgui()
     SceneGraphPanel(&m_editedScene.second, &m_selectedEntity)
         .render();
 
-    EntityInspectorPanel(m_selectedEntity, m_listScriptNames, m_listScriptParameters)
+    EntityInspectorPanel(m_selectedEntity, &m_editedScene.second, m_listScriptNames, m_listScriptParameters)
         .render();
 
     constexpr float TILE_SIZE = 60.0f;

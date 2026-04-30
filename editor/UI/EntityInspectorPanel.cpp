@@ -8,6 +8,9 @@
  */
 
 #include "UI/EntityInspectorPanel.hpp"
+#include "Game-Engine/AssetManagerView.hpp"
+#include "Game-Engine/Mesh.hpp"
+#include "Game-Engine/Scene.hpp"
 
 #include <Game-Engine/Components.hpp>
 #include <Game-Engine/ECSWorld.hpp>
@@ -16,6 +19,8 @@
 #include <Game-Engine/Script.hpp>
 #include <Game-Engine/TypeList.hpp>
 
+#include <cstddef>
+#include <filesystem>
 #include <imgui.h>
 
 #include <cstring>
@@ -23,40 +28,30 @@
 #include <cstdint>
 #include <numbers>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace GE_Editor
 {
 
-using EditableEntityComponents = GE::TypeList<GE::TransformComponent, GE::CameraComponent, GE::LightComponent, GE::ScriptComponent>;
+using EditableEntityComponents = GE::TypeList<
+    GE::TransformComponent,
+    GE::CameraComponent,
+    GE::LightComponent,
+    GE::ScriptComponent,
+    GE::MeshComponent
+>;
 
 template<typename T>
 struct EditableEntityComponentTraits;
 
-template<>
-struct EditableEntityComponentTraits<GE::TransformComponent>
-{
-    static constexpr const char* label = "Transform component";
-};
-
-template<>
-struct EditableEntityComponentTraits<GE::CameraComponent>
-{
-    static constexpr const char* label = "Camera component";
-};
-
-template<>
-struct EditableEntityComponentTraits<GE::LightComponent>
-{
-    static constexpr const char* label = "Light component";
-};
-
-template<>
-struct EditableEntityComponentTraits<GE::ScriptComponent>
-{
-    static constexpr const char* label = "Script component";
-};
+template<> struct EditableEntityComponentTraits<GE::TransformComponent> { static constexpr const char* label = "Transform component"; };
+template<> struct EditableEntityComponentTraits<GE::CameraComponent>    { static constexpr const char* label = "Camera component";    };
+template<> struct EditableEntityComponentTraits<GE::LightComponent>     { static constexpr const char* label = "Light component";     };
+template<> struct EditableEntityComponentTraits<GE::ScriptComponent>    { static constexpr const char* label = "Script component";    };
+template<> struct EditableEntityComponentTraits<GE::MeshComponent>      { static constexpr const char* label = "Mesh component";      };
 
 template<>
 void EntityInspectorPanel::componentEditWidget<GE::NameComponent>()
@@ -182,8 +177,53 @@ void EntityInspectorPanel::componentEditWidget<GE::ScriptComponent>()
     }
 }
 
-EntityInspectorPanel::EntityInspectorPanel(GE::Entity entity, GE::ListScriptNamesFn listScriptNames, GE::ListScriptParametersFn listScriptParameters)
+template<>
+void EntityInspectorPanel::componentEditWidget<GE::MeshComponent>()
+{
+    assert(m_scene);
+
+    GE::MeshComponent& meshComponent = m_entity.get<GE::MeshComponent>();
+
+    std::string currentMeshStem;
+    if (meshComponent.id == GE::BUILT_IN_CUBE_ASSET_ID)
+        currentMeshStem = "built_in_cube";
+    else
+        currentMeshStem = std::visit([](auto& path){return path.path.stem().string();}, m_scene->assetManagerView().registredAssets().at(meshComponent.id));
+
+    if (ImGui::BeginCombo("Type##LightComponent_type", currentMeshStem.c_str()))
+    {
+        if (ImGui::Selectable("built_in_cube", meshComponent.id == GE::BUILT_IN_CUBE_ASSET_ID))
+            meshComponent.id = GE::BUILT_IN_CUBE_ASSET_ID;
+        if (meshComponent.id == GE::BUILT_IN_CUBE_ASSET_ID)
+            ImGui::SetItemDefaultFocus();
+
+        for (auto& [id, vAssetPath] : m_scene->assetManagerView().registredAssets())
+        {
+            const bool is_selected = (id == meshComponent.id);
+            std::string meshStem = std::visit([](auto& path){ return path.path.stem().string(); }, vAssetPath);
+            if (ImGui::Selectable(meshStem.c_str(), is_selected))
+                meshComponent.id = id;
+            if (is_selected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("resource_dnd")) {
+            GE::Entity& droped = *(GE::Entity*)payload->Data;
+            std::string_view path = std::string_view((const char*)payload->Data, (size_t)payload->DataSize);
+            GE::AssetID id = m_scene->assetManagerView().registerAsset<GE::Mesh>(std::filesystem::path(path));
+            meshComponent.id = id;
+        }
+        ImGui::EndDragDropTarget();
+    }
+}
+
+EntityInspectorPanel::EntityInspectorPanel(GE::Entity entity, GE::Scene* scene, GE::ListScriptNamesFn listScriptNames, GE::ListScriptParametersFn listScriptParameters)
     : m_entity(std::move(entity))
+    , m_scene(scene)
     , m_listScriptNames(std::move(listScriptNames))
     , m_listScriptParameters(std::move(listScriptParameters))
 {

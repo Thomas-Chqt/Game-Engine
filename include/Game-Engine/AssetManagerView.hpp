@@ -19,12 +19,13 @@
 #include <future>
 #include <map>
 #include <ranges>
+#include <utility>
 
 namespace GE
 {
 
 using AssetID = uint64_t;
-constexpr AssetID BUILT_IN_CUBE_ASSET_ID = std::numeric_limits<uint64_t>::max();
+constexpr AssetID BUILT_IN_CUBE_ASSET_ID = 0;
 
 template<typename T>
 concept AssetIdRange = std::ranges::range<T> && std::convertible_to<std::ranges::range_value_t<T>, AssetID>;
@@ -44,7 +45,7 @@ public:
     {
         assert(m_assetManager);
         m_assetManager->registerAsset(AssetPath<T>(path));
-        auto [it, inserted] = m_assets.insert(s_nextAssetId++, AssetPath<T>(path));
+        auto [it, inserted] = m_assets.insert(std::make_pair(s_nextAssetId++, AssetPath<T>(path)));
         assert(inserted);
         return it->first;
     }
@@ -96,6 +97,7 @@ public:
     }
 
     inline bool areAllAssetsLoaded() const { return areAssetsLoaded(m_assets | std::views::transform([](const auto& asset) { return asset.first; })); }
+
     inline const std::map<AssetID, VAssetPath>& registredAssets() const { return m_assets; }
 
     void unloadAssets(AssetIdRange auto&& assetIds)
@@ -120,7 +122,7 @@ public:
 
 private:
     AssetManager* m_assetManager = nullptr;
-    inline static AssetID s_nextAssetId = 0;
+    inline static AssetID s_nextAssetId = 1; // 0 is builtin cube
 
     std::map<AssetID, VAssetPath> m_assets;
 

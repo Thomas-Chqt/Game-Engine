@@ -93,7 +93,7 @@ struct LightComponent
 
 struct MeshComponent
 {
-    AssetID id;
+    AssetID id = 0;
 
     inline operator AssetID& () { return id; }
     inline operator const AssetID& () const { return id; }

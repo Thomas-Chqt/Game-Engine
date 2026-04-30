@@ -10,6 +10,7 @@
 #ifndef ENTITYINSPECTORPANEL_HPP
 #define ENTITYINSPECTORPANEL_HPP
 
+#include <Game-Engine/Scene.hpp>
 #include <Game-Engine/Entity.hpp>
 #include <Game-Engine/ScriptLibraryManager.hpp>
 
@@ -25,7 +26,7 @@ public:
     EntityInspectorPanel(const EntityInspectorPanel&) = delete;
     EntityInspectorPanel(EntityInspectorPanel&&) = delete;
 
-    EntityInspectorPanel(GE::Entity entity, GE::ListScriptNamesFn listScriptNames, GE::ListScriptParametersFn listScriptParameters);
+    EntityInspectorPanel(GE::Entity, GE::Scene*, GE::ListScriptNamesFn, GE::ListScriptParametersFn);
 
     EntityInspectorPanel& onEntityDelete(std::function<void()>&& f) { return m_onEntityDelete = std::move(f), *this; }
 
@@ -39,6 +40,7 @@ private:
     void addComponentPopUp();
 
     GE::Entity m_entity;
+    GE::Scene* m_scene;
     GE::ListScriptNamesFn m_listScriptNames;
     GE::ListScriptParametersFn m_listScriptParameters;
 
