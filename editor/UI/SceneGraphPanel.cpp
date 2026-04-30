@@ -14,6 +14,7 @@
 #include <Game-Engine/ECSView.hpp>
 
 #include <imgui.h>
+#include <vector>
 
 namespace GE_Editor
 {
@@ -33,7 +34,8 @@ void SceneGraphPanel::render()
             {
                 for (GE::Entity entity : m_scene->ecsWorld()
                                          | GE::ECSView<GE::NameComponent>()
-                                         | std::views::transform([&](auto id){ return GE::Entity{&m_scene->ecsWorld(), id}; }))
+                                         | std::views::transform([&](auto id){ return GE::Entity{&m_scene->ecsWorld(), id}; })
+                                         | std::ranges::to<std::vector>())
                 {
                     if (entity.parent().has_value() == false)
                         renderEntityRow(entity);

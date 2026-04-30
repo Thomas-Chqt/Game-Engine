@@ -281,7 +281,7 @@ void Editor::renderImgui()
     MainMenuBar()
         .on_File_Save(!m_projectFilePath.empty() ? [this]() { saveProject(); } : std::function<void()>())
         .on_Project_Properties([]() { projectPropertiesOpen = true; })
-        .on_Project_ReloadScriptLib(!m_game.has_value() ? [this]() { reloadScriptLib(); } : std::function<void()>())
+        .on_Project_ReloadScriptLib(std::filesystem::exists(m_project.scriptLib()) && !m_game.has_value() ? [this]() { reloadScriptLib(); } : std::function<void()>())
         .on_Project_Stop(m_game.has_value() ? [this]() { stopGame(); } : std::function<void()>())
         .on_Project_Run(!m_game.has_value() ? [this]() { startGame(); } : std::function<void()>())
         .render();
