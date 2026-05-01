@@ -8,17 +8,7 @@
  */
 
 #include "Editor.hpp"
-
 #include "Project.hpp"
-#include "UI/EntityInspectorPanel.hpp"
-#include "UI/Group.hpp"
-#include "UI/MainMenuBar.hpp"
-#include "UI/Pane.hpp"
-#include "UI/ProjectPropertiesPanel.hpp"
-#include "UI/RessourceBrowserPanel.hpp"
-#include "UI/SceneGraphPanel.hpp"
-#include "UI/TileGrid.hpp"
-#include "UI/ViewportPanel.hpp"
 
 #include <Game-Engine/Event.hpp>
 #include <Game-Engine/RawInput.hpp>
@@ -42,7 +32,6 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
-#include <ranges>
 #include <functional>
 #include <stdexcept>
 #include <utility>
@@ -129,6 +118,12 @@ void Editor::onUpdate()
     }
 
     renderImgui();
+
+    if (ImGui::GetIO().WantSaveIniSettings)
+    {
+        m_project.setImguiSettings(ImGui::SaveIniSettingsToMemory());
+        ImGui::GetIO().WantSaveIniSettings = false;
+    }
 }
 
 void Editor::onEvent(GE::Event& event)
@@ -268,67 +263,6 @@ void Editor::rebuildFrameGraph()
                 .addSampledTexture("viewportBackBuffer")
         }
     });
-}
-
-void Editor::renderImgui()
-{
-    static bool projectPropertiesOpen = false;
-
-    ImGui::NewFrame();
-
-    ImGui::DockSpaceOverViewport();
-
-    MainMenuBar()
-        .on_File_Save(!m_projectFilePath.empty() ? [this]() { saveProject(); } : std::function<void()>())
-        .on_Project_Properties([]() { projectPropertiesOpen = true; })
-        .on_Project_ReloadScriptLib(std::filesystem::exists(m_project.scriptLib()) && !m_game.has_value() ? [this]() { reloadScriptLib(); } : std::function<void()>())
-        .on_Project_Stop(m_game.has_value() ? [this]() { stopGame(); } : std::function<void()>())
-        .on_Project_Run(!m_game.has_value() ? [this]() { startGame(); } : std::function<void()>())
-        .render();
-
-    ViewportPanel(m_viewportSize)
-        .onResize([this](const std::pair<uint32_t, uint32_t> & size){
-            m_viewportSize = size;
-            rebuildFrameGraph();
-        })
-        .render();
-
-    SceneGraphPanel(&m_editedScene.second, &m_selectedEntity)
-        .render();
-
-    EntityInspectorPanel(m_selectedEntity, &m_editedScene.second, m_listScriptNames, m_listScriptParameters)
-        .render();
-
-    constexpr float TILE_SIZE = 60.0f;
-
-    UI::Pane("Scenes",
-        UI::TileGrid(m_project.scenes() | std::views::transform([](const auto& scene) {
-            return UI::Group(
-                UI::Button(scene.second.name)
-                    .size(TILE_SIZE, TILE_SIZE)
-                    .dragDropSource([name=scene.second.name](){
-                        ImGui::SetDragDropPayload("scene_dnd", name.c_str(), name.size());
-                        ImGui::Text("%s", name.c_str());
-                    }),
-                UI::Text(scene.second.name)
-                    .size(TILE_SIZE, ImGui::GetTextLineHeightWithSpacing())
-            );
-        }))
-    )
-    .render();
-
-    ProjectPropertiesPanel(&m_project, &m_projectFilePath, &projectPropertiesOpen).render();
-
-    if (std::filesystem::exists(m_project.resourceDir()))
-        UI::RessourceBrowserPanel(m_project.resourceDir()).render();
-
-    ImGui::Render();
-
-    if (ImGui::GetIO().WantSaveIniSettings)
-    {
-        m_project.setImguiSettings(ImGui::SaveIniSettingsToMemory());
-        ImGui::GetIO().WantSaveIniSettings = false;
-    }
 }
 
 } // namespace GE_Editor
