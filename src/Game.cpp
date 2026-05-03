@@ -84,6 +84,7 @@ Game::~Game()
 {
     assert(m_activeScene);
     tearDownScene(*this, *m_activeScene);
+    m_inputContext.clearAllInputCallbacks();
 }
 
 }

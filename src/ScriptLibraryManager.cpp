@@ -17,7 +17,7 @@ namespace GE
 
 ScriptLibraryManager::ScriptLibraryManager(const std::filesystem::path& path)
 {
-    DlHandle handle = dlLoad(path.string().c_str());
+    DlHandle handle = dlLoad(path.string().c_str(), DL_NOW | DL_LOCAL);
     if (handle == nullptr)
         throw std::runtime_error(std::format("unable to load shared lib : {}", path.string()));
 

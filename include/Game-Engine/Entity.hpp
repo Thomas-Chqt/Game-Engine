@@ -86,7 +86,7 @@ struct basic_entity
 
     auto& name(this auto&& self)
     {
-        if constexpr (EntityLike<std::remove_cvref_t<decltype(self)>>)
+        if constexpr (EntityLike<decltype(self)>)
         {
             if (self.template has<NameComponent>() == false)
                 return self.template emplace<NameComponent>().name;
@@ -95,6 +95,47 @@ struct basic_entity
     }
 
     inline glm::mat4 transform() const { return static_cast<glm::mat4>(get<TransformComponent>()); }
+
+    glm::vec3 worldPosition() const
+    {
+        const TransformComponent& transform = get<TransformComponent>();
+        if (auto parent = this->parent())
+        {
+            assert(parent->template has<TransformComponent>());
+            const glm::vec3 scaledLocalPosition = parent->worldScale() * transform.position;
+            return parent->worldPosition() + parent->worldRotation() * scaledLocalPosition;
+        }
+        return transform.position;
+    }
+
+    glm::mat3 worldRotation() const
+    {
+        const TransformComponent& transform = get<TransformComponent>();
+
+        glm::mat4 rotationMatrix = glm::mat4(1.0f);
+        rotationMatrix = glm::rotate(rotationMatrix, transform.rotation.x, glm::vec3(1, 0, 0));
+        rotationMatrix = glm::rotate(rotationMatrix, transform.rotation.y, glm::vec3(0, 1, 0));
+        rotationMatrix = glm::rotate(rotationMatrix, transform.rotation.z, glm::vec3(0, 0, 1));
+        const glm::mat3 localRotation = glm::mat3(rotationMatrix);
+
+        if (auto parent = this->parent())
+        {
+            assert(parent->template has<TransformComponent>());
+            return parent->worldRotation() * localRotation;
+        }
+        return localRotation;
+    }
+
+    glm::vec3 worldScale() const
+    {
+        const TransformComponent& transform = get<TransformComponent>();
+        if (auto parent = this->parent())
+        {
+            assert(parent->template has<TransformComponent>());
+            return parent->worldScale() * transform.scale;
+        }
+        return transform.scale;
+    }
 
     glm::mat4 worldTransform() const
     {

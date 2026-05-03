@@ -40,6 +40,8 @@ public:
     template<InputType T>
     void setInputCallback(const std::string& name, const T::CallbackType&);
 
+    void clearAllInputCallbacks();
+
     virtual void onInputEvent(InputEvent&);
     void dispatchInputs();
 

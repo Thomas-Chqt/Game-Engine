@@ -39,6 +39,12 @@ bool InputContext::renameInput(const std::string& oldName, const std::string& ne
     return inserted;
 }
 
+void InputContext::clearAllInputCallbacks()
+{
+    for (auto& [_, vInput] : m_inputs)
+        std::visit([&](auto& input) { input.callback = {}; }, vInput);
+}
+
 void InputContext::onInputEvent(InputEvent& event)
 {
     for (auto& [_, vInput] : m_inputs)

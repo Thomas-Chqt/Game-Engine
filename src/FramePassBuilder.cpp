@@ -84,15 +84,10 @@ FramePass FlatGeometryPassBuilder::build() const
             assert(activeCamera.has<TransformComponent>());
             assert(activeCamera.has<CameraComponent>());
 
-            const auto& transform = activeCamera.get<TransformComponent>();
-            auto rotationMat = glm::mat4x4(1.0f);
-            rotationMat = glm::rotate(rotationMat, transform.rotation.y, glm::vec3(0, 1, 0));
-            rotationMat = glm::rotate(rotationMat, transform.rotation.x, glm::vec3(1, 0, 0));
-            rotationMat = glm::rotate(rotationMat, transform.rotation.z, glm::vec3(0, 0, 1));
-
-            const glm::vec3 position = activeCamera.worldTransform()[3];
-            const glm::vec3 direction = rotationMat * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-            const glm::vec3 up = rotationMat * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+            const glm::vec3 position = activeCamera.worldPosition();
+            const glm::mat3 rotation = activeCamera.worldRotation();
+            const glm::vec3 direction = rotation * glm::vec3(0.0f, 0.0f, -1.0f);
+            const glm::vec3 up = rotation * glm::vec3(0.0f, 1.0f, 0.0f);
 
             frameData.vpMatrix = activeCamera.get<CameraComponent>().projectionMatrix(aspectRatio) * glm::lookAt(position, position + direction, up);
             frameData.cameraPosition = position;

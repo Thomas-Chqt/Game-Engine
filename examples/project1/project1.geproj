@@ -1,9 +1,15 @@
 name: Untitled Project
-imguiSettings: "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1280,701\nCollapsed=0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][viewport]\nPos=0,19\nSize=1004,525\nCollapsed=0\nDockId=0x00000001,0\n\n[Window][Scene graph]\nPos=1006,19\nSize=274,273\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][Entity inspector]\nPos=1006,294\nSize=274,426\nCollapsed=0\nDockId=0x00000006,0\n\n[Window][Scenes]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,0\n\n[Window][Project properties]\nPos=371,108\nSize=537,504\nCollapsed=0\n\n[Window][Ressources]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Window][Resources]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Docking][Data]\nDockSpace     ID=0x08BD597D Window=0x1BBC0F80 Pos=0,19 Size=1280,701 Split=X\n  DockNode    ID=0x00000003 Parent=0x08BD597D SizeRef=1004,701 Split=Y\n    DockNode  ID=0x00000001 Parent=0x00000003 SizeRef=1280,525 CentralNode=1 Selected=0xF6034841\n    DockNode  ID=0x00000002 Parent=0x00000003 SizeRef=1280,174 Selected=0x30401527\n  DockNode    ID=0x00000004 Parent=0x08BD597D SizeRef=274,701 Split=Y Selected=0x848E2614\n    DockNode  ID=0x00000005 Parent=0x00000004 SizeRef=142,273 Selected=0x2C1AB1E4\n    DockNode  ID=0x00000006 Parent=0x00000004 SizeRef=142,426 Selected=0x848E2614\n\n"
+imguiSettings: "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1710,956\nCollapsed=0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][viewport]\nPos=0,19\nSize=1371,780\nCollapsed=0\nDockId=0x00000001,0\n\n[Window][Scene graph]\nPos=1373,19\nSize=337,373\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][Entity inspector]\nPos=1373,394\nSize=337,581\nCollapsed=0\nDockId=0x00000006,0\n\n[Window][Scenes]\nPos=0,801\nSize=1371,174\nCollapsed=0\nDockId=0x00000002,0\n\n[Window][Project properties]\nPos=496,146\nSize=718,682\nCollapsed=0\n\n[Window][Ressources]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Window][Resources]\nPos=0,801\nSize=1371,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Docking][Data]\nDockSpace     ID=0x08BD597D Window=0x1BBC0F80 Pos=0,19 Size=1710,956 Split=X\n  DockNode    ID=0x00000003 Parent=0x08BD597D SizeRef=1371,701 Split=Y\n    DockNode  ID=0x00000001 Parent=0x00000003 SizeRef=1280,525 CentralNode=1 Selected=0xF6034841\n    DockNode  ID=0x00000002 Parent=0x00000003 SizeRef=1280,174 Selected=0x30401527\n  DockNode    ID=0x00000004 Parent=0x08BD597D SizeRef=337,701 Split=Y Selected=0x848E2614\n    DockNode  ID=0x00000005 Parent=0x00000004 SizeRef=142,273 Selected=0x2C1AB1E4\n    DockNode  ID=0x00000006 Parent=0x00000004 SizeRef=142,426 Selected=0x848E2614\n\n"
 scriptsLib: examples/project1/project1_scriptLib.dylib
 inputContext:
   inputs:
-    player_input:
+    player_jump:
+      type: Action
+      mapper:
+        type: KeyboardButton
+        data:
+          button: space
+    player_move:
       type: Range2D
       mapper:
         type: KeyboardButton
@@ -15,12 +21,18 @@ inputContext:
           yNeg: s
           yScale: 1
           triggerValue: 0.5
-    stop_game:
-      type: Action
+    player_rotate:
+      type: Range2D
       mapper:
         type: KeyboardButton
         data:
-          button: esc
+          xPos: up
+          xNeg: down
+          xScale: 1
+          yPos: left
+          yNeg: right
+          yScale: 1
+          triggerValue: 0.5
 resourceDir: examples/project1/resources
 scenes:
   - name: default_scene
@@ -51,55 +63,51 @@ scenes:
         - type: MeshComponent
           data:
             id: 1
-        - type: ScriptComponent
-          data:
-            name: Rotating
-            parameters:
-              speed:
-                type: float
-                data: 0.02
       1:
         - type: NameComponent
           data:
             name: camera
         - type: HierarchyComponent
           data:
-            parent: 18446744073709551615
-            firstChild: 2
-            nextChild: 18446744073709551615
-        - type: TransformComponent
-          data:
-            position:
-              - 3
-              - 3
-              - 5
-            rotation:
-              - -0.5
-              - 0.5
-              - 0
-            scale:
-              - 1
-              - 1
-              - 1
-        - type: CameraComponent
-          data:
-            fov: 1.0471976
-            zFar: 1000
-            zNear: 0.1
-      2:
-        - type: NameComponent
-          data:
-            name: light
-        - type: HierarchyComponent
-          data:
-            parent: 1
+            parent: 4
             firstChild: 18446744073709551615
             nextChild: 18446744073709551615
         - type: TransformComponent
           data:
             position:
               - 0
+              - 1.41
+              - 1.19
+            rotation:
+              - -0.64
               - 0
+              - 0
+            scale:
+              - 0.01
+              - 0.01
+              - 0.1
+        - type: CameraComponent
+          data:
+            fov: 1.0471976
+            zFar: 1000
+            zNear: 0.1
+        - type: MeshComponent
+          data:
+            id: 0
+      2:
+        - type: NameComponent
+          data:
+            name: light
+        - type: HierarchyComponent
+          data:
+            parent: 18446744073709551615
+            firstChild: 18446744073709551615
+            nextChild: 18446744073709551615
+        - type: TransformComponent
+          data:
+            position:
+              - 0
+              - 5
               - 0
             rotation:
               - 0
@@ -118,4 +126,69 @@ scenes:
               - 1
             intentsity: 1
             attenuation: 0
+      3:
+        - type: NameComponent
+          data:
+            name: player_mesh
+        - type: HierarchyComponent
+          data:
+            parent: 4
+            firstChild: 18446744073709551615
+            nextChild: 1
+        - type: TransformComponent
+          data:
+            position:
+              - 0
+              - 0
+              - 0
+            rotation:
+              - 0
+              - 0
+              - 0
+            scale:
+              - 0.1
+              - 0.5
+              - 0.1
+        - type: MeshComponent
+          data:
+            id: 0
+      4:
+        - type: NameComponent
+          data:
+            name: player
+        - type: HierarchyComponent
+          data:
+            parent: 18446744073709551615
+            firstChild: 3
+            nextChild: 18446744073709551615
+        - type: TransformComponent
+          data:
+            position:
+              - -3
+              - 0.67
+              - 0
+            rotation:
+              - 0
+              - -1.57
+              - 0
+            scale:
+              - 1
+              - 1
+              - 1
+        - type: ScriptComponent
+          data:
+            name: PlayerController
+            parameters:
+              gravity:
+                type: float
+                data: 0.006
+              jump_speed:
+                type: float
+                data: 0.12
+              move_speed:
+                type: float
+                data: 0.05
+              rotate_speed:
+                type: float
+                data: 0.05
 startScene: default_scene

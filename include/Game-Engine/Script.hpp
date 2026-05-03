@@ -67,8 +67,8 @@ public:
     Script(Script&&) = delete;
 
     virtual void setup(Entity&, Game&) {}
-    virtual void teardown(Entity&, Game&) {}
     virtual void onUpdate() {}
+    virtual void teardown(Entity&, Game&) {}
 
     virtual ~Script() = default;
 
