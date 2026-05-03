@@ -19,7 +19,7 @@ class PlayerController final : public GE::Script
 
     GE_SCRIPT_PARAM(float, move_speed, 0.05f);
     GE_SCRIPT_PARAM(float, rotate_speed, 0.05f);
-    GE_SCRIPT_PARAM(float, jump_speed, 0.12f);
+    GE_SCRIPT_PARAM(float, jump_height, 0.12f);
     GE_SCRIPT_PARAM(float, gravity, 0.006f);
 
     void setup(GE::Entity& entity, GE::Game& game) override
@@ -62,7 +62,7 @@ class PlayerController final : public GE::Script
                 if (!m_grounded)
                     return;
 
-                m_verticalVelocity = jump_speed;
+                m_verticalVelocity = jump_height;
                 m_grounded = false;
             }
         );
