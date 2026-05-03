@@ -97,13 +97,21 @@ bool beginPropertyTable(const char* id)
     return true;
 }
 
-template<typename T>
-bool componentEditHeader(GE::Entity& entity, const char* title)
+template<typename Fn>
+bool collapsingHeaderWithActionButton(const char* title, const char* buttonLabel, std::string_view buttonIdSuffix, Fn&& fn)
 {
-    bool isOpen = ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_DefaultOpen);
-    ImGui::SameLine(0, 30);
-    if (ImGui::Button((std::string("remove##") + std::string(title)).c_str()))
-        return entity.remove<T>(), false;
+    const bool isOpen = ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_DefaultOpen);
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float buttonWidth = ImGui::CalcTextSize(buttonLabel).x + style.FramePadding.x * 2.0f;
+    const float buttonX = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonWidth;
+    ImGui::SameLine(buttonX);
+
+    std::string buttonId = std::string(buttonLabel) + "##" + std::string(buttonIdSuffix);
+    if (ImGui::SmallButton(buttonId.c_str()))
+    {
+        fn();
+        return false;
+    }
     return isOpen;
 }
 
@@ -298,6 +306,51 @@ void tileGrid(const std::ranges::range auto& items, const std::function<void(con
     }
 }
 
+void menuFromPath(MenuItemRange auto&& items, int offset = 0)
+{
+    auto label = [](std::string_view str, auto&& render)
+    {
+        std::array<char, 128> buffer{};
+        const size_t size = std::min(str.size(), buffer.size() - 1);
+        std::copy_n(str.data(), size, buffer.data());
+        render(buffer.data());
+    };
+
+    for (auto it = items.begin(); it != items.end();)
+    {
+        const std::string_view rest = it->first.substr(offset);
+        const size_t slash = rest.find('/');
+        const std::string_view name = rest.substr(0, slash);
+
+        if (slash == std::string_view::npos)
+        {
+            label(name, [&](const char* cstr) {
+                ImGui::BeginDisabled(!it->second);
+                if (ImGui::MenuItem(cstr) && it->second)
+                    it->second();
+                ImGui::EndDisabled();
+            });
+            ++it;
+            continue;
+        }
+
+        const size_t childOffset = offset + slash + 1;
+        auto childEnd = std::next(it);
+        while (childEnd != items.end() && childEnd->first.size() > childOffset && childEnd->first.substr(offset, slash) == name && childEnd->first[offset + slash] == '/')
+            ++childEnd;
+
+        label(name, [&](const char* cstr) {
+            if (ImGui::BeginMenu(cstr))
+            {
+                menuFromPath(std::ranges::subrange(it, childEnd), childOffset);
+                ImGui::EndMenu();
+            }
+        });
+
+        it = childEnd;
+    }
+}
+
 void sceneGrapRow(GE::Entity& entity, GE::Entity& selectedEntity)
 {
     bool node_open = false;
@@ -338,57 +391,26 @@ void sceneGrapRow(GE::Entity& entity, GE::Entity& selectedEntity)
         if (ImGui::IsItemClicked())
             selectedEntity = entity;
 
+        if (ImGui::BeginPopupContextItem())
+        {
+            menuFromPath(std::to_array<MenuItem>({
+                {"Delete", [&] {
+                    if (selectedEntity == entity)
+                        selectedEntity = GE::Entity{};
+                    entity.destroy();
+                }}
+            }));
+            ImGui::EndPopup();
+            if (entity.world == nullptr || entity.entityId == INVALID_ENTITY_ID)
+                return;
+        }
+
         if (node_open && entity.children().size() > 0)
         {
             for (auto curr = entity.firstChild(); curr; curr = curr->nextChild() )
                 sceneGrapRow(*curr, selectedEntity);
             ImGui::TreePop();
         }
-}
-
-void mainMenuBar(MenuItemRange auto&& items, int offset = 0)
-{
-    auto label = [](std::string_view str, auto&& render)
-    {
-        std::array<char, 128> buffer{};
-        const size_t size = std::min(str.size(), buffer.size() - 1);
-        std::copy_n(str.data(), size, buffer.data());
-        render(buffer.data());
-    };
-
-    for (auto it = items.begin(); it != items.end();)
-    {
-        const std::string_view rest = it->first.substr(offset);
-        const size_t slash = rest.find('/');
-        const std::string_view name = rest.substr(0, slash);
-
-        if (slash == std::string_view::npos)
-        {
-            label(name, [&](const char* cstr) {
-                ImGui::BeginDisabled(!it->second);
-                if (ImGui::MenuItem(cstr) && it->second)
-                    it->second();
-                ImGui::EndDisabled();
-            });
-            ++it;
-            continue;
-        }
-
-        const size_t childOffset = offset + slash + 1;
-        auto childEnd = std::next(it);
-        while (childEnd != items.end() && childEnd->first.size() > childOffset && childEnd->first.substr(offset, slash) == name && childEnd->first[offset + slash] == '/')
-            ++childEnd;
-
-        label(name, [&](const char* cstr) {
-            if (ImGui::BeginMenu(cstr))
-            {
-                mainMenuBar(std::ranges::subrange(it, childEnd), childOffset);
-                ImGui::EndMenu();
-            }
-        });
-
-        it = childEnd;
-    }
 }
 
 }
@@ -407,7 +429,7 @@ void Editor::renderImgui()
 
     if (ImGui::BeginMainMenuBar())
     {
-        mainMenuBar(std::to_array<MenuItem>({
+        menuFromPath(std::to_array<MenuItem>({
             {"file/new",                  {}},
 
             {"file/open",                 {}},
@@ -426,7 +448,6 @@ void Editor::renderImgui()
             {"project/stop",              m_game.has_value() ? [this]() { stopGame(); }
                                                              : std::function<void()>()},
 
-            {"scene/new/empty entity",    {}}
         }));
     }
     ImGui::EndMainMenuBar();
@@ -459,6 +480,29 @@ void Editor::renderImgui()
             {
                 if (entity.parent().has_value() == false)
                     sceneGrapRow(entity, m_selectedEntity);
+            }
+            if (ImGui::BeginPopupContextWindow("scene_graph_context", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+            {
+                menuFromPath(std::to_array<MenuItem>({
+                    {"Add/Cube", [this] {
+                        m_selectedEntity = m_editedScene.second.newEntity("cube");
+                        m_selectedEntity.emplace<GE::TransformComponent>();
+                        m_selectedEntity.emplace<GE::MeshComponent>(GE::BUILT_IN_CUBE_ASSET_ID);
+                    }},
+                    {"Add/Light", [this] {
+                        m_selectedEntity = m_editedScene.second.newEntity("light");
+                        m_selectedEntity.emplace<GE::TransformComponent>();
+                        m_selectedEntity.emplace<GE::LightComponent>();
+                    }},
+                    {"Add/Camera", [this] {
+                        m_selectedEntity = m_editedScene.second.newEntity("camera");
+                        m_selectedEntity.emplace<GE::TransformComponent>();
+                        m_selectedEntity.emplace<GE::CameraComponent>();
+                        if (m_editedScene.second.activeCamera().entityId == INVALID_ENTITY_ID)
+                            m_editedScene.second.setActiveCamera(m_selectedEntity);
+                    }}
+                }));
+                ImGui::EndPopup();
             }
             ImGui::EndChild();
         }
@@ -545,7 +589,9 @@ void Editor::renderImgui()
         {
             componentEditWidget<GE::NameComponent>(m_selectedEntity, m_editedScene.second, m_listScriptNames, m_listScriptParameters);
             GE::forEachType<EditableEntityComponents>([&]<typename ComponentT>() {
-                if (m_selectedEntity.has<ComponentT>() && componentEditHeader<ComponentT>(m_selectedEntity, EditableEntityComponentTraits<ComponentT>::label))
+                if (m_selectedEntity.has<ComponentT>() && collapsingHeaderWithActionButton(EditableEntityComponentTraits<ComponentT>::label, "Remove", EditableEntityComponentTraits<ComponentT>::label, [&] {
+                    m_selectedEntity.remove<ComponentT>();
+                }))
                     componentEditWidget<ComponentT>(m_selectedEntity, m_editedScene.second, m_listScriptNames, m_listScriptParameters);
             });
 
@@ -553,7 +599,7 @@ void Editor::renderImgui()
             ImGui::Separator();
             ImGui::Spacing();
 
-            if (ImGui::Button("Add component"))
+            if (ImGui::Button("Add component", ImVec2(-FLT_MIN, 0.0f)))
                 ImGui::OpenPopup("add_component_popup");
             if (ImGui::BeginPopup("add_component_popup"))
             {
@@ -565,10 +611,6 @@ void Editor::renderImgui()
                 ImGui::EndPopup();
             }
 
-            ImGui::SameLine();
-
-            if (ImGui::Button("Delete enitity"))
-                m_selectedEntity.destroy();
         }
         ImGui::PopItemWidth();
     }
@@ -640,13 +682,9 @@ void Editor::renderImgui()
             {
                 ImGui::PushID(inputName.c_str());
 
-                const bool isOpen = ImGui::CollapsingHeader(inputName.c_str(), ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_DefaultOpen );
-                const ImGuiStyle& style = ImGui::GetStyle();
-                const float buttonWidth = ImGui::CalcTextSize("Remove").x + style.FramePadding.x * 2.0f;
-                const float buttonX = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonWidth;
-                ImGui::SameLine(buttonX);
-                if (ImGui::SmallButton("Remove"))
+                const bool isOpen = collapsingHeaderWithActionButton(inputName.c_str(), "Remove", inputName, [&] {
                     inputToRemove = inputName;
+                });
                 if (isOpen)
                 {
                     if (beginPropertyTable("##input_fields"))
