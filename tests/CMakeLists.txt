@@ -42,3 +42,22 @@ add_subdirectory(scriptLib)
 target_compile_definitions(GE_test PRIVATE GE_TEST_SCRIPT_LIB="$<TARGET_FILE:GE_test_scriptLib>")
 
 gtest_discover_tests(GE_test)
+
+if(APPLE AND NOT CMAKE_GENERATOR STREQUAL "Xcode")
+    set(CODESIGN_IDENTITY "-" CACHE STRING "Codesigning identity")
+
+    set(GE_TEST_ENTITLEMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/ge-test.entitlements")
+    if(EXISTS "${GE_TEST_ENTITLEMENTS_FILE}")
+        add_custom_command(TARGET GE_test POST_BUILD
+            COMMAND /bin/sh -c "codesign --sign \"${CODESIGN_IDENTITY}\" --force --entitlements \"${GE_TEST_ENTITLEMENTS_FILE}\" \"$<TARGET_FILE:GE_test>\" >/dev/null 2>&1"
+            COMMENT "Codesigning GE_test (with entitlements) [identity: ${CODESIGN_IDENTITY}]"
+            VERBATIM
+        )
+    else()
+        add_custom_command(TARGET GE_test POST_BUILD
+            COMMAND /bin/sh -c "codesign --sign \"${CODESIGN_IDENTITY}\" --force \"$<TARGET_FILE:GE_test>\" >/dev/null 2>&1"
+            COMMENT "Codesigning GE_test [identity: ${CODESIGN_IDENTITY}]"
+            VERBATIM
+        )
+    endif()
+endif()
