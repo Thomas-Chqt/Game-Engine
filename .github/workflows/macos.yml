@@ -1,0 +1,33 @@
+name: Build macOS
+run-name: ${{ github.event.pull_request && format('{0} -> {1} by {2} (PR {3})', github.head_ref, github.base_ref, github.actor, github.event.pull_request.number) || github.event_name == 'workflow_dispatch' && format('{0} by {1} [manual]', github.ref_name, github.actor) || format('{0} by {1}', github.ref_name, github.actor) }}
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        build-type: [ Debug, Release ]
+
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate
+        run: >
+          cmake -S ${{ github.workspace }} -B build
+            -DCMAKE_BUILD_TYPE=${{ matrix.build-type }}
+            -DGE_BUILD_METAL=ON
+            -DGE_BUILD_VULKAN=ON
+            -DGE_BUILD_TESTS=ON
+            -DGE_BUILD_EXAMPLES=ON
+
+      - name: Build
+        run: cmake --build build --config ${{ matrix.build-type }} --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C ${{ matrix.build-type }} --output-on-failure
