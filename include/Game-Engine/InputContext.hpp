@@ -34,8 +34,7 @@ public:
     void removeInput(const std::string& name);
     bool renameInput(const std::string& oldName, const std::string& newName);
 
-    inline const std::map<std::string, VInput>& inputs() const { return m_inputs; }
-    inline std::map<std::string, VInput>& inputs() { return m_inputs; }
+    inline auto& inputs(this auto&& self) { return self.m_inputs; }
 
     template<InputType T>
     void setInputCallback(const std::string& name, const T::CallbackType&);

@@ -45,9 +45,7 @@ public:
     inline const std::filesystem::path& scriptLib() const { return m_scriptLib; }
     inline void setScriptLib(std::filesystem::path scriptLib) { m_scriptLib = std::move(scriptLib); }
 
-    // TODO : use `Deducing this`
-    inline const GE::InputContext& inputContext() const { return m_inputContext; }
-    inline GE::InputContext& inputContext() { return m_inputContext; }
+    inline auto& inputContext(this auto&& self) { return self.m_inputContext; }
 
     inline std::filesystem::path resourceDir() const { return m_resourceDir; }
     inline void setResourceDir(std::filesystem::path p) { m_resourceDir = std::move(p); }

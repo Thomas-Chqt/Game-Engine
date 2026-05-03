@@ -290,6 +290,14 @@ auto* ECSWorld::Archetype::getComponentPointer(this auto&& self, uint64_t idx)
     return static_cast<ComponentPtr>(row.buffer) + idx;
 }
 
+inline auto ECSWorld::Archetype::getEntityID(this auto&& self, uint64_t idx)
+    -> std::conditional_t<std::is_const_v<std::remove_reference_t<decltype(self)>>, const EntityID&, EntityID&>
+{
+    using Self = std::remove_reference_t<decltype(self)>;
+    using EntityPtr = std::conditional_t<std::is_const_v<Self>, const EntityID*, EntityID*>;
+    return static_cast<EntityPtr>(self.m_rows.at(0).buffer)[idx];
+}
+
 } // namespace GE
 
 #endif // ECSWORLD_HPP

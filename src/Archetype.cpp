@@ -96,16 +96,6 @@ uint64_t ECSWorld::Archetype::allocateCollum()
     return m_size++;
 }
 
-ECSWorld::EntityID& ECSWorld::Archetype::getEntityID(uint64_t idx)
-{
-    return static_cast<EntityID*>(m_rows.at(0).buffer)[idx];
-}
-
-const ECSWorld::EntityID& ECSWorld::Archetype::getEntityID(uint64_t idx) const
-{
-    return static_cast<const EntityID*>(m_rows.at(0).buffer)[idx];
-}
-
 void ECSWorld::Archetype::moveComponents(Archetype& arcSrc, uint64_t idxSrc, Archetype& arcDst, uint64_t idxDst)
 {
     for (auto& [id, row] : arcSrc.m_rows)

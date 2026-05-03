@@ -28,8 +28,8 @@ public:
     uint64_t allocateCollum(); // only extend the size (and capacity if needed) and return last index
 
     template<Component T> auto* getComponentPointer(this auto&& self, uint64_t idx);
-    EntityID& getEntityID(uint64_t idx);
-    const EntityID& getEntityID(uint64_t idx) const;
+    auto getEntityID(this auto&& self, uint64_t idx)
+        -> std::conditional_t<std::is_const_v<std::remove_reference_t<decltype(self)>>, const EntityID&, EntityID&>;
 
     static void moveComponents(Archetype& arcSrc, uint64_t idxSrc, Archetype& arcDst, uint64_t idxDst); // only call the move constructor. destination should be garbage memory
     void destructCollum(uint64_t idx); // only call the destructor
