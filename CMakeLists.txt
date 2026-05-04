@@ -36,6 +36,7 @@ set_target_properties(Game-Engine PROPERTIES
 
 target_compile_features(Game-Engine PUBLIC cxx_std_23)
 target_compile_definitions(Game-Engine PRIVATE GE_BUILDING_ENGINE)
+target_compile_definitions(Game-Engine PUBLIC "GE_SHARED_LIBRARY_EXTENSION=\"${CMAKE_SHARED_LIBRARY_SUFFIX}\"")
 
 if(MSVC)
     target_compile_options(Game-Engine PRIVATE /W4)

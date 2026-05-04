@@ -81,7 +81,9 @@ struct convert<GE_Editor::Project>
         Node node;
         node["name"] = rhs.m_name;
         node["imguiSettings"] = rhs.m_imguiSettings;
-        node["scriptsLib"] = rhs.m_scriptLib.string();
+        node["scriptsLib"] = (rhs.m_scriptLib.extension() == GE_SHARED_LIBRARY_EXTENSION
+                              ? std::filesystem::path(rhs.m_scriptLib).replace_extension()
+                              : rhs.m_scriptLib).string();
         node["inputContext"] = rhs.m_inputContext;
         node["resourceDir"] = rhs.m_resourceDir.string();
         for (const auto& [_, scene] : rhs.m_scenes)
@@ -100,6 +102,8 @@ struct convert<GE_Editor::Project>
         rhs.m_name = node["name"].as<std::string>();
         rhs.m_imguiSettings = node["imguiSettings"] ? node["imguiSettings"].as<std::string>() : std::string();
         rhs.m_scriptLib = node["scriptsLib"] ? std::filesystem::path(node["scriptsLib"].as<std::string>()) : std::filesystem::path();
+        if (!rhs.m_scriptLib.empty() && rhs.m_scriptLib.extension() != GE_SHARED_LIBRARY_EXTENSION)
+            rhs.m_scriptLib.replace_extension(GE_SHARED_LIBRARY_EXTENSION);
         rhs.m_inputContext = node["inputContext"] ? node["inputContext"].as<GE::InputContext>() : GE::InputContext();
         rhs.m_resourceDir = node["resourceDir"] ? std::filesystem::path(node["resourceDir"].as<std::string>()) : std::filesystem::path();
 
