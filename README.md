@@ -1,90 +1,85 @@
-> This project is currently undergoing refactoring (refer to the [refactor branch](https://github.com/Thomas-Chqt/Game-Engine/tree/refactor)) to incorporate the latest version of the graphics library and adopt more modern C++ features.
+# Game-Engine
 
-Game-Engine
-===========
+`Game-Engine` is a small C++23 game engine and editor built as a learning project around rendering, tooling, and runtime architecture. It includes a reusable engine library, a desktop editor, YAML-based project and scene serialization, and hot-reloadable C++ gameplay scripts.
 
-**Game-Engine** is an ongoing project focused on building a simple, low-level game engine. The primary goal is to deepen my understanding of game development by creating a versatile set of tools that can be used to build various types of games and 3D applications.
+![viewport](viewport.png)
 
-Current Features
-----------------
+## Current Features
 
-- **Basic Renderer**: A simple rendering pipeline for drawing objects on the screen.  
-- **Entity Component System (ECS)**: A flexible system for composing game objects with various components.  
-- **Editor**: A built-in editor linked to the engine for editing, saving, and running projects.  
-- **External Scripting**: Projects can include scripts that are loaded at runtime through shared libraries, allowing scripts to be rebuilt and reloaded without closing the editor.  
+- Frame-graph-based renderer
+- Metal backend on macOS and Vulkan backend where enabled
+- Entity Component System
+- Scene hierarchy
+- ImGui-based editor with viewport, scene graph, inspector, project properties, and resource management panels
+- Runtime game mode inside the editor
+- Hot-reloadable gameplay scripts written in C++
+- Reflected script fields exposed to the editor and serialization
+- YAML project, scene, input, and component serialization
+- Input system
+- Mesh importing with `assimp`
+- Texture loading with `stb_image`
+- Automated tests for core engine systems
 
-### Example Project  
+## Example Project
 
-A basic example project is included to demonstrate the engine’s current capabilities. It consists of four entities:  
+The repository includes `examples/project1`, a sample project that demonstrates the current engine and editor workflow. It contains:
 
-1. **Player**: An entity with a mesh component and a script enabling player movement.  
-2. **Camera**: A camera component attached as a child of the player, ensuring it moves along with the player.  
-3. **Chess Set**: A static entity with a mesh component.  
-4. **Light**: A point light component illuminating the scene.  
+- A chess-set scene with imported meshes, textures, lighting, and camera setup
+- A set of inputs and there mappers
+- A Player controller script attached to the player entity
 
-To run the game, use the **Project > Run** menu option.  
+It can be opened from the project root with `./path/to/editor examples/project1/project1.geproj`.
 
 <p float="left">
-  <img src="example1.png" width="49%" />
-  <img src="example2.gif" width="49%" /> 
-</p>  
+  <img src="project1_video.gif" width="49%"></img>
+  <img src="project_properties.png" width="49%"></img>
+</p>
 
-Support
-------
+## Build
 
-| Platform | Supported | Graphics API   |
-|----------|-----------|----------------|
-| Windows  | Yes       | OpenGL         |
-| Linux    | Yes       | OpenGL         |
-| macOS    | Yes       | Metal / OpenGL |
+### Supported Platforms
 
-Building the Project  
---------------------
+| Platform | Metal | Vulkan |
+|----------|-------|--------|
+| macOS    | [![macOS-Metal](https://github.com/Thomas-Chqt/Game-Engine/actions/workflows/macos-metal.yml/badge.svg)](https://github.com/Thomas-Chqt/Game-Engine/actions/workflows/macos-metal.yml) | [![macOS-Vulkan](https://github.com/Thomas-Chqt/Game-Engine/actions/workflows/macos-vulkan.yml/badge.svg)](https://github.com/Thomas-Chqt/Game-Engine/actions/workflows/macos-vulkan.yml) |
+| Windows  | N/A | [![Windows](https://github.com/Thomas-Chqt/Game-Engine/actions/workflows/windows.yml/badge.svg)](https://github.com/Thomas-Chqt/Game-Engine/actions/workflows/windows.yml) |
+| Linux    | N/A | [![Linux](https://github.com/Thomas-Chqt/Game-Engine/actions/workflows/linux.yml/badge.svg)](https://github.com/Thomas-Chqt/Game-Engine/actions/workflows/linux.yml) |
 
-The repository must be **cloned** (instead of downloaded as a ZIP) to correctly resolve submodules when configuring the project with CMake. Recursive cloning is not required, as everything is managed through CMake.  
+### Requirements
 
-### Build Instructions  
+- CMake
+- A C++23 compiler (out of the box on macos and windows, require gcc-14 on ubuntu)
+- see [`Graphics`](https://github.com/Thomas-Chqt/Graphics) for backends requirements
+
+### Configure and Build
 
 ```sh
-mkdir build
 cmake -S . -B build
 cmake --build build
-```  
+```
 
-All dependencies are embedded in the project using either **Git submodules** or **CMake's FetchContent**, so it should work out of the box. However, if compilation fails, ensure that your system meets the requirements for each dependency.  
+This builds the `Game-Engine` library, the `GE-Editor` application, and the required shader compilation targets.  
+To build the example project, add the `-DGE_BUILD_EXAMPLES=ON` flag
 
-### CMake Options  
+### Useful CMake Options
 
-| Option              | Default | Description                          |
-|---------------------|---------|--------------------------------------|
-| `GE_BUILD_EXAMPLES` |  `OFF`  | Build example projects               |
-| `GE_BUILD_TESTS`    |  `OFF`  | Build unit tests                     |
-| `GE_BUILD_METAL`    |  `ON`   | Build the Metal backend (macOS only) |
-| `GE_BUILD_OPENGL`   |  `ON`   | Build the OpenGL backend             |
+| Option              | Default       | Description                                                 |
+| ------------------- | ------------- | ----------------------------------------------------------- |
+| `BUILD_SHARED_LIBS` | `OFF`         | Build libraries as shared instead of static where supported |
+| `GE_BUILD_METAL`    | `ON` on macOS | Enable the Metal backend                                    |
+| `GE_BUILD_VULKAN`   | `ON`          | Enable the Vulkan backend                                   |
+| `GE_BUILD_TESTS`    | `OFF`         | Build the test target                                       |
+| `GE_BUILD_EXAMPLES` | `OFF`         | Build the example project script library                    |
+| `GE_INSTALL`        | `ON`          | Enable install rules in dependencies that support them      |
 
-Libraries
----------
+## Libraries Used
 
-This project utilizes a combination of **custom-built** and **open-source** libraries.  
-
-### Custom Libraries  
-
-I’ve developed the following libraries :  
-
-- **[UtilsCPP](https://github.com/Thomas-Chqt/UtilsCPP)** – A utility library with various data structures and algorithms.  
-- **[Math](https://github.com/Thomas-Chqt/Math)** – A math library providing vector and matrix operations for graphics.  
-- **[Graphics](https://github.com/Thomas-Chqt/Graphics)** – An abstraction layer over multiple graphics APIs, enabling cross-platform compatibility with the most native API per platform.  
-
-### Open-Source Libraries  
-
-The engine also integrates several open-source libraries:  
-
-- **[GLFW](https://github.com/glfw/glfw)** – Handles window creation and input events (used internally by **Graphics**).  
-- **[GLAD](https://github.com/Thomas-Chqt/GLAD)** – Loads OpenGL functions for cross-platform rendering (used internally by **Graphics**).  
-- **[assimp](https://github.com/assimp/assimp)** – Imports 3D models and meshes for asset loading.  
-- **[stb_image](https://github.com/Thomas-Chqt/stb_image)** – A lightweight image-loading library for textures.  
-- **[imgui](https://github.com/Thomas-Chqt/imgui)** – A UI framework for building efficient in-engine interfaces.  
-- **[tinyfiledialogs](http://tinyfiledialogs.sourceforge.net)** – Provides a native file picker for all platforms.  
-- **[nlohmann/json](https://github.com/nlohmann/json)** – Parses and writes JSON files.  
-
-Additionally, unit tests are built using **[GoogleTest](https://github.com/google/googletest)**.  
+- [`Graphics`](https://github.com/Thomas-Chqt/Graphics): rendering abstraction layer and shader toolchain
+- [`GLFW`](https://github.com/glfw/glfw): windowing and input
+- [`GLM`](https://github.com/g-truc/glm): math types and transforms
+- [`imgui`](https://github.com/Thomas-Chqt/imgui): editor UI
+- [`stb_image`](https://github.com/Thomas-Chqt/stb_image): image loading
+- [`assimp`](https://github.com/assimp/assimp): mesh import
+- [`yaml-cpp`](https://github.com/jbeder/yaml-cpp): YAML serialization
+- [`dlLoad`](https://github.com/Thomas-Chqt/dlLoad): dynamic library loading for scripts
+- [`GoogleTest`](https://github.com/google/googletest): unit tests
