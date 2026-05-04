@@ -116,13 +116,13 @@ bool collapsingHeaderWithActionButton(const char* title, const char* buttonLabel
 }
 
 template<typename T>
-void componentEditWidget(GE::Entity&, GE::Scene&, const GE::ListScriptNamesFn&, const GE::ListScriptParametersFn&)
+void componentEditWidget(GE::Entity&, GE::Scene&)
 {
     static_assert(false, "not implemented");
 }
 
 template<>
-void componentEditWidget<GE::NameComponent>(GE::Entity& entity, GE::Scene&, const GE::ListScriptNamesFn&, const GE::ListScriptParametersFn&)
+void componentEditWidget<GE::NameComponent>(GE::Entity& entity, GE::Scene&)
 {
     GE::NameComponent& nameComponent = entity.get<GE::NameComponent>();
     char buff[32];
@@ -133,7 +133,7 @@ void componentEditWidget<GE::NameComponent>(GE::Entity& entity, GE::Scene&, cons
 }
 
 template<>
-void componentEditWidget<GE::TransformComponent>(GE::Entity& entity, GE::Scene&, const GE::ListScriptNamesFn&, const GE::ListScriptParametersFn&)
+void componentEditWidget<GE::TransformComponent>(GE::Entity& entity, GE::Scene&)
 {
     GE::TransformComponent& transform = entity.get<GE::TransformComponent>();
     ImGui::DragFloat3("position##TransformComponent_position", (float*)&transform.position, 0.01f, -1000.0f, 1000.0f);
@@ -142,7 +142,7 @@ void componentEditWidget<GE::TransformComponent>(GE::Entity& entity, GE::Scene&,
 }
 
 template<>
-void componentEditWidget<GE::CameraComponent>(GE::Entity& entity, GE::Scene&, const GE::ListScriptNamesFn&, const GE::ListScriptParametersFn&)
+void componentEditWidget<GE::CameraComponent>(GE::Entity& entity, GE::Scene&)
 {
     GE::CameraComponent& cameraComponent = entity.get<GE::CameraComponent>();
 
@@ -152,7 +152,7 @@ void componentEditWidget<GE::CameraComponent>(GE::Entity& entity, GE::Scene&, co
 }
 
 template<>
-void componentEditWidget<GE::LightComponent>(GE::Entity& entity, GE::Scene&, const GE::ListScriptNamesFn&, const GE::ListScriptParametersFn&)
+void componentEditWidget<GE::LightComponent>(GE::Entity& entity, GE::Scene&)
 {
     auto typeToStr = [](const GE::LightComponent::Type& type){
         switch (type) {
@@ -181,29 +181,22 @@ void componentEditWidget<GE::LightComponent>(GE::Entity& entity, GE::Scene&, con
         ImGui::DragFloat("attenuation##LightComponent_attenuation", &lightComponent.attenuation, 0.01, 0.0f, 1.0f);
 }
 
-template<>
-void componentEditWidget<GE::ScriptComponent>(GE::Entity& entity, GE::Scene&, const GE::ListScriptNamesFn& listScriptNames, const GE::ListScriptParametersFn& listScriptParameters)
+void scriptComponentEditWidget(GE::Entity& entity, GE::Scene&, const GE::ScriptLibrary& scriptLibrary)
 {
     GE::ScriptComponent& scriptComponent = entity.get<GE::ScriptComponent>();
-    if (!listScriptNames || !listScriptParameters)
-    {
-        ImGui::TextDisabled("No script library loaded");
-        return;
-    }
-
     const char* previewValue = scriptComponent.name.empty() ? "none" : scriptComponent.name.c_str();
     if (ImGui::BeginCombo("Script##ScriptComponent_name", previewValue))
     {
-        for (const std::string& scriptName : listScriptNames())
+        for (const std::string& scriptName : scriptLibrary.listScriptNames())
         {
             const bool isSelected = scriptComponent.name == scriptName;
             if (ImGui::Selectable(scriptName.c_str(), isSelected))
             {
                 scriptComponent.name = scriptName;
                 scriptComponent.parameters.clear();
-                for (const GE::ScriptParameterDescriptor& parameter : listScriptParameters(scriptName))
+                for (const std::string& parameterName : scriptLibrary.listScriptParameterNames(scriptName))
                 {
-                    auto [parameterIt, inserted] = scriptComponent.parameters.try_emplace(parameter.name, parameter.defaultValue);
+                    auto [parameterIt, inserted] = scriptComponent.parameters.try_emplace(parameterName, scriptLibrary.getScriptDefaultParameterValue(scriptName, parameterName));
                     assert(inserted);
                 }
             }
@@ -245,7 +238,7 @@ void componentEditWidget<GE::ScriptComponent>(GE::Entity& entity, GE::Scene&, co
 }
 
 template<>
-void componentEditWidget<GE::MeshComponent>(GE::Entity& entity, GE::Scene& scene, const GE::ListScriptNamesFn&, const GE::ListScriptParametersFn&)
+void componentEditWidget<GE::MeshComponent>(GE::Entity& entity, GE::Scene& scene)
 {
     GE::MeshComponent& meshComponent = entity.get<GE::MeshComponent>();
 
@@ -587,12 +580,22 @@ void Editor::renderImgui()
             ImGui::Text("No entity selected");
         else
         {
-            componentEditWidget<GE::NameComponent>(m_selectedEntity, m_editedScene.second, m_listScriptNames, m_listScriptParameters);
+            componentEditWidget<GE::NameComponent>(m_selectedEntity, m_editedScene.second);
             GE::forEachType<EditableEntityComponents>([&]<typename ComponentT>() {
                 if (m_selectedEntity.has<ComponentT>() && collapsingHeaderWithActionButton(EditableEntityComponentTraits<ComponentT>::label, "Remove", EditableEntityComponentTraits<ComponentT>::label, [&] {
                     m_selectedEntity.remove<ComponentT>();
                 }))
-                    componentEditWidget<ComponentT>(m_selectedEntity, m_editedScene.second, m_listScriptNames, m_listScriptParameters);
+                {
+                    if constexpr (std::is_same_v<ComponentT, GE::ScriptComponent>)
+                    {
+                        if (m_scriptLibrary.has_value())
+                            scriptComponentEditWidget(m_selectedEntity, m_editedScene.second, *m_scriptLibrary);
+                        else
+                            ImGui::TextDisabled("No script library loaded");
+                    }
+                    else
+                        componentEditWidget<ComponentT>(m_selectedEntity, m_editedScene.second);
+                }
             });
 
             ImGui::Spacing();

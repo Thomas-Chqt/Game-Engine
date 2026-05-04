@@ -7,7 +7,7 @@
  */
 
 #include "Game-Engine/Game.hpp"
-#include "Game-Engine/ScriptLibraryManager.hpp"
+#include "Game-Engine/ScriptLibrary.hpp"
 #include "Game-Engine/ECSView.hpp"
 #include "Game-Engine/Scene.hpp"
 #include "Game-Engine/AssetManager.hpp"
@@ -22,22 +22,25 @@ namespace GE
 namespace
 {
 
-void setupScene(Game& game, Scene& scene, const MakeScriptInstanceFn& makeScriptInstance, const ListScriptParametersFn& listScriptParameters)
+void setupScene(Game& game, Scene& scene, const ScriptLibrary& scriptLibrary)
 {
     scene.load();
     for (Entity entity : scene.ecsWorld()
                              | ECSView<ScriptComponent>()
                              | std::views::transform([&](auto id) { return Entity{ &scene.ecsWorld(), id }; }))
     {
-        assert(makeScriptInstance);
-        assert(listScriptParameters);
         ScriptComponent& scriptComponent = entity.get<ScriptComponent>();
-        scriptComponent.instance = makeScriptInstance(scriptComponent.name);
+        scriptComponent.instance = scriptLibrary.makeScriptInstance(scriptComponent.name);
         assert(scriptComponent.instance);
-        for (const ScriptParameterDescriptor& parameter : listScriptParameters(scriptComponent.name))
+        for (const std::string& parameterName : scriptLibrary.listScriptParameterNames(scriptComponent.name))
         {
-            auto it = scriptComponent.parameters.find(parameter.name);
-            parameter.set(*scriptComponent.instance, it == scriptComponent.parameters.end() ? parameter.defaultValue : it->second);
+            auto it = scriptComponent.parameters.find(parameterName);
+            scriptLibrary.setScriptParameter(
+                scriptComponent.name,
+                parameterName,
+                *scriptComponent.instance,
+                it == scriptComponent.parameters.end() ? scriptLibrary.getScriptDefaultParameterValue(scriptComponent.name, parameterName) : it->second
+            );
         }
         scriptComponent.instance->setup(entity, game);
     }
@@ -59,15 +62,14 @@ void tearDownScene(Game& game, Scene& scene)
 
 }
 
-Game::Game(AssetManager* assetManager, MakeScriptInstanceFn makeScriptInstance, ListScriptParametersFn listScriptParameters, const Descriptor& descriptor)
+Game::Game(AssetManager* assetManager, const ScriptLibrary* scriptLibrary, const Descriptor& descriptor)
     : m_scenes(descriptor.scenes
                | std::views::transform([&](const auto& sceneDesc) {
                      return std::make_pair(sceneDesc.first, Scene(assetManager, sceneDesc.second));
                  })
                | std::ranges::to<std::map<std::string, Scene>>())
     , m_inputContext(descriptor.inputContext)
-    , m_makeScriptInstance(std::move(makeScriptInstance))
-    , m_listScriptParameters(std::move(listScriptParameters))
+    , m_scriptLibrary(scriptLibrary)
 {
     setActiveScene(descriptor.activeScene);
 }
@@ -77,7 +79,14 @@ void Game::setActiveScene(const std::string& name)
     if (m_activeScene)
         tearDownScene(*this, *m_activeScene);
     m_activeScene = &m_scenes.at(name);
-    setupScene(*this, *m_activeScene, m_makeScriptInstance, m_listScriptParameters);
+    if (m_scriptLibrary != nullptr)
+        setupScene(*this, *m_activeScene, *m_scriptLibrary);
+    else
+    {
+        m_activeScene->load();
+        auto scriptView = m_activeScene->ecsWorld() | ECSView<ScriptComponent>();
+        assert(std::ranges::begin(scriptView) == std::ranges::end(scriptView));
+    }
 }
 
 Game::~Game()

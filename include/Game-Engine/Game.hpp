@@ -13,7 +13,7 @@
 #include "Game-Engine/InputContext.hpp"
 #include "Game-Engine/Scene.hpp"
 #include "Game-Engine/AssetManager.hpp"
-#include "Game-Engine/ScriptLibraryManager.hpp"
+#include "Game-Engine/ScriptLibrary.hpp"
 
 #include <map>
 #include <string>
@@ -36,7 +36,7 @@ public:
     Game(const Game&) = delete;
     Game(Game&&) = delete;
 
-    Game(AssetManager* assetManager, MakeScriptInstanceFn makeScriptInstance, ListScriptParametersFn listScriptParameters, const Descriptor& descriptor);
+    Game(AssetManager* assetManager, const ScriptLibrary* scriptLibrary, const Descriptor& descriptor);
 
     auto& activeScene(this auto&& self) { return *self.m_activeScene; }
     void setActiveScene(const std::string& name);
@@ -50,8 +50,7 @@ private:
     Scene* m_activeScene = nullptr;
     InputContext m_inputContext;
 
-    MakeScriptInstanceFn m_makeScriptInstance;
-    ListScriptParametersFn m_listScriptParameters;
+    const ScriptLibrary* m_scriptLibrary = nullptr;
 
 public:
     Game& operator = (const Game&) = delete;

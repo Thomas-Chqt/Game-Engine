@@ -1,5 +1,5 @@
 #include <Game-Engine/Script.hpp>
-#include <Game-Engine/ScriptLibraryManager.hpp>
+#include <Game-Engine/ScriptLibrary.hpp>
 
 #include <dlLoad/dlLoad.h>
 #include <gtest/gtest.h>
@@ -41,13 +41,9 @@ FnT loadFunction(DlHandle handle, const char* name)
     return reinterpret_cast<FnT>(symbol);
 }
 
-const GE::ScriptParameterDescriptor* findParameter(const GE::ScriptParameterDescriptor* parameters, unsigned long count, const std::string& name)
+bool containsName(const std::vector<std::string>& names, const std::string& name)
 {
-    auto* end = parameters + count;
-    auto* it = std::find_if(parameters, end, [&](const GE::ScriptParameterDescriptor& parameter) {
-        return parameter.name == name;
-    });
-    return it == end ? nullptr : it;
+    return std::ranges::find(names, name) != names.end();
 }
 
 }
@@ -55,65 +51,48 @@ const GE::ScriptParameterDescriptor* findParameter(const GE::ScriptParameterDesc
 TEST(ScriptLibraryTest, loadsGeneratedScriptLibraryExports)
 {
     EXPECT_NO_THROW({
-        GE::ScriptLibraryManager manager(GE_TEST_SCRIPT_LIB);
-        GE::ListScriptNamesFn listScriptNames = manager.listScriptNamesFunction();
-        GE::ListScriptParametersFn listScriptParameters = manager.listScriptParametersFunction();
-        GE::MakeScriptInstanceFn makeScriptInstance = manager.makeScriptInstanceFunction();
+        GE::ScriptLibrary scriptLibrary(GE_TEST_SCRIPT_LIB);
 
-        std::vector<std::string> names = listScriptNames();
+        std::vector<std::string> names = scriptLibrary.listScriptNames();
 
         ASSERT_EQ(names.size(), 1u);
         EXPECT_EQ(names[0], std::string("TestScript"));
 
-        std::vector<GE::ScriptParameterDescriptor> parameters = listScriptParameters("TestScript");
+        std::vector<std::string> parameters = scriptLibrary.listScriptParameterNames("TestScript");
 
         ASSERT_EQ(parameters.size(), 3u);
+        EXPECT_TRUE(containsName(parameters, "speed"));
+        EXPECT_TRUE(containsName(parameters, "enabled"));
+        EXPECT_TRUE(containsName(parameters, "label"));
+        EXPECT_EQ(scriptLibrary.getScriptParameterTypeName("TestScript", "speed"), "float");
+        EXPECT_EQ(scriptLibrary.getScriptParameterTypeName("TestScript", "enabled"), "bool");
+        EXPECT_EQ(scriptLibrary.getScriptParameterTypeName("TestScript", "label"), "string");
+        EXPECT_EQ(std::get<float>(scriptLibrary.getScriptDefaultParameterValue("TestScript", "speed")), 2.5f);
+        EXPECT_EQ(std::get<bool>(scriptLibrary.getScriptDefaultParameterValue("TestScript", "enabled")), true);
+        EXPECT_EQ(std::get<std::string>(scriptLibrary.getScriptDefaultParameterValue("TestScript", "label")), "default");
 
-        const GE::ScriptParameterDescriptor* speed = findParameter(parameters.data(), parameters.size(), "speed");
-        const GE::ScriptParameterDescriptor* enabled = findParameter(parameters.data(), parameters.size(), "enabled");
-        const GE::ScriptParameterDescriptor* label = findParameter(parameters.data(), parameters.size(), "label");
-
-        ASSERT_NE(speed, nullptr);
-        ASSERT_NE(enabled, nullptr);
-        ASSERT_NE(label, nullptr);
-
-        EXPECT_EQ(std::get<float>(speed->defaultValue), 2.5f);
-        EXPECT_EQ(std::get<bool>(enabled->defaultValue), true);
-        EXPECT_EQ(std::get<std::string>(label->defaultValue), "default");
-
-        std::shared_ptr<GE::Script> script = makeScriptInstance("TestScript");
+        std::shared_ptr<GE::Script> script = scriptLibrary.makeScriptInstance("TestScript");
         ASSERT_NE(script, nullptr);
-
-        speed->set(*script, 7.0f);
-        enabled->set(*script, false);
-        label->set(*script, std::string("changed"));
-
-        EXPECT_EQ(std::get<float>(speed->get(*script)), 7.0f);
-        EXPECT_EQ(std::get<bool>(enabled->get(*script)), false);
-        EXPECT_EQ(std::get<std::string>(label->get(*script)), "changed");
+        scriptLibrary.setScriptParameter("TestScript", "speed", *script, 7.0f);
+        scriptLibrary.setScriptParameter("TestScript", "enabled", *script, false);
+        scriptLibrary.setScriptParameter("TestScript", "label", *script, std::string("changed"));
     });
 }
 
-TEST(ScriptLibraryManagerTest, keepsLibraryAliveForScriptInstanceLifetime)
+TEST(ScriptLibraryTest, keepsLibraryAliveForScriptInstanceLifetime)
 {
-    GE::ListScriptParametersFn listScriptParameters;
-    GE::MakeScriptInstanceFn makeScriptInstance;
+    std::shared_ptr<GE::Script> script;
     {
-        GE::ScriptLibraryManager manager(GE_TEST_SCRIPT_LIB);
-        listScriptParameters = manager.listScriptParametersFunction();
-        makeScriptInstance = manager.makeScriptInstanceFunction();
+        GE::ScriptLibrary scriptLibrary(GE_TEST_SCRIPT_LIB);
+        std::vector<std::string> parameters = scriptLibrary.listScriptParameterNames("TestScript");
+        ASSERT_EQ(parameters.size(), 3u);
+        EXPECT_TRUE(containsName(parameters, "speed"));
+        EXPECT_EQ(std::get<float>(scriptLibrary.getScriptDefaultParameterValue("TestScript", "speed")), 2.5f);
+
+        script = scriptLibrary.makeScriptInstance("TestScript");
+        ASSERT_NE(script, nullptr);
+        scriptLibrary.setScriptParameter("TestScript", "speed", *script, 11.0f);
     }
-
-    std::vector<GE::ScriptParameterDescriptor> parameters = listScriptParameters("TestScript");
-    ASSERT_EQ(parameters.size(), 3u);
-    const GE::ScriptParameterDescriptor* speed = findParameter(parameters.data(), parameters.size(), "speed");
-    ASSERT_NE(speed, nullptr);
-
-    std::shared_ptr<GE::Script> script = makeScriptInstance("TestScript");
-    ASSERT_NE(script, nullptr);
-
-    speed->set(*script, 11.0f);
-    EXPECT_EQ(std::get<float>(speed->get(*script)), 11.0f);
 
     script.reset();
 }

@@ -188,23 +188,18 @@ void Editor::reloadScriptLib()
 
     if (m_project.scriptLib().empty())
     {
-        m_listScriptNames = {};
-        m_listScriptParameters = {};
-        m_makeScriptInstance = {};
+        m_scriptLibrary.reset();
         return;
     }
 
-    GE::ScriptLibraryManager manager(m_project.scriptLib());
-    m_listScriptNames = manager.listScriptNamesFunction();
-    m_listScriptParameters = manager.listScriptParametersFunction();
-    m_makeScriptInstance = manager.makeScriptInstanceFunction();
+    m_scriptLibrary.emplace(m_project.scriptLib());
 }
 
 void Editor::startGame()
 {
     assert(m_game.has_value() == false);
     saveEditedScene();
-    m_game.emplace(&assetManager(), m_makeScriptInstance, m_listScriptParameters, m_project.makeGameDescriptor());
+    m_game.emplace(&assetManager(), m_scriptLibrary ? &m_scriptLibrary.value() : nullptr, m_project.makeGameDescriptor());
     setPrimaryInputContext(m_game->inputContext());
 }
 

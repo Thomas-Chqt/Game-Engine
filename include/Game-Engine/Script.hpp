@@ -15,6 +15,8 @@
 
 #include <glm/glm.hpp>
 
+#include <cassert>
+#include <cstddef>
 #include <concepts>
 #include <cstdint>
 #include <functional>
@@ -51,14 +53,6 @@ template<> struct ScriptValueTraits<glm::vec2>   { static constexpr std::string_
 template<> struct ScriptValueTraits<glm::vec3>   { static constexpr std::string_view name = "vec3"; };
 template<> struct ScriptValueTraits<std::string> { static constexpr std::string_view name = "string"; };
 
-struct ScriptParameterDescriptor
-{
-    std::string name;
-    VScriptValue defaultValue;
-    std::function<VScriptValue(const Script&)> get;
-    std::function<void(Script&, const VScriptValue&)> set;
-};
-
 class GE_API Script
 {
 public:
@@ -79,7 +73,7 @@ public:
 template<typename T>
 concept ScriptClass = std::derived_from<T, Script>;
 
-class GE_API ScriptRegistry
+class ScriptRegistry
 {
 public:
     static ScriptRegistry& instance()
@@ -88,70 +82,114 @@ public:
         return registry;
     }
 
-    void registerScript(std::string name, std::function<Script*()> makeScriptInstance)
+    template<ScriptClass ScriptT>
+    void registerScript(std::string_view name)
     {
-        m_factories.insert_or_assign(std::move(name), std::move(makeScriptInstance));
+        m_scripts.insert_or_assign(name, ScriptDescriptor{ .factory = []() -> GE::Script* { return new ScriptT; } });
     }
 
     template<ScriptClass ScriptT, ScriptValueType ValueT>
-    void registerParameter(const std::string& scriptName, std::string parameterName, ValueT ScriptT::* member, ValueT defaultValue)
+    void registerParameter(std::string_view scriptName, std::string_view parameterName, ValueT ScriptT::* member, ValueT defaultValue)
     {
-        m_parameters[scriptName].push_back(ScriptParameterDescriptor{
-            .name = std::move(parameterName),
+        m_scripts.at(scriptName).parameters.insert_or_assign(parameterName, RegisteredScriptParameter{
+            .typeName = ScriptValueTraits<ValueT>::name,
             .defaultValue = VScriptValue(defaultValue),
-            .get = [member](const Script& script) -> VScriptValue {
-                return static_cast<const ScriptT&>(script).*member;
-            },
-            .set = [member](Script& script, const VScriptValue& value) {
-                static_cast<ScriptT&>(script).*member = std::get<ValueT>(value);
+            .setParameter = [member](Script& script, const void* data) {
+                static_cast<ScriptT&>(script).*member = *reinterpret_cast<const ValueT*>(data);
             }
         });
     }
 
-    void listScriptNames(const char*** names, unsigned long* count) const
+    void listScriptNames(const char*** names, size_t* count) const
     {
         thread_local static std::vector<const char*> scriptNames;
         scriptNames.clear();
-        scriptNames.reserve(m_factories.size());
-        for (const auto& [name, _] : m_factories)
-            scriptNames.push_back(name.c_str());
+        scriptNames.reserve(m_scripts.size());
+        for (const auto& [name, _] : m_scripts)
+            scriptNames.push_back(name.data()); // ? data() safe because we know it come from a string literal
         *names = scriptNames.data();
-        *count = static_cast<unsigned long>(scriptNames.size());
+        *count = scriptNames.size();
     }
 
-    void listScriptParameters(const char* name, const ScriptParameterDescriptor** parameters, unsigned long* count) const
+    void listScriptParameterNames(const char* scriptName, const char*** names, size_t* count) const
     {
-        static const std::vector<ScriptParameterDescriptor> empty;
-        auto it = m_parameters.find(name);
-        const std::vector<ScriptParameterDescriptor>& descriptors = it == m_parameters.end() ? empty : it->second;
-        *parameters = descriptors.data();
-        *count = static_cast<unsigned long>(descriptors.size());
+        const ScriptDescriptor& script = m_scripts.at(scriptName);
+        thread_local static std::vector<const char*> parameterNames;
+        parameterNames.clear();
+        parameterNames.reserve(script.parameters.size());
+        for (const auto& [name, _] : script.parameters)
+            parameterNames.push_back(name.data()); // ? data() safe because we know it come from a string literal
+        *names = parameterNames.data();
+        *count = parameterNames.size();
+    }
+
+    const char* getScriptParameterTypeName(const char* scriptName, const char* parameterName) const
+    {
+        return m_scripts.at(scriptName).parameters.at(parameterName).typeName.data();
+    }
+
+    void getScriptDefaultParameterValue(const char* scriptName, const char* parameterName, void* data) const
+    {
+        const RegisteredScriptParameter& parameter = m_scripts.at(scriptName).parameters.at(parameterName);
+        std::visit([&](const auto& defaultValue){
+            using ValueT = std::remove_cvref_t<decltype(defaultValue)>;
+            *reinterpret_cast<ValueT*>(data) = defaultValue;
+        }, parameter.defaultValue);
     }
 
     GE::Script* makeScriptInstance(const char* name) const
     {
-        return m_factories.at(name)();
+        assert(name);
+        return m_scripts.at(name).factory();
+    }
+
+    void destroyScriptInstance(GE::Script* instance)
+    {
+        assert(instance);
+        delete instance;
+    }
+
+    void setScriptParameter(const char* scriptName, const char* parameterName, GE::Script* instance, const void* data)
+    {
+        assert(scriptName);
+        assert(parameterName);
+        assert(instance);
+        assert(data);
+        m_scripts.at(scriptName).parameters.at(parameterName).setParameter(*instance, data);
     }
 
 private:
-    std::map<std::string, std::function<Script*()>> m_factories;
-    std::map<std::string, std::vector<ScriptParameterDescriptor>> m_parameters;
+    struct RegisteredScriptParameter
+    {
+        std::string_view typeName;
+        VScriptValue defaultValue;
+        std::function<void(Script&, const void*)> setParameter;
+    };
+
+    struct ScriptDescriptor
+    {
+        std::function<GE::Script*()> factory;
+        std::map<std::string_view, RegisteredScriptParameter> parameters;
+    };
+
+    std::map<std::string_view, ScriptDescriptor> m_scripts;
 };
 
+template<typename ScriptT>
 struct GE_API ScriptRegistrar
 {
-    ScriptRegistrar(std::string name, std::function<Script*()> makeScriptInstance)
+    ScriptRegistrar(std::string_view name)
     {
-        ScriptRegistry::instance().registerScript(std::move(name), std::move(makeScriptInstance));
+        ScriptRegistry::instance().registerScript<ScriptT>(name);
     }
 };
 
 template<typename ScriptT, ScriptValueType ValueT>
 struct ScriptParameterRegistrar
 {
-    ScriptParameterRegistrar(const std::string& scriptName, std::string parameterName, ValueT ScriptT::* member, ValueT defaultValue)
+    ScriptParameterRegistrar(std::string_view scriptName, std::string_view parameterName, ValueT ScriptT::* member, ValueT defaultValue)
     {
-        ScriptRegistry::instance().registerParameter(scriptName, std::move(parameterName), member, defaultValue);
+        ScriptRegistry::instance().registerParameter(scriptName, parameterName, member, std::move(defaultValue));
     }
 };
 
@@ -160,10 +198,7 @@ struct ScriptParameterRegistrar
 #define GE_SCRIPT(TypeName, DisplayName)                                                       \
     using GE_ScriptSelf = TypeName;                                                            \
     static constexpr const char* ge_scriptName() { return DisplayName; }                       \
-    inline static const GE::ScriptRegistrar ge_scriptRegistrar{                                \
-        ge_scriptName(),                                                                       \
-        []<typename GE_ScriptType = TypeName>() -> GE::Script* { return new GE_ScriptType(); } \
-    }                                                                                          \
+    inline static const GE::ScriptRegistrar<GE_ScriptSelf> ge_scriptRegistrar{ ge_scriptName() } \
 
 #define GE_SCRIPT_PARAM(Type, Name, DefaultValue)                                                   \
     Type Name = DefaultValue;                                                                       \

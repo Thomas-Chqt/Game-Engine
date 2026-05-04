@@ -18,7 +18,7 @@
 #include <Game-Engine/FrameGraph.hpp>
 #include <Game-Engine/InputContext.hpp>
 #include <Game-Engine/Input.hpp>
-#include <Game-Engine/ScriptLibraryManager.hpp>
+#include <Game-Engine/ScriptLibrary.hpp>
 #include <Game-Engine/Scene.hpp>
 
 #include <imgui.h>
@@ -76,9 +76,7 @@ private:
     std::pair<uint32_t, uint32_t> m_viewportSize = {0, 0};
     GE::FrameGraph m_frameGraph; // TODO move into render (something like render->setGraph())
 
-    GE::ListScriptNamesFn m_listScriptNames;
-    GE::ListScriptParametersFn m_listScriptParameters;
-    GE::MakeScriptInstanceFn m_makeScriptInstance;
+    std::optional<GE::ScriptLibrary> m_scriptLibrary;
 
 public:
     Editor& operator=(const Editor&) = delete;

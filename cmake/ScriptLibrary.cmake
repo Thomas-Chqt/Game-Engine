@@ -20,19 +20,39 @@ function(ge_add_script_library target_name)
         extern "C"
         {
 
-        GE_SCRIPT_LIBRARY_EXPORT void listScriptNames(const char*** names, unsigned long* count)
+        GE_SCRIPT_LIBRARY_EXPORT void listScriptNames(const char*** names, size_t* count)
         {
-            GE::ScriptRegistry::instance().listScriptNames(names, count);
+            return GE::ScriptRegistry::instance().listScriptNames(names, count);
         }
 
-        GE_SCRIPT_LIBRARY_EXPORT void listScriptParameters(const char* name, const GE::ScriptParameterDescriptor** parameters, unsigned long* count)
+        GE_SCRIPT_LIBRARY_EXPORT void listScriptParameterNames(const char* scriptName, const char*** names, size_t* count)
         {
-            GE::ScriptRegistry::instance().listScriptParameters(name, parameters, count);
+            return GE::ScriptRegistry::instance().listScriptParameterNames(scriptName, names, count);
+        }
+
+        GE_SCRIPT_LIBRARY_EXPORT const char* getScriptParameterTypeName(const char* scriptName, const char* parameterName)
+        {
+            return GE::ScriptRegistry::instance().getScriptParameterTypeName(scriptName, parameterName);
+        }
+
+        GE_SCRIPT_LIBRARY_EXPORT void getScriptDefaultParameterValue(const char* scriptName, const char* parameterName, void* data)
+        {
+            return GE::ScriptRegistry::instance().getScriptDefaultParameterValue(scriptName, parameterName, data);
         }
 
         GE_SCRIPT_LIBRARY_EXPORT GE::Script* makeScriptInstance(const char* name)
         {
             return GE::ScriptRegistry::instance().makeScriptInstance(name);
+        }
+
+        GE_SCRIPT_LIBRARY_EXPORT void destroyScriptInstance(GE::Script* instance)
+        {
+            return GE::ScriptRegistry::instance().destroyScriptInstance(instance);
+        }
+
+        GE_SCRIPT_LIBRARY_EXPORT void setScriptParameter(const char* scriptName, const char* parameterName, GE::Script* instance, const void* data)
+        {
+            return GE::ScriptRegistry::instance().setScriptParameter(scriptName, parameterName, instance, data);
         }
 
         }
