@@ -28,7 +28,7 @@ public float3 evalDirectionalLight(FragmentContext fragCtx, DirectionalLight lig
     float3 halfwayDir = normalize(lightDir + fragCtx.cameraDir);
 
     float3 diffuse  = fragCtx.diffuseColor  * light.color *     max(dot(fragCtx.normal, lightDir  ), 0.0f);
-    float3 specular = fragCtx.specularColor * light.color * pow(max(dot(fragCtx.normal, halfwayDir), 0.0f), fragCtx.shininess);
+    float3 specular = fragCtx.specularColor * light.color * pow(max(dot(fragCtx.normal, halfwayDir), 0.0f), clamp(fragCtx.shininess, 0.001, 256.0));
 
     return diffuse + specular;
 }
@@ -38,8 +38,8 @@ public float3 evalPointLight(FragmentContext fragCtx, PointLight light)
     float3 lightDir   = normalize(light.position - fragCtx.position);
     float3 halfwayDir = normalize(lightDir + fragCtx.cameraDir);
 
-    float3 diffuse  = fragCtx.diffuseColor  * light.color *     max(dot(fragCtx.normal, lightDir  ), 0.0f);
-    float3 specular = fragCtx.specularColor * light.color * pow(max(dot(fragCtx.normal, halfwayDir), 0.0f), fragCtx.shininess);
+    float3 diffuse = fragCtx.diffuseColor * light.color * max(dot(fragCtx.normal, lightDir), 0.0f);
+    float3 specular = fragCtx.specularColor * light.color * pow(max(dot(fragCtx.normal, halfwayDir), 0.0f), clamp(fragCtx.shininess, 0.001, 256.0));
 
     return diffuse + specular;
 }

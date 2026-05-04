@@ -10,6 +10,7 @@
 #include "Game-Engine/ECSWorld.hpp"
 
 #include <cassert>
+#include <climits>
 #include <cstddef>
 #include <mutex>
 #include <ranges>
@@ -88,7 +89,8 @@ uint32_t ECSWorld::componentCount()
     uint64_t count = 0;
     for (auto& [id, arch] : m_archetypes)
         count += (id.size() - 1) * arch.size();
-    return count;
+    assert(count <= UINT32_MAX);
+    return static_cast<uint32_t>(count);
 }
 
 ECSWorld::ComponentID ECSWorld::nextComponentID()

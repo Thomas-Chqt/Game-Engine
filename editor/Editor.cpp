@@ -112,8 +112,8 @@ void Editor::onUpdate()
         // TODO ? maybe move into game class
         for (auto [scriptComponent] : m_game->activeScene().ecsWorld() | GE::ECSView<GE::ScriptComponent>())
         {
-            assert(scriptComponent.instance);
-            scriptComponent.instance->onUpdate();
+            if (scriptComponent.instance)
+                scriptComponent.instance->onUpdate();
         }
     }
 

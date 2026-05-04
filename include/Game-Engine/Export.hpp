@@ -9,8 +9,14 @@
 #ifndef EXPORT_HPP
 #define EXPORT_HPP
 
-#if defined(_WIN32) && defined(GE_BUILDING_ENGINE)
-    #define GE_API __declspec(dllexport)
+#if defined(_WIN32)
+    #if defined(GE_DLL_EXPORT)
+        #define GE_API __declspec(dllexport)
+    #elif defined(GE_DLL_IMPORT)
+        #define GE_API __declspec(dllimport)
+    #else
+        #define GE_API
+    #endif
 #elif defined(__GNUC__) || defined(__clang__)
     #define GE_API __attribute__((visibility("default")))
 #else

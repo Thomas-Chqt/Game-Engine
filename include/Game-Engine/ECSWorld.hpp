@@ -24,7 +24,7 @@
 #include <type_traits>
 #include <typeinfo>
 
-#define INVALID_ENTITY_ID ULONG_MAX
+#define INVALID_ENTITY_ID 18446744073709551615ul
 
 namespace GE
 {
@@ -70,8 +70,18 @@ public:
     template<Component T> bool has(EntityID) const;
     template<Component T> auto& get(this auto&& self, EntityID);
 
-    inline uint32_t entityCount() { return m_entityDatas.size() - m_availableEntityIDs.size(); }
-    inline uint32_t archetypeCount() { return m_archetypes.size(); }
+    inline uint32_t entityCount() {
+        const size_t count = m_entityDatas.size() - m_availableEntityIDs.size();
+        assert(count <= UINT32_MAX);
+        return static_cast<uint32_t>(count);
+    }
+
+    inline uint32_t archetypeCount() {
+        const size_t count = m_archetypes.size();
+        assert(count <= UINT32_MAX);
+        return static_cast<uint32_t>(count);
+    }
+
     uint32_t componentCount();
 
     inline Iterator begin() const;

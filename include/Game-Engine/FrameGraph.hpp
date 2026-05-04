@@ -102,6 +102,8 @@ struct FramePass
     FramePass(const FramePass&) = default;
     FramePass(FramePass&&) = default;
     FramePass(const FramePassBuilder auto& builder) : FramePass(builder.build()) {}
+    FramePass& operator=(const FramePass&) = default;
+    FramePass& operator=(FramePass&&) = default;
 };
 
 class GE_API FrameGraph

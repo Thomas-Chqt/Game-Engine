@@ -172,6 +172,7 @@ function(fetch_dependencies)
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
     )
+    set(YAML_CPP_BUILD_TOOLS OFF)
     FetchContent_MakeAvailable(yaml-cpp)
     set_target_properties(yaml-cpp PROPERTIES FOLDER "dependencies")
 endfunction()

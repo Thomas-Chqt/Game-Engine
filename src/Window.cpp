@@ -39,27 +39,27 @@ Window::Window(const Descriptor& desc)
         if (action == GLFW_PRESS)
         {
             KeyDownEvent keyDownEvent(window, key, false);
-            for (auto& [key, val] : callbackMap)
+            for (auto& [callbackKey, callbacks] : callbackMap)
             {
-                for (auto& callback : val)
+                for (auto& callback : callbacks)
                     callback(keyDownEvent);
             }
         }
         else if (action == GLFW_REPEAT)
         {
             KeyDownEvent keyDownEvent(window, key, true);
-            for (auto& [key, val] : callbackMap)
+            for (auto& [callbackKey, callbacks] : callbackMap)
             {
-                for (auto& callback : val)
+                for (auto& callback : callbacks)
                     callback(keyDownEvent);
             }
         }
         else if (action == GLFW_RELEASE)
         {
             KeyUpEvent keyUpEvent(window, key);
-            for (auto& [key, val] : callbackMap)
+            for (auto& [callbackKey, callbacks] : callbackMap)
             {
-                for (auto& callback : val)
+                for (auto& callback : callbacks)
                     callback(keyUpEvent);
             }
         }
@@ -74,18 +74,18 @@ Window::Window(const Descriptor& desc)
         if (action == GLFW_PRESS)
         {
             MouseDownEvent mouseDownEvent(window, x, y, button);
-            for (auto& [key, val] : callbackMap)
+            for (auto& [callbackKey, callbacks] : callbackMap)
             {
-                for (auto& callback : val)
+                for (auto& callback : callbacks)
                     callback(mouseDownEvent);
             }
         }
         else if (action == GLFW_RELEASE)
         {
             MouseUpEvent mouseUpEvent(window, (int)x, (int)y, button);
-            for (auto& [key, val] : callbackMap)
+            for (auto& [callbackKey, callbacks] : callbackMap)
             {
-                for (auto& callback : val)
+                for (auto& callback : callbacks)
                     callback(mouseUpEvent);
             }
         }
@@ -98,9 +98,9 @@ Window::Window(const Descriptor& desc)
         auto [x, y] = window.cursorPos();
 
         ScrollEvent scrollEvent(window, x, y, xoffset, yoffset);
-        for (auto& [key, val] : callbackMap)
+        for (auto& [callbackKey, callbacks] : callbackMap)
         {
-            for (auto& callback : val)
+            for (auto& callback : callbacks)
                 callback(scrollEvent);
         }
     });
@@ -110,9 +110,9 @@ Window::Window(const Descriptor& desc)
         CallbackMap callbackMap = window.m_eventCallbacks;
 
         CharEvent charEvent(window, codepoint);
-        for (auto& [key, val] : callbackMap)
+        for (auto& [callbackKey, callbacks] : callbackMap)
         {
-            for (auto& callback : val)
+            for (auto& callback : callbacks)
                 callback(charEvent);
         }
     });
@@ -122,9 +122,9 @@ Window::Window(const Descriptor& desc)
         CallbackMap callbackMap = window.m_eventCallbacks;
 
         MouseMoveEvent mouseMoveEvent(window, x, y);
-        for (auto& [key, val] : callbackMap)
+        for (auto& [callbackKey, callbacks] : callbackMap)
         {
-            for (auto& callback : val)
+            for (auto& callback : callbacks)
                 callback(mouseMoveEvent);
         }
     });
@@ -134,9 +134,9 @@ Window::Window(const Descriptor& desc)
         CallbackMap callbackMap = window.m_eventCallbacks;
 
         WindowResizeEvent windowResizeEvent(window, width, height);
-        for (auto& [key, val] : callbackMap)
+        for (auto& [callbackKey, callbacks] : callbackMap)
         {
-            for (auto& callback : val)
+            for (auto& callback : callbacks)
                 callback(windowResizeEvent);
         }
     });

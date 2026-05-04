@@ -33,7 +33,7 @@ template<typename Derived>
 class FramePassBuilderBase
 {
 public:
-    inline constexpr FramePass build() const
+    inline FramePass build() const
     {
         GE::FramePass framePass;
         framePass.colorAttachments = { m_colorAttachment };
@@ -43,7 +43,7 @@ public:
         return framePass;
     }
 
-    inline constexpr Derived& setColorAttachment(const std::string& name, gfx::LoadAction loadAction = gfx::LoadAction::clear, std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 1.0f})
+    inline Derived& setColorAttachment(const std::string& name, gfx::LoadAction loadAction = gfx::LoadAction::clear, std::array<float, 4> clearColor = {0.0f, 0.0f, 0.0f, 1.0f})
     {
         m_colorAttachment.texture = name;
         m_colorAttachment.loadAction = loadAction;
@@ -51,19 +51,19 @@ public:
         return static_cast<Derived&>(*this);
     }
 
-    inline constexpr Derived& setDepthAttachment(const std::string& name, gfx::LoadAction loadAction = gfx::LoadAction::clear, float clearDepth = 1.0f)
+    inline Derived& setDepthAttachment(const std::string& name, gfx::LoadAction loadAction = gfx::LoadAction::clear, float clearDepth = 1.0f)
     {
         m_depthAttachment.emplace(AttachmentDescriptor{.texture = name, .loadAction = loadAction, .clearDepth = clearDepth});
         return static_cast<Derived&>(*this);
     }
 
-    inline constexpr Derived& addSampledTexture(const std::string& name)
+    inline Derived& addSampledTexture(const std::string& name)
     {
         m_sampledTextureNames.push_back(name);
         return static_cast<Derived&>(*this);
     }
 
-    inline constexpr Derived& addUsedBuffer(const std::string& name)
+    inline Derived& addUsedBuffer(const std::string& name)
     {
         m_usedBufferNames.push_back(name);
         return static_cast<Derived&>(*this);
@@ -79,7 +79,7 @@ protected:
 class GE_API ImguiPassBuilder : public FramePassBuilderBase<ImguiPassBuilder>
 {
 public:
-    inline constexpr FramePass build() const
+    inline FramePass build() const
     {
         GE::FramePass framePass = FramePassBuilderBase<ImguiPassBuilder>::build();
         framePass.execute = [](FramePassExecuteContext& ctx) {

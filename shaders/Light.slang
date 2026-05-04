@@ -26,7 +26,7 @@ SLANG_PUBLIC struct alignas(16) PointLight
 {
     SLANG_PUBLIC float3 position;   FLOAT3_PADDING(0);
     SLANG_PUBLIC float3 color;      FLOAT3_PADDING(1);
-    SLANG_PUBLIC float attenuation;
+    SLANG_PUBLIC float attenuation; FLOAT1_PADDING(0);
 };
 
 }

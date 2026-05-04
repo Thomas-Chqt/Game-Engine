@@ -21,9 +21,10 @@
 
 #include <cassert>
 #include <functional>
+#include <future>
+#include <limits>
 #include <memory>
 #include <vector>
-#include <future>
 
 namespace GE
 {
@@ -119,15 +120,25 @@ FramePass FlatGeometryPassBuilder::build() const
             }
         }
 
-        frameData.directionalLightCount = directionalLights.size();
-        frameData.pointLightCount = pointLights.size();
+        const size_t directionalCount = directionalLights.size();
+        const size_t pointCount = pointLights.size();
 
-        ctx.setStructuredBufferContent("directionalLights", directionalLights.data(), (directionalLights.size() > 0 ?  directionalLights.size() : 1) * sizeof(shader::DirectionalLight));
-        ctx.setStructuredBufferContent("pointLights", pointLights.data(), (pointLights.size() > 0 ? pointLights.size() : 1 ) * sizeof(shader::PointLight));
+        assert(directionalCount <= static_cast<size_t>(std::numeric_limits<int>::max()));
+        assert(pointCount <= static_cast<size_t>(std::numeric_limits<int>::max()));
+        frameData.directionalLightCount = static_cast<int>(directionalCount);
+        frameData.pointLightCount = static_cast<int>(pointCount);
+
+        const size_t directionalBufferBytes = (directionalCount > 0 ? directionalCount : 1) * sizeof(shader::DirectionalLight);
+        const size_t pointBufferBytes = (pointCount > 0 ? pointCount : 1) * sizeof(shader::PointLight);
+        assert(directionalBufferBytes <= std::numeric_limits<uint32_t>::max());
+        assert(pointBufferBytes <= std::numeric_limits<uint32_t>::max());
+
+        ctx.setStructuredBufferContent("directionalLights", directionalLights.data(), static_cast<uint32_t>(directionalBufferBytes));
+        ctx.setStructuredBufferContent("pointLights", pointLights.data(), static_cast<uint32_t>(pointBufferBytes));
 
         shader::flat_color::Material& material = *ctx.constantBuffers.at("material")->content<shader::flat_color::Material>();
         material.diffuseColor = glm::vec4(1.0f);
-        material.specularColor = glm::vec4(0.0f);
+        material.specularColor = glm::vec3(0.0f);
         material.shininess = 0.0f;
     };
 
@@ -150,13 +161,13 @@ FramePass FlatGeometryPassBuilder::build() const
 
         for (auto entity : scene->ecsWorld() | const_ECSView<TransformComponent, MeshComponent>() | std::views::transform([&](auto id){ return GE::const_Entity{&scene->ecsWorld(), id}; }))
         {
-            const MeshComponent& mesh = entity.get<MeshComponent>();
+            const MeshComponent& meshComponent = entity.get<MeshComponent>();
             // ? maybe i should not load asset here, just skip them, so user is require to load assets befor using
             // ? loading here could cause unexpected asset load
-            std::shared_future<const std::shared_ptr<Mesh>&> meshFuture = scene->assetManagerView().loadAsset<Mesh>(mesh);
+            std::shared_future<const std::shared_ptr<Mesh>&> meshFuture = scene->assetManagerView().loadAsset<Mesh>(meshComponent);
             if (meshFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
             {
-                std::shared_ptr<Mesh> mesh = meshFuture.get();
+                std::shared_ptr<Mesh> loadedMesh = meshFuture.get();
 
                 std::function<void(const SubMesh&, glm::mat4)> drawSubmesh = [&](const SubMesh& submesh, const glm::mat4& transform) {
                     glm::mat4 modelMatrix = transform * submesh.transform;
@@ -169,7 +180,7 @@ FramePass FlatGeometryPassBuilder::build() const
                     ctx.commandBuffer.drawIndexedVertices(submesh.indexBuffer);
                 };
 
-                for (auto& submesh : mesh->subMeshes)
+                for (auto& submesh : loadedMesh->subMeshes)
                     drawSubmesh(submesh, entity.worldTransform());
             }
         }

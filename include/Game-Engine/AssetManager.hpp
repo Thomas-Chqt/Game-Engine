@@ -241,11 +241,11 @@ struct convert<GE::VAssetPath>
     static Node encode(const GE::VAssetPath& rhs)
     {
         Node node;
-        std::visit([&](auto& assetPath)
+        std::visit([&](const auto& assetPath)
         {
             using AssetPathT = std::remove_cvref_t<decltype(assetPath)>;
             node["type"] = std::string(GE::AssetPathYamlTraits<AssetPathT>::name);
-            node["path"] = std::string(assetPath.path);
+            node["path"] = assetPath.path.string();
         },
         rhs);
         return node;

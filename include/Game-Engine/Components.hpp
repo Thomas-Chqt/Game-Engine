@@ -72,7 +72,7 @@ struct CameraComponent
     float zFar  = 1000.0f;
     float zNear = 0.1f;
 
-    inline constexpr glm::mat4 projectionMatrix(float aspectRatio) const
+    inline glm::mat4 projectionMatrix(float aspectRatio) const
     {
         return glm::perspective(fov, aspectRatio, zNear, zFar);
     }

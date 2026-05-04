@@ -542,29 +542,32 @@ void Editor::renderImgui()
             resourceBrowserSubDir = resourceBrowserSubDir.parent_path();
         ImGui::EndDisabled();
         ImGui::SameLine();
-        ImGui::TextUnformatted(std::filesystem::path(m_project.resourceDir().filename() / resourceBrowserSubDir).c_str());
+        const std::string resourcePath = (m_project.resourceDir().filename() / resourceBrowserSubDir).string();
+        ImGui::TextUnformatted(resourcePath.c_str());
         ImGui::BeginChild("ResourcesChild");
         tileGrid(std::filesystem::directory_iterator(m_project.resourceDir() / resourceBrowserSubDir), std::function([](const std::filesystem::directory_entry& entry){
             ImGui::BeginGroup();
             {
+                const std::string entryPath = entry.path().string();
+                const std::string entryName = entry.path().filename().string();
                 if (entry.is_directory()) {
-                    ImGui::Button(std::format("DIR##{}", entry.path().string()).c_str(), ImVec2(TILE_SIZE, TILE_SIZE));
+                    ImGui::Button(std::format("DIR##{}", entryPath).c_str(), ImVec2(TILE_SIZE, TILE_SIZE));
                     if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
                         resourceBrowserSubDir /= entry.path().filename();
                 }
                 else {
-                    ImGui::Button(std::format("FILE##{}", entry.path().string()).c_str(), ImVec2(TILE_SIZE, TILE_SIZE));
+                    ImGui::Button(std::format("FILE##{}", entryPath).c_str(), ImVec2(TILE_SIZE, TILE_SIZE));
                     if (ImGui::BeginDragDropSource())
                     {
-                        ImGui::SetDragDropPayload("resource_dnd", entry.path().c_str(), entry.path().string().size());
-                        ImGui::Text("%s", entry.path().filename().c_str());
+                        ImGui::SetDragDropPayload("resource_dnd", entryPath.c_str(), entryPath.size() + 1);
+                        ImGui::Text("%s", entryName.c_str());
                         ImGui::EndDragDropSource();
                     }
                 }
                 ImVec2 textMin = ImGui::GetCursorScreenPos();
                 ImVec2 textSize = {TILE_SIZE, ImGui::GetTextLineHeightWithSpacing()};
                 ImVec4 clipRect(textMin.x, textMin.y, textMin.x + textSize.x, textMin.y + textSize.y);
-                ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), ImGui::GetFontSize(), textMin, ImGui::GetColorU32(ImGuiCol_Text), entry.path().filename().c_str(), nullptr, 0.0f, &clipRect);
+                ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), ImGui::GetFontSize(), textMin, ImGui::GetColorU32(ImGuiCol_Text), entryName.c_str(), nullptr, 0.0f, &clipRect);
                 ImGui::Dummy(textSize);
             }
             ImGui::EndGroup();

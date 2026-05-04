@@ -176,7 +176,7 @@ private:
 };
 
 template<typename ScriptT>
-struct GE_API ScriptRegistrar
+struct ScriptRegistrar
 {
     ScriptRegistrar(std::string_view name)
     {

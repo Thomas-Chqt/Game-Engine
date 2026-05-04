@@ -22,35 +22,34 @@ namespace GE
 namespace
 {
 
-void setupScene(Game& game, Scene& scene, const ScriptLibrary& scriptLibrary)
+void setupScene(Game& game, Scene& scene, const ScriptLibrary* scriptLibrary)
 {
     scene.load();
-    for (Entity entity : scene.ecsWorld()
-                             | ECSView<ScriptComponent>()
-                             | std::views::transform([&](auto id) { return Entity{ &scene.ecsWorld(), id }; }))
+    if (scriptLibrary)
     {
-        ScriptComponent& scriptComponent = entity.get<ScriptComponent>();
-        scriptComponent.instance = scriptLibrary.makeScriptInstance(scriptComponent.name);
-        assert(scriptComponent.instance);
-        for (const std::string& parameterName : scriptLibrary.listScriptParameterNames(scriptComponent.name))
+        for (Entity entity : scene.ecsWorld() | ECSView<ScriptComponent>() | std::views::transform([&](auto id) { return Entity{ &scene.ecsWorld(), id }; }))
         {
-            auto it = scriptComponent.parameters.find(parameterName);
-            scriptLibrary.setScriptParameter(
-                scriptComponent.name,
-                parameterName,
-                *scriptComponent.instance,
-                it == scriptComponent.parameters.end() ? scriptLibrary.getScriptDefaultParameterValue(scriptComponent.name, parameterName) : it->second
-            );
+            ScriptComponent& scriptComponent = entity.get<ScriptComponent>();
+            scriptComponent.instance = scriptLibrary->makeScriptInstance(scriptComponent.name);
+            assert(scriptComponent.instance);
+            for (const std::string& parameterName : scriptLibrary->listScriptParameterNames(scriptComponent.name))
+            {
+                auto it = scriptComponent.parameters.find(parameterName);
+                scriptLibrary->setScriptParameter(
+                    scriptComponent.name,
+                    parameterName,
+                    *scriptComponent.instance,
+                    it == scriptComponent.parameters.end() ? scriptLibrary->getScriptDefaultParameterValue(scriptComponent.name, parameterName) : it->second
+                );
+            }
+            scriptComponent.instance->setup(entity, game);
         }
-        scriptComponent.instance->setup(entity, game);
     }
 }
 
 void tearDownScene(Game& game, Scene& scene)
 {
-    for (Entity entity : scene.ecsWorld()
-                             | ECSView<ScriptComponent>()
-                             | std::views::transform([&](auto id) { return Entity{ &scene.ecsWorld(), id }; }))
+    for (Entity entity : scene.ecsWorld() | ECSView<ScriptComponent>() | std::views::transform([&](auto id) { return Entity{ &scene.ecsWorld(), id }; }))
     {
         ScriptComponent& scriptComponent = entity.get<ScriptComponent>();
         if (scriptComponent.instance != nullptr)
@@ -79,14 +78,7 @@ void Game::setActiveScene(const std::string& name)
     if (m_activeScene)
         tearDownScene(*this, *m_activeScene);
     m_activeScene = &m_scenes.at(name);
-    if (m_scriptLibrary != nullptr)
-        setupScene(*this, *m_activeScene, *m_scriptLibrary);
-    else
-    {
-        m_activeScene->load();
-        auto scriptView = m_activeScene->ecsWorld() | ECSView<ScriptComponent>();
-        assert(std::ranges::begin(scriptView) == std::ranges::end(scriptView));
-    }
+    setupScene(*this, *m_activeScene, m_scriptLibrary);
 }
 
 Game::~Game()

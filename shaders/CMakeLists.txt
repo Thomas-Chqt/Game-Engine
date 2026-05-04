@@ -18,7 +18,7 @@ set(FLAT_COLOR_SLIB ${CMAKE_CURRENT_BINARY_DIR}/flat_color.slib)
 add_custom_command(
     OUTPUT ${FLAT_COLOR_SLIB}
     COMMAND $<TARGET_FILE:gfxsc> -t ${SHADER_TARGETS} -o ${FLAT_COLOR_SLIB} ${FLAT_COLOR_SSRC}
-    DEPENDS gfxsc ${FLAT_COLOR_SSRC}
+    DEPENDS gfxsc ${FLAT_COLOR_SSRC} "FrameData.slang" "Light.slang" "phong_shading.slang" "shader.h"
     COMMENT "Building flat_color shader"
     VERBATIM
 )
