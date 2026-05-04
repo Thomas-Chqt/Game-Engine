@@ -25,12 +25,12 @@ jobs:
       - name: Generate
         run: >
           cmake -S ${{ github.workspace }} -B build
-            -DCMAKE_BUILD_TYPE=${{ matrix.build-type }}
-            -DCMAKE_C_COMPILER=gcc-14
-            -DCMAKE_CXX_COMPILER=g++-14
-            -DGE_BUILD_VULKAN=ON
-            -DGE_BUILD_TESTS=ON
-            -DGE_BUILD_EXAMPLES=ON
+          -DCMAKE_BUILD_TYPE=${{ matrix.build-type }}
+          -DCMAKE_C_COMPILER=gcc-14
+          -DCMAKE_CXX_COMPILER=g++-14
+          -DGE_BUILD_VULKAN=ON
+          -DGE_BUILD_TESTS=ON
+          -DGE_BUILD_EXAMPLES=ON
 
       - name: Build
         run: cmake --build build --config ${{ matrix.build-type }} --parallel

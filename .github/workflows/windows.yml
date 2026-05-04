@@ -20,10 +20,10 @@ jobs:
       - name: Generate
         run: >
           cmake -S ${{ github.workspace }} -B build
-            -DCMAKE_BUILD_TYPE=${{ matrix.build-type }}
-            -DGE_BUILD_VULKAN=ON
-            -DGE_BUILD_TESTS=ON
-            -DGE_BUILD_EXAMPLES=${{ matrix.build-examples }}
+          -DCMAKE_BUILD_TYPE=${{ matrix.build-type }}
+          -DGE_BUILD_VULKAN=ON
+          -DGE_BUILD_TESTS=ON
+          -DGE_BUILD_EXAMPLES=${{ matrix.build-examples }}
 
       - name: Build
         run: cmake --build build --config ${{ matrix.build-type }} --parallel
