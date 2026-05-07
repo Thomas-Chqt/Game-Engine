@@ -64,9 +64,7 @@ struct Material
 
 #ifndef __cplusplus
 
-struct _Material { ConstantBuffer<Material> data; };
-ParameterBlock<_Material> _material;
-#define material _material.data
+ParameterBlock<ConstantBuffer<Material>> material;
 
 [shader("fragment")]
 float4 fragmentMain(VSOutput input) : SV_TARGET
