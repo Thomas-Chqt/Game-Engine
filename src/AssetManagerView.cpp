@@ -7,10 +7,11 @@
  */
 
 #include "Game-Engine/AssetManagerView.hpp"
+#include "Game-Engine/AssetManager.hpp"
 
 #include <algorithm>
 #include <cassert>
-#include <utility>
+#include <ranges>
 
 namespace GE
 {
@@ -18,20 +19,16 @@ namespace GE
 AssetManagerView::AssetManagerView(AssetManager* assetManager)
     : m_assetManager(assetManager)
 {
-    assert(m_assetManager);
 }
 
-AssetManagerView::AssetManagerView(AssetManager* assetManager, const std::map<VAssetPath, AssetID>& registredAssets)
+AssetManagerView::AssetManagerView(AssetManager* assetManager, const std::map<AssetID, VAssetPath>& registredAssets)
     : m_assetManager(assetManager)
     , m_registredAssets(registredAssets)
 {
     assert(m_assetManager);
-    for (const auto& [vAssetPath, assetID] : m_registredAssets)
+    for (const auto& [assetID, vAssetPath] : m_registredAssets)
     {
-        if (assetID != BUILT_IN_CUBE_ASSET_ID)
-            m_assetManager->registerAsset(vAssetPath);
-        auto [it, inserted] = m_assets.insert(std::make_pair(assetID, vAssetPath));
-        assert(inserted);
+        m_assetManager->registerAsset(vAssetPath);
         s_nextAssetId = std::max(s_nextAssetId, assetID + 1);
     }
 }
@@ -39,15 +36,19 @@ AssetManagerView::AssetManagerView(AssetManager* assetManager, const std::map<VA
 void AssetManagerView::unloadAsset(AssetID assetId)
 {
     assert(m_assetManager);
-    if (assetId == BUILT_IN_CUBE_ASSET_ID)
-        return m_assetManager->unloadBuiltInCube();
-    return m_assetManager->unloadAsset(m_assets.at(assetId));
+    return m_assetManager->unloadAsset(m_registredAssets.at(assetId));
 }
 
 void AssetManagerView::unloadAllAssets()
 {
     assert(m_assetManager);
-    unloadAssets(m_assets | std::views::transform([](const auto& asset) { return asset.first; }));
+    unloadAssets(m_registredAssets | std::views::transform([](const auto& asset) { return asset.first; }));
+}
+
+const std::string& AssetManagerView::assetName(AssetID assetId) const
+{
+    assert(m_assetManager);
+    return m_assetManager->assetName(m_registredAssets.at(assetId));
 }
 
 AssetManagerView::~AssetManagerView()
@@ -55,4 +56,4 @@ AssetManagerView::~AssetManagerView()
     unloadAllAssets();
 }
 
-}
+} // namespace GE
