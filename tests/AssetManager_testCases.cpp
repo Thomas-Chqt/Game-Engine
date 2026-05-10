@@ -193,22 +193,6 @@ TEST_F(AssetManagerMockDeviceTest, reportsTextureLoadedState)
     EXPECT_FALSE(assetManager.isAssetLoaded(assetPath));
 }
 
-TEST_F(AssetManagerMockDeviceTest, reportsBuiltInCubeLoadedState)
-{
-    GE::AssetManager assetManager(&m_device);
-    GE::AssetManagerView assetManagerView(&assetManager, {
-        { GE::AssetPath<GE::Mesh>(), GE::BUILT_IN_CUBE_ASSET_ID }
-    });
-
-    EXPECT_FALSE(assetManagerView.isAssetLoaded(GE::BUILT_IN_CUBE_ASSET_ID));
-
-    assetManagerView.loadAsset<GE::Mesh>(GE::BUILT_IN_CUBE_ASSET_ID).get();
-    EXPECT_TRUE(assetManagerView.isAssetLoaded(GE::BUILT_IN_CUBE_ASSET_ID));
-
-    assetManagerView.unloadAsset(GE::BUILT_IN_CUBE_ASSET_ID);
-    EXPECT_FALSE(assetManagerView.isAssetLoaded(GE::BUILT_IN_CUBE_ASSET_ID));
-}
-
 TEST_F(AssetManagerMockDeviceTest, loadAndUnloadAffectsAllRegisteredAssets)
 {
     const std::filesystem::path texturePath = dummyTexturePath();
@@ -223,26 +207,26 @@ TEST_F(AssetManagerMockDeviceTest, loadAndUnloadAffectsAllRegisteredAssets)
         .name = "test_scene",
         .activeCamera = INVALID_ENTITY_ID,
         .registredAssets = {
-            { GE::AssetPath<GE::Mesh>(), GE::BUILT_IN_CUBE_ASSET_ID },
-            { textureAssetPath, textureAssetId }
+            { 0, GE::AssetPath<GE::Mesh>(GE::BUILT_IN_CUBE_PATH) },
+            { textureAssetId, textureAssetPath }
         },
         .entities = {}
     });
 
     EXPECT_FALSE(scene.isLoaded());
-    EXPECT_FALSE(scene.assetManagerView().isAssetLoaded(GE::BUILT_IN_CUBE_ASSET_ID));
+    EXPECT_FALSE(scene.assetManagerView().isAssetLoaded(0));
     EXPECT_FALSE(scene.assetManagerView().isAssetLoaded(textureAssetId));
 
     scene.load().get();
 
     EXPECT_TRUE(scene.isLoaded());
-    EXPECT_TRUE(scene.assetManagerView().isAssetLoaded(GE::BUILT_IN_CUBE_ASSET_ID));
+    EXPECT_TRUE(scene.assetManagerView().isAssetLoaded(0));
     EXPECT_TRUE(scene.assetManagerView().isAssetLoaded(textureAssetId));
 
     scene.unload();
 
     EXPECT_FALSE(scene.isLoaded());
-    EXPECT_FALSE(scene.assetManagerView().isAssetLoaded(GE::BUILT_IN_CUBE_ASSET_ID));
+    EXPECT_FALSE(scene.assetManagerView().isAssetLoaded(0));
     EXPECT_FALSE(scene.assetManagerView().isAssetLoaded(textureAssetId));
 }
 

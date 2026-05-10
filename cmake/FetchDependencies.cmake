@@ -129,37 +129,22 @@ function(fetch_dependencies)
     set_target_properties(dlLoad PROPERTIES FOLDER "dependencies")
 
     # -----------------------------
-    # assimp
+    # fastgltf
     # -----------------------------
-    FetchContent_Declare(assimp
-        GIT_REPOSITORY    https://github.com/assimp/assimp.git
-        GIT_TAG           v5.4.1
+    FetchContent_Declare(fastgltf
+        GIT_REPOSITORY    https://github.com/spnda/fastgltf.git
+        GIT_TAG           v0.8.0
         GIT_SHALLOW       1
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
     )
-    set(ASSIMP_BUILD_TESTS                    OFF)
-    set(ASSIMP_INSTALL                        OFF)
-    set(ASSIMP_NO_EXPORT                      ON)
-    set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF)
-    set(ASSIMP_BUILD_OBJ_IMPORTER             ON)
-    set(ASSIMP_BUILD_FBX_IMPORTER             ON)
-    set(ASSIMP_BUILD_GLTF_IMPORTER            ON)
-    set(CMAKE_POLICY_DEFAULT_CMP0175 OLD)
-    FetchContent_MakeAvailable(assimp)
-    unset(CMAKE_POLICY_DEFAULT_CMP0175)
-    if (assimp_SOURCE_DIR)
-        if(TARGET zlibstatic OR TARGET UpdateAssimpLibsDebugSymbolsAndDLLs)
-            set_target_properties(assimp PROPERTIES FOLDER "dependencies/assimp")
-            if(TARGET zlibstatic)
-                set_target_properties(zlibstatic PROPERTIES FOLDER "dependencies/assimp")
-            endif()
-            if(TARGET UpdateAssimpLibsDebugSymbolsAndDLLs)
-                set_target_properties(UpdateAssimpLibsDebugSymbolsAndDLLs PROPERTIES FOLDER "dependencies/assimp")
-            endif()
-        else()
-            set_target_properties(assimp PROPERTIES FOLDER "dependencies")
-        endif()
+    set(FASTGLTF_COMPILE_AS_CPP20 ON)
+    set(FASTGLTF_ENABLE_TESTS     OFF)
+    set(FASTGLTF_ENABLE_EXAMPLES  OFF)
+    set(FASTGLTF_ENABLE_DOCS      OFF)
+    FetchContent_MakeAvailable(fastgltf)
+    if (TARGET fastgltf)
+        set_target_properties(fastgltf PROPERTIES FOLDER "dependencies")
     endif()
 
     # -----------------------------

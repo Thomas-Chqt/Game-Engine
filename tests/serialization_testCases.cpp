@@ -54,7 +54,7 @@ TEST(SerializationTest, componentVariantMapYamlRoundTrip)
                     .intentsity = 0.8f,
                     .attenuation = 0.9f
                 },
-                GE::MeshComponent{GE::BUILT_IN_CUBE_ASSET_ID}
+                GE::MeshComponent{0}
             }
         }
     };
@@ -83,7 +83,7 @@ TEST(SerializationTest, componentVariantMapYamlRoundTrip)
     ASSERT_EQ(decoded.at(7).size(), 3u);
     EXPECT_EQ(std::get<GE::HierarchyComponent>(decoded.at(7)[0]).parent, 2u);
     EXPECT_EQ(std::get<GE::LightComponent>(decoded.at(7)[1]).type, GE::LightComponent::Type::directional);
-    EXPECT_EQ(std::get<GE::MeshComponent>(decoded.at(7)[2]).id, GE::BUILT_IN_CUBE_ASSET_ID);
+    EXPECT_EQ(std::get<GE::MeshComponent>(decoded.at(7)[2]).id, 0);
 }
 
 TEST(AssetPathYamlConversion, encodesMeshAssetPathWithTypeAndPath)
@@ -151,8 +151,8 @@ TEST(SceneDescriptorYamlConversion, encodesDescriptorFields)
         .name = "MainScene",
         .activeCamera = 42,
         .registredAssets = {
-            {GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/cube.obj")), 3},
-            {GE::AssetPath<gfx::Texture>(std::filesystem::path("textures/albedo.png")), 5}
+            {3, GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/cube.obj"))},
+            {5, GE::AssetPath<gfx::Texture>(std::filesystem::path("textures/albedo.png"))}
         },
         .entities = {
             {42, {
@@ -186,10 +186,10 @@ TEST(SceneDescriptorYamlConversion, encodesDescriptorFields)
     EXPECT_EQ(node["activeCamera"].as<GE::ECSWorld::EntityID>(), 42u);
     ASSERT_TRUE(node["registredAssets"].IsMap());
     ASSERT_TRUE(node["entities"].IsMap());
-    const auto encodedAssets = node["registredAssets"].as<std::map<GE::VAssetPath, GE::AssetID>>();
+    const auto encodedAssets = node["registredAssets"].as<std::map<GE::AssetID, GE::VAssetPath>>();
     const GE::VAssetPath cubePath = GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/cube.obj"));
-    ASSERT_TRUE(encodedAssets.contains(cubePath));
-    EXPECT_EQ(encodedAssets.at(cubePath), 3u);
+    ASSERT_TRUE(encodedAssets.contains(3u));
+    EXPECT_EQ(encodedAssets.at(3u), cubePath);
     EXPECT_EQ(node["entities"]["42"][0]["type"].as<std::string>(), "NameComponent");
     EXPECT_EQ(node["entities"]["42"][0]["data"]["name"].as<std::string>(), "camera");
 }
@@ -199,8 +199,8 @@ TEST(SceneDescriptorYamlConversion, decodesDescriptorFromYaml)
     YAML::Node node;
     node["name"] = "LoadedScene";
     node["activeCamera"] = 7;
-    node["registredAssets"] = std::map<GE::VAssetPath, GE::AssetID>{
-        {GE::AssetPath<gfx::Texture>(std::filesystem::path("textures/diffuse.png")), 11}
+    node["registredAssets"] = std::map<GE::AssetID, GE::VAssetPath>{
+        {11, GE::AssetPath<gfx::Texture>(std::filesystem::path("textures/diffuse.png"))}
     };
     node["entities"]["7"].push_back(YAML::Load("{ type: NameComponent, data: { name: player } }"));
     node["entities"]["7"].push_back(YAML::Load(
@@ -217,8 +217,8 @@ TEST(SceneDescriptorYamlConversion, decodesDescriptorFromYaml)
     EXPECT_EQ(descriptor.activeCamera, 7u);
     ASSERT_EQ(descriptor.registredAssets.size(), 1u);
     const GE::VAssetPath diffusePath = GE::AssetPath<gfx::Texture>(std::filesystem::path("textures/diffuse.png"));
-    ASSERT_TRUE(descriptor.registredAssets.contains(diffusePath));
-    EXPECT_EQ(descriptor.registredAssets.at(diffusePath), 11u);
+    ASSERT_TRUE(descriptor.registredAssets.contains(11u));
+    EXPECT_EQ(descriptor.registredAssets.at(11u), diffusePath);
 
     ASSERT_EQ(descriptor.entities.size(), 1u);
     ASSERT_TRUE(descriptor.entities.contains(7));
@@ -247,8 +247,8 @@ TEST(SceneDescriptorYamlConversion, decodesLegacyIdToAssetPathYaml)
     EXPECT_EQ(descriptor.activeCamera, 7u);
     ASSERT_EQ(descriptor.registredAssets.size(), 1u);
     const GE::VAssetPath diffusePath = GE::AssetPath<gfx::Texture>(std::filesystem::path("textures/diffuse.png"));
-    ASSERT_TRUE(descriptor.registredAssets.contains(diffusePath));
-    EXPECT_EQ(descriptor.registredAssets.at(diffusePath), 11u);
+    ASSERT_TRUE(descriptor.registredAssets.contains(11u));
+    EXPECT_EQ(descriptor.registredAssets.at(11u), diffusePath);
 }
 
 TEST(SceneDescriptorYamlConversion, roundTripsDescriptorThroughYamlNode)
@@ -257,7 +257,7 @@ TEST(SceneDescriptorYamlConversion, roundTripsDescriptorThroughYamlNode)
         .name = "RoundTripScene",
         .activeCamera = 15,
         .registredAssets = {
-            {GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/player.obj")), 2}
+            {2, GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/player.obj"))}
         },
         .entities = {
             {15, {
@@ -274,8 +274,8 @@ TEST(SceneDescriptorYamlConversion, roundTripsDescriptorThroughYamlNode)
     EXPECT_EQ(decoded.activeCamera, descriptor.activeCamera);
     ASSERT_EQ(decoded.registredAssets.size(), 1u);
     const GE::VAssetPath playerPath = GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/player.obj"));
-    ASSERT_TRUE(decoded.registredAssets.contains(playerPath));
-    EXPECT_EQ(decoded.registredAssets.at(playerPath), 2u);
+    ASSERT_TRUE(decoded.registredAssets.contains(2u));
+    EXPECT_EQ(decoded.registredAssets.at(2u), playerPath);
     ASSERT_EQ(decoded.entities.size(), 1u);
     ASSERT_EQ(decoded.entities.at(15).size(), 2u);
     EXPECT_EQ(std::get<GE::NameComponent>(decoded.entities.at(15)[0]).name, "player");
@@ -301,8 +301,15 @@ TEST(SceneDescriptorYamlConversion, rejectsYamlWithoutRequiredKeys)
 
     GE::Scene::Descriptor descriptor;
     EXPECT_FALSE(YAML::convert<GE::Scene::Descriptor>::decode(missingName, descriptor));
-    EXPECT_FALSE(YAML::convert<GE::Scene::Descriptor>::decode(missingActiveCamera, descriptor));
-    EXPECT_FALSE(YAML::convert<GE::Scene::Descriptor>::decode(missingRegistredAssets, descriptor));
+    EXPECT_TRUE(YAML::convert<GE::Scene::Descriptor>::decode(missingActiveCamera, descriptor));
+    EXPECT_EQ(descriptor.activeCamera, INVALID_ENTITY_ID);
+    EXPECT_TRUE(descriptor.registredAssets.empty());
+    EXPECT_TRUE(descriptor.entities.empty());
+
+    EXPECT_TRUE(YAML::convert<GE::Scene::Descriptor>::decode(missingRegistredAssets, descriptor));
+    EXPECT_EQ(descriptor.activeCamera, 1u);
+    EXPECT_TRUE(descriptor.registredAssets.empty());
+    EXPECT_TRUE(descriptor.entities.empty());
 }
 
 TEST(InputContextYamlConversion, roundTripsConfiguredInputsThroughYamlNode)

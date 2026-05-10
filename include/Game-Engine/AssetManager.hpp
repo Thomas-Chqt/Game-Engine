@@ -58,20 +58,9 @@ struct AssetPath
     friend bool operator<(const AssetPath& lhs, const AssetPath& rhs) { return lhs.path < rhs.path; }
 };
 
-template<typename T>
-struct AssetPathYamlTraits;
-
-template<>
-struct AssetPathYamlTraits<AssetPath<Mesh>>
-{
-    static constexpr std::string_view name = "Mesh";
-};
-
-template<>
-struct AssetPathYamlTraits<AssetPath<gfx::Texture>>
-{
-    static constexpr std::string_view name = "Texture";
-};
+template<typename T> struct AssetPathYamlTraits;
+template<> struct AssetPathYamlTraits<AssetPath<Mesh>>         { static constexpr std::string_view name = "Mesh";    };
+template<> struct AssetPathYamlTraits<AssetPath<gfx::Texture>> { static constexpr std::string_view name = "Texture"; };
 
 template<typename AssetT>
 using AssetPathType = AssetPath<AssetT>;
@@ -81,6 +70,8 @@ using VAssetPath = AssetPathTypes::into<std::variant>;
 
 template<typename T>
 concept VAssetPathRange = std::ranges::range<T> && std::is_same_v<std::ranges::range_value_t<T>, VAssetPath>;
+
+constexpr std::string_view BUILT_IN_CUBE_PATH = "nofile://built_in_cube";
 
 class GE_API AssetManager
 {
@@ -94,7 +85,7 @@ public:
     void registerAsset(const VAssetPath&);
 
     template<ManagableAsset T>
-    inline const std::shared_future<const std::shared_ptr<T>&>& loadAsset(const VAssetPath& vAssetPath) { return loadAssetHandle<T>(m_handles.at(vAssetPath)); }
+    inline const std::shared_future<const std::shared_ptr<T>&>& loadAsset(const VAssetPath& vAssetPath) { return loadAssetHandle<T>(m_registredAsset.at(vAssetPath)); }
 
     std::future<void> loadAssets(VAssetPathRange auto&& vAssetPaths) {
         std::vector<std::future<void>> futures;
@@ -116,9 +107,7 @@ public:
         });
     }
 
-    inline const std::shared_future<const std::shared_ptr<Mesh>&>& loadBuiltInCube() { return loadAssetHandle<Mesh>(m_builtInCubeHandle); }
-
-    inline bool isAssetLoaded(const VAssetPath& vAssetPath) const { return isAssetHandleLoaded(m_handles.at(vAssetPath)); }
+    inline bool isAssetLoaded(const VAssetPath& vAssetPath) const { return isAssetHandleLoaded(m_registredAsset.at(vAssetPath)); }
 
     bool areAssetsLoaded(VAssetPathRange auto&& vAssetPaths) const {
         return std::ranges::all_of(vAssetPaths, [this](const VAssetPath& vAssetPath) {
@@ -126,16 +115,14 @@ public:
         });
     }
 
-    inline bool isBuiltInCubeLoaded() const { return isAssetHandleLoaded(m_builtInCubeHandle); }
-
-    inline void unloadAsset(const VAssetPath& vAssetPath) { unloadAssetHandle(m_handles.at(vAssetPath)); }
+    inline void unloadAsset(const VAssetPath& vAssetPath) { unloadAssetHandle(m_registredAsset.at(vAssetPath)); }
 
     void unloadAssets(VAssetPathRange auto&& vAssetPaths) {
         for (const VAssetPath& vAssetPath : vAssetPaths)
             unloadAsset(vAssetPath);
     }
 
-    inline void unloadBuiltInCube() { unloadAssetHandle(m_builtInCubeHandle); }
+    inline const std::string& assetName(const VAssetPath& vAssetPath) const { return m_assetMetadatas.at(vAssetPath).name; }
 
     template<ManagableAsset T>
     inline const std::shared_ptr<T>& getAsset(VAssetPath& vAssetPath) { return loadAsset<T>(vAssetPath).get(); }
@@ -161,10 +148,18 @@ private:
         std::shared_ptr<T> asset;
     };
 
-    template<typename AssetT>
-    using AssetHandleType = AssetHandle<AssetT>;
+    struct AssetMetadata
+    {
+        std::string name;
+        // - dependantAssets mean asset needed by an other asset, like textures of a mesh
+        // - they are registered, loaded and added here when the parent asset is loaded
+        // - when the parent asset is unloaded, dependant asset are unloaded
+        // - when the load count reach 0, they are unregistered.
+        //   because they may no be loadable outside of the context of the parent asset, like embeded textures
+        std::vector<VAssetPath> dependantAssets;
+    };
 
-    using AssetHandleTypes = ManagableAssetTypes::wrapped<AssetHandleType>;
+    using AssetHandleTypes = ManagableAssetTypes::wrapped<AssetHandle>;
     using VAssetHandle = AssetHandleTypes::into<std::variant>;
 
     template<ManagableAsset T>
@@ -196,34 +191,10 @@ private:
 
     void unloadAssetHandle(VAssetHandle&);
 
-    static std::shared_ptr<gfx::Buffer> newDeviceLocalBuffer(gfx::Device& device, gfx::CommandBuffer& commandBuffer, gfx::BufferUsage usage, const std::ranges::sized_range auto& data) {
-        std::shared_ptr<gfx::Buffer> indexBuffer = device.newBuffer(gfx::Buffer::Descriptor{
-            .size = sizeof(std::ranges::range_value_t<decltype(data)>) * data.size(),
-            .usages = usage | gfx::BufferUsage::copyDestination,
-            .storageMode = gfx::ResourceStorageMode::deviceLocal });
-        assert(indexBuffer);
-
-        std::shared_ptr<gfx::Buffer> stagingBuffer = device.newBuffer(gfx::Buffer::Descriptor{
-            .size = indexBuffer->size(),
-            .usages = gfx::BufferUsage::copySource,
-            .storageMode = gfx::ResourceStorageMode::hostVisible });
-        assert(stagingBuffer);
-
-        std::ranges::copy(data, stagingBuffer->content<std::ranges::range_value_t<decltype(data)>>());
-
-        commandBuffer.copyBufferToBuffer(stagingBuffer, indexBuffer, indexBuffer->size());
-
-        return indexBuffer;
-    }
-
-    static Mesh loadMesh(gfx::Device&, const std::filesystem::path&, gfx::CommandBuffer&);
-    static std::shared_ptr<gfx::Texture> loadTexture(gfx::Device&, const std::filesystem::path&, gfx::CommandBuffer&);
-    static std::shared_ptr<gfx::Texture> loadTexture(gfx::Device&, const std::byte* bytes, uint32_t width, uint32_t height, gfx::CommandBuffer&);
-    static Mesh loadBuiltInCube(gfx::Device&, gfx::CommandBuffer&);
-
     gfx::Device* m_device = nullptr;
-    std::map<VAssetPath, VAssetHandle> m_handles;
-    VAssetHandle m_builtInCubeHandle;
+
+    std::map<VAssetPath, VAssetHandle> m_registredAsset;
+    std::map<VAssetPath, AssetMetadata> m_assetMetadatas;
 
 public:
     AssetManager& operator=(const AssetManager&) = delete;

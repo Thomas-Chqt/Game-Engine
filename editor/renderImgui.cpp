@@ -8,9 +8,12 @@
 
 #include "Editor.hpp"
 
+#include "Game-Engine/AssetManager.hpp"
+#include "Game-Engine/AssetManagerView.hpp"
 #include "Game-Engine/ECSView.hpp"
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/InputFwd.hpp"
+#include "Game-Engine/Mesh.hpp"
 #include "Game-Engine/RawInput.hpp"
 #include "Game-Engine/Scene.hpp"
 
@@ -240,32 +243,16 @@ void scriptComponentEditWidget(GE::Entity& entity, GE::Scene&, const GE::ScriptL
 template<>
 void componentEditWidget<GE::MeshComponent>(GE::Entity& entity, GE::Scene& scene)
 {
-    GE::MeshComponent& meshComponent = entity.get<GE::MeshComponent>();
+    GE::MeshComponent& mesh = entity.get<GE::MeshComponent>();
 
-    std::string currentMeshStem;
-    if (meshComponent.id == GE::BUILT_IN_CUBE_ASSET_ID)
-        currentMeshStem = "built_in_cube";
-    else
+    if (ImGui::BeginCombo("Mesh##RegistredMesh", scene.assetManagerView().assetName(mesh).c_str()))
     {
-        const auto& registredAssets = scene.assetManagerView().registredAssets();
-        const auto assetIt = std::ranges::find_if(registredAssets, [&](const auto& asset) { return asset.second == meshComponent.id; });
-        if (assetIt != registredAssets.end())
-            currentMeshStem = std::visit([](auto& path){return path.path.stem().string();}, assetIt->first);
-    }
-
-    if (ImGui::BeginCombo("Type##LightComponent_type", currentMeshStem.c_str()))
-    {
-        if (ImGui::Selectable("built_in_cube", meshComponent.id == GE::BUILT_IN_CUBE_ASSET_ID))
-            meshComponent.id = GE::BUILT_IN_CUBE_ASSET_ID;
-        if (meshComponent.id == GE::BUILT_IN_CUBE_ASSET_ID)
-            ImGui::SetItemDefaultFocus();
-
-        for (auto& [vAssetPath, id] : scene.assetManagerView().registredAssets())
+        for (auto& [id, vAssetPath] : scene.assetManagerView().registredAssets()
+                                    | std::views::filter([](const auto& pair) { return std::holds_alternative<GE::AssetPath<GE::Mesh>>(pair.second); }))
         {
-            const bool is_selected = (id == meshComponent.id);
-            std::string meshStem = std::visit([](auto& path){ return path.path.stem().string(); }, vAssetPath);
-            if (ImGui::Selectable(meshStem.c_str(), is_selected))
-                meshComponent.id = id;
+            const bool is_selected = (id == mesh.id);
+            if (ImGui::Selectable(scene.assetManagerView().assetName(id).c_str(), is_selected))
+                mesh.id = id;
             if (is_selected)
                 ImGui::SetItemDefaultFocus();
         }
@@ -278,7 +265,7 @@ void componentEditWidget<GE::MeshComponent>(GE::Entity& entity, GE::Scene& scene
             GE::Entity& droped = *(GE::Entity*)payload->Data;
             std::string_view path = std::string_view((const char*)payload->Data, (size_t)payload->DataSize);
             GE::AssetID id = scene.assetManagerView().registerAsset<GE::Mesh>(std::filesystem::path(path));
-            meshComponent.id = id;
+            mesh.id = id;
         }
         ImGui::EndDragDropTarget();
     }
@@ -480,7 +467,8 @@ void Editor::renderImgui()
                     {"Add/Cube", [this] {
                         m_selectedEntity = m_editedScene.second.newEntity("cube");
                         m_selectedEntity.emplace<GE::TransformComponent>();
-                        m_selectedEntity.emplace<GE::MeshComponent>(GE::BUILT_IN_CUBE_ASSET_ID);
+                        auto assetId = m_editedScene.second.assetManagerView().registerAsset<GE::Mesh>(GE::BUILT_IN_CUBE_PATH);
+                        m_selectedEntity.emplace<GE::MeshComponent>(assetId);
                     }},
                     {"Add/Light", [this] {
                         m_selectedEntity = m_editedScene.second.newEntity("light");

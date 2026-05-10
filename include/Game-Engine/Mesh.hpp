@@ -41,7 +41,6 @@ struct SubMesh
 
 struct Mesh
 {
-    std::string name;
     std::vector<SubMesh> subMeshes;
 };
 
