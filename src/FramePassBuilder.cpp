@@ -21,7 +21,6 @@
 
 #include <cassert>
 #include <functional>
-#include <future>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -162,27 +161,23 @@ FramePass FlatGeometryPassBuilder::build() const
         for (auto entity : scene->ecsWorld() | const_ECSView<TransformComponent, MeshComponent>() | std::views::transform([&](auto id){ return GE::const_Entity{&scene->ecsWorld(), id}; }))
         {
             const MeshComponent& meshComponent = entity.get<MeshComponent>();
-            // ? maybe i should not load asset here, just skip them, so user is require to load assets befor using
-            // ? loading here could cause unexpected asset load
-            std::shared_future<const std::shared_ptr<Mesh>&> meshFuture = scene->assetManagerView().loadAsset<Mesh>(meshComponent);
-            if (meshFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
-            {
-                std::shared_ptr<Mesh> loadedMesh = meshFuture.get();
+            if (!scene->assetManagerView().isAssetLoaded(meshComponent.id))
+                continue;
+            const std::shared_ptr<Mesh>& loadedMesh = scene->assetManagerView().getAsset<Mesh>(meshComponent.id);
 
-                std::function<void(const SubMesh&, glm::mat4)> drawSubmesh = [&](const SubMesh& submesh, const glm::mat4& transform) {
-                    glm::mat4 modelMatrix = transform * submesh.transform;
+            std::function<void(const SubMesh&, glm::mat4)> drawSubmesh = [&](const SubMesh& submesh, const glm::mat4& transform) {
+                glm::mat4 modelMatrix = transform * submesh.transform;
 
-                    for (auto& childSubmesh : submesh.subMeshes)
-                        drawSubmesh(childSubmesh, modelMatrix);
+                for (auto& childSubmesh : submesh.subMeshes)
+                    drawSubmesh(childSubmesh, modelMatrix);
 
-                    ctx.commandBuffer.setPushConstants(&modelMatrix);
-                    ctx.commandBuffer.useVertexBuffer(submesh.vertexBuffer);
-                    ctx.commandBuffer.drawIndexedVertices(submesh.indexBuffer);
-                };
+                ctx.commandBuffer.setPushConstants(&modelMatrix);
+                ctx.commandBuffer.useVertexBuffer(submesh.vertexBuffer);
+                ctx.commandBuffer.drawIndexedVertices(submesh.indexBuffer);
+            };
 
-                for (auto& submesh : loadedMesh->subMeshes)
-                    drawSubmesh(submesh, entity.worldTransform());
-            }
+            for (auto& submesh : loadedMesh->subMeshes)
+                drawSubmesh(submesh, entity.worldTransform());
         }
     };
 

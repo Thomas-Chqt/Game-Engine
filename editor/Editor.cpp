@@ -86,6 +86,8 @@ Editor::Editor(int argc, char* argv[])
     , m_project(m_projectFilePath.empty() ? Project() : loadProjectFile(m_projectFilePath))
     , m_editedScene{m_project.startScene().first, GE::Scene(&assetManager(), m_project.startScene().second)}
 {
+    m_editedScene.second.load();
+
     makeEditorInputs(m_editorInputContext);
 
     m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_move", [editorCamera=&m_editorCamera](const glm::vec2& value) { editorCamera->onMoveInput(value); }) ;
