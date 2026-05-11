@@ -85,9 +85,13 @@ public:
     void registerAsset(const VAssetPath&);
 
     template<ManagableAsset T>
-    inline const std::shared_future<const std::shared_ptr<T>&>& loadAsset(const VAssetPath& vAssetPath) { return loadAssetHandle<T>(m_registredAsset.at(vAssetPath)); }
+    inline const std::shared_future<const std::shared_ptr<T>&>& loadAsset(const VAssetPath& vAssetPath)
+    {
+        return loadAssetHandle<T>(m_registredAsset.at(vAssetPath));
+    }
 
-    std::future<void> loadAssets(VAssetPathRange auto&& vAssetPaths) {
+    std::future<void> loadAssets(VAssetPathRange auto&& vAssetPaths)
+    {
         std::vector<std::future<void>> futures;
         if constexpr (std::ranges::sized_range<std::remove_cvref_t<decltype(vAssetPaths)>>)
             futures.reserve(std::ranges::size(vAssetPaths));
@@ -107,25 +111,42 @@ public:
         });
     }
 
-    inline bool isAssetLoaded(const VAssetPath& vAssetPath) const { return isAssetHandleLoaded(m_registredAsset.at(vAssetPath)); }
+    inline bool isAssetLoaded(const VAssetPath& vAssetPath) const
+    {
+        return isAssetHandleLoaded(m_registredAsset.at(vAssetPath));
+    }
 
-    bool areAssetsLoaded(VAssetPathRange auto&& vAssetPaths) const {
+    bool areAssetsLoaded(VAssetPathRange auto&& vAssetPaths) const
+    {
         return std::ranges::all_of(vAssetPaths, [this](const VAssetPath& vAssetPath) {
             return isAssetLoaded(vAssetPath);
         });
     }
 
-    inline void unloadAsset(const VAssetPath& vAssetPath) { unloadAssetHandle(m_registredAsset.at(vAssetPath)); }
+    inline void unloadAsset(const VAssetPath& vAssetPath)
+    {
+        unloadAssetHandle(m_registredAsset.at(vAssetPath));
+    }
 
-    void unloadAssets(VAssetPathRange auto&& vAssetPaths) {
+    void unloadAssets(VAssetPathRange auto&& vAssetPaths)
+    {
         for (const VAssetPath& vAssetPath : vAssetPaths)
             unloadAsset(vAssetPath);
     }
 
-    inline const std::string& assetName(const VAssetPath& vAssetPath) const { return m_assetMetadatas.at(vAssetPath).name; }
+    inline const std::string& assetName(const VAssetPath& vAssetPath) const
+    {
+        return m_assetMetadatas.at(vAssetPath).name;
+    }
 
     template<ManagableAsset T>
-    inline const std::shared_ptr<T>& getAsset(VAssetPath& vAssetPath) { return loadAsset<T>(vAssetPath).get(); }
+    inline const std::shared_ptr<T>& getAsset(const VAssetPath& vAssetPath) const
+    {
+        const auto& handle = std::get<AssetHandle<T>>(m_registredAsset.at(vAssetPath));
+        assert(handle.status.load() == AssetHandleLoadingStatus::loaded);
+        assert(handle.asset);
+        return handle.asset;
+    }
 
     ~AssetManager();
 
@@ -144,6 +165,7 @@ private:
 
         std::function<std::shared_ptr<T>(gfx::CommandBuffer&)> loader;
         std::atomic<AssetHandleLoadingStatus> status = AssetHandleLoadingStatus::unloaded;
+        std::atomic_uint32_t refCount = 0;
         std::shared_future<const std::shared_ptr<T>&> future;
         std::shared_ptr<T> asset;
     };
@@ -163,26 +185,40 @@ private:
     using VAssetHandle = AssetHandleTypes::into<std::variant>;
 
     template<ManagableAsset T>
-    const std::shared_future<const std::shared_ptr<T>&>& loadAssetHandle(VAssetHandle& vHandle) {
+    const std::shared_future<const std::shared_ptr<T>&>& loadAssetHandle(VAssetHandle& vHandle)
+    {
         auto& handle = std::get<AssetHandle<T>>(vHandle);
+        handle.refCount.fetch_add(1);
         auto expected = AssetHandleLoadingStatus::unloaded;
         if (handle.status.compare_exchange_strong(expected, AssetHandleLoadingStatus::loading))
         {
             handle.future = std::async(std::launch::async, [device = m_device, handle = &handle]() -> const std::shared_ptr<T>& {
-                std::unique_ptr<gfx::CommandBufferPool> commandBufferPool = device->newCommandBufferPool();
-                assert(commandBufferPool);
-                std::shared_ptr<gfx::CommandBuffer> commandBuffer = commandBufferPool->get();
-                assert(commandBuffer);
-                handle->asset = handle->loader(*commandBuffer);
-                device->submitCommandBuffers(commandBuffer);
-                handle->status.store(AssetHandleLoadingStatus::loaded);
-                return handle->asset;
+                try
+                {
+                    std::unique_ptr<gfx::CommandBufferPool> commandBufferPool = device->newCommandBufferPool();
+                    assert(commandBufferPool);
+                    std::shared_ptr<gfx::CommandBuffer> commandBuffer = commandBufferPool->get();
+                    assert(commandBuffer);
+                    handle->asset = handle->loader(*commandBuffer);
+                    device->submitCommandBuffers(commandBuffer);
+                    handle->status.store(AssetHandleLoadingStatus::loaded);
+                    return handle->asset;
+                }
+                catch (...)
+                {
+                    handle->asset.reset();
+                    const uint32_t previousRefCount = handle->refCount.fetch_sub(1);
+                    assert(previousRefCount > 0);
+                    handle->status.store(AssetHandleLoadingStatus::unloaded);
+                    throw;
+                }
             });
         }
         return handle.future;
     }
 
-    bool isAssetHandleLoaded(const VAssetHandle& vHandle) const {
+    bool isAssetHandleLoaded(const VAssetHandle& vHandle) const
+    {
         return std::visit([](const auto& handle) {
             return handle.status.load() == AssetHandleLoadingStatus::loaded;
         },

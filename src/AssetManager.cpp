@@ -310,17 +310,31 @@ void AssetManager::unloadAssetHandle(VAssetHandle& vHandle)
     std::visit([](auto& handle) {
         if (handle.future.valid())
             handle.future.wait(); // dont need to propagate errors
-        auto expected = AssetHandleLoadingStatus::loaded;
-        if (handle.status.compare_exchange_strong(expected, AssetHandleLoadingStatus::unloaded))
+        const uint32_t previousRefCount = handle.refCount.fetch_sub(1);
+        assert(previousRefCount > 0);
+        if (previousRefCount == 1)
+        {
+            auto expected = AssetHandleLoadingStatus::loaded;
+            bool res = handle.status.compare_exchange_strong(expected, AssetHandleLoadingStatus::unloaded);
+            assert(res);
             handle.asset.reset();
+        }
     },
     vHandle);
 }
 
 AssetManager::~AssetManager()
 {
+    const auto destroyAssetHandle = [](auto& handle) {
+        if (handle.future.valid())
+            handle.future.wait(); // dont need to propagate errors
+        handle.refCount.store(0);
+        handle.status.store(AssetHandleLoadingStatus::unloaded);
+        handle.asset.reset();
+    };
+
     for (auto& [_, handle] : m_registredAsset)
-        unloadAssetHandle(handle);
+        std::visit(destroyAssetHandle, handle);
 }
 
 } // namespace GE

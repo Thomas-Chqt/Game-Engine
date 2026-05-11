@@ -56,9 +56,10 @@ public:
 
     Entity newEntity(const std::string& name);
 
-    inline bool isLoaded() const { return m_assetManagerView.areAllAssetsLoaded(); }
-    inline std::future<void> load() const { return m_assetManagerView.loadAllAssets(); }
-    inline void unload() { m_assetManagerView.unloadAllAssets(); }
+    inline bool isLoaded() const { return m_assetManagerView.isLoaded(); }
+    inline std::future<void> load() { return m_assetManagerView.load(); }
+    inline void unload() { m_assetManagerView.unload(); }
+    inline bool areAllAssetsLoaded() const { return m_assetManagerView.areAllAssetsLoaded(); }
 
     Descriptor makeDescriptor() const;
 
