@@ -161,9 +161,9 @@ FramePass FlatGeometryPassBuilder::build() const
         for (auto entity : scene->ecsWorld() | const_ECSView<TransformComponent, MeshComponent>() | std::views::transform([&](auto id){ return GE::const_Entity{&scene->ecsWorld(), id}; }))
         {
             const MeshComponent& meshComponent = entity.get<MeshComponent>();
-            if (!scene->assetManagerView().isAssetLoaded(meshComponent.id))
+            if (!scene->assetManagerView().assetManager().isAssetLoaded(meshComponent))
                 continue;
-            const std::shared_ptr<Mesh>& loadedMesh = scene->assetManagerView().getAsset<Mesh>(meshComponent.id);
+            const std::shared_ptr<Mesh>& loadedMesh = scene->assetManagerView().assetManager().getAsset<Mesh>(meshComponent.id);
 
             std::function<void(const SubMesh&, glm::mat4)> drawSubmesh = [&](const SubMesh& submesh, const glm::mat4& transform) {
                 glm::mat4 modelMatrix = transform * submesh.transform;

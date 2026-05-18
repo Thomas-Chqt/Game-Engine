@@ -38,160 +38,164 @@ scenes:
   - name: default_scene
     activeCamera: 1
     registredAssets:
-      0:
-        type: Mesh
-        path: nofile://built_in_cube
-      1:
-        type: Mesh
-        path: examples/project1/resources/chess_set/chess_set.gltf
+      - assetId: 0
+      - assetId: 1
+        asset:
+          type: Mesh
+          path: examples/project1/resources/chess_set/chess_set.gltf
     entities:
-      0:
-        - type: NameComponent
-          data:
-            name: chess
-        - type: TransformComponent
-          data:
-            position:
-              - 0
-              - 0
-              - 0
-            rotation:
-              - 0
-              - 0
-              - 0
-            scale:
-              - 10
-              - 10
-              - 10
-        - type: MeshComponent
-          data:
-            id: 1
-      1:
-        - type: NameComponent
-          data:
-            name: camera
-        - type: HierarchyComponent
-          data:
-            parent: 4
-            firstChild: 18446744073709551615
-            nextChild: 18446744073709551615
-        - type: TransformComponent
-          data:
-            position:
-              - 0
-              - 1.41
-              - 1.19
-            rotation:
-              - -0.64
-              - 0
-              - 0
-            scale:
-              - 0.01
-              - 0.01
-              - 0.1
-        - type: CameraComponent
-          data:
-            fov: 1.0471976
-            zFar: 1000
-            zNear: 0.1
-        - type: MeshComponent
-          data:
-            id: 0
-      2:
-        - type: NameComponent
-          data:
-            name: light
-        - type: HierarchyComponent
-          data:
-            parent: 18446744073709551615
-            firstChild: 18446744073709551615
-            nextChild: 18446744073709551615
-        - type: TransformComponent
-          data:
-            position:
-              - 0
-              - 5
-              - 0
-            rotation:
-              - 0
-              - 0
-              - 0
-            scale:
-              - 1
-              - 1
-              - 1
-        - type: LightComponent
-          data:
-            type: point
-            color:
-              - 1
-              - 1
-              - 1
-            intentsity: 1
-            attenuation: 0
-      3:
-        - type: NameComponent
-          data:
-            name: player_mesh
-        - type: HierarchyComponent
-          data:
-            parent: 4
-            firstChild: 18446744073709551615
-            nextChild: 1
-        - type: TransformComponent
-          data:
-            position:
-              - 0
-              - 0
-              - 0
-            rotation:
-              - 0
-              - 0
-              - 0
-            scale:
-              - 0.1
-              - 0.5
-              - 0.1
-        - type: MeshComponent
-          data:
-            id: 0
-      4:
-        - type: NameComponent
-          data:
-            name: player
-        - type: HierarchyComponent
-          data:
-            parent: 18446744073709551615
-            firstChild: 3
-            nextChild: 18446744073709551615
-        - type: TransformComponent
-          data:
-            position:
-              - -3
-              - 0.67
-              - 0
-            rotation:
-              - 0
-              - -1.57
-              - 0
-            scale:
-              - 1
-              - 1
-              - 1
-        - type: ScriptComponent
-          data:
-            name: PlayerController
-            parameters:
-              gravity:
-                type: float
-                data: 0.006
-              jump_speed:
-                type: float
-                data: 0.12
-              move_speed:
-                type: float
-                data: 0.05
-              rotate_speed:
-                type: float
-                data: 0.05
+      - entityId: 0
+        components:
+          - type: NameComponent
+            data:
+              name: chess
+          - type: TransformComponent
+            data:
+              position:
+                - 0
+                - 0
+                - 0
+              rotation:
+                - 0
+                - 0
+                - 0
+              scale:
+                - 10
+                - 10
+                - 10
+          - type: MeshComponent
+            data:
+              id: 1
+      - entityId: 1
+        components:
+          - type: NameComponent
+            data:
+              name: camera
+          - type: HierarchyComponent
+            data:
+              parent: 4
+              firstChild: 18446744073709551615
+              nextChild: 18446744073709551615
+          - type: TransformComponent
+            data:
+              position:
+                - 0
+                - 1.41
+                - 1.19
+              rotation:
+                - -0.64
+                - 0
+                - 0
+              scale:
+                - 0.01
+                - 0.01
+                - 0.1
+          - type: CameraComponent
+            data:
+              fov: 1.0471976
+              zFar: 1000
+              zNear: 0.1
+          - type: MeshComponent
+            data:
+              id: 0
+      - entityId: 2
+        components:
+          - type: NameComponent
+            data:
+              name: light
+          - type: HierarchyComponent
+            data:
+              parent: 18446744073709551615
+              firstChild: 18446744073709551615
+              nextChild: 18446744073709551615
+          - type: TransformComponent
+            data:
+              position:
+                - 0
+                - 5
+                - 0
+              rotation:
+                - 0
+                - 0
+                - 0
+              scale:
+                - 1
+                - 1
+                - 1
+          - type: LightComponent
+            data:
+              type: point
+              color:
+                - 1
+                - 1
+                - 1
+              intentsity: 1
+              attenuation: 0
+      - entityId: 3
+        components:
+          - type: NameComponent
+            data:
+              name: player_mesh
+          - type: HierarchyComponent
+            data:
+              parent: 4
+              firstChild: 18446744073709551615
+              nextChild: 1
+          - type: TransformComponent
+            data:
+              position:
+                - 0
+                - 0
+                - 0
+              rotation:
+                - 0
+                - 0
+                - 0
+              scale:
+                - 0.1
+                - 0.5
+                - 0.1
+          - type: MeshComponent
+            data:
+              id: 0
+      - entityId: 4
+        components:
+          - type: NameComponent
+            data:
+              name: player
+          - type: HierarchyComponent
+            data:
+              parent: 18446744073709551615
+              firstChild: 3
+              nextChild: 18446744073709551615
+          - type: TransformComponent
+            data:
+              position:
+                - -3
+                - 0.67
+                - 0
+              rotation:
+                - 0
+                - -1.57
+                - 0
+              scale:
+                - 1
+                - 1
+                - 1
+          - type: ScriptComponent
+            data:
+              name: PlayerController
+              parameters:
+                gravity:
+                  type: float
+                  data: 0.006
+                jump_speed:
+                  type: float
+                  data: 0.12
+                move_speed:
+                  type: float
+                  data: 0.05
+                rotate_speed:
+                  type: float
+                  data: 0.05
 startScene: default_scene

@@ -7,11 +7,9 @@
  */
 
 #include "Game-Engine/AssetManagerView.hpp"
+#include "Game-Engine/AssetManager.hpp"
 
-#include <algorithm>
 #include <cassert>
-#include <future>
-#include <ranges>
 #include <utility>
 
 namespace GE
@@ -24,58 +22,77 @@ AssetManagerView::AssetManagerView(AssetManager* assetManager)
 }
 
 AssetManagerView::AssetManagerView(AssetManagerView&& other) noexcept
-    : m_assetManager(other.m_assetManager) // m_assetManager stay not null so `other` stay in a valid state for the descructor
-    , m_registredAssets(std::move(other.m_registredAssets))
+    : m_assetManager(std::exchange(other.m_assetManager, nullptr))
+    , m_assets(std::move(other.m_assets))
     , m_isLoaded(std::exchange(other.m_isLoaded, false))
 {
 }
 
-AssetManagerView::AssetManagerView(AssetManager* assetManager, const std::map<AssetID, VAssetPath>& registredAssets)
-    : m_assetManager(assetManager)
-    , m_registredAssets(registredAssets)
+AssetManager& AssetManagerView::assetManager() const
 {
     assert(m_assetManager);
-    for (const auto& [assetId, vAssetPath] : m_registredAssets)
-    {
-        m_assetManager->registerAsset(vAssetPath);
-        s_nextAssetId = std::max(s_nextAssetId, assetId + 1);
-    }
+    return *m_assetManager;
 }
 
-std::future<void> AssetManagerView::load()
+const std::set<AssetID>& AssetManagerView::assets() const
+{
+    return m_assets;
+}
+
+void AssetManagerView::registerAssetId(AssetID assetId)
 {
     assert(m_assetManager);
-    if (m_isLoaded)
-        return std::async(std::launch::deferred, [] {});
+    assert(m_assetManager->isValidAssetId(assetId));
 
-    std::future<void> assetsFuture = m_assetManager->loadAssets(m_registredAssets | std::views::values);
-    m_isLoaded = true;
-    return assetsFuture;
+    if (m_isLoaded)
+        m_assetManager->loadAssetBackground(assetId);
+    m_assets.insert(assetId);
+}
+
+void AssetManagerView::load()
+{
+    assert(m_isLoaded || m_assetManager);
+
+    if (m_isLoaded == false) {
+        m_assetManager->loadAssetsBackground(m_assets);
+        m_isLoaded = true;
+    }
 }
 
 void AssetManagerView::unload()
 {
+    assert(m_isLoaded);
     assert(m_assetManager);
 
-    if (!m_isLoaded)
-        return;
-
-    m_assetManager->unloadAssets(m_registredAssets | std::views::values);
+    m_assetManager->unloadAssets(m_assets);
     m_isLoaded = false;
+}
+
+bool AssetManagerView::isLoaded() const
+{
+    assert(!m_isLoaded || m_assetManager);
+
+    return m_isLoaded && m_assetManager->areAssetsLoaded(m_assets);
 }
 
 AssetManagerView::~AssetManagerView()
 {
-    unload();
+    assert(!m_isLoaded || m_assetManager);
+
+    if (m_isLoaded)
+        unload();
 }
 
 AssetManagerView& AssetManagerView::operator=(AssetManagerView&& other) noexcept
 {
+    assert(this == &other || !m_isLoaded || m_assetManager);
+
     if (this != &other)
     {
-        unload();
-        m_assetManager = other.m_assetManager; // m_assetManager stay not null so `other` stay in a valid state for the descructor
-        m_registredAssets = std::move(other.m_registredAssets);
+        if (m_isLoaded)
+            unload();
+        m_assetManager = std::exchange(other.m_assetManager, nullptr);
+        m_assets = std::move(other.m_assets);
         m_isLoaded = std::exchange(other.m_isLoaded, false);
     }
     return *this;
