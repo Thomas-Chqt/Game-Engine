@@ -18,6 +18,7 @@
 #include <imgui.h>
 
 #include <cassert>
+#include <optional>
 #include <ranges>
 #include <string>
 #include <string_view>
@@ -65,14 +66,14 @@ Project::Project()
     desc.name = "default_scene";
     desc.activeCamera = 1;
     desc.registredAssets = {
-        { 0, GE::AssetPath<GE::Mesh>(GE::BUILT_IN_CUBE_PATH) }
+        { std::nullopt, GE::BUILT_IN_CUBE_ID }
     };
     desc.entities = {
         {
             0, {
                GE::NameComponent{"cube"},
                GE::TransformComponent{},
-               GE::MeshComponent{0}
+               GE::MeshComponent{GE::BUILT_IN_CUBE_ID}
             }
         },
         {

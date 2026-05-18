@@ -244,15 +244,15 @@ template<>
 void componentEditWidget<GE::MeshComponent>(GE::Entity& entity, GE::Scene& scene)
 {
     GE::MeshComponent& mesh = entity.get<GE::MeshComponent>();
+    GE::AssetManager& assetManager = scene.assetManagerView().assetManager();
 
-    if (ImGui::BeginCombo("Mesh##RegistredMesh", scene.assetManagerView().assetName(mesh).c_str()))
+    if (ImGui::BeginCombo("Mesh##RegistredMesh", assetManager.assetName(mesh).c_str()))
     {
-        for (auto& [id, vAssetPath] : scene.assetManagerView().registredAssets()
-                                    | std::views::filter([](const auto& pair) { return std::holds_alternative<GE::AssetPath<GE::Mesh>>(pair.second); }))
+        for (const GE::AssetID& assetId : scene.assetManagerView().assets() | std::views::filter([&](const GE::AssetID& id) { return assetManager.is<GE::Mesh>(id); }))
         {
-            const bool is_selected = (id == mesh.id);
-            if (ImGui::Selectable(scene.assetManagerView().assetName(id).c_str(), is_selected))
-                mesh.id = id;
+            const bool is_selected = (assetId == mesh.id);
+            if (ImGui::Selectable(assetManager.assetName(assetId).c_str(), is_selected))
+                mesh.id = assetId;
             if (is_selected)
                 ImGui::SetItemDefaultFocus();
         }
@@ -467,8 +467,8 @@ void Editor::renderImgui()
                     {"Add/Cube", [this] {
                         m_selectedEntity = m_editedScene.second.newEntity("cube");
                         m_selectedEntity.emplace<GE::TransformComponent>();
-                        auto assetId = m_editedScene.second.assetManagerView().registerAsset<GE::Mesh>(GE::BUILT_IN_CUBE_PATH);
-                        m_selectedEntity.emplace<GE::MeshComponent>(assetId);
+                        m_editedScene.second.assetManagerView().registerAssetId(GE::BUILT_IN_CUBE_ID);
+                        m_selectedEntity.emplace<GE::MeshComponent>(GE::BUILT_IN_CUBE_ID);
                     }},
                     {"Add/Light", [this] {
                         m_selectedEntity = m_editedScene.second.newEntity("light");

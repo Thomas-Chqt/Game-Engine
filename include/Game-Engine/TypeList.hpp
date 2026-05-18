@@ -25,6 +25,9 @@ struct TypeList
 
     template<template<typename> typename WrappedType>
     using wrapped = TypeList<WrappedType<Ts>...>;
+
+    template<template<typename> typename WrappedType>
+    using wrapped_cref = TypeList<const WrappedType<Ts>&...>;
 };
 
 template<typename T, typename TList>

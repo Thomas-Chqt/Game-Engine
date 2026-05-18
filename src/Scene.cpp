@@ -9,10 +9,18 @@
 
 #include "Game-Engine/Scene.hpp"
 
+#include "Game-Engine/AssetManager.hpp"
+#include "Game-Engine/AssetManagerView.hpp"
 #include "Game-Engine/Components.hpp"
+#include "Game-Engine/ManagableAsset.hpp"
+#include "Game-Engine/TypeList.hpp"
 
+#include <filesystem>
+#include <ranges>
 #include <type_traits>
+#include <utility>
 #include <variant>
+#include <vector>
 
 namespace GE
 {
@@ -56,7 +64,17 @@ Scene::Descriptor Scene::makeDescriptor() const
     Scene::Descriptor desc;
     desc.name = m_name;
     desc.activeCamera = m_activeCamera;
-    desc.registredAssets = m_assetManagerView.registredAssets();
+    desc.registredAssets = m_assetManagerView.assets() | std::views::transform([&](const AssetID& assetId) -> std::pair<std::optional<VAssetPath>, AssetID> {
+        std::optional<VAssetPath> vAssetPath;
+        anyOfType<ManagableAssetTypes>([&]<ManagableAsset T>() -> bool {
+            if (m_assetManagerView.assetManager().is<T>(assetId)) {
+                vAssetPath = m_assetManagerView.assetManager().assetPath(assetId).transform([&](const std::filesystem::path& p){ return AssetPath<T>(p); });
+                return true;
+            }
+            return false;
+        });
+        return std::make_pair(vAssetPath, assetId);
+    }) | std::ranges::to<std::vector>();
 
     for (ECSWorld::EntityID entityId : m_ecsWorld)
     {
@@ -76,7 +94,7 @@ Scene::Descriptor Scene::makeDescriptor() const
                 components.emplace_back(entity.get<ComponentT>());
         });
 
-        desc.entities.emplace(entityId, std::move(components));
+        desc.entities.emplace_back(entityId, std::move(components));
     }
 
     return desc;

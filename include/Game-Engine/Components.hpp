@@ -10,7 +10,7 @@
 #ifndef COMPONENTS_HPP
 #define COMPONENTS_HPP
 
-#include "Game-Engine/AssetManagerView.hpp"
+#include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/ECSWorld.hpp"
 #include "Game-Engine/Script.hpp"
 #include "Game-Engine/TypeList.hpp"

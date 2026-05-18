@@ -19,8 +19,9 @@
 
 #include "yaml-cpp/yaml.h"
 
-#include <future>
+#include <optional>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace GE
@@ -33,8 +34,8 @@ public:
     {
         std::string name;
         ECSWorld::EntityID activeCamera = INVALID_ENTITY_ID;
-        std::map<AssetID, VAssetPath> registredAssets;
-        std::map<ECSWorld::EntityID, std::vector<ComponentVariant>> entities;
+        std::vector<std::pair<std::optional<VAssetPath>, AssetID>> registredAssets;
+        std::vector<std::pair<ECSWorld::EntityID, std::vector<ComponentVariant>>> entities;
     };
 
 public:
@@ -56,10 +57,9 @@ public:
 
     Entity newEntity(const std::string& name);
 
-    inline bool isLoaded() const { return m_assetManagerView.isLoaded(); }
-    inline std::future<void> load() { return m_assetManagerView.load(); }
+    inline void load() { return m_assetManagerView.load(); }
     inline void unload() { m_assetManagerView.unload(); }
-    inline bool areAllAssetsLoaded() const { return m_assetManagerView.areAllAssetsLoaded(); }
+    inline bool isLoaded() const { return m_assetManagerView.isLoaded(); }
 
     Descriptor makeDescriptor() const;
 
@@ -83,6 +83,28 @@ namespace YAML
 {
 
 template<>
+struct convert<std::pair<GE::ECSWorld::EntityID, std::vector<GE::ComponentVariant>>>
+{
+    static Node encode(const std::pair<GE::ECSWorld::EntityID, std::vector<GE::ComponentVariant>>& rhs)
+    {
+        Node node;
+        node["entityId"] = rhs.first;
+        node["components"] = rhs.second;
+        return node;
+    }
+
+    static bool decode(const Node& node, std::pair<GE::ECSWorld::EntityID, std::vector<GE::ComponentVariant>>& rhs)
+    {
+        if (!node.IsMap() || !node["entityId"] || !node["components"])
+            return false;
+
+        rhs.first = node["entityId"].as<GE::ECSWorld::EntityID>();
+        rhs.second = node["components"].as<std::vector<GE::ComponentVariant>>();
+        return true;
+    }
+};
+
+template<>
 struct convert<GE::Scene::Descriptor>
 {
     static Node encode(const GE::Scene::Descriptor& rhs)
@@ -101,8 +123,8 @@ struct convert<GE::Scene::Descriptor>
             return false;
         rhs.name = node["name"].as<std::string>();
         rhs.activeCamera = node["activeCamera"] ? node["activeCamera"].as<GE::ECSWorld::EntityID>() : INVALID_ENTITY_ID;
-        rhs.registredAssets = node["registredAssets"] ? node["registredAssets"].as<std::map<GE::AssetID, GE::VAssetPath>>() : std::map<GE::AssetID, GE::VAssetPath>();
-        rhs.entities = node["entities"] ? node["entities"].as<std::map<GE::ECSWorld::EntityID, std::vector<GE::ComponentVariant>>>() : std::map<GE::ECSWorld::EntityID, std::vector<GE::ComponentVariant>>();
+        rhs.registredAssets = node["registredAssets"] ? node["registredAssets"].as<std::remove_cvref_t<decltype(rhs.registredAssets)>>() : std::remove_cvref_t<decltype(rhs.registredAssets)>();
+        rhs.entities = node["entities"] ? node["entities"].as<std::remove_cvref_t<decltype(rhs.entities)>>() : std::remove_cvref_t<decltype(rhs.entities)>();
         return true;
     }
 };
