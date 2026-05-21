@@ -24,12 +24,15 @@
 #include <concepts>
 #include <cstddef>
 #include <filesystem>
+#include <format>
 #include <functional>
 #include <numbers>
 #include <ranges>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 constexpr float TILE_SIZE = 60.0f;
 
@@ -60,6 +63,20 @@ template<> struct EditableInputTraits<GE::Range2DInput> { static constexpr const
 
 template<typename T> struct EditableRawInputTraits;
 template<> struct EditableRawInputTraits<GE::KeyboardButton> { static constexpr const char* label = "Keyboard button"; };
+
+std::string_view assetTypeName(const GE::AssetManager& assetManager, GE::AssetID assetId)
+{
+    std::string_view typeName = "Unknown";
+    const bool foundType = GE::anyOfType<GE::ManagableAssetTypes>([&]<typename T>() -> bool {
+        if (!assetManager.is<T>(assetId))
+            return false;
+
+        typeName = GE::AssetPathYamlTraits<GE::AssetPath<T>>::name;
+        return true;
+    });
+    assert(foundType);
+    return typeName;
+}
 
 void keyboardButtonCombo(const char* label, GE::KeyboardButton& button)
 {
@@ -401,6 +418,7 @@ namespace GE_Editor
 void Editor::renderImgui()
 {
     static bool projectPropertiesOpen = false;
+    static bool assetManagerWindowOpen = false;
     static std::filesystem::path resourceBrowserSubDir;
 
     ImGui::NewFrame();
@@ -427,6 +445,8 @@ void Editor::renderImgui()
 
             {"project/stop",              m_game.has_value() ? [this]() { stopGame(); }
                                                              : std::function<void()>()},
+
+            {"debug/asset manager",       []() { assetManagerWindowOpen = true; }},
 
         }));
     }
@@ -563,6 +583,83 @@ void Editor::renderImgui()
         ImGui::EndChild();
     }
     ImGui::End();
+
+    if (assetManagerWindowOpen)
+    {
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowSize(ImVec2(viewport->Size.x * 0.65f, viewport->Size.y * 0.45f), ImGuiCond_FirstUseEver);
+
+        if (ImGui::Begin("Asset manager", &assetManagerWindowOpen))
+        {
+            GE::AssetManager& manager = assetManager();
+            const std::vector<GE::AssetID> assetIds = manager.assetIds();
+
+            ImGui::TextDisabled("%zu assets", assetIds.size());
+            ImGui::Separator();
+
+            if (ImGui::BeginChild("asset_manager_list"))
+            {
+                if (ImGui::BeginTable("asset_manager_table", 5, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY))
+                {
+                    ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 55.0f);
+                    ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+                    ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+                    ImGui::TableSetupColumn("Path", ImGuiTableColumnFlags_WidthStretch, 0.65f);
+                    ImGui::TableSetupColumn("State", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                    ImGui::TableHeadersRow();
+
+                    for (const GE::AssetID assetId : assetIds)
+                    {
+                        const uint32_t loadCount = manager.assetLoadCount(assetId);
+                        const bool isLoaded = manager.isAssetLoaded(assetId);
+                        const auto& assetPath = manager.assetPath(assetId);
+                        const std::string& assetName = manager.assetName(assetId);
+                        const std::string pathText = assetPath ? assetPath->string() : std::string("<built-in>");
+                        const std::string stateText = isLoaded ? std::format("loaded({})", loadCount)
+                                                               : std::format("not loaded({})", loadCount);
+
+                        ImGui::PushID(static_cast<int>(assetId));
+                        ImGui::TableNextRow();
+
+                        ImGui::TableSetColumnIndex(0);
+                        ImGui::Text("%llu", static_cast<unsigned long long>(assetId));
+
+                        ImGui::TableSetColumnIndex(1);
+                        ImGui::TextUnformatted(assetTypeName(manager, assetId).data());
+
+                        ImGui::TableSetColumnIndex(2);
+                        ImGui::TextUnformatted(assetName.c_str());
+
+                        ImGui::TableSetColumnIndex(3);
+                        ImGui::TextUnformatted(pathText.c_str());
+
+                        ImGui::TableSetColumnIndex(4);
+                        ImGui::TextUnformatted(stateText.c_str());
+
+                        if (ImGui::BeginPopupContextItem("asset_context_menu"))
+                        {
+                            if (ImGui::MenuItem("Load"))
+                                manager.loadAssetBackground(assetId);
+
+                            ImGui::BeginDisabled(loadCount == 0);
+                            if (ImGui::MenuItem("Unload"))
+                                manager.unloadAsset(assetId);
+                            ImGui::EndDisabled();
+
+                            ImGui::EndPopup();
+                        }
+
+                        ImGui::PopID();
+                    }
+
+                    ImGui::EndTable();
+                }
+
+                ImGui::EndChild();
+            }
+        }
+        ImGui::End();
+    }
 
     if (ImGui::Begin("Entity inspector"))
     {
