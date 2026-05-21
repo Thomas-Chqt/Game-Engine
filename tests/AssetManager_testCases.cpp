@@ -367,6 +367,7 @@ TEST_F(AssetManagerMockDeviceTest, meshAssetLoadsFromFileAndPreservesPathMetadat
     EXPECT_FLOAT_EQ(vertices[0].tangent.x, 0.0f);
     EXPECT_FLOAT_EQ(vertices[0].tangent.y, 0.0f);
     EXPECT_FLOAT_EQ(vertices[0].tangent.z, 0.0f);
+    EXPECT_FLOAT_EQ(vertices[0].tangent.w, 0.0f);
     EXPECT_EQ(indices[0], 0u);
     EXPECT_EQ(indices[1], 1u);
     EXPECT_EQ(indices[2], 2u);

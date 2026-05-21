@@ -39,30 +39,30 @@ namespace GE
 {
 
 constexpr auto vertices = std::to_array<Vertex>({
-    { .pos={-1, -1, -1}, .uv={0, 1}, .normal={-1,  0,  0}, .tangent={ 0,  1,  0} },
-    { .pos={-1,  1, -1}, .uv={1, 1}, .normal={-1,  0,  0}, .tangent={ 0,  1,  0} },
-    { .pos={-1,  1,  1}, .uv={1, 0}, .normal={-1,  0,  0}, .tangent={ 0,  1,  0} },
-    { .pos={-1, -1,  1}, .uv={0, 0}, .normal={-1,  0,  0}, .tangent={ 0,  1,  0} },
-    { .pos={-1, -1,  1}, .uv={0, 1}, .normal={ 0,  0,  1}, .tangent={ 0,  1,  1} },
-    { .pos={-1,  1,  1}, .uv={1, 1}, .normal={ 0,  0,  1}, .tangent={ 0,  1,  1} },
-    { .pos={ 1,  1,  1}, .uv={1, 0}, .normal={ 0,  0,  1}, .tangent={ 0,  1,  1} },
-    { .pos={ 1, -1,  1}, .uv={0, 0}, .normal={ 0,  0,  1}, .tangent={ 0,  1,  1} },
-    { .pos={ 1, -1,  1}, .uv={0, 1}, .normal={ 1,  0,  0}, .tangent={ 0,  1,  0} },
-    { .pos={ 1,  1,  1}, .uv={1, 1}, .normal={ 1,  0,  0}, .tangent={ 0,  1,  0} },
-    { .pos={ 1,  1, -1}, .uv={1, 0}, .normal={ 1,  0,  0}, .tangent={ 0,  1,  0} },
-    { .pos={ 1, -1, -1}, .uv={0, 0}, .normal={ 1,  0,  0}, .tangent={ 0,  1,  0} },
-    { .pos={ 1, -1, -1}, .uv={1, 0}, .normal={ 0,  0, -1}, .tangent={ 0, -1, -1} },
-    { .pos={ 1,  1, -1}, .uv={0, 0}, .normal={ 0,  0, -1}, .tangent={ 0, -1, -1} },
-    { .pos={-1,  1, -1}, .uv={0, 1}, .normal={ 0,  0, -1}, .tangent={ 0, -1, -1} },
-    { .pos={-1, -1, -1}, .uv={1, 1}, .normal={ 0,  0, -1}, .tangent={ 0, -1, -1} },
-    { .pos={-1, -1,  1}, .uv={0, 1}, .normal={ 0, -1,  0}, .tangent={ 1,  0,  0} },
-    { .pos={ 1, -1,  1}, .uv={1, 1}, .normal={ 0, -1,  0}, .tangent={ 1,  0,  0} },
-    { .pos={ 1, -1, -1}, .uv={1, 0}, .normal={ 0, -1,  0}, .tangent={ 1,  0,  0} },
-    { .pos={-1, -1, -1}, .uv={0, 0}, .normal={ 0, -1,  0}, .tangent={ 1,  0,  0} },
-    { .pos={ 1,  1,  1}, .uv={0, 1}, .normal={ 0,  1,  0}, .tangent={-1,  0,  0} },
-    { .pos={-1,  1,  1}, .uv={1, 1}, .normal={ 0,  1,  0}, .tangent={-1,  0,  0} },
-    { .pos={-1,  1, -1}, .uv={1, 0}, .normal={ 0,  1,  0}, .tangent={-1,  0,  0} },
-    { .pos={ 1,  1, -1}, .uv={0, 0}, .normal={ 0,  1,  0}, .tangent={-1,  0,  0} },
+    { .pos={-1, -1, -1}, .uv={0, 1}, .normal={-1,  0,  0}, .tangent={ 0,  1,  0, 1} },
+    { .pos={-1,  1, -1}, .uv={1, 1}, .normal={-1,  0,  0}, .tangent={ 0,  1,  0, 1} },
+    { .pos={-1,  1,  1}, .uv={1, 0}, .normal={-1,  0,  0}, .tangent={ 0,  1,  0, 1} },
+    { .pos={-1, -1,  1}, .uv={0, 0}, .normal={-1,  0,  0}, .tangent={ 0,  1,  0, 1} },
+    { .pos={-1, -1,  1}, .uv={0, 1}, .normal={ 0,  0,  1}, .tangent={ 0,  1,  1, 1} },
+    { .pos={-1,  1,  1}, .uv={1, 1}, .normal={ 0,  0,  1}, .tangent={ 0,  1,  1, 1} },
+    { .pos={ 1,  1,  1}, .uv={1, 0}, .normal={ 0,  0,  1}, .tangent={ 0,  1,  1, 1} },
+    { .pos={ 1, -1,  1}, .uv={0, 0}, .normal={ 0,  0,  1}, .tangent={ 0,  1,  1, 1} },
+    { .pos={ 1, -1,  1}, .uv={0, 1}, .normal={ 1,  0,  0}, .tangent={ 0,  1,  0, 1} },
+    { .pos={ 1,  1,  1}, .uv={1, 1}, .normal={ 1,  0,  0}, .tangent={ 0,  1,  0, 1} },
+    { .pos={ 1,  1, -1}, .uv={1, 0}, .normal={ 1,  0,  0}, .tangent={ 0,  1,  0, 1} },
+    { .pos={ 1, -1, -1}, .uv={0, 0}, .normal={ 1,  0,  0}, .tangent={ 0,  1,  0, 1} },
+    { .pos={ 1, -1, -1}, .uv={1, 0}, .normal={ 0,  0, -1}, .tangent={ 0, -1, -1, 1} },
+    { .pos={ 1,  1, -1}, .uv={0, 0}, .normal={ 0,  0, -1}, .tangent={ 0, -1, -1, 1} },
+    { .pos={-1,  1, -1}, .uv={0, 1}, .normal={ 0,  0, -1}, .tangent={ 0, -1, -1, 1} },
+    { .pos={-1, -1, -1}, .uv={1, 1}, .normal={ 0,  0, -1}, .tangent={ 0, -1, -1, 1} },
+    { .pos={-1, -1,  1}, .uv={0, 1}, .normal={ 0, -1,  0}, .tangent={ 1,  0,  0, 1} },
+    { .pos={ 1, -1,  1}, .uv={1, 1}, .normal={ 0, -1,  0}, .tangent={ 1,  0,  0, 1} },
+    { .pos={ 1, -1, -1}, .uv={1, 0}, .normal={ 0, -1,  0}, .tangent={ 1,  0,  0, 1} },
+    { .pos={-1, -1, -1}, .uv={0, 0}, .normal={ 0, -1,  0}, .tangent={ 1,  0,  0, 1} },
+    { .pos={ 1,  1,  1}, .uv={0, 1}, .normal={ 0,  1,  0}, .tangent={-1,  0,  0, 1} },
+    { .pos={-1,  1,  1}, .uv={1, 1}, .normal={ 0,  1,  0}, .tangent={-1,  0,  0, 1} },
+    { .pos={-1,  1, -1}, .uv={1, 0}, .normal={ 0,  1,  0}, .tangent={-1,  0,  0, 1} },
+    { .pos={ 1,  1, -1}, .uv={0, 0}, .normal={ 0,  1,  0}, .tangent={-1,  0,  0, 1} },
 });
 
 constexpr auto indices = std::to_array<uint32_t>({
@@ -158,7 +158,7 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const std::filesystem::path& meshP
                             .pos = gltf::getAccessorElement<glm::vec3>(asset.get(), *posAccessor, i),
                             .uv = uvAccessor ? uvAccessor->count > i ? gltf::getAccessorElement<glm::vec2>(asset.get(), *uvAccessor, i) : glm::vec2{} : glm::vec2{},
                             .normal = normalAccessor ? normalAccessor->count > i ? gltf::getAccessorElement<glm::vec3>(asset.get(), *normalAccessor, i) : glm::vec3{} : glm::vec3{},
-                            .tangent = tangentAccessor ? tangentAccessor->count > i ? gltf::getAccessorElement<glm::vec3>(asset.get(), *tangentAccessor, i) : glm::vec3{} : glm::vec3{}
+                            .tangent = tangentAccessor ? tangentAccessor->count > i ? gltf::getAccessorElement<glm::vec4>(asset.get(), *tangentAccessor, i) : glm::vec4{} : glm::vec4{}
                         };
                     })),
                     .indexBuffer = newDeviceLocalBuffer(*m_device, commandBuffer, gfx::BufferUsage::indexBuffer, std::views::iota(std::size_t(0), indicesAccessor->count) | std::views::transform([&](std::size_t i) -> uint32_t {
