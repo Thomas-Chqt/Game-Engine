@@ -83,6 +83,17 @@ bool AssetManager::isAssetLoaded(AssetID assetId) const
     }, vHandle);
 }
 
+std::vector<AssetID> AssetManager::assetIds() const
+{
+    std::vector<AssetID> assetIds;
+    assetIds.reserve(m_assetHandles.size());
+
+    for (const auto& [assetId, _] : m_assetHandles)
+        assetIds.push_back(assetId);
+
+    return assetIds;
+}
+
 const std::string& AssetManager::assetName(AssetID assetId) const
 {
     assert(m_assetHandles.contains(assetId));

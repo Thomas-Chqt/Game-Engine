@@ -257,6 +257,15 @@ TEST_F(AssetManagerMockDeviceTest, reportsTextureLoadedStateAndMetadata)
     EXPECT_EQ(assetManager.assetLoadCount(assetId), 0u);
 }
 
+TEST_F(AssetManagerMockDeviceTest, reportsAssetIdsAndTypesForDebugInspection)
+{
+    GE::AssetManager assetManager(&m_device);
+    const GE::AssetID textureAssetId = assetManager.registerAsset<gfx::Texture>(dummyTexturePath());
+    const GE::AssetID meshAssetId = assetManager.registerAsset<GE::Mesh>(dummyMeshPath());
+
+    EXPECT_THAT(assetManager.assetIds(), testing::ElementsAre(GE::BUILT_IN_CUBE_ID, textureAssetId, meshAssetId));
+}
+
 TEST_F(AssetManagerMockDeviceTest, registeringTheSamePathReturnsTheSameAssetId)
 {
     const std::filesystem::path texturePath = dummyTexturePath();

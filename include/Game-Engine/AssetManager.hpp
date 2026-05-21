@@ -88,6 +88,7 @@ public:
 
     template<ManagableAsset T>
     std::shared_ptr<T> getAsset(AssetID) const;
+    std::vector<AssetID> assetIds() const;
     const std::string& assetName(AssetID) const;
     uint32_t assetLoadCount(AssetID) const;
     const std::optional<std::filesystem::path>& assetPath(AssetID) const;
