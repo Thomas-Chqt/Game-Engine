@@ -56,7 +56,7 @@ public:
         if (m_entityIt == m_archetypeIt->second.end())
         {
             do ++m_archetypeIt;
-            while (m_archetypeIt != m_world->m_archetypes.end() && (std::ranges::includes(m_archetypeIt->first, m_predicate) == false || m_archetypeIt->second.size() == 0));
+            while (m_archetypeIt != m_world->m_archetypes.end() && (((m_archetypeIt->first & m_predicate) == m_predicate) == false || m_archetypeIt->second.size() == 0));
 
             if (m_archetypeIt != m_world->m_archetypes.end())
                 m_entityIt = m_archetypeIt->second.begin();
