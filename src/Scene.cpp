@@ -67,7 +67,7 @@ Scene::Descriptor Scene::makeDescriptor() const
     desc.registredAssets = m_assetManagerView.assets() | std::views::transform([&](const AssetID& assetId) -> std::pair<std::optional<VAssetPath>, AssetID> {
         std::optional<VAssetPath> vAssetPath;
         anyOfType<ManagableAssetTypes>([&]<ManagableAsset T>() -> bool {
-            if (m_assetManagerView.assetManager().is<T>(assetId)) {
+            if (m_assetManagerView.assetManager().assetTypeIs<T>(assetId)) {
                 vAssetPath = m_assetManagerView.assetManager().assetPath(assetId).transform([&](const std::filesystem::path& p){ return AssetPath<T>(p); });
                 return true;
             }

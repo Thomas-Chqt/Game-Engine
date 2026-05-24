@@ -12,34 +12,38 @@
 
 #include "Game-Engine/AssetLoader.hpp"
 #include "Game-Engine/Export.hpp"
-#include "Game-Engine/TypeList.hpp"
 #include "Game-Engine/ManagableAsset.hpp"
 #include "Game-Engine/MeshAssetLoader.hpp" // IWYU pragma: keep
 #include "Game-Engine/TextureAssetLoader.hpp" // IWYU pragma: keep
+#include "Game-Engine/TypeList.hpp"
 
 #include <Graphics/CommandBuffer.hpp>
+#include <Graphics/CommandBufferPool.hpp>
 #include <Graphics/Device.hpp>
 #include <Graphics/Texture.hpp>
-#include <Graphics/CommandBufferPool.hpp>
 
 #include <yaml-cpp/yaml.h>
 
-#include <optional>
 #include <algorithm>
 #include <cassert>
+#include <chrono>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <future>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <optional>
 #include <ranges>
+#include <set>
+#include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
-#include <string>
-#include <concepts>
 
 namespace GE
 {
@@ -51,10 +55,6 @@ concept AssetIdRange = std::ranges::range<T> && std::convertible_to<std::ranges:
 
 constexpr AssetID BUILT_IN_CUBE_ID = 0;
 
-/*
- * AssetManager is not thread safe, asset loading happen in a backgroud thread but calling registerAsset or loadAsset
- * from multiple thread without synchronization is **undefined behavior**
- */
 class GE_API AssetManager
 {
 public:
@@ -65,7 +65,10 @@ public:
     AssetManager(gfx::Device*);
 
     template<ManagableAsset T>
-    AssetID registerAsset(const std::filesystem::path&, std::optional<AssetID> = std::nullopt);
+    AssetID registerAsset(std::string_view name, const std::filesystem::path&, std::optional<AssetID> = std::nullopt);
+
+    template<ManagableAsset T>
+    AssetID registerAsset(std::string_view name, AssetLoader<T>&&, std::optional<AssetID> = std::nullopt);
 
     template<ManagableAsset T>
     std::shared_future<std::shared_ptr<T>> loadAsset(AssetID);
@@ -73,56 +76,73 @@ public:
     [[nodiscard("destructing the future will wait for completion")]]
     std::future<void> loadAsset(AssetID);
 
-    void loadAssetBackground(AssetID);
-
     [[nodiscard("destructing the future will wait for completion")]]
     std::future<void> loadAssets(const AssetIdRange auto&);
 
-    void loadAssetsBackground(const AssetIdRange auto&);
+    void loadAssetDetached(AssetID);
+    void loadAssetsDetached(const AssetIdRange auto&);
 
     void unloadAsset(AssetID);
     void unloadAssets(const AssetIdRange auto&);
 
-    bool isAssetLoaded(AssetID) const;
-    bool areAssetsLoaded(const AssetIdRange auto&) const;
-
     template<ManagableAsset T>
     std::shared_ptr<T> getAsset(AssetID) const;
-    std::vector<AssetID> assetIds() const;
-    const std::string& assetName(AssetID) const;
-    uint32_t assetLoadCount(AssetID) const;
-    const std::optional<std::filesystem::path>& assetPath(AssetID) const;
 
-    bool isValidAssetId(AssetID) const;
+    std::set<AssetID> assetIds() const;
+    AssetID assetId(const std::filesystem::path&) const;
+    std::string assetName(AssetID) const;
+    std::optional<std::filesystem::path> assetPath(AssetID) const;
+    uint32_t assetLoadCount(AssetID) const;
+
     template<ManagableAsset T>
-    bool is(AssetID) const;
+    bool assetTypeIs(AssetID) const;
+
+    bool isRegistered(const std::filesystem::path&) const;
+    bool isValidAssetId(AssetID) const;
+    bool isAssetLoaded(AssetID) const;
+    bool areAssetsLoaded(const AssetIdRange auto&) const;
 
     ~AssetManager() = default;
 
 private:
     template<ManagableAsset T>
-    struct AssetHandle
+    class AssetHandle
     {
+    public:
         using AssetType = T;
 
-        std::optional<std::filesystem::path> path;
-        std::string name;
-        AssetLoader<T> loader;
+        AssetHandle(std::string_view, std::optional<std::filesystem::path>, AssetLoader<T>&&);
 
-        std::shared_future<std::shared_ptr<T>> future;
-        uint32_t loadCount = 0;
+        std::string name() const;
+        std::optional<std::filesystem::path> path() const;
+        uint32_t loadCount() const;
+        std::shared_future<std::shared_ptr<T>> future() const;
+
+        std::shared_future<std::shared_ptr<T>> load(gfx::Device*, gfx::CommandBufferPool*);
+        void unload();
+        bool isLoaded() const;
+
+    private:
+        std::string m_name;
+        std::optional<std::filesystem::path> m_path;
+        AssetLoader<T> m_loader;
+
+        mutable std::mutex m_mutex;
+        std::shared_future<std::shared_ptr<T>> m_future;
+        uint32_t m_loadCount = 0;
     };
 
     using AssetHandleTypes = ManagableAssetTypes::wrapped<AssetHandle>;
     using VAssetHandle = AssetHandleTypes::into<std::variant>;
 
     template<ManagableAsset T>
-    std::shared_future<std::shared_ptr<T>> loadAssetHandle(AssetHandle<T>&);
+    AssetID registerAssetHandle(std::optional<AssetID>, std::string_view name, std::optional<std::filesystem::path>, AssetLoader<T>&&);
+
+    decltype(auto) withCommandBufferPool(const std::invocable<gfx::CommandBufferPool&> auto& fn);
 
     gfx::Device* m_device = nullptr;
 
-    // registered assets (with call to registerAsset) goes m_registeredAssets
-    // asset that dont have file on disks or that are registered internally may not be in m_registeredAssets
+    mutable std::mutex m_registryMutex;
     std::map<std::filesystem::path, AssetID> m_registeredAssets;
     std::map<AssetID, VAssetHandle> m_assetHandles;
 
@@ -131,115 +151,306 @@ public:
     AssetManager& operator=(AssetManager&&) = delete;
 };
 
-template<ManagableAsset T>
-AssetID AssetManager::registerAsset(const std::filesystem::path& path, std::optional<AssetID> assetId)
-{
-    assert(std::filesystem::is_regular_file(path));
 
-    assert(assetId.has_value() == false || m_registeredAssets.contains(path) == false || m_registeredAssets.at(path) == assetId.value());
+template<ManagableAsset T>
+AssetID AssetManager::registerAsset(std::string_view name, const std::filesystem::path& path, std::optional<AssetID> assetId)
+{
+    std::lock_guard lock(m_registryMutex);
+
+    #ifndef NDEBUG
+    assert(std::filesystem::is_regular_file(path));
+    if (const auto registeredAssetIt = m_registeredAssets.find(path); registeredAssetIt != m_registeredAssets.end()) {
+        const AssetID registeredAssetId = registeredAssetIt->second;
+        if (assetId.has_value())
+            assert(registeredAssetId == assetId.value());
+        const VAssetHandle& vHandle = m_assetHandles.at(registeredAssetId);
+        assert(std::holds_alternative<AssetHandle<T>>(vHandle));
+        const AssetHandle<T>& handle = std::get<AssetHandle<T>>(vHandle);
+        assert(handle.name() == name);
+        assert(handle.path() == path);
+    }
+    else if (assetId.has_value()) {
+        assert(m_assetHandles.contains(assetId.value()) == false);
+    }
+    #endif
 
     auto [it, inserted] = m_registeredAssets.try_emplace(path);
     if (inserted) {
-        if (assetId.has_value()) {
-            assert(m_assetHandles.contains(assetId.value()) == false);
-            it->second = assetId.value();
-        } else {
-            it->second = AssetID{0};
-            while (m_assetHandles.contains(it->second)) // no ideal for performance but convenient
-                it->second++;
-        }
-        auto [_, inserted] = m_assetHandles.insert(std::make_pair(it->second, AssetHandle<T>{
-            .path = path,
-            .name = path.stem().string(),
-            .loader = AssetLoader<T>(m_device, std::move(path))
-        }));
-        assert(inserted);
-    } else {
-        // if path was already in m_registeredAssets, m_registeredAssets[path] should be in m_assetHandles
-        assert(m_assetHandles.contains(it->second));
-        assert(std::get<AssetHandle<T>>(m_assetHandles.at(it->second)).path.transform([&](auto& p){ return p == path; }).value_or(false));
+        it->second = registerAssetHandle<T>(assetId, name, path, AssetLoader<T>(m_device, path));
     }
-
     return it->second;
+}
+
+template<ManagableAsset T>
+AssetID AssetManager::registerAsset(std::string_view name, AssetLoader<T>&& loader, std::optional<AssetID> assetId)
+{
+    std::lock_guard lock(m_registryMutex);
+
+    #ifndef NDEBUG
+    if (assetId.has_value() && m_assetHandles.contains(assetId.value())) {
+        const VAssetHandle& vHandle = m_assetHandles.at(*assetId);
+        assert(std::holds_alternative<AssetHandle<T>>(vHandle));
+        const AssetHandle<T>& handle = std::get<AssetHandle<T>>(vHandle);
+        assert(handle.name() == name);
+        assert(handle.path().has_value() == false);
+    }
+    #endif
+
+    return registerAssetHandle<T>(assetId, name, std::nullopt, std::move(loader));
 }
 
 template<ManagableAsset T>
 std::shared_future<std::shared_ptr<T>> AssetManager::loadAsset(AssetID assetId)
 {
-    assert(m_assetHandles.contains(assetId));
-    auto& handle = std::get<AssetHandle<T>>(m_assetHandles.at(assetId));
-    return loadAssetHandle(handle);
+    AssetHandle<T>& handle = [&]() -> AssetHandle<T>& {
+        std::scoped_lock lock(m_registryMutex);
+        assert(m_assetHandles.contains(assetId));
+        return std::get<AssetHandle<T>>(m_assetHandles.at(assetId));
+    }();
+    return handle.load(m_device, nullptr);
 }
 
 std::future<void> AssetManager::loadAssets(const AssetIdRange auto& assetIds)
 {
-    assert(std::ranges::all_of(assetIds, [&](auto& id){ return m_assetHandles.contains(id); }));
-
-    std::vector<std::future<void>> futures;
+    std::vector<VAssetHandle*> vHandles;
     if constexpr (std::ranges::sized_range<std::remove_cvref_t<decltype(assetIds)>>)
-        futures.reserve(std::ranges::size(assetIds));
-
-    for (const auto& assetId : assetIds)
-        futures.push_back(loadAsset(assetId));
-
+        vHandles.reserve(assetIds.size());
+    {
+        std::scoped_lock lock(m_registryMutex);
+        assert(std::ranges::all_of(assetIds, [this](AssetID assetId) {
+            return m_assetHandles.contains(assetId);
+        }));
+        for (AssetID id : assetIds)
+            vHandles.push_back(&m_assetHandles.at(id));
+    };
+    std::vector<std::future<void>> futures;
+    futures.reserve(vHandles.size());
+    withCommandBufferPool([&](gfx::CommandBufferPool& commandBufferPool) {
+        for (VAssetHandle* vHandle : vHandles) {
+            futures.push_back(std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) -> std::future<void> {
+                std::shared_future<std::shared_ptr<T>> future = handle.load(m_device, &commandBufferPool);
+                return std::async(std::launch::deferred, [future]() { future.get(); });
+            }, *vHandle));
+        }
+    });
     return std::async(std::launch::async, [futures=std::move(futures)]() mutable {
         for (auto& future : futures)
             future.get();
     });
 }
 
-void AssetManager::loadAssetsBackground(const AssetIdRange auto& assetIds)
+void AssetManager::loadAssetsDetached(const AssetIdRange auto& assetIds)
 {
-    assert(std::ranges::all_of(assetIds, [&](auto& id){ return isValidAssetId(id); }));
-    std::ranges::for_each(assetIds, [this](const auto& assetId) { return loadAssetBackground(assetId); });
+    std::vector<VAssetHandle*> vHandles;
+    if constexpr (std::ranges::sized_range<std::remove_cvref_t<decltype(assetIds)>>)
+        vHandles.reserve(assetIds.size());
+    {
+        std::scoped_lock lock(m_registryMutex);
+        assert(std::ranges::all_of(assetIds, [this](AssetID assetId) {
+            return m_assetHandles.contains(assetId);
+        }));
+        for (AssetID id : assetIds)
+            vHandles.push_back(&m_assetHandles.at(id));
+    };
+    withCommandBufferPool([&](gfx::CommandBufferPool& commandBufferPool) {
+        for (VAssetHandle* vHandle : vHandles) {
+            std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) {
+                handle.load(m_device, &commandBufferPool);
+            }, *vHandle);
+        }
+    });
 }
 
 void AssetManager::unloadAssets(const AssetIdRange auto& assetIds)
 {
-    assert(std::ranges::all_of(assetIds, [&](auto& id){ return m_assetHandles.contains(id); }));
-    std::ranges::for_each(assetIds, [this](const auto& assetId) { return unloadAsset(assetId); });
-}
-
-bool AssetManager::areAssetsLoaded(const AssetIdRange auto& assetIds) const
-{
-    assert(std::ranges::all_of(assetIds, [&](auto& id){ return m_assetHandles.contains(id); }));
-    return std::ranges::all_of(assetIds, [this](const auto& assetId) { return isAssetLoaded(assetId); });
+    std::vector<VAssetHandle*> vHandles;
+    if constexpr (std::ranges::sized_range<std::remove_cvref_t<decltype(assetIds)>>)
+        vHandles.reserve(assetIds.size());
+    {
+        std::scoped_lock lock(m_registryMutex);
+        assert(std::ranges::all_of(assetIds, [this](AssetID assetId) {
+            return m_assetHandles.contains(assetId);
+        }));
+        #ifndef NDEBUG
+        for (AssetID id : assetIds) {
+            const VAssetHandle& vHandle = m_assetHandles.at(id);
+            assert(std::visit([]<ManagableAsset T>(const AssetHandle<T>& handle) {
+                return handle.isLoaded();
+            }, vHandle));
+        }
+        #endif
+        for (AssetID id : assetIds)
+            vHandles.push_back(&m_assetHandles.at(id));
+    };
+    for (VAssetHandle* vHandle : vHandles) {
+        std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) {
+            handle.unload();
+        }, *vHandle);
+    }
 }
 
 template<ManagableAsset T>
 std::shared_ptr<T> AssetManager::getAsset(AssetID assetId) const
 {
-    assert(m_assetHandles.contains(assetId));
-    auto& handle = std::get<AssetHandle<T>>(m_assetHandles.at(assetId));
-    assert(handle.future.valid());
-    return handle.future.get();
+    const AssetHandle<T>& handle = [&]() -> const AssetHandle<T>& {
+        std::scoped_lock lock(m_registryMutex);
+        assert(m_assetHandles.contains(assetId));
+        return std::get<AssetHandle<T>>(m_assetHandles.at(assetId));
+    }();
+    return handle.future().get();
 }
 
 template<ManagableAsset T>
-std::shared_future<std::shared_ptr<T>> AssetManager::loadAssetHandle(AssetHandle<T>& handle)
+bool AssetManager::assetTypeIs(AssetID assetId) const
 {
-    handle.loadCount++;
-    if (handle.future.valid() == false) // is not loading or already loaded
+    std::lock_guard lock(m_registryMutex);
+    assert(m_assetHandles.contains(assetId));
+    return std::holds_alternative<AssetHandle<T>>(m_assetHandles.at(assetId));
+}
+
+bool AssetManager::areAssetsLoaded(const AssetIdRange auto& assetIds) const
+{
+    std::vector<const VAssetHandle*> vHandles;
+    if constexpr (std::ranges::sized_range<std::remove_cvref_t<decltype(assetIds)>>)
+        vHandles.reserve(assetIds.size());
     {
-        handle.future = std::async(std::launch::async, [device=m_device, &handle]() -> std::shared_ptr<T> {
-            std::unique_ptr<gfx::CommandBufferPool> newCommandBufferPool = device->newCommandBufferPool();
-            assert(newCommandBufferPool);
-            std::shared_ptr<gfx::CommandBuffer> commandBuffer = newCommandBufferPool->get();
-            assert(commandBuffer);
-            std::shared_ptr<T> asset = handle.loader.load(*commandBuffer);
+        std::scoped_lock lock(m_registryMutex);
+        assert(std::ranges::all_of(assetIds, [this](AssetID assetId) {
+            return m_assetHandles.contains(assetId);
+        }));
+        for (AssetID id : assetIds)
+            vHandles.push_back(&m_assetHandles.at(id));
+    };
+
+    return std::ranges::all_of(vHandles, [](const auto* vHandle) {
+        return std::visit([&]<ManagableAsset T>(const AssetHandle<T>& handle) {
+            return handle.isLoaded();
+        }, *vHandle);
+    });
+}
+
+/* ------------ PRIVATE ------------ */
+
+template<ManagableAsset T>
+AssetManager::AssetHandle<T>::AssetHandle(std::string_view assetName, std::optional<std::filesystem::path> assetPath, AssetLoader<T>&& assetLoader)
+    : m_name(assetName)
+    , m_path(std::move(assetPath))
+    , m_loader(std::move(assetLoader))
+{
+}
+
+template<ManagableAsset T>
+std::string AssetManager::AssetHandle<T>::name() const
+{
+    std::lock_guard lock(m_mutex);
+    return m_name;
+}
+
+template<ManagableAsset T>
+std::optional<std::filesystem::path> AssetManager::AssetHandle<T>::path() const
+{
+    std::lock_guard lock(m_mutex);
+    return m_path;
+}
+
+template<ManagableAsset T>
+uint32_t AssetManager::AssetHandle<T>::loadCount() const
+{
+    std::lock_guard lock(m_mutex);
+    return m_loadCount;
+}
+
+template<ManagableAsset T>
+std::shared_future<std::shared_ptr<T>> AssetManager::AssetHandle<T>::future() const
+{
+    std::lock_guard lock(m_mutex);
+    return m_future;
+}
+
+template<ManagableAsset T>
+std::shared_future<std::shared_ptr<T>> AssetManager::AssetHandle<T>::load(gfx::Device* device, gfx::CommandBufferPool* commandBufferPool)
+{
+    assert(device);
+    std::lock_guard lock(m_mutex);
+    m_loadCount++;
+    if (m_future.valid() == false) {
+        std::unique_ptr<gfx::CommandBufferPool> localCommandBufferPool;
+        if (commandBufferPool == nullptr) {
+            localCommandBufferPool = device->newCommandBufferPool();
+            assert(localCommandBufferPool);
+            commandBufferPool = localCommandBufferPool.get();
+        }
+
+        std::shared_ptr<gfx::CommandBuffer> commandBuffer = commandBufferPool->get();
+        assert(commandBuffer);
+
+        m_future = std::async(std::launch::async, [this, device, commandBuffer]() -> std::shared_ptr<T> {
+            std::shared_ptr<T> asset = m_loader.load(*commandBuffer);
             device->submitCommandBuffers(commandBuffer);
             return asset;
         });
     }
-    return handle.future;
+    return m_future;
 }
 
 template<ManagableAsset T>
-bool AssetManager::is(AssetID assetId) const
+void AssetManager::AssetHandle<T>::unload()
 {
-    assert(m_assetHandles.contains(assetId));
-    const VAssetHandle& vHandle = m_assetHandles.at(assetId);
-    return std::holds_alternative<AssetHandle<T>>(vHandle);
+    std::lock_guard lock(m_mutex);
+    assert(m_loadCount > 0);
+    assert(m_future.valid());
+    m_loadCount--;
+    if (m_loadCount == 0) {
+        m_future.wait();
+        m_future = std::shared_future<std::shared_ptr<T>>();
+    }
+}
+
+template<ManagableAsset T>
+bool AssetManager::AssetHandle<T>::isLoaded() const
+{
+    std::lock_guard lock(m_mutex);
+    #ifndef NDEBUG
+    if (m_loadCount > 0)
+        assert(m_future.valid());
+    else
+        assert(m_future.valid() == false);
+    #endif
+    return m_future.valid() && m_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+}
+
+template<ManagableAsset T>
+AssetID AssetManager::registerAssetHandle(std::optional<AssetID> assetId, std::string_view name, std::optional<std::filesystem::path> path, AssetLoader<T>&& loader)
+{
+    #ifndef NDEBUG
+    if (assetId.has_value() && m_assetHandles.contains(*assetId)) {
+        const VAssetHandle& vHandle = m_assetHandles.at(*assetId);
+        assert(std::holds_alternative<AssetHandle<T>>(vHandle));
+        const AssetHandle<T>& handle = std::get<AssetHandle<T>>(vHandle);
+        assert(handle.name() == name);
+        assert(handle.path() == path);
+    }
+    #endif
+
+    AssetID newAssetId = 0;
+    if (assetId.has_value())
+        newAssetId = *assetId;
+    else {
+        while (m_assetHandles.contains(newAssetId))
+            newAssetId++;
+    }
+
+    auto [it, inserted] = m_assetHandles.try_emplace(newAssetId, std::in_place_type<AssetHandle<T>>, name, std::move(path), std::move(loader));
+    assert(inserted || assetId.has_value());
+
+    return it->first;
+}
+
+decltype(auto) AssetManager::withCommandBufferPool(const std::invocable<gfx::CommandBufferPool&> auto& fn)
+{
+    std::unique_ptr<gfx::CommandBufferPool> commandBufferPool = m_device->newCommandBufferPool();
+    assert(commandBufferPool);
+    return fn(*commandBufferPool);
 }
 
 } // namespace GE
