@@ -22,7 +22,7 @@ namespace GE
 
 ECSWorld::ECSWorld()
 {
-    m_archetypes.insert(std::make_pair(ArchetypeID{0}, Archetype()));
+    m_archetypes.insert(std::make_pair(ArchetypeID{}, Archetype()));
 }
 
 ECSWorld::EntityID ECSWorld::newEntityID()
@@ -40,8 +40,8 @@ void ECSWorld::registerEntityID(ECSWorld::EntityID id)
 {
     assert(isValidEntityID(id) == false); // user is responsible to be sure the id is not already used
 
-    // new entity has no component so directly inserting in empty archetype (the one with only the entity id)
-    ArchetypeID newEntityArcId = { 0 };
+    // new entity has no component so directly inserting in empty archetype
+    ArchetypeID newEntityArcId{};
     Archetype& newEntityArchetype = m_archetypes[newEntityArcId];
     uint64_t newEntityIdx = newEntityArchetype.allocateCollum();
     auto it = m_availableEntityIDs.find(id);
@@ -88,7 +88,7 @@ uint32_t ECSWorld::componentCount()
 {
     uint64_t count = 0;
     for (auto& [id, arch] : m_archetypes)
-        count += (id.size() - 1) * arch.size();
+        count += id.count() * arch.size();
     assert(count <= UINT32_MAX);
     return static_cast<uint32_t>(count);
 }
@@ -97,6 +97,7 @@ ECSWorld::ComponentID ECSWorld::nextComponentID()
 {
     // start at 1 because 0 is reserved for the entity id
     static ComponentID id = 1;
+    assert(id < maxComponentTypes);
     return id++;
 };
 

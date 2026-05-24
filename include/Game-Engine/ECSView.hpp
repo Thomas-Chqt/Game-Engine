@@ -12,11 +12,10 @@
 
 #include "Game-Engine/ECSWorld.hpp"
 
-#include <algorithm>
+#include <bitset>
 #include <cstdint>
 #include <iterator>
 #include <ranges>
-#include <set>
 #include <tuple> // IWYU pragma: keep
 #include <type_traits> // IWYU pragma: keep
 #include <utility> // IWYU pragma: keep
@@ -45,7 +44,7 @@ class basic_ecsView : public std::ranges::view_interface<basic_ecsView<ECSWorldT
 public:
     class Iterator;
     using iterator = Iterator;
-    using Predicate = std::set<typename ECSWorldT::ComponentID>;
+    using Predicate = std::bitset<std::remove_const_t<ECSWorldT>::maxComponentTypes>;
 
 public:
     basic_ecsView() : m_predicate(makePredicate<Cs...>()) {}
@@ -60,7 +59,7 @@ public:
         uint32_t output = 0;
         for (const auto& [archetypeId, archetype] : m_world->m_archetypes)
         {
-            if (std::ranges::includes(archetypeId, m_predicate))
+            if ((archetypeId & m_predicate) == m_predicate)
                 output += archetype.size();
         }
         return output;
@@ -70,14 +69,16 @@ public:
 
 private:
     ECSWorldT* m_world = nullptr;
-    std::set<typename ECSWorldT::ComponentID> m_predicate;
+    Predicate m_predicate;
 
     inline void setWorld(ECSWorldT* world) { m_world = world; }
 
     template<typename T>
     static Predicate makePredicate()
     {
-        return std::set<typename ECSWorldT::ComponentID>{ ECSWorld::componentID<T>() };
+        Predicate predicate;
+        predicate.set(ECSWorld::componentID<T>());
+        return predicate;
     }
 
     template<typename T, typename Y, typename... Ys>
@@ -85,7 +86,7 @@ private:
     {
         auto predicate = makePredicate<T>();
         auto tail = makePredicate<Y, Ys...>();
-        predicate.insert(tail.begin(), tail.end());
+        predicate |= tail;
         return predicate;
     }
 
@@ -112,7 +113,7 @@ inline typename basic_ecsView<ECSWorldT, Cs...>::Iterator basic_ecsView<ECSWorld
     auto archetypeIt = m_world->m_archetypes.begin();
     while (archetypeIt != m_world->m_archetypes.end())
     {
-        if (std::ranges::includes(archetypeIt->first, m_predicate))
+        if ((archetypeIt->first & m_predicate) == m_predicate)
         {
             auto entityIt = archetypeIt->second.begin();
             if (entityIt != archetypeIt->second.end())

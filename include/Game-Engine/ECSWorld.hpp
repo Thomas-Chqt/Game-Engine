@@ -12,6 +12,7 @@
 
 #include "Game-Engine/Export.hpp"
 
+#include <bitset>
 #include <cassert>
 #include <climits>
 #include <cstddef>
@@ -49,7 +50,21 @@ private:
     template<ECSWorldLike ECSWorldT, Component  ... Cs> requires(sizeof...(Cs) > 0) friend class basic_ecsView;
 
     using ComponentID = uint32_t;
-    using ArchetypeID = std::set<ComponentID>;
+    static constexpr std::size_t maxComponentTypes = 256;
+    using ArchetypeID = std::bitset<maxComponentTypes>;
+
+    struct ArchetypeIDLess
+    {
+        bool operator()(const ArchetypeID& lhs, const ArchetypeID& rhs) const
+        {
+            for (std::size_t i = maxComponentTypes; i-- > 0;)
+            {
+                if (lhs.test(i) != rhs.test(i))
+                    return rhs.test(i);
+            }
+            return false;
+        }
+    };
 
     using CopyConstructor = std::function<void(void* src, void* dst)>;
     using MoveConstructor = std::function<void(void* src, void* dst)>;
@@ -101,7 +116,6 @@ private:
     static ComponentID nextComponentID();
     static ComponentID componentID(const std::type_info&);
     template<Component T> static ComponentID componentID();
-
     template<Component T> static uint64_t componentSize();
     template<Component T> static CopyConstructor componentCopyConstructor();
     template<Component T> static MoveConstructor componentMoveConstructor();
@@ -110,7 +124,7 @@ private:
     std::vector<EntityData> m_entityDatas;
     std::set<EntityID> m_availableEntityIDs;
 
-    std::map<ArchetypeID, Archetype> m_archetypes;
+    std::map<ArchetypeID, Archetype, ArchetypeIDLess> m_archetypes;
 
 public:
     ECSWorld& operator=(const ECSWorld&) = default;
@@ -139,7 +153,7 @@ T& ECSWorld::emplace(EntityID entityId, Args&&... args)
     uint64_t& entityIdx = m_entityDatas[entityId].idx;
 
     ArchetypeID dstArchID = entityArchID;
-    dstArchID.insert(componentID<T>());
+    dstArchID.set(componentID<T>());
     auto it = m_archetypes.find(dstArchID);
     if (it == m_archetypes.end())
     {
@@ -183,7 +197,7 @@ void ECSWorld::remove(EntityID entityId)
     uint64_t& entityIdx = m_entityDatas[entityId].idx;
 
     ArchetypeID dstArchID = entityArchID;
-    dstArchID.erase(componentID<T>());
+    dstArchID.reset(componentID<T>());
     auto it = m_archetypes.find(dstArchID);
     if (it == m_archetypes.end())
     {
@@ -216,7 +230,7 @@ template<Component T>
 bool ECSWorld::has(EntityID entityId) const
 {
     assert(isValidEntityID(entityId));
-    return m_entityDatas[entityId].archetypeId.contains(componentID<T>());
+    return m_entityDatas[entityId].archetypeId.test(componentID<T>());
 }
 
 template<Component T>
