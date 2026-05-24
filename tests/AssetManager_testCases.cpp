@@ -617,6 +617,31 @@ TEST_F(AssetManagerMockDeviceTest, addingAssetsToALoadedViewLoadsThemInBackgroun
     assetManagerView.unload();
 }
 
+TEST_F(AssetManagerMockDeviceTest, readdingAnAlreadyTrackedAssetToALoadedViewDoesNotReloadIt)
+{
+    const std::filesystem::path meshPath = dummyMeshPath();
+    ASSERT_TRUE(std::filesystem::is_regular_file(meshPath));
+
+    GE::AssetManager assetManager(&m_device);
+    GE::AssetManagerView assetManagerView(&assetManager);
+
+    const GE::AssetID meshAssetId = assetManagerView.registerAsset<GE::Mesh>(meshPath);
+
+    assetManagerView.load();
+    ASSERT_NE(assetManager.getAsset<GE::Mesh>(meshAssetId), nullptr);
+    ASSERT_TRUE(assetManagerView.isLoaded());
+    EXPECT_EQ(assetManager.assetLoadCount(meshAssetId), 1u);
+
+    assetManagerView.registerAssetId(meshAssetId);
+
+    EXPECT_TRUE(assetManagerView.isLoaded());
+    EXPECT_EQ(assetManager.assetLoadCount(meshAssetId), 1u);
+
+    assetManagerView.unload();
+    EXPECT_FALSE(assetManager.isAssetLoaded(meshAssetId));
+    EXPECT_EQ(assetManager.assetLoadCount(meshAssetId), 0u);
+}
+
 TEST_F(AssetManagerMockDeviceTest, moveOperationsPreserveLoadedAssetsUntilTheDestinationUnloads)
 {
     const std::filesystem::path texturePath = dummyTexturePath();

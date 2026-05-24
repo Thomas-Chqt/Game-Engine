@@ -278,9 +278,10 @@ void componentEditWidget<GE::MeshComponent>(GE::Entity& entity, GE::Scene& scene
 
     if (ImGui::BeginDragDropTarget())
     {
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("resource_dnd")) {
-            GE::Entity& droped = *(GE::Entity*)payload->Data;
-            std::string_view path = std::string_view((const char*)payload->Data, (size_t)payload->DataSize);
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("resource_dnd"); payload && payload->IsDelivery())
+        {
+            assert(payload->DataSize > 0);
+            std::string_view path = std::string_view(static_cast<const char*>(payload->Data), static_cast<std::size_t>(payload->DataSize - 1));
             GE::AssetID id = scene.assetManagerView().registerAsset<GE::Mesh>(std::filesystem::path(path));
             mesh.id = id;
         }
@@ -373,7 +374,7 @@ void sceneGrapRow(GE::Entity& entity, GE::Entity& selectedEntity)
 
         if (ImGui::BeginDragDropTarget())
         {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_entity")) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_entity"); payload && payload->IsDelivery()) {
                 assert(payload->DataSize == sizeof(GE::Entity));
                 GE::Entity& droped = *(GE::Entity*)payload->Data;
                 if (droped.isParentOf(entity) == false) {
@@ -509,7 +510,7 @@ void Editor::renderImgui()
         }
         if (ImGui::BeginDragDropTarget())
         {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_entity")) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_entity"); payload && payload->IsDelivery()) {
                 assert(payload->DataSize == sizeof(GE::Entity));
                 GE::Entity& droped = *(GE::Entity*)payload->Data;
                 if(auto parent = droped.parent())

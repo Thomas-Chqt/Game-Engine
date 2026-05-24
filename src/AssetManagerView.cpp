@@ -44,9 +44,9 @@ void AssetManagerView::registerAssetId(AssetID assetId)
     assert(m_assetManager);
     assert(m_assetManager->isValidAssetId(assetId));
 
-    if (m_isLoaded)
+    const auto [_, inserted] = m_assets.insert(assetId);
+    if (m_isLoaded && inserted)
         m_assetManager->loadAssetBackground(assetId);
-    m_assets.insert(assetId);
 }
 
 void AssetManagerView::load()
