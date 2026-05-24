@@ -87,7 +87,7 @@ AssetManagerView::AssetManagerView(AssetManager* assetManager, const std::ranges
         assert(vAssetPath.has_value() || m_assetManager->isValidAssetId(assetId));
         if (vAssetPath.has_value()) {
             std::visit([&]<ManagableAsset T>(const AssetPath<T>& assetPath) {
-                const AssetID registeredAssetId = m_assetManager->registerAsset<T>(assetPath, assetId);
+                const AssetID registeredAssetId = m_assetManager->registerAsset<T>(assetPath.path.stem().string(), assetPath, assetId);
                 assert(registeredAssetId == assetId);
                 m_assets.insert(registeredAssetId);
             }, vAssetPath.value());
@@ -101,7 +101,7 @@ template<ManagableAsset T>
 AssetID AssetManagerView::registerAsset(const std::filesystem::path& path)
 {
     assert(m_assetManager);
-    AssetID assetId = m_assetManager->registerAsset<T>(path);
+    AssetID assetId = m_assetManager->registerAsset<T>(path.stem().string(), path);
     registerAssetId(assetId);
     return assetId;
 }

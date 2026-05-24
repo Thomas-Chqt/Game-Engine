@@ -15,17 +15,17 @@
 namespace GE
 {
 
-AssetManagerView::AssetManagerView(AssetManager* assetManager)
-    : m_assetManager(assetManager)
-{
-    assert(m_assetManager);
-}
-
 AssetManagerView::AssetManagerView(AssetManagerView&& other) noexcept
     : m_assetManager(std::exchange(other.m_assetManager, nullptr))
     , m_assets(std::move(other.m_assets))
     , m_isLoaded(std::exchange(other.m_isLoaded, false))
 {
+}
+
+AssetManagerView::AssetManagerView(AssetManager* assetManager)
+    : m_assetManager(assetManager)
+{
+    assert(m_assetManager);
 }
 
 AssetManager& AssetManagerView::assetManager() const
@@ -46,7 +46,7 @@ void AssetManagerView::registerAssetId(AssetID assetId)
 
     const auto [_, inserted] = m_assets.insert(assetId);
     if (m_isLoaded && inserted)
-        m_assetManager->loadAssetBackground(assetId);
+        m_assetManager->loadAssetDetached(assetId);
 }
 
 void AssetManagerView::load()
@@ -54,7 +54,7 @@ void AssetManagerView::load()
     assert(m_isLoaded || m_assetManager);
 
     if (m_isLoaded == false) {
-        m_assetManager->loadAssetsBackground(m_assets);
+        m_assetManager->loadAssetsDetached(m_assets);
         m_isLoaded = true;
     }
 }

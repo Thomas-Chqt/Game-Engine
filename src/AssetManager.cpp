@@ -8,18 +8,13 @@
  */
 
 #include "Game-Engine/AssetManager.hpp"
+#include "Game-Engine/ManagableAsset.hpp"
 #include "Game-Engine/Mesh.hpp"
 #include "Game-Engine/MeshAssetLoader.hpp"
 
-#include <Graphics/Device.hpp>
-
-#include <future>
-#include <chrono>
 #include <cassert>
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <memory>
+#include <future>
+#include <mutex>
 #include <string>
 #include <variant>
 
@@ -30,100 +25,124 @@ AssetManager::AssetManager(gfx::Device* device)
     : m_device(device)
 {
     assert(m_device != nullptr);
-    assert(m_assetHandles.contains(BUILT_IN_CUBE_ID) == false);
-    auto [_, inserted] = m_assetHandles.insert(std::make_pair(BUILT_IN_CUBE_ID, AssetHandle<Mesh>{
-        .name = "build_in_cube",
-        .loader = AssetLoader<Mesh>(m_device, BuiltInMesh::cube)
-    }));
-    assert(inserted);
+
+    const AssetID builtInCubeId = registerAsset<Mesh>(
+        "build_in_cube",
+        AssetLoader<Mesh>(m_device, BuiltInMesh::cube),
+        BUILT_IN_CUBE_ID
+    );
+    assert(builtInCubeId == BUILT_IN_CUBE_ID);
 }
 
 std::future<void> AssetManager::loadAsset(AssetID assetId)
 {
-    assert(m_assetHandles.contains(assetId));
-    VAssetHandle& vHandle = m_assetHandles.at(assetId);
-    return std::visit([&](auto& handle){
-        auto future = loadAssetHandle(handle);
-        return std::async(std::launch::deferred, [future](){ future.get(); });
+    VAssetHandle& vHandle = [&]() -> VAssetHandle& {
+        std::scoped_lock lock(m_registryMutex);
+        assert(m_assetHandles.contains(assetId));
+        return m_assetHandles.at(assetId);
+    }();
+
+    return std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) -> std::future<void> {
+        std::shared_future<std::shared_ptr<T>> future = handle.load(m_device, nullptr);
+        return std::async(std::launch::deferred, [future]() { future.get(); });
     }, vHandle);
 }
 
-void AssetManager::loadAssetBackground(AssetID assetId)
+void AssetManager::loadAssetDetached(AssetID assetId)
 {
-    assert(m_assetHandles.contains(assetId));
-    VAssetHandle& vHandle = m_assetHandles.at(assetId);
-    std::visit([&](auto& handle){ loadAssetHandle(handle); }, vHandle);
+    VAssetHandle& vHandle = [&]() -> VAssetHandle& {
+        std::scoped_lock lock(m_registryMutex);
+        assert(m_assetHandles.contains(assetId));
+        return m_assetHandles.at(assetId);
+    }();
+
+    std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) {
+        handle.load(m_device, nullptr);
+    }, vHandle);
 }
 
 void AssetManager::unloadAsset(AssetID assetId)
 {
-    assert(m_assetHandles.contains(assetId));
-    VAssetHandle& vHandle = m_assetHandles.at(assetId);
-    std::visit([&]<typename T>(AssetHandle<T>& handle)
-    {
-        // is loaded
-        assert(handle.loadCount > 0);
-        assert(handle.future.valid());
+    VAssetHandle& vHandle = [&]() -> VAssetHandle& {
+        std::scoped_lock lock(m_registryMutex);
+        assert(m_assetHandles.contains(assetId));
+        return m_assetHandles.at(assetId);
+    }();
 
-        handle.loadCount--;
-        if (handle.loadCount == 0) {
-            handle.future.wait();
-            handle.future = std::shared_future<std::shared_ptr<T>>();
-        }
-    },
-    vHandle);
-}
-
-bool AssetManager::isAssetLoaded(AssetID assetId) const
-{
-    assert(m_assetHandles.contains(assetId));
-    const VAssetHandle& vHandle = m_assetHandles.at(assetId);
-    return std::visit([&]<typename T>(const AssetHandle<T>& handle) -> bool {
-        return handle.future.valid() && handle.future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+    std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) {
+        handle.unload();
     }, vHandle);
 }
 
-std::vector<AssetID> AssetManager::assetIds() const
+std::set<AssetID> AssetManager::assetIds() const
 {
-    std::vector<AssetID> assetIds;
-    assetIds.reserve(m_assetHandles.size());
-
+    std::lock_guard lock(m_registryMutex);
+    std::set<AssetID> assetIds;
     for (const auto& [assetId, _] : m_assetHandles)
-        assetIds.push_back(assetId);
-
+        assetIds.insert(assetId);
     return assetIds;
 }
 
-const std::string& AssetManager::assetName(AssetID assetId) const
+AssetID AssetManager::assetId(const std::filesystem::path& path) const
 {
+    std::scoped_lock lock(m_registryMutex);
+    assert(m_registeredAssets.contains(path));
+    return m_registeredAssets.at(path);
+}
+
+std::string AssetManager::assetName(AssetID assetId) const
+{
+    std::scoped_lock lock(m_registryMutex);
     assert(m_assetHandles.contains(assetId));
     const VAssetHandle& vHandle = m_assetHandles.at(assetId);
-    return std::visit([&]<typename T>(const AssetHandle<T>& handle) -> const std::string& {
-        return handle.name;
+    return std::visit([]<ManagableAsset T>(const AssetHandle<T>& handle) -> std::string {
+        return handle.name();
+    }, vHandle);
+}
+
+std::optional<std::filesystem::path> AssetManager::assetPath(AssetID assetId) const
+{
+    std::scoped_lock lock(m_registryMutex);
+    assert(m_assetHandles.contains(assetId));
+    const VAssetHandle& vHandle = m_assetHandles.at(assetId);
+    return std::visit([]<ManagableAsset T>(const AssetHandle<T>& handle) -> std::optional<std::filesystem::path> {
+        return handle.path();
     }, vHandle);
 }
 
 uint32_t AssetManager::assetLoadCount(AssetID assetId) const
 {
-    assert(m_assetHandles.contains(assetId));
-    const VAssetHandle& vHandle = m_assetHandles.at(assetId);
-    return std::visit([&]<typename T>(const AssetHandle<T>& handle) -> uint32_t {
-        return handle.loadCount;
+    const VAssetHandle& vHandle = [&]() -> const VAssetHandle& {
+        std::scoped_lock lock(m_registryMutex);
+        assert(m_assetHandles.contains(assetId));
+        return m_assetHandles.at(assetId);
+    }();
+
+    return std::visit([]<ManagableAsset T>(const AssetHandle<T>& handle) {
+        return handle.loadCount();
     }, vHandle);
 }
 
-const std::optional<std::filesystem::path>& AssetManager::assetPath(AssetID assetId) const
+bool AssetManager::isRegistered(const std::filesystem::path& path) const
 {
-    assert(m_assetHandles.contains(assetId));
-    const VAssetHandle& vHandle = m_assetHandles.at(assetId);
-    return std::visit([&]<typename T>(const AssetHandle<T>& handle) -> const std::optional<std::filesystem::path>& {
-        return handle.path;
-    }, vHandle);
+    std::lock_guard lock(m_registryMutex);
+    return m_registeredAssets.contains(path);
 }
 
 bool AssetManager::isValidAssetId(AssetID assetId) const
 {
+    std::lock_guard lock(m_registryMutex);
     return m_assetHandles.contains(assetId);
+}
+
+bool AssetManager::isAssetLoaded(AssetID assetId) const
+{
+    std::lock_guard lock(m_registryMutex);
+    assert(m_assetHandles.contains(assetId));
+    const VAssetHandle& vHandle = m_assetHandles.at(assetId);
+    return std::visit([]<ManagableAsset T>(const AssetHandle<T>& handle) -> bool {
+        return handle.isLoaded();
+    }, vHandle);
 }
 
 } // namespace GE

@@ -28,6 +28,7 @@
 #include <functional>
 #include <numbers>
 #include <ranges>
+#include <set>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -68,7 +69,7 @@ std::string_view assetTypeName(const GE::AssetManager& assetManager, GE::AssetID
 {
     std::string_view typeName = "Unknown";
     const bool foundType = GE::anyOfType<GE::ManagableAssetTypes>([&]<typename T>() -> bool {
-        if (!assetManager.is<T>(assetId))
+        if (!assetManager.assetTypeIs<T>(assetId))
             return false;
 
         typeName = GE::AssetPathYamlTraits<GE::AssetPath<T>>::name;
@@ -265,7 +266,7 @@ void componentEditWidget<GE::MeshComponent>(GE::Entity& entity, GE::Scene& scene
 
     if (ImGui::BeginCombo("Mesh##RegistredMesh", assetManager.assetName(mesh).c_str()))
     {
-        for (const GE::AssetID& assetId : scene.assetManagerView().assets() | std::views::filter([&](const GE::AssetID& id) { return assetManager.is<GE::Mesh>(id); }))
+        for (const GE::AssetID& assetId : scene.assetManagerView().assets() | std::views::filter([&](const GE::AssetID& id) { return assetManager.assetTypeIs<GE::Mesh>(id); }))
         {
             const bool is_selected = (assetId == mesh.id);
             if (ImGui::Selectable(assetManager.assetName(assetId).c_str(), is_selected))
@@ -593,7 +594,7 @@ void Editor::renderImgui()
         if (ImGui::Begin("Asset manager", &assetManagerWindowOpen))
         {
             GE::AssetManager& manager = assetManager();
-            const std::vector<GE::AssetID> assetIds = manager.assetIds();
+            const std::set<GE::AssetID> assetIds = manager.assetIds();
 
             ImGui::TextDisabled("%zu assets", assetIds.size());
             ImGui::Separator();
@@ -640,7 +641,7 @@ void Editor::renderImgui()
                         if (ImGui::BeginPopupContextItem("asset_context_menu"))
                         {
                             if (ImGui::MenuItem("Load"))
-                                manager.loadAssetBackground(assetId);
+                                manager.loadAssetDetached(assetId);
 
                             ImGui::BeginDisabled(loadCount == 0);
                             if (ImGui::MenuItem("Unload"))
