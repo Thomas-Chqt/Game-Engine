@@ -114,12 +114,10 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const std::filesystem::path& meshP
             transform = additionalTransform * glm::make_mat4x4(nodeTransform->data());
         else if (const gltf::TRS* nodeTRS = std::get_if<gltf::TRS>(&node.transform))
         {
-            auto matrix = glm::mat4x4(1.0f);
-            matrix = glm::translate(matrix, glm::make_vec3(nodeTRS->translation.data()));
-            matrix = glm::rotate(matrix, nodeTRS->rotation.x(), glm::vec3(1, 0, 0));
-            matrix = glm::rotate(matrix, nodeTRS->rotation.y(), glm::vec3(0, 1, 0));
-            matrix = glm::rotate(matrix, nodeTRS->rotation.z(), glm::vec3(0, 0, 1));
-            matrix = glm::scale(matrix, glm::make_vec3(nodeTRS->scale.data()));
+            const glm::vec3 translation = glm::make_vec3(nodeTRS->translation.data());
+            const glm::vec3 scale = glm::make_vec3(nodeTRS->scale.data());
+            const glm::quat rotation(nodeTRS->rotation.w(), nodeTRS->rotation.x(), nodeTRS->rotation.y(), nodeTRS->rotation.z());
+            const glm::mat4x4 matrix = glm::translate(glm::mat4x4(1.0f), translation) * glm::mat4_cast(rotation) * glm::scale(glm::mat4x4(1.0f), scale);
             transform = additionalTransform * matrix;
         }
         else
