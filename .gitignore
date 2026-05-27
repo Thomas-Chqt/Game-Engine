@@ -11,4 +11,4 @@ graph.drawio.svg
 **/.DS_Store
 examples/project1/project1_scriptLib*
 __cmake_systeminformation
-examples/project1/resources/bistro.glb
+examples/bistro/

@@ -64,7 +64,10 @@ target_compile_definitions(Game-Engine PRIVATE "SHADER_DIR=\"${SHADER_DIR}\"")
 add_subdirectory("editor")
 
 if(GE_BUILD_EXAMPLES)
-    add_subdirectory("examples/project1")
+    file(GLOB EXAMPLE_DIRS LIST_DIRECTORIES true "${CMAKE_CURRENT_SOURCE_DIR}/examples/*")
+    foreach(dir IN LISTS EXAMPLE_DIRS)
+        add_subdirectory("${dir}")
+    endforeach()
 endif()
 
 if (GE_BUILD_TESTS)
