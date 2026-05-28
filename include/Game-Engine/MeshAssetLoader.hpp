@@ -9,6 +9,7 @@
 #ifndef MESHASSETLOADER_HPP
 #define MESHASSETLOADER_HPP
 
+#include "Game-Engine/AssetLocation.hpp"
 #include "Game-Engine/AssetLoader.hpp"
 #include "Game-Engine/Mesh.hpp"
 
@@ -16,11 +17,12 @@
 #include <Graphics/CommandBuffer.hpp>
 
 #include <cstdint>
-#include <filesystem>
 #include <variant>
 
 namespace GE
 {
+
+class AssetManager;
 
 enum class BuiltInMesh : uint8_t { cube };
 
@@ -31,18 +33,17 @@ public:
     AssetLoader(const AssetLoader&) = delete;
     AssetLoader(AssetLoader&&) = default;
 
-    AssetLoader(gfx::Device* device, std::filesystem::path);
-    AssetLoader(gfx::Device* device, BuiltInMesh);
+    AssetLoader(gfx::Device*, AssetManager*, const AssetLocation<Mesh>&);
+    AssetLoader(gfx::Device*, AssetManager*, BuiltInMesh);
 
     std::shared_ptr<Mesh> load(gfx::CommandBuffer&) const;
 
     ~AssetLoader() = default;
 
 private:
-    gfx::Device* m_device;
-    std::variant<std::filesystem::path, BuiltInMesh> m_source;
+    std::variant<AssetLocation<Mesh>, BuiltInMesh> m_source;
 
-    std::shared_ptr<Mesh> load(const std::filesystem::path&, gfx::CommandBuffer&) const;
+    std::shared_ptr<Mesh> load(const AssetLocation<Mesh>&, gfx::CommandBuffer&) const;
     std::shared_ptr<Mesh> load(const BuiltInMesh&, gfx::CommandBuffer&) const;
 
 public:

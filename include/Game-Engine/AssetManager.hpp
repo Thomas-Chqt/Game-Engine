@@ -10,12 +10,12 @@
 #ifndef ASSETMANAGER_HPP
 #define ASSETMANAGER_HPP
 
+#include "Game-Engine/AssetContainer.hpp"
+#include "Game-Engine/AssetLocation.hpp"
 #include "Game-Engine/AssetLoader.hpp"
 #include "Game-Engine/Export.hpp"
-#include "Game-Engine/ManagableAsset.hpp"
 #include "Game-Engine/MeshAssetLoader.hpp" // IWYU pragma: keep
 #include "Game-Engine/TextureAssetLoader.hpp" // IWYU pragma: keep
-#include "Game-Engine/TypeList.hpp"
 
 #include <Graphics/CommandBuffer.hpp>
 #include <Graphics/CommandBufferPool.hpp>
@@ -68,6 +68,11 @@ public:
     AssetID registerAsset(std::string_view name, const std::filesystem::path&, std::optional<AssetID> = std::nullopt);
 
     template<ManagableAsset T>
+    AssetID registerAsset(std::string_view name, const std::filesystem::path&, uint32_t, std::optional<AssetID> = std::nullopt);
+
+    AssetID registerAsset(std::string_view name, const VAssetLocation&, std::optional<AssetID> = std::nullopt);
+
+    template<ManagableAsset T>
     AssetID registerAsset(std::string_view name, AssetLoader<T>&&, std::optional<AssetID> = std::nullopt);
 
     template<ManagableAsset T>
@@ -89,18 +94,22 @@ public:
     std::shared_ptr<T> getAsset(AssetID) const;
 
     std::set<AssetID> assetIds() const;
-    AssetID assetId(const std::filesystem::path&) const;
+    std::set<std::filesystem::path> assetContainerPaths() const;
+    AssetID assetId(const VAssetLocation&) const;
     std::string assetName(AssetID) const;
-    std::optional<std::filesystem::path> assetPath(AssetID) const;
+    std::optional<VAssetLocation> assetLocation(AssetID) const;
     uint32_t assetLoadCount(AssetID) const;
 
     template<ManagableAsset T>
     bool assetTypeIs(AssetID) const;
 
-    bool isRegistered(const std::filesystem::path&) const;
+    bool isRegistered(const VAssetLocation&) const;
     bool isValidAssetId(AssetID) const;
     bool isAssetLoaded(AssetID) const;
+    bool isAssetContainerLoaded(const std::filesystem::path&) const;
     bool areAssetsLoaded(const AssetIdRange auto&) const;
+
+    std::shared_ptr<AssetContainer> assetContainer(const std::filesystem::path&);
 
     ~AssetManager() = default;
 
@@ -111,10 +120,10 @@ private:
     public:
         using AssetType = T;
 
-        AssetHandle(std::string_view, std::optional<std::filesystem::path>, AssetLoader<T>&&);
+        AssetHandle(std::string_view, std::optional<VAssetLocation>, AssetLoader<T>&&);
 
         std::string name() const;
-        std::optional<std::filesystem::path> path() const;
+        std::optional<VAssetLocation> location() const;
         uint32_t loadCount() const;
         std::shared_future<std::shared_ptr<T>> future() const;
 
@@ -124,7 +133,7 @@ private:
 
     private:
         std::string m_name;
-        std::optional<std::filesystem::path> m_path;
+        std::optional<VAssetLocation> m_location;
         AssetLoader<T> m_loader;
 
         mutable std::mutex m_mutex;
@@ -136,14 +145,15 @@ private:
     using VAssetHandle = AssetHandleTypes::into<std::variant>;
 
     template<ManagableAsset T>
-    AssetID registerAssetHandle(std::optional<AssetID>, std::string_view name, std::optional<std::filesystem::path>, AssetLoader<T>&&);
+    AssetID registerAssetHandle(std::optional<AssetID>, std::string_view name, std::optional<VAssetLocation>, AssetLoader<T>&&);
 
     decltype(auto) withCommandBufferPool(const std::invocable<gfx::CommandBufferPool&> auto& fn);
 
     gfx::Device* m_device = nullptr;
 
     mutable std::mutex m_registryMutex;
-    std::map<std::filesystem::path, AssetID> m_registeredAssets;
+    std::map<VAssetLocation, AssetID> m_registeredAssets;
+    std::map<std::filesystem::path, std::weak_ptr<AssetContainer>> m_assetContainers;
     std::map<AssetID, VAssetHandle> m_assetHandles;
 
 public:
@@ -155,30 +165,13 @@ public:
 template<ManagableAsset T>
 AssetID AssetManager::registerAsset(std::string_view name, const std::filesystem::path& path, std::optional<AssetID> assetId)
 {
-    std::lock_guard lock(m_registryMutex);
+    return registerAsset<T>(name, path, 0, assetId);
+}
 
-    #ifndef NDEBUG
-    assert(std::filesystem::is_regular_file(path));
-    if (const auto registeredAssetIt = m_registeredAssets.find(path); registeredAssetIt != m_registeredAssets.end()) {
-        const AssetID registeredAssetId = registeredAssetIt->second;
-        if (assetId.has_value())
-            assert(registeredAssetId == assetId.value());
-        const VAssetHandle& vHandle = m_assetHandles.at(registeredAssetId);
-        assert(std::holds_alternative<AssetHandle<T>>(vHandle));
-        const AssetHandle<T>& handle = std::get<AssetHandle<T>>(vHandle);
-        assert(handle.name() == name);
-        assert(handle.path() == path);
-    }
-    else if (assetId.has_value()) {
-        assert(m_assetHandles.contains(assetId.value()) == false);
-    }
-    #endif
-
-    auto [it, inserted] = m_registeredAssets.try_emplace(path);
-    if (inserted) {
-        it->second = registerAssetHandle<T>(assetId, name, path, AssetLoader<T>(m_device, path));
-    }
-    return it->second;
+template<ManagableAsset T>
+AssetID AssetManager::registerAsset(std::string_view name, const std::filesystem::path& path, uint32_t index, std::optional<AssetID> assetId)
+{
+    return registerAsset(name, VAssetLocation(AssetLocation<T>{path, index}), assetId);
 }
 
 template<ManagableAsset T>
@@ -192,7 +185,7 @@ AssetID AssetManager::registerAsset(std::string_view name, AssetLoader<T>&& load
         assert(std::holds_alternative<AssetHandle<T>>(vHandle));
         const AssetHandle<T>& handle = std::get<AssetHandle<T>>(vHandle);
         assert(handle.name() == name);
-        assert(handle.path().has_value() == false);
+        assert(handle.location().has_value() == false);
     }
     #endif
 
@@ -332,9 +325,9 @@ bool AssetManager::areAssetsLoaded(const AssetIdRange auto& assetIds) const
 /* ------------ PRIVATE ------------ */
 
 template<ManagableAsset T>
-AssetManager::AssetHandle<T>::AssetHandle(std::string_view assetName, std::optional<std::filesystem::path> assetPath, AssetLoader<T>&& assetLoader)
+AssetManager::AssetHandle<T>::AssetHandle(std::string_view assetName, std::optional<VAssetLocation> assetLocation, AssetLoader<T>&& assetLoader)
     : m_name(assetName)
-    , m_path(std::move(assetPath))
+    , m_location(std::move(assetLocation))
     , m_loader(std::move(assetLoader))
 {
 }
@@ -347,10 +340,10 @@ std::string AssetManager::AssetHandle<T>::name() const
 }
 
 template<ManagableAsset T>
-std::optional<std::filesystem::path> AssetManager::AssetHandle<T>::path() const
+std::optional<VAssetLocation> AssetManager::AssetHandle<T>::location() const
 {
     std::lock_guard lock(m_mutex);
-    return m_path;
+    return m_location;
 }
 
 template<ManagableAsset T>
@@ -420,7 +413,7 @@ bool AssetManager::AssetHandle<T>::isLoaded() const
 }
 
 template<ManagableAsset T>
-AssetID AssetManager::registerAssetHandle(std::optional<AssetID> assetId, std::string_view name, std::optional<std::filesystem::path> path, AssetLoader<T>&& loader)
+AssetID AssetManager::registerAssetHandle(std::optional<AssetID> assetId, std::string_view name, std::optional<VAssetLocation> location, AssetLoader<T>&& loader)
 {
     #ifndef NDEBUG
     if (assetId.has_value() && m_assetHandles.contains(*assetId)) {
@@ -428,7 +421,7 @@ AssetID AssetManager::registerAssetHandle(std::optional<AssetID> assetId, std::s
         assert(std::holds_alternative<AssetHandle<T>>(vHandle));
         const AssetHandle<T>& handle = std::get<AssetHandle<T>>(vHandle);
         assert(handle.name() == name);
-        assert(handle.path() == path);
+        assert(handle.location() == location);
     }
     #endif
 
@@ -440,7 +433,7 @@ AssetID AssetManager::registerAssetHandle(std::optional<AssetID> assetId, std::s
             newAssetId++;
     }
 
-    auto [it, inserted] = m_assetHandles.try_emplace(newAssetId, std::in_place_type<AssetHandle<T>>, name, std::move(path), std::move(loader));
+    auto [it, inserted] = m_assetHandles.try_emplace(newAssetId, std::in_place_type<AssetHandle<T>>, name, std::move(location), std::move(loader));
     assert(inserted || assetId.has_value());
 
     return it->first;

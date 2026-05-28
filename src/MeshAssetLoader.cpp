@@ -8,6 +8,11 @@
 
 #include "Game-Engine/MeshAssetLoader.hpp"
 
+#include "Game-Engine/AssetContainer.hpp"
+#include "Game-Engine/AssetLoader.hpp"
+#include "Game-Engine/AssetManager.hpp"
+#include "Game-Engine/Mesh.hpp"
+
 #include <Graphics/Device.hpp>
 
 #if defined(__clang__)
@@ -30,8 +35,8 @@
 
 #include <format>
 #include <memory>
-#include <utility>
 #include <ranges>
+#include <utility>
 
 namespace gltf = fastgltf;
 
@@ -74,14 +79,15 @@ constexpr auto indices = std::to_array<uint32_t>({
     22, 21, 20, 23, 22, 20
 });
 
-AssetLoader<Mesh>::AssetLoader(gfx::Device* device, std::filesystem::path path)
-    : m_device(device), m_source(std::move(path))
+AssetLoader<Mesh>::AssetLoader(gfx::Device* device, AssetManager* assetManager, const AssetLocation<Mesh>& location)
+    : AssetLoaderBase<Mesh>(device, assetManager)
+    , m_source(location)
 {
-    assert(std::filesystem::is_regular_file(std::get<std::filesystem::path>(m_source)));
 }
 
-AssetLoader<Mesh>::AssetLoader(gfx::Device* device, BuiltInMesh builtInMesh)
-    : m_device(device), m_source(builtInMesh)
+AssetLoader<Mesh>::AssetLoader(gfx::Device* device, AssetManager* assetManager, BuiltInMesh builtInMesh)
+    : AssetLoaderBase<Mesh>(device, assetManager)
+    , m_source(builtInMesh)
 {
 }
 
@@ -90,20 +96,18 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(gfx::CommandBuffer& commandBuffer)
     return std::visit([&](const auto& source) { return load(source, commandBuffer); }, m_source);
 }
 
-std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const std::filesystem::path& meshPath, gfx::CommandBuffer& commandBuffer) const
+std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const AssetLocation<Mesh>& location, gfx::CommandBuffer& commandBuffer) const
 {
-    gltf::Expected<gltf::GltfDataBuffer> gltfDataBuffer = gltf::GltfDataBuffer::FromPath(meshPath);
-    if (gltfDataBuffer.error() != gltf::Error::None)
-        throw std::runtime_error(std::format("{}: failed to load glTF: data error", meshPath.string()));
+    assert(m_assetManager);
+    std::shared_ptr<AssetContainer> container = m_assetManager->assetContainer(location.containerPath);
+    auto* gltfContainer = dynamic_cast<GltfAssetContainer*>(container.get());
+    assert(gltfContainer);
+    assert(location.index == 0);
 
-    gltf::Parser parser;
-    gltf::Expected<gltf::Asset> asset = parser.loadGltf(gltfDataBuffer.get(), meshPath.parent_path(), gltf::Options::LoadExternalBuffers | gltf::Options::GenerateMeshIndices, gltf::Category::Asset | gltf::Category::Buffers | gltf::Category::BufferViews | gltf::Category::Accessors | gltf::Category::Images | gltf::Category::Textures | gltf::Category::Materials | gltf::Category::Meshes | gltf::Category::Nodes | gltf::Category::Scenes);
-    if (asset.error() != gltf::Error::None)
-        throw std::runtime_error(std::format("{}: failed to load glTF: asset error", meshPath.string()));
-
-    if (asset->scenes.empty())
-        throw std::runtime_error(std::format("{}: failed to load glTF: no scene", meshPath.string()));
-    const gltf::Scene& scene = asset->defaultScene ? asset->scenes[*asset->defaultScene] : asset->scenes.front();
+    const gltf::Asset& asset = gltfContainer->asset();
+    if (asset.scenes.empty())
+        throw std::runtime_error(std::format("{}: failed to load glTF: no scene", location.containerPath.string()));
+    const gltf::Scene& scene = asset.defaultScene ? asset.scenes[*asset.defaultScene] : asset.scenes.front();
 
     auto mesh = std::make_shared<Mesh>();
 
@@ -126,47 +130,47 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const std::filesystem::path& meshP
         std::size_t dstSize = dst.size();
         if (gltf::Optional<std::size_t> meshIndex = node.meshIndex)
         {
-            for (uint32_t i = 0; const gltf::Primitive& primitive : asset->meshes[*meshIndex].primitives)
+            for (uint32_t i = 0; const gltf::Primitive& primitive : asset.meshes[*meshIndex].primitives)
             {
                 if (primitive.type != gltf::PrimitiveType::Triangles)
-                    throw std::runtime_error(std::format("{}: failed to load glTF: unsuported primitive type", meshPath.string()));
+                    throw std::runtime_error(std::format("{}: failed to load glTF: unsuported primitive type", location.containerPath.string()));
 
                 auto findAccessor = [&](std::string_view name) -> const gltf::Accessor* {
                     auto it = std::ranges::find_if(primitive.attributes, [&](const gltf::Attribute& attribute) -> bool { return attribute.name == name; });
-                    return it == primitive.attributes.end() ? nullptr : &asset->accessors[it->accessorIndex];
+                    return it == primitive.attributes.end() ? nullptr : &asset.accessors[it->accessorIndex];
                 };
 
                 const gltf::Accessor* posAccessor = findAccessor("POSITION");
                 if (posAccessor == nullptr)
-                    throw std::runtime_error(std::format("{}: failed to load glTF: pos accessor not found", meshPath.string()));
+                    throw std::runtime_error(std::format("{}: failed to load glTF: pos accessor not found", location.containerPath.string()));
 
-                const gltf::Accessor* indicesAccessor = primitive.indicesAccessor.has_value() ? &asset->accessors[*primitive.indicesAccessor] : nullptr;
+                const gltf::Accessor* indicesAccessor = primitive.indicesAccessor.has_value() ? &asset.accessors[*primitive.indicesAccessor] : nullptr;
                 if (indicesAccessor == nullptr)
-                    throw std::runtime_error(std::format("{}: failed to load glTF: index accessor not found", meshPath.string()));
+                    throw std::runtime_error(std::format("{}: failed to load glTF: index accessor not found", location.containerPath.string()));
 
                 const gltf::Accessor* uvAccessor = findAccessor("TEXCOORD_0");
                 const gltf::Accessor* normalAccessor = findAccessor("NORMAL");
                 const gltf::Accessor* tangentAccessor = findAccessor("TANGENT");
 
                 dst.emplace_back(SubMesh{
-                    .name = std::format("{}{}", asset->meshes[*meshIndex].name, i++),
+                    .name = std::format("{}{}", asset.meshes[*meshIndex].name, i++),
                     .transform = transform,
-                    .vertexBuffer = newDeviceLocalBuffer(*m_device, commandBuffer, gfx::BufferUsage::vertexBuffer, std::views::iota(std::size_t(0), posAccessor->count) | std::views::transform([&](std::size_t i) -> Vertex {
+                    .vertexBuffer = this->newDeviceLocalBuffer(*m_device, commandBuffer, gfx::BufferUsage::vertexBuffer, std::views::iota(std::size_t(0), posAccessor->count) | std::views::transform([&](std::size_t i) -> Vertex {
                         return Vertex{
-                            .pos = gltf::getAccessorElement<glm::vec3>(asset.get(), *posAccessor, i),
-                            .uv = uvAccessor ? uvAccessor->count > i ? gltf::getAccessorElement<glm::vec2>(asset.get(), *uvAccessor, i) : glm::vec2{} : glm::vec2{},
-                            .normal = normalAccessor ? normalAccessor->count > i ? gltf::getAccessorElement<glm::vec3>(asset.get(), *normalAccessor, i) : glm::vec3{} : glm::vec3{},
-                            .tangent = tangentAccessor ? tangentAccessor->count > i ? gltf::getAccessorElement<glm::vec4>(asset.get(), *tangentAccessor, i) : glm::vec4{} : glm::vec4{}
+                            .pos = gltf::getAccessorElement<glm::vec3>(asset, *posAccessor, i),
+                            .uv = uvAccessor ? uvAccessor->count > i ? gltf::getAccessorElement<glm::vec2>(asset, *uvAccessor, i) : glm::vec2{} : glm::vec2{},
+                            .normal = normalAccessor ? normalAccessor->count > i ? gltf::getAccessorElement<glm::vec3>(asset, *normalAccessor, i) : glm::vec3{} : glm::vec3{},
+                            .tangent = tangentAccessor ? tangentAccessor->count > i ? gltf::getAccessorElement<glm::vec4>(asset, *tangentAccessor, i) : glm::vec4{} : glm::vec4{}
                         };
                     })),
-                    .indexBuffer = newDeviceLocalBuffer(*m_device, commandBuffer, gfx::BufferUsage::indexBuffer, std::views::iota(std::size_t(0), indicesAccessor->count) | std::views::transform([&](std::size_t i) -> uint32_t {
-                        return gltf::getAccessorElement<uint32_t>(asset.get(), *indicesAccessor, i);
+                    .indexBuffer = this->newDeviceLocalBuffer(*m_device, commandBuffer, gfx::BufferUsage::indexBuffer, std::views::iota(std::size_t(0), indicesAccessor->count) | std::views::transform([&](std::size_t i) -> uint32_t {
+                        return gltf::getAccessorElement<uint32_t>(asset, *indicesAccessor, i);
                     })),
                 });
             }
         }
 
-        for (const gltf::Node& childNode : node.children | std::views::transform([&](std::size_t i) -> gltf::Node { return asset->nodes[i]; }))
+        for (const gltf::Node& childNode : node.children | std::views::transform([&](std::size_t i) -> gltf::Node { return asset.nodes[i]; }))
         {
             if (dstSize == dst.size())
                 self(dst, childNode, transform);
@@ -176,7 +180,7 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const std::filesystem::path& meshP
     };
 
     commandBuffer.beginBlitPass();
-    for (const gltf::Node& node : scene.nodeIndices | std::views::transform([&](std::size_t i) -> gltf::Node { return asset->nodes[i]; }))
+    for (const gltf::Node& node : scene.nodeIndices | std::views::transform([&](std::size_t i) -> gltf::Node { return asset.nodes[i]; }))
         addNode(mesh->subMeshes, node);
     commandBuffer.endBlitPass();
 

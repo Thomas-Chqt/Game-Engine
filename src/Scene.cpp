@@ -12,10 +12,8 @@
 #include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/AssetManagerView.hpp"
 #include "Game-Engine/Components.hpp"
-#include "Game-Engine/ManagableAsset.hpp"
 #include "Game-Engine/TypeList.hpp"
 
-#include <filesystem>
 #include <ranges>
 #include <type_traits>
 #include <utility>
@@ -64,16 +62,9 @@ Scene::Descriptor Scene::makeDescriptor() const
     Scene::Descriptor desc;
     desc.name = m_name;
     desc.activeCamera = m_activeCamera;
-    desc.registredAssets = m_assetManagerView.assets() | std::views::transform([&](const AssetID& assetId) -> std::pair<std::optional<VAssetPath>, AssetID> {
-        std::optional<VAssetPath> vAssetPath;
-        anyOfType<ManagableAssetTypes>([&]<ManagableAsset T>() -> bool {
-            if (m_assetManagerView.assetManager().assetTypeIs<T>(assetId)) {
-                vAssetPath = m_assetManagerView.assetManager().assetPath(assetId).transform([&](const std::filesystem::path& p){ return AssetPath<T>(p); });
-                return true;
-            }
-            return false;
-        });
-        return std::make_pair(vAssetPath, assetId);
+    desc.registredAssets = m_assetManagerView.assets() | std::views::transform([&](const AssetID& assetId) -> std::pair<std::optional<VAssetLocation>, AssetID> {
+        const std::optional<VAssetLocation> vAssetLocation = m_assetManagerView.assetManager().assetLocation(assetId);
+        return std::make_pair(vAssetLocation, assetId);
     }) | std::ranges::to<std::vector>();
 
     for (ECSWorld::EntityID entityId : m_ecsWorld)

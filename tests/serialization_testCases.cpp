@@ -88,19 +88,19 @@ TEST(SerializationTest, componentVariantMapYamlRoundTrip)
 
 TEST(RegisteredAssetYamlConversion, encodesAssetPathAndId)
 {
-    const std::pair<std::optional<GE::VAssetPath>, GE::AssetID> registeredAsset = {
-        GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/cube.obj")),
+    const std::pair<std::optional<GE::VAssetLocation>, GE::AssetID> registeredAsset = {
+        GE::AssetLocation<GE::Mesh>{std::filesystem::path("meshes/cube.obj"), 0},
         3
     };
-    using RegisteredAsset = std::remove_cvref_t<decltype(registeredAsset)>;
 
-    const YAML::Node node = YAML::convert<RegisteredAsset>::encode(registeredAsset);
+    const YAML::Node node = YAML::convert<std::pair<std::optional<GE::VAssetLocation>, GE::AssetID>>::encode(registeredAsset);
 
     ASSERT_TRUE(node.IsMap());
     EXPECT_EQ(node["assetId"].as<GE::AssetID>(), 3u);
     ASSERT_TRUE(node["asset"]);
     EXPECT_EQ(node["asset"]["type"].as<std::string>(), "Mesh");
-    EXPECT_EQ(node["asset"]["path"].as<std::string>(), "meshes/cube.obj");
+    EXPECT_EQ(node["asset"]["containerPath"].as<std::string>(), "meshes/cube.obj");
+    EXPECT_EQ(node["asset"]["index"].as<uint32_t>(), 0u);
 }
 
 TEST(RegisteredAssetYamlConversion, decodesAssetPathAndIdFromYaml)
@@ -108,32 +108,34 @@ TEST(RegisteredAssetYamlConversion, decodesAssetPathAndIdFromYaml)
     YAML::Node node;
     node["assetId"] = 3;
     node["asset"]["type"] = "Mesh";
-    node["asset"]["path"] = "meshes/cube.obj";
+    node["asset"]["containerPath"] = "meshes/cube.obj";
+    node["asset"]["index"] = 0;
 
-    std::pair<std::optional<GE::VAssetPath>, GE::AssetID> registeredAsset{ std::nullopt, 0 };
+    std::pair<std::optional<GE::VAssetLocation>, GE::AssetID> registeredAsset{ std::nullopt, 0 };
     ASSERT_TRUE(YAML::convert<decltype(registeredAsset)>::decode(node, registeredAsset));
 
     EXPECT_EQ(registeredAsset.second, 3u);
     ASSERT_TRUE(registeredAsset.first.has_value());
-    ASSERT_TRUE(std::holds_alternative<GE::AssetPath<GE::Mesh>>(*registeredAsset.first));
-    EXPECT_EQ(std::get<GE::AssetPath<GE::Mesh>>(*registeredAsset.first).path, std::filesystem::path("meshes/cube.obj"));
+    ASSERT_TRUE(std::holds_alternative<GE::AssetLocation<GE::Mesh>>(*registeredAsset.first));
+    EXPECT_EQ(std::get<GE::AssetLocation<GE::Mesh>>(*registeredAsset.first).containerPath, std::filesystem::path("meshes/cube.obj"));
+    EXPECT_EQ(std::get<GE::AssetLocation<GE::Mesh>>(*registeredAsset.first).index, 0u);
 }
 
 TEST(RegisteredAssetYamlConversion, roundTripsTextureAssetPathThroughYamlNode)
 {
-    const std::pair<std::optional<GE::VAssetPath>, GE::AssetID> registeredAsset = {
-        GE::AssetPath<gfx::Texture>(std::filesystem::path("textures/dummy.png")),
+    const std::pair<std::optional<GE::VAssetLocation>, GE::AssetID> registeredAsset = {
+        GE::AssetLocation<gfx::Texture>{std::filesystem::path("textures/dummy.png"), 4},
         9
     };
-    using RegisteredAsset = std::remove_cvref_t<decltype(registeredAsset)>;
 
-    const YAML::Node encoded = YAML::convert<RegisteredAsset>::encode(registeredAsset);
-    const auto decoded = encoded.as<RegisteredAsset>();
+    const YAML::Node encoded = YAML::convert<std::pair<std::optional<GE::VAssetLocation>, GE::AssetID>>::encode(registeredAsset);
+    const auto decoded = encoded.as<std::pair<std::optional<GE::VAssetLocation>, GE::AssetID>>();
 
     EXPECT_EQ(decoded.second, 9u);
     ASSERT_TRUE(decoded.first.has_value());
-    ASSERT_TRUE(std::holds_alternative<GE::AssetPath<gfx::Texture>>(*decoded.first));
-    EXPECT_EQ(std::get<GE::AssetPath<gfx::Texture>>(*decoded.first).path, std::filesystem::path("textures/dummy.png"));
+    ASSERT_TRUE(std::holds_alternative<GE::AssetLocation<gfx::Texture>>(*decoded.first));
+    EXPECT_EQ(std::get<GE::AssetLocation<gfx::Texture>>(*decoded.first).containerPath, std::filesystem::path("textures/dummy.png"));
+    EXPECT_EQ(std::get<GE::AssetLocation<gfx::Texture>>(*decoded.first).index, 4u);
 }
 
 TEST(RegisteredAssetYamlConversion, acceptsMissingAssetPathForExistingAssetId)
@@ -141,7 +143,7 @@ TEST(RegisteredAssetYamlConversion, acceptsMissingAssetPathForExistingAssetId)
     YAML::Node node;
     node["assetId"] = 11;
 
-    std::pair<std::optional<GE::VAssetPath>, GE::AssetID> registeredAsset{ GE::AssetPath<GE::Mesh>(std::filesystem::path("fallback.obj")), 0 };
+    std::pair<std::optional<GE::VAssetLocation>, GE::AssetID> registeredAsset{ GE::AssetLocation<GE::Mesh>{std::filesystem::path("fallback.obj"), 8}, 0 };
     ASSERT_TRUE(YAML::convert<decltype(registeredAsset)>::decode(node, registeredAsset));
 
     EXPECT_EQ(registeredAsset.second, 11u);
@@ -152,7 +154,8 @@ TEST(RegisteredAssetYamlConversion, rejectsYamlWithoutRequiredKeys)
 {
     YAML::Node missingAssetId;
     missingAssetId["asset"]["type"] = "Mesh";
-    missingAssetId["asset"]["path"] = "meshes/cube.obj";
+    missingAssetId["asset"]["containerPath"] = "meshes/cube.obj";
+    missingAssetId["asset"]["index"] = 0;
 
     YAML::Node missingPath;
     missingPath["assetId"] = 3;
@@ -160,9 +163,10 @@ TEST(RegisteredAssetYamlConversion, rejectsYamlWithoutRequiredKeys)
 
     YAML::Node missingType;
     missingType["assetId"] = 3;
-    missingType["asset"]["path"] = "meshes/cube.obj";
+    missingType["asset"]["containerPath"] = "meshes/cube.obj";
+    missingType["asset"]["index"] = 0;
 
-    std::pair<std::optional<GE::VAssetPath>, GE::AssetID> registeredAsset{ std::nullopt, 0 };
+    std::pair<std::optional<GE::VAssetLocation>, GE::AssetID> registeredAsset{ std::nullopt, 0 };
     EXPECT_FALSE(YAML::convert<decltype(registeredAsset)>::decode(missingAssetId, registeredAsset));
     EXPECT_FALSE(YAML::convert<decltype(registeredAsset)>::decode(missingPath, registeredAsset));
     EXPECT_FALSE(YAML::convert<decltype(registeredAsset)>::decode(missingType, registeredAsset));
@@ -173,9 +177,10 @@ TEST(RegisteredAssetYamlConversion, rejectsUnknownAssetType)
     YAML::Node node;
     node["assetId"] = 3;
     node["asset"]["type"] = "Material";
-    node["asset"]["path"] = "materials/default.mat";
+    node["asset"]["containerPath"] = "materials/default.mat";
+    node["asset"]["index"] = 0;
 
-    std::pair<std::optional<GE::VAssetPath>, GE::AssetID> registeredAsset{ std::nullopt, 0 };
+    std::pair<std::optional<GE::VAssetLocation>, GE::AssetID> registeredAsset{ std::nullopt, 0 };
     EXPECT_FALSE(YAML::convert<decltype(registeredAsset)>::decode(node, registeredAsset));
 }
 
@@ -185,9 +190,9 @@ TEST(SceneDescriptorYamlConversion, encodesDescriptorFields)
         .name = "MainScene",
         .activeCamera = 42,
         .registredAssets = {
-            {GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/cube.obj")), 3},
+            {GE::AssetLocation<GE::Mesh>{std::filesystem::path("meshes/cube.obj"), 0}, 3},
             {std::nullopt, 4},
-            {GE::AssetPath<gfx::Texture>(std::filesystem::path("textures/albedo.png")), 5}
+            {GE::AssetLocation<gfx::Texture>{std::filesystem::path("textures/albedo.png"), 2}, 5}
         },
         .entities = {
             {42, {
@@ -224,6 +229,8 @@ TEST(SceneDescriptorYamlConversion, encodesDescriptorFields)
     ASSERT_EQ(node["registredAssets"].size(), 3u);
     EXPECT_EQ(node["registredAssets"][0]["assetId"].as<GE::AssetID>(), 3u);
     EXPECT_EQ(node["registredAssets"][0]["asset"]["type"].as<std::string>(), "Mesh");
+    EXPECT_EQ(node["registredAssets"][0]["asset"]["containerPath"].as<std::string>(), "meshes/cube.obj");
+    EXPECT_EQ(node["registredAssets"][0]["asset"]["index"].as<uint32_t>(), 0u);
     EXPECT_EQ(node["registredAssets"][1]["assetId"].as<GE::AssetID>(), 4u);
     EXPECT_FALSE(node["registredAssets"][1]["asset"]);
     EXPECT_EQ(node["entities"][0]["entityId"].as<GE::ECSWorld::EntityID>(), 42u);
@@ -236,7 +243,7 @@ TEST(SceneDescriptorYamlConversion, decodesDescriptorFromYaml)
     YAML::Node node;
     node["name"] = "LoadedScene";
     node["activeCamera"] = 7;
-    node["registredAssets"].push_back(YAML::Load("{ assetId: 11, asset: { type: Texture, path: textures/diffuse.png } }"));
+    node["registredAssets"].push_back(YAML::Load("{ assetId: 11, asset: { type: Texture, containerPath: textures/diffuse.png, index: 5 } }"));
     node["registredAssets"].push_back(YAML::Load("{ assetId: 12 }"));
     node["entities"].push_back(YAML::Load(
         "{ entityId: 7, components: ["
@@ -254,8 +261,9 @@ TEST(SceneDescriptorYamlConversion, decodesDescriptorFromYaml)
     ASSERT_EQ(descriptor.registredAssets.size(), 2u);
     EXPECT_EQ(descriptor.registredAssets[0].second, 11u);
     ASSERT_TRUE(descriptor.registredAssets[0].first.has_value());
-    ASSERT_TRUE(std::holds_alternative<GE::AssetPath<gfx::Texture>>(*descriptor.registredAssets[0].first));
-    EXPECT_EQ(std::get<GE::AssetPath<gfx::Texture>>(*descriptor.registredAssets[0].first).path, std::filesystem::path("textures/diffuse.png"));
+    ASSERT_TRUE(std::holds_alternative<GE::AssetLocation<gfx::Texture>>(*descriptor.registredAssets[0].first));
+    EXPECT_EQ(std::get<GE::AssetLocation<gfx::Texture>>(*descriptor.registredAssets[0].first).containerPath, std::filesystem::path("textures/diffuse.png"));
+    EXPECT_EQ(std::get<GE::AssetLocation<gfx::Texture>>(*descriptor.registredAssets[0].first).index, 5u);
     EXPECT_EQ(descriptor.registredAssets[1].second, 12u);
     EXPECT_FALSE(descriptor.registredAssets[1].first.has_value());
 
@@ -276,7 +284,7 @@ TEST(SceneDescriptorYamlConversion, roundTripsDescriptorThroughYamlNode)
         .name = "RoundTripScene",
         .activeCamera = 15,
         .registredAssets = {
-            {GE::AssetPath<GE::Mesh>(std::filesystem::path("meshes/player.obj")), 2},
+            {GE::AssetLocation<GE::Mesh>{std::filesystem::path("meshes/player.obj"), 0}, 2},
             {std::nullopt, 3}
         },
         .entities = {
@@ -295,8 +303,9 @@ TEST(SceneDescriptorYamlConversion, roundTripsDescriptorThroughYamlNode)
     ASSERT_EQ(decoded.registredAssets.size(), 2u);
     EXPECT_EQ(decoded.registredAssets[0].second, 2u);
     ASSERT_TRUE(decoded.registredAssets[0].first.has_value());
-    ASSERT_TRUE(std::holds_alternative<GE::AssetPath<GE::Mesh>>(*decoded.registredAssets[0].first));
-    EXPECT_EQ(std::get<GE::AssetPath<GE::Mesh>>(*decoded.registredAssets[0].first).path, std::filesystem::path("meshes/player.obj"));
+    ASSERT_TRUE(std::holds_alternative<GE::AssetLocation<GE::Mesh>>(*decoded.registredAssets[0].first));
+    EXPECT_EQ(std::get<GE::AssetLocation<GE::Mesh>>(*decoded.registredAssets[0].first).containerPath, std::filesystem::path("meshes/player.obj"));
+    EXPECT_EQ(std::get<GE::AssetLocation<GE::Mesh>>(*decoded.registredAssets[0].first).index, 0u);
     EXPECT_EQ(decoded.registredAssets[1].second, 3u);
     EXPECT_FALSE(decoded.registredAssets[1].first.has_value());
     ASSERT_EQ(decoded.entities.size(), 1u);
