@@ -42,7 +42,8 @@ scenes:
       - assetId: 1
         asset:
           type: Mesh
-          path: examples/project1/resources/chess_set/chess_set.gltf
+          containerPath: examples/project1/resources/chess_set/chess_set.gltf
+          index: 0
     entities:
       - entityId: 0
         components:

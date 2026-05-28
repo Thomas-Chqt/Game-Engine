@@ -21,12 +21,26 @@
 namespace GE
 {
 
+class AssetManager;
+
 template<ManagableAsset T>
 class AssetLoaderBase
 {
 protected:
+    AssetLoaderBase(gfx::Device* device, AssetManager* assetManager);
+
+    gfx::Device* m_device = nullptr;
+    AssetManager* m_assetManager = nullptr;
+
     std::shared_ptr<gfx::Buffer> newDeviceLocalBuffer(gfx::Device& device, gfx::CommandBuffer& commandBuffer, gfx::BufferUsage usage, const std::ranges::sized_range auto& data) const;
 };
+
+template<ManagableAsset T>
+AssetLoaderBase<T>::AssetLoaderBase(gfx::Device* device, AssetManager* assetManager)
+    : m_device(device)
+    , m_assetManager(assetManager)
+{
+}
 
 template<ManagableAsset T>
 std::shared_ptr<gfx::Buffer> AssetLoaderBase<T>::newDeviceLocalBuffer(gfx::Device& device, gfx::CommandBuffer& commandBuffer, gfx::BufferUsage usage, const std::ranges::sized_range auto& data) const
@@ -58,7 +72,7 @@ public:
     AssetLoader(const AssetLoader&) = delete;
     AssetLoader(AssetLoader&&) = default;
 
-    AssetLoader(std::function<std::shared_ptr<T>(gfx::CommandBuffer&)> loaderFn);
+    AssetLoader(gfx::Device*, AssetManager*, std::function<std::shared_ptr<T>(gfx::CommandBuffer&)> loaderFn);
 
     std::shared_ptr<T> load(gfx::CommandBuffer&) const;
 
@@ -73,8 +87,9 @@ public:
 };
 
 template<ManagableAsset T>
-AssetLoader<T>::AssetLoader(std::function<std::shared_ptr<T>(gfx::CommandBuffer&)> loaderFn)
-    : m_loader(std::move(loaderFn))
+AssetLoader<T>::AssetLoader(gfx::Device* device, AssetManager* assetManager, std::function<std::shared_ptr<T>(gfx::CommandBuffer&)> loaderFn)
+    : AssetLoaderBase<T>(device, assetManager)
+    , m_loader(std::move(loaderFn))
 {
 }
 

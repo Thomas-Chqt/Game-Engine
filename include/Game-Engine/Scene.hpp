@@ -34,7 +34,7 @@ public:
     {
         std::string name;
         ECSWorld::EntityID activeCamera = INVALID_ENTITY_ID;
-        std::vector<std::pair<std::optional<VAssetPath>, AssetID>> registredAssets;
+        std::vector<std::pair<std::optional<VAssetLocation>, AssetID>> registredAssets;
         std::vector<std::pair<ECSWorld::EntityID, std::vector<ComponentVariant>>> entities;
     };
 
@@ -81,6 +81,56 @@ public:
 
 namespace YAML
 {
+
+template<>
+struct convert<std::pair<std::optional<GE::VAssetLocation>, GE::AssetID>>
+{
+    static Node encode(const std::pair<std::optional<GE::VAssetLocation>, GE::AssetID>& rhs)
+    {
+        Node node;
+        node["assetId"] = rhs.second;
+        if (rhs.first.has_value()) {
+            Node assetNode;
+            std::visit([&]<GE::ManagableAsset T>(const GE::AssetLocation<T>& assetLocation) {
+                assetNode["type"] = std::string(GE::ManagableAssetTraits<T>::name);
+                assetNode["containerPath"] = assetLocation.containerPath.string();
+                assetNode["index"] = assetLocation.index;
+            }, rhs.first.value());
+            node["asset"] = assetNode;
+        }
+        return node;
+    }
+
+    static bool decode(const Node& node, std::pair<std::optional<GE::VAssetLocation>, GE::AssetID>& rhs)
+    {
+        if (!node.IsMap() || !node["assetId"])
+            return false;
+
+        rhs.second = node["assetId"].as<GE::AssetID>();
+        rhs.first.reset();
+
+        if (!node["asset"])
+            return true;
+
+        const Node& assetNode = node["asset"];
+        if (!assetNode.IsMap() || !assetNode["type"])
+            return false;
+
+        const auto type = assetNode["type"].as<std::string>();
+        std::filesystem::path containerPath;
+        if (assetNode["containerPath"])
+            containerPath = assetNode["containerPath"].as<std::string>();
+        if (containerPath.empty())
+            return false;
+        const uint32_t index = assetNode["index"] ? assetNode["index"].as<uint32_t>() : 0;
+        return GE::anyOfType<GE::ManagableAssetTypes>([&]<typename AssetType>() {
+            if (type != GE::ManagableAssetTraits<AssetType>::name)
+                return false;
+            rhs.first = GE::AssetLocation<AssetType>{containerPath, index};
+            return true;
+        });
+    }
+};
 
 template<>
 struct convert<std::pair<GE::ECSWorld::EntityID, std::vector<GE::ComponentVariant>>>

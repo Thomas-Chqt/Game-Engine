@@ -21,7 +21,11 @@ namespace GE
 using ManagableAssetTypes = TypeList<Mesh, gfx::Texture>;
 
 template<typename T>
-concept ManagableAsset = IsTypeInList<std::remove_cvref_t<T>, ManagableAssetTypes>;
+concept ManagableAsset = IsTypeInList<T, ManagableAssetTypes>;
+
+template<ManagableAsset T> struct ManagableAssetTraits;
+template<> struct ManagableAssetTraits<Mesh>         { static constexpr std::string_view name = "Mesh";    };
+template<> struct ManagableAssetTraits<gfx::Texture> { static constexpr std::string_view name = "Texture"; };
 
 } // namespace GE
 
