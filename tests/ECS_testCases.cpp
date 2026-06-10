@@ -18,7 +18,7 @@
 namespace GE_tests
 {
 
-using EntityID = GE::ECSWorld::EntityID;
+using EntityID = GE::EntityID;
 
 struct Component1
 {

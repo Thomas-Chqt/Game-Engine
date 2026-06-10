@@ -22,8 +22,6 @@
 #include <Graphics/Device.hpp>
 #include <Graphics/Texture.hpp>
 
-#include <yaml-cpp/yaml.h>
-
 #include <algorithm>
 #include <cassert>
 #include <chrono>
@@ -78,13 +76,11 @@ public:
     template<ManagableAsset T>
     std::shared_future<std::shared_ptr<T>> loadAsset(AssetID);
 
-    [[nodiscard("destructing the future will wait for completion")]]
-    std::future<void> loadAsset(AssetID);
+    std::shared_future<void> loadAsset(AssetID);
 
     [[nodiscard("destructing the future will wait for completion")]]
     std::future<void> loadAssets(const AssetIdRange auto&);
 
-    void loadAssetDetached(AssetID);
     void loadAssetsDetached(const AssetIdRange auto&);
 
     void unloadAsset(AssetID);
@@ -127,7 +123,11 @@ private:
         uint32_t loadCount() const;
         std::shared_future<std::shared_ptr<T>> future() const;
 
+        void loadDetached(gfx::Device*, gfx::CommandBufferPool*);
+
         std::shared_future<std::shared_ptr<T>> load(gfx::Device*, gfx::CommandBufferPool*);
+        std::shared_future<void> loadVoid(gfx::Device*, gfx::CommandBufferPool*);
+
         void unload();
         bool isLoaded() const;
 
@@ -137,6 +137,7 @@ private:
         AssetLoader<T> m_loader;
 
         mutable std::mutex m_mutex;
+        std::shared_future<void> m_voidFuture;
         std::shared_future<std::shared_ptr<T>> m_future;
         uint32_t m_loadCount = 0;
     };
@@ -160,7 +161,6 @@ public:
     AssetManager& operator=(const AssetManager&) = delete;
     AssetManager& operator=(AssetManager&&) = delete;
 };
-
 
 template<ManagableAsset T>
 AssetID AssetManager::registerAsset(std::string_view name, const std::filesystem::path& path, std::optional<AssetID> assetId)
@@ -216,13 +216,12 @@ std::future<void> AssetManager::loadAssets(const AssetIdRange auto& assetIds)
         for (AssetID id : assetIds)
             vHandles.push_back(&m_assetHandles.at(id));
     };
-    std::vector<std::future<void>> futures;
+    std::vector<std::shared_future<void>> futures;
     futures.reserve(vHandles.size());
     withCommandBufferPool([&](gfx::CommandBufferPool& commandBufferPool) {
         for (VAssetHandle* vHandle : vHandles) {
-            futures.push_back(std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) -> std::future<void> {
-                std::shared_future<std::shared_ptr<T>> future = handle.load(m_device, &commandBufferPool);
-                return std::async(std::launch::deferred, [future]() { future.get(); });
+            futures.push_back(std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) -> std::shared_future<void> {
+                return handle.loadVoid(m_device, &commandBufferPool);
             }, *vHandle));
         }
     });
@@ -361,7 +360,7 @@ std::shared_future<std::shared_ptr<T>> AssetManager::AssetHandle<T>::future() co
 }
 
 template<ManagableAsset T>
-std::shared_future<std::shared_ptr<T>> AssetManager::AssetHandle<T>::load(gfx::Device* device, gfx::CommandBufferPool* commandBufferPool)
+void AssetManager::AssetHandle<T>::loadDetached(gfx::Device* device, gfx::CommandBufferPool* commandBufferPool)
 {
     assert(device);
     std::lock_guard lock(m_mutex);
@@ -377,13 +376,34 @@ std::shared_future<std::shared_ptr<T>> AssetManager::AssetHandle<T>::load(gfx::D
         std::shared_ptr<gfx::CommandBuffer> commandBuffer = commandBufferPool->get();
         assert(commandBuffer);
 
-        m_future = std::async(std::launch::async, [this, device, commandBuffer]() -> std::shared_ptr<T> {
-            std::shared_ptr<T> asset = m_loader.load(*commandBuffer);
-            device->submitCommandBuffers(commandBuffer);
-            return asset;
+        std::promise<void> promise;
+        m_voidFuture = promise.get_future().share();
+        m_future = std::async(std::launch::async, [this, device, commandBuffer, promise=std::move(promise)]() mutable -> std::shared_ptr<T> {
+            try {
+                std::shared_ptr<T> asset = m_loader.load(*commandBuffer);
+                device->submitCommandBuffers(commandBuffer);
+                promise.set_value();
+                return asset;
+            } catch (...) {
+                promise.set_exception(std::current_exception());
+                throw;
+            }
         });
     }
+}
+
+template<ManagableAsset T>
+std::shared_future<std::shared_ptr<T>> AssetManager::AssetHandle<T>::load(gfx::Device* device, gfx::CommandBufferPool* commandBufferPool)
+{
+    loadDetached(device, commandBufferPool);
     return m_future;
+}
+
+template<ManagableAsset T>
+std::shared_future<void> AssetManager::AssetHandle<T>::loadVoid(gfx::Device* device, gfx::CommandBufferPool* commandBufferPool)
+{
+    loadDetached(device, commandBufferPool);
+    return m_voidFuture;
 }
 
 template<ManagableAsset T>

@@ -15,6 +15,7 @@ Checks:
   - -cppcoreguidelines-non-private-member-variables-in-classes
   - -cppcoreguidelines-pro-type-union-access
   - -cppcoreguidelines-pro-bounds-pointer-arithmetic
+  - -cppcoreguidelines-avoid-do-while
 
   - misc-*
   - -misc-non-private-member-variables-in-classes
@@ -31,3 +32,6 @@ Checks:
   - performance-*
 
   - portability-*
+
+CheckOptions:
+  cppcoreguidelines-rvalue-reference-param-not-moved.AllowPartialMove: true

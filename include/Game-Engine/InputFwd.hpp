@@ -14,11 +14,12 @@
 #include <glm/glm.hpp>
 
 #include <type_traits>
+#include <cstdint>
 
 namespace GE
 {
 
-enum class InputClass
+enum class InputClass : uint8_t
 {
     action, // triggered only once
     state   // triggered every frames

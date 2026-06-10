@@ -5,6 +5,17 @@
 # Date: 2024/09/10 10:07:50
 # ---------------------------------------------------
 
+FetchContent_Declare(yaml-cpp
+    GIT_REPOSITORY    https://github.com/jbeder/yaml-cpp.git
+    GIT_TAG           yaml-cpp-0.9.0
+    GIT_SHALLOW       1
+    GIT_PROGRESS      TRUE
+    FIND_PACKAGE_ARGS
+)
+set(YAML_CPP_BUILD_TOOLS OFF)
+FetchContent_MakeAvailable(yaml-cpp)
+set_target_properties(yaml-cpp PROPERTIES FOLDER "dependencies")
+
 add_executable(GE-Editor)
 set_target_properties(GE-Editor PROPERTIES
     ENABLE_EXPORTS ON
@@ -22,7 +33,7 @@ target_include_directories(GE-Editor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_definitions(GE-Editor PRIVATE "RESOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/resources\"")
 
-target_link_libraries(GE-Editor PRIVATE Game-Engine)
+target_link_libraries(GE-Editor PRIVATE Game-Engine yaml-cpp)
 target_include_directories(GE-Editor INTERFACE $<TARGET_PROPERTY:Game-Engine,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(APPLE)

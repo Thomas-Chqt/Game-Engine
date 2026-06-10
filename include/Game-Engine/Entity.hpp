@@ -17,6 +17,7 @@
 
 #include "Game-Engine/ECSWorld.hpp"
 #include "Game-Engine/Components.hpp"
+#include "Game-Engine/ECSView.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -44,7 +45,7 @@ template<ECSWorldLike ECSWorldT>
 struct basic_entity
 {
     ECSWorldT* world = nullptr;
-    typename ECSWorldT::EntityID entityId = INVALID_ENTITY_ID;
+    EntityID entityId = INVALID_ENTITY_ID;
 
     template<Component T, typename... Args>
     inline T& emplace(this EntityLike auto&& self, Args&&... arg)
@@ -304,6 +305,20 @@ struct basic_entity
 
 using Entity = basic_entity<ECSWorld>;
 using const_Entity = basic_entity<const ECSWorld>;
+
+struct MakeEntity {};
+
+template<Component... Cs>
+auto operator|(const basic_ecsView<ECSWorld, Cs...>& view, const MakeEntity)
+{
+    return view | std::views::transform([&view](const auto& e) { return Entity{view.world(), static_cast<GE::EntityID>(e)}; });
+}
+
+template<Component... Cs>
+auto operator|(const basic_ecsView<const ECSWorld, Cs...>& view, const MakeEntity)
+{
+    return view | std::views::transform([&view](const auto& e) { return const_Entity{view.world(), static_cast<GE::EntityID>(e)}; });
+}
 
 } // namespace GE
 

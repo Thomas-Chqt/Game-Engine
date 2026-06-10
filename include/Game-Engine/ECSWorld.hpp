@@ -14,7 +14,6 @@
 
 #include <bitset>
 #include <cassert>
-#include <climits>
 #include <cstddef>
 #include <cstdint>
 #include <utility>
@@ -24,8 +23,6 @@
 #include <iterator>
 #include <type_traits>
 #include <typeinfo>
-
-#define INVALID_ENTITY_ID 18446744073709551615ul
 
 namespace GE
 {
@@ -38,11 +35,14 @@ concept ECSWorldLike = std::is_same_v<std::remove_const_t<T>, GE::ECSWorld>;
 template<typename T>
 concept Component = std::is_copy_constructible_v<T> && std::is_move_constructible_v<T> && std::is_destructible_v<T>;
 
+using EntityID = uint64_t;
+
+// [[deprecated("use std::optional")]]
+constexpr EntityID INVALID_ENTITY_ID = 18446744073709551615ul;
+
 class GE_API ECSWorld
 {
 public:
-    using EntityID = uint64_t;
-
     struct Iterator;
     using iterator = Iterator;
 
@@ -76,7 +76,7 @@ public:
     ECSWorld(ECSWorld&&) = default;
 
     EntityID newEntityID();
-    void registerEntityID(ECSWorld::EntityID);
+    void registerEntityID(EntityID);
     void deleteEntityID(EntityID);
     inline bool isValidEntityID(EntityID id) const { return id < m_entityDatas.size() && m_availableEntityIDs.contains(id) == false; }
 
@@ -85,19 +85,19 @@ public:
     template<Component T> bool has(EntityID) const;
     template<Component T> auto& get(this auto&& self, EntityID);
 
-    inline uint32_t entityCount() {
+    inline uint32_t entityCount() const {
         const size_t count = m_entityDatas.size() - m_availableEntityIDs.size();
         assert(count <= UINT32_MAX);
         return static_cast<uint32_t>(count);
     }
 
-    inline uint32_t archetypeCount() {
+    inline uint32_t archetypeCount() const {
         const size_t count = m_archetypes.size();
         assert(count <= UINT32_MAX);
         return static_cast<uint32_t>(count);
     }
 
-    uint32_t componentCount();
+    uint32_t componentCount() const;
 
     inline Iterator begin() const;
     inline std::default_sentinel_t end() const { return std::default_sentinel; }

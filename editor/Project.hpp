@@ -9,120 +9,48 @@
 #ifndef PROJECT_HPP
 #define PROJECT_HPP
 
+#include "EditorCamera.hpp"
+#include "Game-Engine/Input.hpp"
+
+#include <Game-Engine/AssetLocation.hpp>
+#include <Game-Engine/AssetManager.hpp>
+#include <Game-Engine/Entity.hpp>
 #include <Game-Engine/Game.hpp>
+#include <Game-Engine/InputContext.hpp>
 #include <Game-Engine/Scene.hpp>
 
-#include <algorithm>
-#include <cassert>
-#include <cstdint>
 #include <filesystem>
-#include <map>
+#include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
+#include <vector>
 
 namespace GE_Editor
 {
 
-class Project
+struct Project
 {
-public:
-    Project(); // new project with default scene
-    Project(const Project&) = delete;
-    Project(Project&&) = default;
+    std::string name;
 
-    inline const std::string& name() const { return m_name; }
-    inline void setName(const std::string& name) { m_name = name; }
+    std::optional<std::filesystem::path> resourceDir;
+    std::optional<std::filesystem::path> scriptLibPath;
 
-    inline const std::map<uint32_t, GE::Scene::Descriptor>& scenes() const { return m_scenes; }
-    inline void setScene(uint32_t id, const GE::Scene::Descriptor& desc) { m_scenes.insert_or_assign(id, desc); }
+    std::vector<std::tuple<std::string, GE::VAssetLocation, GE::AssetID>> registeredAssets;
 
-    inline std::pair<uint32_t, GE::Scene::Descriptor> startScene() const { return *m_scenes.find(m_startScene); }
-    inline void setStartScene(uint32_t id) { assert(m_scenes.contains(id)); m_startScene = id; }
+    std::vector<std::pair<std::string, GE::VInput>> inputs;
 
-    inline const std::string& imguiSettings() const { return m_imguiSettings; }
-    inline void setImguiSettings(std::string imguiSettings) { m_imguiSettings = std::move(imguiSettings); }
+    std::vector<GE::Scene::Descriptor> scenes;
+    std::string startSceneName;
 
-    inline const std::filesystem::path& scriptLib() const { return m_scriptLib; }
-    inline void setScriptLib(std::filesystem::path scriptLib) { m_scriptLib = std::move(scriptLib); }
+    EditorCamera editorCamera;
+    std::optional<std::string> editedSceneName;
+    std::optional<GE::EntityID> selectedEntityId;
 
-    inline auto& inputContext(this auto&& self) { return self.m_inputContext; }
-
-    inline std::filesystem::path resourceDir() const { return m_resourceDir; }
-    inline void setResourceDir(std::filesystem::path p) { m_resourceDir = std::move(p); }
-
-    GE::Game::Descriptor makeGameDescriptor() const;
-
-private:
-    std::string m_name;
-    std::map<uint32_t, GE::Scene::Descriptor> m_scenes;
-    uint32_t m_startScene;
-    std::string m_imguiSettings;
-    std::filesystem::path m_scriptLib;
-    GE::InputContext m_inputContext;
-    std::filesystem::path m_resourceDir;
-
-public:
-    Project& operator = (const Project&) = delete;
-    Project& operator = (Project&&) = default;
-
-    friend struct YAML::convert<Project>;
+    std::string imguiSettings;
 };
 
-}
-
-namespace YAML
-{
-
-template<>
-struct convert<GE_Editor::Project>
-{
-    static Node encode(const GE_Editor::Project& rhs)
-    {
-        Node node;
-        node["name"] = rhs.m_name;
-        node["imguiSettings"] = rhs.m_imguiSettings;
-        node["scriptsLib"] = (rhs.m_scriptLib.extension() == GE_SHARED_LIBRARY_EXTENSION
-                              ? std::filesystem::path(rhs.m_scriptLib).replace_extension()
-                              : rhs.m_scriptLib).string();
-        node["inputContext"] = rhs.m_inputContext;
-        node["resourceDir"] = rhs.m_resourceDir.string();
-        for (const auto& [_, scene] : rhs.m_scenes)
-            node["scenes"].push_back(scene);
-        node["startScene"] = rhs.startScene().second.name;
-        return node;
-    }
-
-    static bool decode(const Node& node, GE_Editor::Project& rhs)
-    {
-        if (!node.IsMap() || !node["name"] || !node["startScene"])
-            return false;
-        if (!node["scenes"] || !node["scenes"].IsSequence() || node["scenes"].size() == 0)
-            return false;
-
-        rhs.m_name = node["name"].as<std::string>();
-        rhs.m_imguiSettings = node["imguiSettings"] ? node["imguiSettings"].as<std::string>() : std::string();
-        rhs.m_scriptLib = node["scriptsLib"] ? std::filesystem::path(node["scriptsLib"].as<std::string>()) : std::filesystem::path();
-        if (!rhs.m_scriptLib.empty() && rhs.m_scriptLib.extension() != GE_SHARED_LIBRARY_EXTENSION)
-            rhs.m_scriptLib.replace_extension(GE_SHARED_LIBRARY_EXTENSION);
-        rhs.m_inputContext = node["inputContext"] ? node["inputContext"].as<GE::InputContext>() : GE::InputContext();
-        rhs.m_resourceDir = node["resourceDir"] ? std::filesystem::path(node["resourceDir"].as<std::string>()) : std::filesystem::path();
-
-        rhs.m_scenes.clear();
-        uint32_t sceneId = 0;
-        for (const Node& sceneNode : node["scenes"])
-            rhs.m_scenes.emplace(sceneId++, sceneNode.as<GE::Scene::Descriptor>());
-
-        const std::string startSceneName = node["startScene"].as<std::string>();
-        auto startScene = std::ranges::find_if(rhs.m_scenes, [&](auto& scene) -> bool {
-            return scene.second.name == startSceneName;
-        });
-        if (startScene == rhs.m_scenes.end())
-            return false;
-        rhs.m_startScene = startScene->first;
-
-        return true;
-    }
-};
+Project makeDefaultProject();
 
 }
 

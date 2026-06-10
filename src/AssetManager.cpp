@@ -96,7 +96,7 @@ AssetID AssetManager::registerAsset(std::string_view name, const VAssetLocation&
     return it->second;
 }
 
-std::future<void> AssetManager::loadAsset(AssetID assetId)
+std::shared_future<void> AssetManager::loadAsset(AssetID assetId)
 {
     VAssetHandle& vHandle = [&]() -> VAssetHandle& {
         std::scoped_lock lock(m_registryMutex);
@@ -104,22 +104,8 @@ std::future<void> AssetManager::loadAsset(AssetID assetId)
         return m_assetHandles.at(assetId);
     }();
 
-    return std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) -> std::future<void> {
-        std::shared_future<std::shared_ptr<T>> future = handle.load(m_device, nullptr);
-        return std::async(std::launch::deferred, [future]() { future.get(); });
-    }, vHandle);
-}
-
-void AssetManager::loadAssetDetached(AssetID assetId)
-{
-    VAssetHandle& vHandle = [&]() -> VAssetHandle& {
-        std::scoped_lock lock(m_registryMutex);
-        assert(m_assetHandles.contains(assetId));
-        return m_assetHandles.at(assetId);
-    }();
-
-    std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) {
-        handle.load(m_device, nullptr);
+    return std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) -> std::shared_future<void> {
+        return handle.loadVoid(m_device, nullptr);
     }, vHandle);
 }
 

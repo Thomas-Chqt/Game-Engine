@@ -92,8 +92,8 @@ Application::Application()
         }
     };
 
-    m_renderer = std::make_unique<Renderer>(m_device.get(), m_window->surface());
     m_assetManager = std::make_unique<AssetManager>(m_device.get());
+    m_renderer = std::make_unique<Renderer>(m_device.get(), m_assetManager.get(), m_window->surface());
 }
 
 void Application::run()

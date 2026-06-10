@@ -1,15 +1,24 @@
-name: Untitled Project
-imguiSettings: "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1280,701\nCollapsed=0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][viewport]\nPos=0,19\nSize=941,525\nCollapsed=0\nDockId=0x00000001,0\n\n[Window][Scene graph]\nPos=943,19\nSize=337,273\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][Entity inspector]\nPos=943,294\nSize=337,426\nCollapsed=0\nDockId=0x00000006,0\n\n[Window][Scenes]\nPos=0,546\nSize=941,174\nCollapsed=0\nDockId=0x00000002,0\n\n[Window][Project properties]\nPos=496,146\nSize=718,682\nCollapsed=0\n\n[Window][Ressources]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Window][Resources]\nPos=0,546\nSize=941,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Docking][Data]\nDockSpace     ID=0x08BD597D Window=0x1BBC0F80 Pos=0,19 Size=1280,701 Split=X\n  DockNode    ID=0x00000003 Parent=0x08BD597D SizeRef=1371,701 Split=Y\n    DockNode  ID=0x00000001 Parent=0x00000003 SizeRef=1280,525 CentralNode=1 Selected=0xF6034841\n    DockNode  ID=0x00000002 Parent=0x00000003 SizeRef=1280,174 Selected=0x30401527\n  DockNode    ID=0x00000004 Parent=0x08BD597D SizeRef=337,701 Split=Y Selected=0x848E2614\n    DockNode  ID=0x00000005 Parent=0x00000004 SizeRef=142,273 Selected=0x2C1AB1E4\n    DockNode  ID=0x00000006 Parent=0x00000004 SizeRef=142,426 Selected=0x848E2614\n\n"
-scriptsLib: examples/project1/project1_scriptLib
-inputContext:
-  inputs:
-    player_jump:
+name: project1
+resourceDir: examples/project1/resources
+scriptLib: examples/project1/project1_scriptLib
+registeredAssets:
+  - name: cube
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 0
+    id: 1
+inputs:
+  - name: player_jump
+    input:
       type: Action
       mapper:
         type: KeyboardButton
         data:
           button: space
-    player_move:
+  - name: player_move
+    input:
       type: Range2D
       mapper:
         type: KeyboardButton
@@ -21,7 +30,8 @@ inputContext:
           yNeg: s
           yScale: 1
           triggerValue: 0.5
-    player_rotate:
+  - name: player_rotate
+    input:
       type: Range2D
       mapper:
         type: KeyboardButton
@@ -33,17 +43,9 @@ inputContext:
           yNeg: right
           yScale: 1
           triggerValue: 0.5
-resourceDir: examples/project1/resources
 scenes:
   - name: default_scene
     activeCamera: 1
-    registredAssets:
-      - assetId: 0
-      - assetId: 1
-        asset:
-          type: Mesh
-          containerPath: examples/project1/resources/chess_set/chess_set.gltf
-          index: 0
     entities:
       - entityId: 0
         components:
@@ -53,17 +55,17 @@ scenes:
           - type: TransformComponent
             data:
               position:
-                - 0
-                - 0
-                - 0
+                x: 0
+                y: 0
+                z: 0
               rotation:
-                - 0
-                - 0
-                - 0
+                x: 0
+                y: 0
+                z: 0
               scale:
-                - 10
-                - 10
-                - 10
+                x: 10
+                y: 10
+                z: 10
           - type: MeshComponent
             data:
               id: 1
@@ -80,17 +82,17 @@ scenes:
           - type: TransformComponent
             data:
               position:
-                - 0
-                - 1.41
-                - 1.19
+                x: 0
+                y: 1.41
+                z: 1.19
               rotation:
-                - -0.64
-                - 0
-                - 0
+                x: -0.64
+                y: 0
+                z: 0
               scale:
-                - 0.01
-                - 0.01
-                - 0.1
+                x: 0.01
+                y: 0.01
+                z: 0.1
           - type: CameraComponent
             data:
               fov: 1.0471976
@@ -112,24 +114,24 @@ scenes:
           - type: TransformComponent
             data:
               position:
-                - 0
-                - 5
-                - 0
+                x: 0
+                y: 5
+                z: 0
               rotation:
-                - 0
-                - 0
-                - 0
+                x: 0
+                y: 0
+                z: 0
               scale:
-                - 1
-                - 1
-                - 1
+                x: 1
+                y: 1
+                z: 1
           - type: LightComponent
             data:
               type: point
               color:
-                - 1
-                - 1
-                - 1
+                x: 1
+                y: 1
+                z: 1
               intentsity: 1
               attenuation: 0
       - entityId: 3
@@ -145,17 +147,17 @@ scenes:
           - type: TransformComponent
             data:
               position:
-                - 0
-                - 0
-                - 0
+                x: 0
+                y: 0
+                z: 0
               rotation:
-                - 0
-                - 0
-                - 0
+                x: 0
+                y: 0
+                z: 0
               scale:
-                - 0.1
-                - 0.5
-                - 0.1
+                x: 0.1
+                y: 0.5
+                z: 0.1
           - type: MeshComponent
             data:
               id: 0
@@ -172,17 +174,17 @@ scenes:
           - type: TransformComponent
             data:
               position:
-                - -3
-                - 0.67
-                - 0
+                x: -3
+                y: 0.67
+                z: 0
               rotation:
-                - 0
-                - -1.57
-                - 0
+                x: 0
+                y: -1.57
+                z: 0
               scale:
-                - 1
-                - 1
-                - 1
+                x: 1
+                y: 1
+                z: 1
           - type: ScriptComponent
             data:
               name: PlayerController
@@ -200,3 +202,18 @@ scenes:
                   type: float
                   data: 0.05
 startScene: default_scene
+editorCamera:
+  position:
+    x: 3.2925272
+    y: 3
+    z: 4.840191
+  rotation:
+    x: -0.5
+    y: 0.5
+    z: 0
+  fov: 1.0471976
+  zFar: 1000
+  zNear: 0.1
+editedScene: default_scene
+selectedEntity: 0
+imguiSettings: "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1280,701\nCollapsed=0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][viewport]\nPos=0,19\nSize=1004,525\nCollapsed=0\nDockId=0x00000001,0\n\n[Window][Scene graph]\nPos=1006,19\nSize=274,273\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][Entity inspector]\nPos=1006,294\nSize=274,426\nCollapsed=0\nDockId=0x00000006,0\n\n[Window][Scenes]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,0\n\n[Window][Project properties]\nPos=371,108\nSize=537,504\nCollapsed=0\n\n[Window][Resources]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Window][Asset manager]\nPos=60,60\nSize=832,324\nCollapsed=0\n\n[Window][##MainMenuBar]\nPos=0,0\nSize=1280,19\nCollapsed=0\n\n[Table][0x816C4F30,5]\nRefScale=13\n\n[Table][0xEE864C8F,5]\nRefScale=13\n\n[Docking][Data]\nDockSpace     ID=0x08BD597D Window=0x1BBC0F80 Pos=0,19 Size=1280,701 Split=X\n  DockNode    ID=0x00000003 Parent=0x08BD597D SizeRef=1004,701 Split=Y\n    DockNode  ID=0x00000001 Parent=0x00000003 SizeRef=1280,525 CentralNode=1 Selected=0xF6034841\n    DockNode  ID=0x00000002 Parent=0x00000003 SizeRef=1280,174 Selected=0x30401527\n  DockNode    ID=0x00000004 Parent=0x08BD597D SizeRef=274,701 Split=Y Selected=0x848E2614\n    DockNode  ID=0x00000005 Parent=0x00000004 SizeRef=142,273 Selected=0x2C1AB1E4\n    DockNode  ID=0x00000006 Parent=0x00000004 SizeRef=142,426 Selected=0x848E2614\n\n"

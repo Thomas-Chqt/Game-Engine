@@ -29,13 +29,13 @@ struct ecs_view_item
     template<typename C>
     using ComponentReference = std::conditional_t<std::is_const_v<ECSWorldT>, const C&, C&>;
 
-    typename ECSWorldT::EntityID entityId = INVALID_ENTITY_ID;
+    EntityID entityId = INVALID_ENTITY_ID;
     std::tuple<ComponentReference<Cs>...> components;
 
     template<std::size_t I>
     inline decltype(auto) get() const { return std::get<I>(components); }
 
-    inline operator typename ECSWorldT::EntityID() const { return entityId; }
+    inline operator EntityID() const { return entityId; }
 };
 
 template<ECSWorldLike ECSWorldT, Component... Cs> requires(sizeof...(Cs) > 0)
@@ -50,6 +50,8 @@ public:
     basic_ecsView() : m_predicate(makePredicate<Cs...>()) {}
     basic_ecsView(const basic_ecsView&) = default;
     basic_ecsView(basic_ecsView&&) = default;
+
+    inline ECSWorldT* world() const { return m_world; }
 
     inline Iterator begin() const;
     inline std::default_sentinel_t end() const { return std::default_sentinel; }

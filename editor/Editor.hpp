@@ -10,7 +10,6 @@
 #ifndef EDITOR_HPP
 #define EDITOR_HPP
 
-#include "EditorCamera.hpp"
 #include "ImGuiInputContext.hpp"
 #include "Project.hpp"
 
@@ -20,13 +19,19 @@
 #include <Game-Engine/Input.hpp>
 #include <Game-Engine/ScriptLibrary.hpp>
 #include <Game-Engine/Scene.hpp>
+#include <Game-Engine/Entity.hpp>
 
 #include <imgui.h>
 
+#include <cassert>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <span>
+#include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 namespace GE_Editor
 {
@@ -38,38 +43,49 @@ public:
     Editor(const Editor&) = delete;
     Editor(Editor&&) = delete;
 
-    Editor(int argc, char* argv[]);
+    Editor(std::span<const char*> args);
 
     void onUpdate() override;
     void onEvent(GE::Event& event) override;
 
     inline const GE::FrameGraph& frameGraph() override { return m_frameGraph; }
 
-    ~Editor() override = default;
-
-private:
-    void loadProject(const std::filesystem::path&);
-    void saveEditedScene();
+    void loadProject(Project&&);
     void saveProject();
+
+    void editScene(std::optional<std::string_view> name);
     void reloadScriptLib();
+
     void startGame();
     void stopGame();
 
+    ~Editor() override = default;
+
+private:
     void setPrimaryInputContext(GE::InputContext&);
     void processDropedFiles();
-
     void rebuildFrameGraph();
     void renderImgui();
-
-    std::filesystem::path m_projectFilePath;
-    Project m_project;
-    std::pair<uint32_t, GE::Scene> m_editedScene;
-
-    GE::Entity m_selectedEntity;
-    EditorCamera m_editorCamera;
+    void syncEditedScene();
 
     GE::InputContext m_editorInputContext;
     ImGuiInputContext m_imguiInputContext;
+
+    std::optional<std::filesystem::path> m_projectFilePath;
+
+    std::string m_projectName;
+
+    std::optional<std::filesystem::path> m_resourceDir;
+    std::optional<std::filesystem::path> m_scriptLibPath;
+
+    std::vector<std::pair<std::string, GE::VInput>> m_gameInputs;
+
+    std::vector<GE::Scene::Descriptor> m_sceneDescriptors;
+    std::string m_startSceneName;
+
+    EditorCamera m_editorCamera;
+    std::optional<GE::Scene> m_editedScene;
+    std::optional<GE::Entity> m_selectedEntity;
 
     std::optional<GE::Game> m_game;
 

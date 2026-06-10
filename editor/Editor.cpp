@@ -9,6 +9,7 @@
 
 #include "Editor.hpp"
 #include "Project.hpp"
+#include "yaml_convert/convert_project.hpp"
 
 #include <Game-Engine/Event.hpp>
 #include <Game-Engine/RawInput.hpp>
@@ -23,23 +24,36 @@
 #include <Game-Engine/ICamera.hpp>
 #include <Game-Engine/InputFwd.hpp>
 #include <Game-Engine/InputContext.hpp>
+#include <Game-Engine/ECSWorld.hpp>
+#include <Game-Engine/Input.hpp>
 
 #include <Graphics/Enums.hpp>
 
-#include <format>
-#include <imgui.h>
+#include <yaml-cpp/yaml.h>
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <memory>
 #include <functional>
+#include <print>
+#include <set>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <cassert>
+#include <cstddef>
+#include <algorithm>
+#include <cstdio>
+#include <expected>
+#include <imgui.h>
+#include <ranges>
+#include <string_view>
+#include <tuple>
 
-std::unique_ptr<GE::Application> createApplication(int argc, char* argv[])
+extern std::unique_ptr<GE::Application> createApplication(int argc, const char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays)
 {
-    return std::make_unique<GE_Editor::Editor>(argc, argv);
+    return std::make_unique<GE_Editor::Editor>(std::span<const char*>{argv, static_cast<size_t>(argc)});
 }
 
 namespace GE_Editor
@@ -48,60 +62,58 @@ namespace GE_Editor
 namespace
 {
 
-Project loadProjectFile(const std::filesystem::path& path)
+std::expected<Project, std::string> loadProjectFile(const std::filesystem::path& path)
 {
     Project project;
 
     std::ifstream file(path);
     if (file.is_open() == false)
-        throw std::runtime_error(std::format("unable to open file : {}", path.string()));
+        return std::unexpected(std::format("unable to open file : {}", path.string()));
 
-    YAML::Node projectNode = YAML::Load(file);
-
+    const YAML::Node projectNode = YAML::Load(file);
     if (YAML::convert<Project>::decode(projectNode, project) == false)
-        throw std::runtime_error(std::format("unable to load project file : {}", path.string()));
+        return std::unexpected(std::format("unable to load project file : {}", path.string()));
 
     return project;
 }
 
-void makeEditorInputs(GE::InputContext& context)
+}
+
+Editor::Editor(std::span<const char*> args)
 {
+    loadProject(makeDefaultProject());
+
+    if (args.size() == 2) {
+        std::filesystem::path path = args[1];
+        auto project = loadProjectFile(path);
+        if (project.has_value()) {
+            m_projectFilePath = path;
+            loadProject(std::move(project.value()));
+        }
+        else {
+            std::println(stderr, "{}", project.error());
+        }
+    }
+
     GE::Range2DInput editorCameraMoveInput;
     editorCameraMoveInput.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
         .xPos = GE::KeyboardButton::d, .xNeg = GE::KeyboardButton::a, .yPos = GE::KeyboardButton::w, .yNeg = GE::KeyboardButton::s,
     });
-    context.addInput("camera_move", editorCameraMoveInput);
+    m_editorInputContext.addInput("camera_move", editorCameraMoveInput);
 
     GE::Range2DInput editorCameraRotationInput;
     editorCameraRotationInput.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
         .xPos = GE::KeyboardButton::up, .xNeg = GE::KeyboardButton::down, .yPos = GE::KeyboardButton::right, .yNeg = GE::KeyboardButton::left,
     });
-    context.addInput("camera_rotate", editorCameraRotationInput);
-}
+    m_editorInputContext.addInput("camera_rotate", editorCameraRotationInput);
 
-}
-
-Editor::Editor(int argc, char* argv[])
-    : m_projectFilePath(argc == 2 ? std::filesystem::path(argv[1]) : std::filesystem::path())
-    , m_project(m_projectFilePath.empty() ? Project() : loadProjectFile(m_projectFilePath))
-    , m_editedScene{m_project.startScene().first, GE::Scene(&assetManager(), m_project.startScene().second)}
-{
-    m_editedScene.second.load();
-
-    makeEditorInputs(m_editorInputContext);
-
-    m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_move", [editorCamera=&m_editorCamera](const glm::vec2& value) { editorCamera->onMoveInput(value); }) ;
-    m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_rotate", [editorCamera=&m_editorCamera](const glm::vec2& value) { editorCamera->onRotationInput(value); });
+    m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_move", [this](const glm::vec2& value) { m_editorCamera.onMoveInput(value); }) ;
+    m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_rotate", [this](const glm::vec2& value) { m_editorCamera.onRotationInput(value); });
 
     pushInputContext(&m_editorInputContext);
     pushInputContext(&m_imguiInputContext);
 
     rebuildFrameGraph();
-
-    ImGui::LoadIniSettingsFromMemory(m_project.imguiSettings().c_str());
-
-    if (std::filesystem::exists(m_project.scriptLib()))
-        reloadScriptLib();
 }
 
 void Editor::onUpdate()
@@ -120,12 +132,6 @@ void Editor::onUpdate()
     }
 
     renderImgui();
-
-    if (ImGui::GetIO().WantSaveIniSettings)
-    {
-        m_project.setImguiSettings(ImGui::SaveIniSettingsToMemory());
-        ImGui::GetIO().WantSaveIniSettings = false;
-    }
 }
 
 void Editor::onEvent(GE::Event& event)
@@ -134,74 +140,127 @@ void Editor::onEvent(GE::Event& event)
     if (event.dispatch<GE::WindowResizeEvent>([&](auto&) { rebuildFrameGraph(); })) return;
 }
 
-void Editor::loadProject(const std::filesystem::path& path)
+void Editor::loadProject(Project&& project)
 {
-    m_projectFilePath = path; // if we allow file loading error (not terminating the program on load error)
-                              // this will need to go after the yaml parsing
-    m_project = loadProjectFile(path);
+    if (m_game.has_value())
+        stopGame();
+    m_editedScene.reset();
 
-    m_editedScene = {
-        m_project.startScene().first,
-        GE::Scene(&assetManager(), m_project.startScene().second)
-    };
+    m_projectName = std::move(project.name);
 
-    ImGui::LoadIniSettingsFromMemory(m_project.imguiSettings().c_str());
+    m_resourceDir = std::move(project.resourceDir);
+    m_scriptLibPath = std::move(project.scriptLibPath);
 
-    if (std::filesystem::exists(m_project.scriptLib()))
+    for (auto& [name, location, id] : project.registeredAssets)
+        assetManager().registerAsset(name, location, id);
+    m_gameInputs = project.inputs;
+
+    m_sceneDescriptors = std::move(project.scenes);
+    m_startSceneName = std::move(project.startSceneName);
+
+    m_editorCamera = std::move(project.editorCamera);
+    editScene(project.editedSceneName);
+    m_selectedEntity = project.selectedEntityId.transform([&](GE::EntityID id){ return GE::Entity{&m_editedScene->ecsWorld(), id}; });
+
+
+    ImGui::LoadIniSettingsFromMemory(project.imguiSettings.c_str());
+
+    if (m_scriptLibPath.has_value() && std::filesystem::exists(*m_scriptLibPath))
         reloadScriptLib();
-
-    m_selectedEntity = {};
-    m_editorCamera = {};
-}
-
-void Editor::saveEditedScene()
-{
-    m_project.setScene(m_editedScene.first, m_editedScene.second.makeDescriptor());
+    else
+        m_scriptLibrary.reset();
 }
 
 void Editor::saveProject()
 {
-    saveEditedScene();
-    if (m_projectFilePath.has_parent_path())
-        std::filesystem::create_directories(m_projectFilePath.parent_path());
+    assert(m_projectFilePath.has_value() && m_projectFilePath->empty() == false);
 
-    YAML::Emitter out;
-    out << YAML::convert<Project>::encode(m_project);
-    if (!out.good())
-        throw std::runtime_error("failed to serialize project");
+    if (m_editedScene)
+        syncEditedScene();
 
-    std::ofstream file(m_projectFilePath);
+    Project project{
+        .name = m_projectName,
+
+        .resourceDir = m_resourceDir,
+        .scriptLibPath = m_scriptLibPath,
+
+        .registeredAssets = m_sceneDescriptors
+            | std::views::transform([](const GE::Scene::Descriptor& desc) { return desc.ecsWorld | GE::const_ECSView<GE::MeshComponent>(); })
+            | std::views::join
+            | std::views::transform([](const auto& e){ return static_cast<GE::AssetID>(e.template get<0>()); })
+            | std::ranges::to<std::set>()
+            | std::views::filter([&](GE::AssetID id) -> bool { return assetManager().assetLocation(id).has_value(); })
+            | std::views::transform([&](GE::AssetID id) { return std::make_tuple(assetManager().assetName(id), assetManager().assetLocation(id).value(), id); })
+            | std::ranges::to<std::vector>(),
+
+        .inputs = m_gameInputs,
+
+        .scenes = m_sceneDescriptors,
+        .startSceneName = m_startSceneName,
+
+        .editorCamera = m_editorCamera,
+        .editedSceneName = m_editedScene.transform([](const GE::Scene& scene){ return scene.name(); }),
+        .selectedEntityId = m_selectedEntity.transform([](const GE::Entity& entity){ return entity.entityId; }),
+
+        .imguiSettings = ImGui::SaveIniSettingsToMemory(),
+    };
+
+
+    if (m_projectFilePath->has_parent_path())
+        std::filesystem::create_directories(m_projectFilePath->parent_path());
+
+    std::ofstream file(*m_projectFilePath);
     if (!file.is_open())
         throw std::runtime_error("failed to open project file for writing");
+
+    YAML::Emitter out;
+    out << YAML::convert<Project>::encode(project);
+    if (!out.good())
+        throw std::runtime_error("failed to serialize project");
 
     file << out.c_str();
     if (!file.good())
         throw std::runtime_error("failed to write project file");
 }
 
+void Editor::editScene(std::optional<std::string_view> name)
+{
+    if (m_editedScene)
+        syncEditedScene();
+
+    m_editedScene.reset();
+
+    if (name.has_value()) {
+        auto it = std::ranges::find(m_sceneDescriptors, *name, &GE::Scene::Descriptor::name);
+        assert(it != m_sceneDescriptors.end());
+        m_editedScene.reset();
+        m_editedScene.emplace(&assetManager(), *it);
+    }
+}
+
 void Editor::reloadScriptLib()
 {
+    assert(m_scriptLibPath);
+    assert(std::filesystem::exists(*m_scriptLibPath));
     assert(m_game.has_value() == false);
-    assert(std::ranges::all_of(
-        m_editedScene.second.ecsWorld() | GE::ECSView<GE::ScriptComponent>(),
+    assert(m_editedScene.has_value() == false || std::ranges::all_of(
+        m_editedScene->ecsWorld() | GE::ECSView<GE::ScriptComponent>(),
         [](const auto& e) -> bool { return e.template get<0>().instance == nullptr; }
     ));
-    assert(std::filesystem::exists(m_project.scriptLib()));
-
-    if (m_project.scriptLib().empty())
-    {
-        m_scriptLibrary.reset();
-        return;
-    }
-
-    m_scriptLibrary.emplace(m_project.scriptLib());
+    m_scriptLibrary.emplace(*m_scriptLibPath);
 }
 
 void Editor::startGame()
 {
     assert(m_game.has_value() == false);
-    saveEditedScene();
-    m_game.emplace(&assetManager(), m_scriptLibrary ? &m_scriptLibrary.value() : nullptr, m_project.makeGameDescriptor());
+    syncEditedScene();
+    m_game.emplace(GE::Game::Descriptor{
+        .assetManager = &assetManager(),
+        .inputContext = GE::InputContext(m_gameInputs),
+        .scenes = m_sceneDescriptors,
+        .startSceneName = m_startSceneName,
+        .scriptLibrary = m_scriptLibrary ? &m_scriptLibrary.value() : nullptr,
+    });
     setPrimaryInputContext(m_game->inputContext());
 }
 
@@ -225,22 +284,30 @@ void Editor::processDropedFiles()
 {
     while (const std::optional<std::filesystem::path> droppedFile = window().popDroppedFile())
     {
-        if (std::filesystem::is_regular_file(*droppedFile) && droppedFile->extension() == ".geproj")
-            loadProject(*droppedFile);
+        if (std::filesystem::is_regular_file(*droppedFile) && droppedFile->extension() == ".geproj") {
+            auto project = loadProjectFile(*droppedFile);
+            if (project.has_value()) {
+                loadProject(std::move(project.value()));
+            }
+            else {
+                std::println(stderr, "{}", project.error());
+            }
+        }
     }
 }
 
 void Editor::rebuildFrameGraph()
 {
-    std::function<GE::Scene*()> getScene = [this]() -> GE::Scene* {
+    std::function<const GE::Scene&()> sceneProvider = [this]() -> const GE::Scene& {
         if (m_game.has_value())
-            return &m_game->activeScene();
-        return &m_editedScene.second;
+            return m_game->activeScene();
+        assert(m_editedScene);
+        return *m_editedScene;
     };
 
-    std::function<GE::ICamera*()> getCamera = [this]() -> GE::ICamera*{
+    std::function<const GE::ICamera*()> cameraProvider = [this]() -> const GE::ICamera* {
         if (m_game.has_value())
-            return nullptr;
+            return nullptr; // use scene main camera
         return &m_editorCamera;
     };
 
@@ -252,7 +319,7 @@ void Editor::rebuildFrameGraph()
             { .name = "windowBackBuffer",   .size = window().frameBufferSize(), .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
         },
         .passes = {
-            GE::FlatGeometryPassBuilder(std::move(getScene), std::move(getCamera))
+            GE::FlatGeometryPassBuilder(std::move(sceneProvider), std::move(cameraProvider))
                 .setColorAttachment("viewportBackBuffer")
                 .setDepthAttachment("depthBuffer"),
             GE::ImguiPassBuilder()
@@ -260,6 +327,18 @@ void Editor::rebuildFrameGraph()
                 .addSampledTexture("viewportBackBuffer")
         }
     });
+}
+
+void Editor::syncEditedScene()
+{
+    assert(m_editedScene);
+    auto it = std::ranges::find(m_sceneDescriptors, m_editedScene->name(), &GE::Scene::Descriptor::name);
+    assert(it != m_sceneDescriptors.end());
+    *it = GE::Scene::Descriptor{
+        .name = m_editedScene->name(),
+        .ecsWorld = m_editedScene->ecsWorld(),
+        .activeCameraId = m_editedScene->activeCamera().entityId
+    };
 }
 
 } // namespace GE_Editor

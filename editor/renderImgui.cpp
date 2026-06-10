@@ -7,412 +7,43 @@
  */
 
 #include "Editor.hpp"
+#include "imgui_render/imgui_render.hpp"
 
-#include "Game-Engine/AssetManager.hpp"
-#include "Game-Engine/AssetManagerView.hpp"
-#include "Game-Engine/ECSView.hpp"
-#include "Game-Engine/Entity.hpp"
-#include "Game-Engine/InputFwd.hpp"
-#include "Game-Engine/Mesh.hpp"
-#include "Game-Engine/RawInput.hpp"
-#include "Game-Engine/Scene.hpp"
+#include <Game-Engine/AssetManager.hpp>
+#include <Game-Engine/Components.hpp>
+#include <Game-Engine/ECSWorld.hpp>
+#include <Game-Engine/Entity.hpp>
+#include <Game-Engine/Scene.hpp>
 
-#include "imgui.h"
+#include <imgui.h>
 
-#include <algorithm>
 #include <array>
+#include <cassert>
 #include <concepts>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <format>
 #include <functional>
-#include <map>
-#include <numbers>
-#include <ranges>
-#include <set>
 #include <string>
-#include <string_view>
-#include <type_traits>
 #include <utility>
-#include <vector>
 
 constexpr float TILE_SIZE = 60.0f;
 
 namespace
 {
 
-using MenuItem = std::pair<std::string_view, std::function<void()>>;
-
-template<typename T>
-concept MenuItemRange = std::ranges::range<T> && std::same_as<std::ranges::range_value_t<T>, MenuItem>;
-
-using EditableEntityComponents = GE::TypeList< GE::TransformComponent, GE::CameraComponent, GE::LightComponent, GE::ScriptComponent, GE::MeshComponent >;
+using EditableEntityComponents = GE::TypeList<GE::NameComponent, GE::TransformComponent, GE::CameraComponent, GE::LightComponent, GE::ScriptComponent, GE::MeshComponent>;
 
 template<typename T> struct EditableEntityComponentTraits;
+template<> struct EditableEntityComponentTraits<GE::NameComponent>      { static constexpr const char* label = "Name component"; };
 template<> struct EditableEntityComponentTraits<GE::TransformComponent> { static constexpr const char* label = "Transform component"; };
 template<> struct EditableEntityComponentTraits<GE::CameraComponent>    { static constexpr const char* label = "Camera component";    };
 template<> struct EditableEntityComponentTraits<GE::LightComponent>     { static constexpr const char* label = "Light component";     };
 template<> struct EditableEntityComponentTraits<GE::ScriptComponent>    { static constexpr const char* label = "Script component";    };
 template<> struct EditableEntityComponentTraits<GE::MeshComponent>      { static constexpr const char* label = "Mesh component";      };
 
-constexpr const char* NO_INPUT_MAPPER_LABEL = "None";
-
-template<typename T> struct EditableInputTraits;
-template<> struct EditableInputTraits<GE::ActionInput>  { static constexpr const char* label = "Action"; };
-template<> struct EditableInputTraits<GE::StateInput>   { static constexpr const char* label = "State";  };
-template<> struct EditableInputTraits<GE::RangeInput>   { static constexpr const char* label = "Range";  };
-template<> struct EditableInputTraits<GE::Range2DInput> { static constexpr const char* label = "Range2D"; };
-
-template<typename T> struct EditableRawInputTraits;
-template<> struct EditableRawInputTraits<GE::KeyboardButton> { static constexpr const char* label = "Keyboard button"; };
-
-std::string_view assetTypeName(const GE::AssetManager& assetManager, GE::AssetID assetId)
-{
-    std::string_view typeName = "Unknown";
-    const bool foundType = GE::anyOfType<GE::ManagableAssetTypes>([&]<typename T>() -> bool {
-        if (!assetManager.assetTypeIs<T>(assetId))
-            return false;
-        typeName = GE::ManagableAssetTraits<T>::name;
-        return true;
-    });
-    assert(foundType);
-    return typeName;
-}
-
-void keyboardButtonCombo(const char* label, GE::KeyboardButton& button)
-{
-    if (ImGui::BeginCombo(label, GE::keyboardButtonName(button).data()))
-    {
-        for (GE::KeyboardButton candidate : GE::KEYBOARD_BUTTONS)
-        {
-            const bool isSelected = (candidate == button);
-            if (ImGui::Selectable(GE::keyboardButtonName(candidate).data(), isSelected))
-                button = candidate;
-            if (isSelected)
-                ImGui::SetItemDefaultFocus();
-        }
-        ImGui::EndCombo();
-    }
-}
-
-template<typename Fn>
-void propertyRow(const char* label, Fn&& fn)
-{
-    ImGui::TableNextRow();
-    ImGui::TableSetColumnIndex(0);
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted(label);
-
-    ImGui::TableSetColumnIndex(1);
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    fn();
-}
-
-bool beginPropertyTable(const char* id)
-{
-    if (!ImGui::BeginTable(id, 2, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_BordersInnerV))
-        return false;
-
-    ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 130.0f);
-    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-    return true;
-}
-
-template<typename Fn>
-bool collapsingHeaderWithActionButton(const char* title, const char* buttonLabel, std::string_view buttonIdSuffix, Fn&& fn)
-{
-    const bool isOpen = ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_DefaultOpen);
-    const ImGuiStyle& style = ImGui::GetStyle();
-    const float buttonWidth = ImGui::CalcTextSize(buttonLabel).x + style.FramePadding.x * 2.0f;
-    const float buttonX = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonWidth;
-    ImGui::SameLine(buttonX);
-
-    std::string buttonId = std::string(buttonLabel) + "##" + std::string(buttonIdSuffix);
-    if (ImGui::SmallButton(buttonId.c_str()))
-    {
-        fn();
-        return false;
-    }
-    return isOpen;
-}
-
-template<typename T>
-void componentEditWidget(GE::Entity&, GE::Scene&)
-{
-    static_assert(false, "not implemented");
-}
-
-template<>
-void componentEditWidget<GE::NameComponent>(GE::Entity& entity, GE::Scene&)
-{
-    GE::NameComponent& nameComponent = entity.get<GE::NameComponent>();
-    char buff[32];
-    std::strncpy(buff, nameComponent.name.c_str(), sizeof(buff));
-    buff[31] = '\0'; // If count is reached before the entire string src was copied, the resulting character array is not null-terminated.
-    ImGui::InputText("Name##NameComponent_name", buff, sizeof(buff));
-    nameComponent.name = std::string(buff);
-}
-
-template<>
-void componentEditWidget<GE::TransformComponent>(GE::Entity& entity, GE::Scene&)
-{
-    GE::TransformComponent& transform = entity.get<GE::TransformComponent>();
-    ImGui::DragFloat3("position##TransformComponent_position", (float*)&transform.position, 0.01f, -1000.0f, 1000.0f);
-    ImGui::DragFloat3("rotation##TransformComponent_rotation", (float*)&transform.rotation, 0.01f, -2*std::numbers::pi_v<float>, 2*std::numbers::pi_v<float>);
-    ImGui::DragFloat3("scale##TransformComponent_scale",       (float*)&transform.scale,    0.01f, 0.0f, 10.0f);
-}
-
-template<>
-void componentEditWidget<GE::CameraComponent>(GE::Entity& entity, GE::Scene&)
-{
-    GE::CameraComponent& cameraComponent = entity.get<GE::CameraComponent>();
-
-    ImGui::DragFloat("fov##CameraComponent_fov",     &cameraComponent.fov,   0.01f,  -2*std::numbers::pi_v<float>, 2*std::numbers::pi_v<float>);
-    ImGui::DragFloat("zFar##CameraComponent_zFar",   &cameraComponent.zFar,  0.01f, 0.001f, 10000.0f);
-    ImGui::DragFloat("zNear##CameraComponent_zNear", &cameraComponent.zNear, 0.01f, 0.001f, 10000.0f);
-}
-
-template<>
-void componentEditWidget<GE::LightComponent>(GE::Entity& entity, GE::Scene&)
-{
-    auto typeToStr = [](const GE::LightComponent::Type& type){
-        switch (type) {
-            case GE::LightComponent::Type::directional: return "directional";
-            case GE::LightComponent::Type::point: return "point";
-        }
-        std::unreachable();
-    };
-
-    GE::LightComponent& lightComponent = entity.get<GE::LightComponent>();
-    if (ImGui::BeginCombo("Type##LightComponent_type", typeToStr(lightComponent.type)))
-    {
-        for (auto& type : {GE::LightComponent::Type::directional, GE::LightComponent::Type::point})
-        {
-            const bool is_selected = (lightComponent.type == type);
-            if (ImGui::Selectable(typeToStr(type), is_selected))
-                lightComponent.type = type;
-            if (is_selected)
-                ImGui::SetItemDefaultFocus();
-        }
-        ImGui::EndCombo();
-    }
-    ImGui::ColorEdit3("color##LightComponent_color", (float*)&lightComponent.color);
-    ImGui::DragFloat("intentsity##LightComponent_intensity", &lightComponent.intentsity, 0.01, 0.0f, 1.0f);
-    if (lightComponent.type == GE::LightComponent::Type::point)
-        ImGui::DragFloat("attenuation##LightComponent_attenuation", &lightComponent.attenuation, 0.01, 0.0f, 1.0f);
-}
-
-void scriptComponentEditWidget(GE::Entity& entity, GE::Scene&, const GE::ScriptLibrary& scriptLibrary)
-{
-    GE::ScriptComponent& scriptComponent = entity.get<GE::ScriptComponent>();
-    const char* previewValue = scriptComponent.name.empty() ? "none" : scriptComponent.name.c_str();
-    if (ImGui::BeginCombo("Script##ScriptComponent_name", previewValue))
-    {
-        for (const std::string& scriptName : scriptLibrary.listScriptNames())
-        {
-            const bool isSelected = scriptComponent.name == scriptName;
-            if (ImGui::Selectable(scriptName.c_str(), isSelected))
-            {
-                scriptComponent.name = scriptName;
-                scriptComponent.parameters.clear();
-                for (const std::string& parameterName : scriptLibrary.listScriptParameterNames(scriptName))
-                {
-                    auto [parameterIt, inserted] = scriptComponent.parameters.try_emplace(parameterName, scriptLibrary.getScriptDefaultParameterValue(scriptName, parameterName));
-                    assert(inserted);
-                }
-            }
-            if (isSelected)
-                ImGui::SetItemDefaultFocus();
-        }
-        ImGui::EndCombo();
-    }
-
-    for (auto& [name, value] : scriptComponent.parameters)
-    {
-        std::visit([&](auto& typedValue)
-        {
-            using T = std::remove_cvref_t<decltype(typedValue)>;
-            if constexpr (std::is_same_v<T, bool>)
-                ImGui::Checkbox(name.c_str(), &typedValue);
-            else if constexpr (std::is_same_v<T, int64_t>)
-            {
-                int64_t value64 = typedValue;
-                if (ImGui::DragScalar(name.c_str(), ImGuiDataType_S64, &value64))
-                    typedValue = value64;
-            }
-            else if constexpr (std::is_same_v<T, float>)
-                ImGui::DragFloat(name.c_str(), &typedValue, 0.01f);
-            else if constexpr (std::is_same_v<T, glm::vec2>)
-                ImGui::DragFloat2(name.c_str(), &typedValue.x, 0.01f);
-            else if constexpr (std::is_same_v<T, glm::vec3>)
-                ImGui::DragFloat3(name.c_str(), &typedValue.x, 0.01f);
-            else if constexpr (std::is_same_v<T, std::string>)
-            {
-                char buffer[256];
-                std::strncpy(buffer, typedValue.c_str(), sizeof(buffer));
-                buffer[sizeof(buffer) - 1] = '\0';
-                if (ImGui::InputText(name.c_str(), buffer, sizeof(buffer)))
-                    typedValue = buffer;
-            }
-        }, value);
-    }
-}
-
-template<>
-void componentEditWidget<GE::MeshComponent>(GE::Entity& entity, GE::Scene& scene)
-{
-    GE::MeshComponent& mesh = entity.get<GE::MeshComponent>();
-    GE::AssetManager& assetManager = scene.assetManagerView().assetManager();
-
-    if (ImGui::BeginCombo("Mesh##RegistredMesh", assetManager.assetName(mesh).c_str()))
-    {
-        for (const GE::AssetID& assetId : scene.assetManagerView().assets() | std::views::filter([&](const GE::AssetID& id) { return assetManager.assetTypeIs<GE::Mesh>(id); }))
-        {
-            const bool is_selected = (assetId == mesh.id);
-            if (ImGui::Selectable(assetManager.assetName(assetId).c_str(), is_selected))
-                mesh.id = assetId;
-            if (is_selected)
-                ImGui::SetItemDefaultFocus();
-        }
-        ImGui::EndCombo();
-    }
-
-    if (ImGui::BeginDragDropTarget())
-    {
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("resource_dnd"); payload && payload->IsDelivery())
-        {
-            assert(payload->DataSize > 0);
-            std::string_view path = std::string_view(static_cast<const char*>(payload->Data), static_cast<std::size_t>(payload->DataSize - 1));
-            GE::AssetID id = scene.assetManagerView().registerAsset<GE::Mesh>(std::filesystem::path(path));
-            mesh.id = id;
-        }
-        ImGui::EndDragDropTarget();
-    }
-}
-
-template<typename T>
-void tileGrid(const std::ranges::range auto& items, const std::function<void(const T&)>& fn) requires std::same_as<std::ranges::range_value_t<std::remove_cvref_t<decltype(items)>>, T>
-{
-    for (const auto& item : items)
-    {
-        float posA = ImGui::GetCursorScreenPos().x;
-        fn(item);
-        ImGui::SameLine();
-        float posB = ImGui::GetCursorScreenPos().x;
-        float tileSize = posB - posA;
-        if (tileSize > ImGui::GetContentRegionAvail().x)
-            ImGui::NewLine();
-    }
-}
-
-void menuFromPath(MenuItemRange auto&& items, int offset = 0)
-{
-    auto label = [](std::string_view str, auto&& render)
-    {
-        std::array<char, 128> buffer{};
-        const size_t size = std::min(str.size(), buffer.size() - 1);
-        std::copy_n(str.data(), size, buffer.data());
-        render(buffer.data());
-    };
-
-    for (auto it = items.begin(); it != items.end();)
-    {
-        const std::string_view rest = it->first.substr(offset);
-        const size_t slash = rest.find('/');
-        const std::string_view name = rest.substr(0, slash);
-
-        if (slash == std::string_view::npos)
-        {
-            label(name, [&](const char* cstr) {
-                ImGui::BeginDisabled(!it->second);
-                if (ImGui::MenuItem(cstr) && it->second)
-                    it->second();
-                ImGui::EndDisabled();
-            });
-            ++it;
-            continue;
-        }
-
-        const size_t childOffset = offset + slash + 1;
-        auto childEnd = std::next(it);
-        while (childEnd != items.end() && childEnd->first.size() > childOffset && childEnd->first.substr(offset, slash) == name && childEnd->first[offset + slash] == '/')
-            ++childEnd;
-
-        label(name, [&](const char* cstr) {
-            if (ImGui::BeginMenu(cstr))
-            {
-                menuFromPath(std::ranges::subrange(it, childEnd), childOffset);
-                ImGui::EndMenu();
-            }
-        });
-
-        it = childEnd;
-    }
-}
-
-void sceneGrapRow(GE::Entity& entity, GE::Entity& selectedEntity)
-{
-    bool node_open = false;
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen;
-
-        if (selectedEntity == entity)
-            flags |= ImGuiTreeNodeFlags_Selected;
-
-        if (entity.children().size() > 0)
-            node_open = ImGui::TreeNodeEx((void*)entity.entityId, flags, "%s", entity.name().c_str());
-        else
-        {
-            flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-            ImGui::TreeNodeEx((void*)entity.entityId, flags, "%s", entity.name().c_str());
-        }
-
-        if (ImGui::BeginDragDropSource())
-        {
-            ImGui::SetDragDropPayload("dnd_entity", &entity, sizeof(GE::const_Entity));
-            ImGui::Text("%s", entity.name().c_str());
-            ImGui::EndDragDropSource();
-        }
-
-        if (ImGui::BeginDragDropTarget())
-        {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_entity"); payload && payload->IsDelivery()) {
-                assert(payload->DataSize == sizeof(GE::Entity));
-                GE::Entity& droped = *(GE::Entity*)payload->Data;
-                if (droped.isParentOf(entity) == false) {
-                    if(auto parent = droped.parent())
-                        parent->removeChild(droped);
-                    entity.addChild(droped);
-                }
-            }
-            ImGui::EndDragDropTarget();
-        }
-
-        if (ImGui::IsItemClicked())
-            selectedEntity = entity;
-
-        if (ImGui::BeginPopupContextItem())
-        {
-            menuFromPath(std::to_array<MenuItem>({
-                {"Delete", [&] {
-                    if (selectedEntity == entity)
-                        selectedEntity = GE::Entity{};
-                    entity.destroy();
-                }}
-            }));
-            ImGui::EndPopup();
-            if (entity.world == nullptr || entity.entityId == INVALID_ENTITY_ID)
-                return;
-        }
-
-        if (node_open && entity.children().size() > 0)
-        {
-            for (auto curr = entity.firstChild(); curr; curr = curr->nextChild() )
-                sceneGrapRow(*curr, selectedEntity);
-            ImGui::TreePop();
-        }
-}
-
-}
+} // namespace
 
 namespace GE_Editor
 {
@@ -431,24 +62,13 @@ void Editor::renderImgui()
     {
         menuFromPath(std::to_array<MenuItem>({
             {"file/new",                  {}},
-
             {"file/open",                 {}},
-
-            {"file/save",                 !m_projectFilePath.empty() ? [this]() { saveProject(); }
-                                                                     : std::function<void()>()},
-
-            {"project/properties",        []() { projectPropertiesOpen = true; }},
-
-            {"project/reload script lib", std::filesystem::exists(m_project.scriptLib()) && !m_game.has_value() ? [this]() { reloadScriptLib(); }
-                                                                                                                : std::function<void()>()},
-
-            {"project/run",               m_game.has_value() ? std::function<void()>()
-                                                             : [this]() { startGame(); }},
-
-            {"project/stop",              m_game.has_value() ? [this]() { stopGame(); }
-                                                             : std::function<void()>()},
-
-            {"debug/asset manager",       []() { assetManagerWindowOpen = true; }},
+            {"file/save",                 m_projectFilePath.has_value() && !m_projectFilePath->empty() ? [this] { saveProject(); } : std::function<void()>()},
+            {"project/properties",        []{ projectPropertiesOpen = true; }},
+            {"project/reload script lib", m_scriptLibPath.has_value() && std::filesystem::exists(*m_scriptLibPath) && !m_game.has_value() ? [this]() { reloadScriptLib(); } : std::function<void()>()},
+            {"project/run",               m_game.has_value() ? std::function<void()>() : [this]() { startGame(); }},
+            {"project/stop",              m_game.has_value() ? [this]() { stopGame(); } : std::function<void()>()},
+            {"debug/asset manager",       []{ assetManagerWindowOpen = true; }},
 
         }));
     }
@@ -459,8 +79,8 @@ void Editor::renderImgui()
         static std::variant<std::string, uint64_t> textureIdPlaceholder = std::string("viewportBackBuffer");
 
         ImVec2 contentRegionAvai = ImGui::GetContentRegionAvail();
-        uint32_t newWidth = contentRegionAvai.x <= 0 ? 1 : contentRegionAvai.x;
-        uint32_t newHeight = contentRegionAvai.y <= 0 ? 1 : contentRegionAvai.y;
+        uint32_t newWidth = contentRegionAvai.x <= 0 ? 1 : static_cast<uint32_t>(contentRegionAvai.x);
+        uint32_t newHeight = contentRegionAvai.y <= 0 ? 1 : static_cast<uint32_t>(contentRegionAvai.y);
 
         ImGui::Image(&textureIdPlaceholder, contentRegionAvai);
 
@@ -473,65 +93,21 @@ void Editor::renderImgui()
 
     if (ImGui::Begin("Scene graph"))
     {
-        if (ImGui::BeginChild("scene_graph_child"))
-        {
-            for (GE::Entity entity : m_editedScene.second.ecsWorld()
-                                        | GE::ECSView<GE::NameComponent>()
-                                        | std::views::transform([&](auto id){ return GE::Entity{&m_editedScene.second.ecsWorld(), id}; })
-                                        | std::ranges::to<std::vector>())
-            {
-                if (entity.parent().has_value() == false)
-                    sceneGrapRow(entity, m_selectedEntity);
-            }
-            if (ImGui::BeginPopupContextWindow("scene_graph_context", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
-            {
-                menuFromPath(std::to_array<MenuItem>({
-                    {"Add/Cube", [this] {
-                        m_selectedEntity = m_editedScene.second.newEntity("cube");
-                        m_selectedEntity.emplace<GE::TransformComponent>();
-                        m_editedScene.second.assetManagerView().registerAssetId(GE::BUILT_IN_CUBE_ID);
-                        m_selectedEntity.emplace<GE::MeshComponent>(GE::BUILT_IN_CUBE_ID);
-                    }},
-                    {"Add/Light", [this] {
-                        m_selectedEntity = m_editedScene.second.newEntity("light");
-                        m_selectedEntity.emplace<GE::TransformComponent>();
-                        m_selectedEntity.emplace<GE::LightComponent>();
-                    }},
-                    {"Add/Camera", [this] {
-                        m_selectedEntity = m_editedScene.second.newEntity("camera");
-                        m_selectedEntity.emplace<GE::TransformComponent>();
-                        m_selectedEntity.emplace<GE::CameraComponent>();
-                        if (m_editedScene.second.activeCamera().entityId == INVALID_ENTITY_ID)
-                            m_editedScene.second.setActiveCamera(m_selectedEntity);
-                    }}
-                }));
-                ImGui::EndPopup();
-            }
-            ImGui::EndChild();
-        }
-        if (ImGui::BeginDragDropTarget())
-        {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_entity"); payload && payload->IsDelivery()) {
-                assert(payload->DataSize == sizeof(GE::Entity));
-                GE::Entity& droped = *(GE::Entity*)payload->Data;
-                if(auto parent = droped.parent())
-                    parent->removeChild(droped);
-            }
-            ImGui::EndDragDropTarget();
-        }
+        assert(m_editedScene.has_value());
+        renderSceneGraph(*m_editedScene, m_selectedEntity, assetManager());
     }
     ImGui::End();
 
     if (ImGui::Begin("Scenes"))
     {
-        tileGrid(m_project.scenes() | std::views::values, std::function([](const GE::Scene::Descriptor& scene){
+        tileGrid(m_sceneDescriptors, std::function([](const GE::Scene::Descriptor& scene){
             ImGui::BeginGroup();
             {
                 ImGui::Button(scene.name.c_str(), ImVec2(TILE_SIZE, TILE_SIZE));
                 if (ImGui::BeginDragDropSource())
                 {
                     ImGui::SetDragDropPayload("scene_dnd", scene.name.c_str(), scene.name.size());
-                    ImGui::Text("%s", scene.name.c_str());
+                    ImGui::TextUnformatted(scene.name.c_str());
                     ImGui::EndDragDropSource();
                 }
                 ImVec2 textMin = ImGui::GetCursorScreenPos();
@@ -545,17 +121,17 @@ void Editor::renderImgui()
     }
     ImGui::End();
 
-    if (ImGui::Begin("Resources") && std::filesystem::exists(m_project.resourceDir()))
+    if (ImGui::Begin("Resources") && m_resourceDir.has_value() && std::filesystem::exists(*m_resourceDir))
     {
         ImGui::BeginDisabled(resourceBrowserSubDir.empty());
         if (ImGui::Button("<"))
             resourceBrowserSubDir = resourceBrowserSubDir.parent_path();
         ImGui::EndDisabled();
         ImGui::SameLine();
-        const std::string resourcePath = (m_project.resourceDir().filename() / resourceBrowserSubDir).string();
+        const std::string resourcePath = (m_resourceDir->filename() / resourceBrowserSubDir).string();
         ImGui::TextUnformatted(resourcePath.c_str());
         ImGui::BeginChild("ResourcesChild");
-        tileGrid(std::filesystem::directory_iterator(m_project.resourceDir() / resourceBrowserSubDir), std::function([](const std::filesystem::directory_entry& entry){
+        tileGrid(std::filesystem::directory_iterator(*m_resourceDir / resourceBrowserSubDir), std::function([](const std::filesystem::directory_entry& entry){
             ImGui::BeginGroup();
             {
                 const std::string entryPath = entry.path().string();
@@ -570,7 +146,7 @@ void Editor::renderImgui()
                     if (ImGui::BeginDragDropSource())
                     {
                         ImGui::SetDragDropPayload("resource_dnd", entryPath.c_str(), entryPath.size() + 1);
-                        ImGui::Text("%s", entryName.c_str());
+                        ImGui::TextUnformatted(entryName.c_str());
                         ImGui::EndDragDropSource();
                     }
                 }
@@ -592,185 +168,45 @@ void Editor::renderImgui()
         ImGui::SetNextWindowSize(ImVec2(viewport->Size.x * 0.65f, viewport->Size.y * 0.45f), ImGuiCond_FirstUseEver);
 
         if (ImGui::Begin("Asset manager", &assetManagerWindowOpen))
-        {
-            GE::AssetManager& manager = assetManager();
-            const std::set<GE::AssetID> assetIds = manager.assetIds();
-            const std::set<std::filesystem::path> containerPaths = manager.assetContainerPaths();
-
-            struct AssetDebugRow
-            {
-                GE::AssetID assetId;
-                std::string_view typeName;
-                std::string assetName;
-                uint32_t loadCount;
-                bool isLoaded;
-                uint32_t index;
-            };
-
-            std::map<std::filesystem::path, std::vector<AssetDebugRow>> assetsByContainer;
-            std::vector<AssetDebugRow> builtInAssets;
-            uint32_t loadedAssetCount = 0;
-            for (const GE::AssetID assetId : assetIds)
-            {
-                const uint32_t loadCount = manager.assetLoadCount(assetId);
-                const bool isLoaded = manager.isAssetLoaded(assetId);
-                const auto assetLocation = manager.assetLocation(assetId);
-                if (isLoaded)
-                    loadedAssetCount++;
-
-                AssetDebugRow row{
-                    .assetId = assetId,
-                    .typeName = assetTypeName(manager, assetId),
-                    .assetName = manager.assetName(assetId),
-                    .loadCount = loadCount,
-                    .isLoaded = isLoaded,
-                    .index = assetLocation ? std::visit([](const auto& typedLocation) { return typedLocation.index; }, *assetLocation) : 0
-                };
-
-                if (assetLocation) {
-                    std::visit([&](const auto& typedLocation) {
-                        assetsByContainer[typedLocation.containerPath].push_back(row);
-                    }, *assetLocation);
-                }
-                else
-                    builtInAssets.push_back(std::move(row));
-            }
-
-            uint32_t loadedContainerCount = 0;
-            for (const auto& path : containerPaths) {
-                if (manager.isAssetContainerLoaded(path))
-                    loadedContainerCount++;
-            }
-
-            if (ImGui::BeginTable("asset_manager_summary", 3, ImGuiTableFlags_SizingStretchSame))
-            {
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Assets\n%zu total / %u loaded", assetIds.size(), loadedAssetCount);
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("Containers\n%zu total / %u live", containerPaths.size(), loadedContainerCount);
-                ImGui::TableSetColumnIndex(2);
-                ImGui::Text("Built-in\n%zu", builtInAssets.size());
-                ImGui::EndTable();
-            }
-
-            ImGui::Separator();
-
-            auto drawAssetTable = [&](const char* tableId, const std::ranges::range auto& assets) {
-                if (!ImGui::BeginTable(tableId, 5, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp))
-                    return;
-                ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 55.0f);
-                ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-                ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 0.35f);
-                ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed, 55.0f);
-                ImGui::TableSetupColumn("State", ImGuiTableColumnFlags_WidthFixed, 100.0f);
-                ImGui::TableHeadersRow();
-
-                for (const AssetDebugRow& asset : assets)
-                {
-                    const std::string stateText = asset.isLoaded ? std::format("loaded({})", asset.loadCount) : std::format("not loaded({})", asset.loadCount);
-
-                    ImGui::PushID(static_cast<int>(asset.assetId));
-                    ImGui::TableNextRow();
-
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::Text("%llu", static_cast<unsigned long long>(asset.assetId));
-
-                    ImGui::TableSetColumnIndex(1);
-                    ImGui::TextUnformatted(asset.typeName.data());
-
-                    ImGui::TableSetColumnIndex(2);
-                    ImGui::TextUnformatted(asset.assetName.c_str());
-
-                    ImGui::TableSetColumnIndex(3);
-                    ImGui::Text("%u", asset.index);
-
-                    ImGui::TableSetColumnIndex(4);
-                    ImGui::TextUnformatted(stateText.c_str());
-
-                    if (ImGui::BeginPopupContextItem("asset_context_menu"))
-                    {
-                        if (ImGui::MenuItem("Load"))
-                            manager.loadAssetDetached(asset.assetId);
-
-                        ImGui::BeginDisabled(asset.loadCount == 0);
-                        if (ImGui::MenuItem("Unload"))
-                            manager.unloadAsset(asset.assetId);
-                        ImGui::EndDisabled();
-
-                        ImGui::EndPopup();
-                    }
-
-                    ImGui::PopID();
-                }
-
-                ImGui::EndTable();
-            };
-
-            if (!builtInAssets.empty() && ImGui::CollapsingHeader("Built-in assets", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-                drawAssetTable("asset_manager_builtin_table", builtInAssets);
-            }
-
-            for (const auto& path : containerPaths)
-            {
-                const char* statusLabel = manager.isAssetContainerLoaded(path) ? "live" : "idle";
-
-                const auto containerAssetsIt = assetsByContainer.find(path);
-                const std::size_t assetCount = containerAssetsIt == assetsByContainer.end() ? 0 : containerAssetsIt->second.size();
-
-                const std::string header = std::format("{}  [{}]  ({} assets)", path.string(),  statusLabel, assetCount);
-                if (!ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
-                    continue;
-
-                if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-                    ImGui::SetTooltip("%s", path.string().c_str());
-
-                if (containerAssetsIt == assetsByContainer.end() || containerAssetsIt->second.empty())
-                    ImGui::TextDisabled("No registered assets in this container");
-                else
-                    drawAssetTable(std::format("asset_manager_container_table##{}", path.string()).c_str(), containerAssetsIt->second);
-            }
-        }
+            renderAssetManagerDebugWindow(assetManager());
         ImGui::End();
     }
 
     if (ImGui::Begin("Entity inspector"))
     {
         ImGui::PushItemWidth(-80);
-        if (m_selectedEntity.world == nullptr || m_selectedEntity.entityId == INVALID_ENTITY_ID)
-            ImGui::Text("No entity selected");
+        if (!m_selectedEntity || m_selectedEntity->world == nullptr || m_selectedEntity->entityId == GE::INVALID_ENTITY_ID)
+            ImGui::TextUnformatted("No entity selected");
         else
         {
-            componentEditWidget<GE::NameComponent>(m_selectedEntity, m_editedScene.second);
-            GE::forEachType<EditableEntityComponents>([&]<typename ComponentT>() {
-                if (m_selectedEntity.has<ComponentT>() && collapsingHeaderWithActionButton(EditableEntityComponentTraits<ComponentT>::label, "Remove", EditableEntityComponentTraits<ComponentT>::label, [&] {
-                    m_selectedEntity.remove<ComponentT>();
+            GE::forEachType<EditableEntityComponents>([&]<typename ComponentT>
+            {
+                if (m_selectedEntity->has<ComponentT>() && collapsingHeaderWithActionButton(EditableEntityComponentTraits<ComponentT>::label, "Remove", EditableEntityComponentTraits<ComponentT>::label, [&]{
+                    if constexpr (std::same_as<ComponentT, GE::MeshComponent>) {
+                        assert(assetManager().isValidAssetId(m_selectedEntity->get<GE::MeshComponent>().id));
+                        assetManager().unloadAsset(m_selectedEntity->get<GE::MeshComponent>().id);
+                    }
+                    m_selectedEntity->remove<ComponentT>();
                 }))
                 {
-                    if constexpr (std::is_same_v<ComponentT, GE::ScriptComponent>)
-                    {
-                        if (m_scriptLibrary.has_value())
-                            scriptComponentEditWidget(m_selectedEntity, m_editedScene.second, *m_scriptLibrary);
-                        else
-                            ImGui::TextDisabled("No script library loaded");
-                    }
-                    else
-                        componentEditWidget<ComponentT>(m_selectedEntity, m_editedScene.second);
+                    componentEditWidget<ComponentT>(*m_selectedEntity, assetManager(), m_scriptLibrary.has_value() ? &m_scriptLibrary.value() : nullptr);
                 }
             });
 
-            ImGui::Spacing();
             ImGui::Separator();
-            ImGui::Spacing();
 
             if (ImGui::Button("Add component", ImVec2(-FLT_MIN, 0.0f)))
                 ImGui::OpenPopup("add_component_popup");
+
             if (ImGui::BeginPopup("add_component_popup"))
             {
                 GE::forEachType<EditableEntityComponents>([&]<typename ComponentT>() {
-                    if (m_selectedEntity.has<ComponentT>() == false && ImGui::Selectable(EditableEntityComponentTraits<ComponentT>::label))
-                        m_selectedEntity.emplace<ComponentT>();
+                    if (m_selectedEntity->has<ComponentT>() == false && ImGui::Selectable(EditableEntityComponentTraits<ComponentT>::label))
+                    {
+                        m_selectedEntity->emplace<ComponentT>();
+                        if constexpr (std::same_as<ComponentT, GE::MeshComponent>)
+                            assetManager().loadAsset(m_selectedEntity->get<GE::MeshComponent>().id);
+                    }
                 });
 
                 ImGui::EndPopup();
@@ -794,185 +230,13 @@ void Editor::renderImgui()
 
         if (ImGui::Begin("Project properties", &projectPropertiesOpen, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoCollapse))
         {
-            ImGui::Spacing();
-
-            if (beginPropertyTable("##project_settings"))
-            {
-                propertyRow("Project name", [&] {
-                    char projectName[256];
-                    std::strncpy(projectName, m_project.name().c_str(), sizeof(projectName));
-                    projectName[255] = '\0';
-                    if (ImGui::InputText("##project_name", projectName, sizeof(projectName)))
-                        m_project.setName(projectName);
-                });
-
-                propertyRow("Project file", [&] {
-                    char projectPath[512];
-                    std::strncpy(projectPath, m_projectFilePath.string().c_str(), sizeof(projectPath));
-                    projectPath[511] = '\0';
-                    if (ImGui::InputText("##project_file", projectPath, sizeof(projectPath)))
-                        m_projectFilePath = projectPath;
-                });
-
-                propertyRow("Script library", [&] {
-                    char scriptLibPath[512];
-                    std::strncpy(scriptLibPath, m_project.scriptLib().string().c_str(), sizeof(scriptLibPath));
-                    scriptLibPath[511] = '\0';
-                    if (ImGui::InputText("##script_lib", scriptLibPath, sizeof(scriptLibPath)))
-                        m_project.setScriptLib(scriptLibPath);
-                });
-
-                ImGui::EndTable();
-            }
-
-            ImGui::Spacing();
-            ImGui::SeparatorText("Game inputs");
-
-            auto& inputContext = m_project.inputContext();
-
-            if (ImGui::Button("Add input")) {
-                std::size_t index = inputContext.inputs().size();
-                std::string name;
-                do name = std::format("input_{}", index++);
-                while (inputContext.inputs().contains(name));
-                inputContext.addInput(name, GE::ActionInput{});
-            }
-
-            std::string inputToRemove;
-            std::pair<std::string, std::string> renameRequest;
-
-            const float inputsHeight = std::max(180.0f, ImGui::GetContentRegionAvail().y - ImGui::GetFrameHeightWithSpacing() - 12.0f);
-            ImGui::BeginChild("##project_inputs", ImVec2(0.0f, inputsHeight), true);
-            for (auto& [inputName, vInput] : inputContext.inputs())
-            {
-                ImGui::PushID(inputName.c_str());
-
-                const bool isOpen = collapsingHeaderWithActionButton(inputName.c_str(), "Remove", inputName, [&] {
-                    inputToRemove = inputName;
-                });
-                if (isOpen)
-                {
-                    if (beginPropertyTable("##input_fields"))
-                    {
-                        char nameBuffer[256];
-                        std::strncpy(nameBuffer, inputName.c_str(), sizeof(nameBuffer));
-                        nameBuffer[255] = '\0';
-                        propertyRow("Name", [&] {
-                            if (ImGui::InputText("##name", nameBuffer, sizeof(nameBuffer), ImGuiInputTextFlags_EnterReturnsTrue))
-                                renameRequest = { inputName, nameBuffer };
-                        });
-
-                        const char* currentKindLabel = std::visit([](const auto& input) -> const char*
-                        {
-                            using InputType = std::remove_cvref_t<decltype(input)>;
-                            return EditableInputTraits<InputType>::label;
-                        },
-                        vInput);
-
-                        propertyRow("Kind", [&] {
-                            if (ImGui::BeginCombo("##kind", currentKindLabel))
-                            {
-                                GE::forEachType<GE::InputTypes>([&]<typename InputType>()
-                                {
-                                    const bool isSelected = std::holds_alternative<InputType>(vInput);
-                                    if (ImGui::Selectable(EditableInputTraits<InputType>::label, isSelected))
-                                        vInput = InputType{};
-                                    if (isSelected)
-                                        ImGui::SetItemDefaultFocus();
-                                });
-                                ImGui::EndCombo();
-                            }
-                        });
-
-                        propertyRow("Mapper", [&] {
-                            std::visit([](auto& input) {
-                                const char* currentMapperLabel = NO_INPUT_MAPPER_LABEL;
-                                if (!input.mapper)
-                                    currentMapperLabel = NO_INPUT_MAPPER_LABEL;
-                                std::visit([&](const auto& mapper)
-                                {
-                                    using MapperType = std::remove_cvref_t<decltype(mapper)>;
-                                    using RawInputType = typename MapperType::RawInputType;
-                                    currentMapperLabel = EditableRawInputTraits<RawInputType>::label;
-                                },
-                                *input.mapper);
-
-                                if (ImGui::BeginCombo("##mapper", currentMapperLabel))
-                                {
-                                    const bool noMapperSelected = !input.mapper.has_value();
-
-                                    if (ImGui::Selectable(NO_INPUT_MAPPER_LABEL, !input.mapper.has_value()))
-                                        input.mapper.reset();
-                                    if (!input.mapper.has_value())
-                                        ImGui::SetItemDefaultFocus();
-
-                                    GE::forEachType<GE::RawInputTypes>([&]<typename RawInputType>()
-                                    {
-                                        if constexpr (std::same_as<RawInputType, GE::KeyboardButton>)
-                                        {
-                                            using InputType = std::remove_cvref_t<decltype(input)>;
-                                            using MapperType = typename InputType::template MapperType<RawInputType>;
-                                            const bool isSelected = input.mapper && std::holds_alternative<MapperType>(*input.mapper);
-                                            if (ImGui::Selectable(EditableRawInputTraits<RawInputType>::label, isSelected) && !isSelected)
-                                                input.setMapper(MapperType{});
-                                            if (isSelected)
-                                                ImGui::SetItemDefaultFocus();
-                                        }
-                                    });
-
-                                    ImGui::EndCombo();
-                                }
-                            },
-                            vInput);
-                        });
-
-                        std::visit([&](auto& input)
-                        {
-                            using InputType = std::remove_cvref_t<decltype(input)>;
-                            if (!input.mapper)
-                                return;
-                            auto& mapper = std::get<GE::InputMapper<GE::KeyboardButton, InputType>>(*input.mapper);
-                            if constexpr (std::same_as<InputType, GE::Range2DInput>) {
-                                propertyRow("X+ key",  [&] { keyboardButtonCombo("##x_pos", mapper.xPos); });
-                                propertyRow("X- key",  [&] { keyboardButtonCombo("##x_neg", mapper.xNeg); });
-                                propertyRow("X scale", [&] { ImGui::InputFloat("##x_scale", &mapper.xScale); });
-
-                                propertyRow("Y+ key",  [&] { keyboardButtonCombo("##y_pos", mapper.yPos); });
-                                propertyRow("Y- key",  [&] { keyboardButtonCombo("##y_neg", mapper.yNeg); });
-                                propertyRow("Y scale", [&] { ImGui::InputFloat("##y_scale", &mapper.yScale); });
-
-                                propertyRow("Trigger", [&] { ImGui::InputFloat("##trigger", &mapper.triggerValue); });
-                            }
-                            else if constexpr (std::same_as<InputType, GE::RangeInput>) {
-                                propertyRow("Key",   [&] { keyboardButtonCombo("##key", mapper.button); });
-                                propertyRow("Scale", [&] { ImGui::InputFloat("##scale", &mapper.scale); });
-                            }
-                            else {
-                                propertyRow("Key", [&] { keyboardButtonCombo("##key", mapper.button); });
-                            }
-                        },
-                        vInput);
-                        ImGui::EndTable();
-                    }
-                    ImGui::Spacing();
-                }
-
-                ImGui::PopID();
-
-                if (!inputToRemove.empty())
-                    break;
-            }
-            ImGui::EndChild();
-
-            if (!renameRequest.first.empty())
-                inputContext.renameInput(renameRequest.first, renameRequest.second);
-            if (!inputToRemove.empty())
-                inputContext.removeInput(inputToRemove);
-
-            ImGui::Spacing();
-
-            if (ImGui::Button("Close", ImVec2(90.0f, 0.0f)))
-                projectPropertiesOpen = false;
+            EditableProjectProperties properties{
+                .projectName = m_projectName,
+                .projectPath = m_projectFilePath,
+                .scriptLibPath = m_scriptLibPath,
+                .inputs = m_gameInputs
+            };
+            projectPropertiesOpen = renderPropertiesWindow(properties);
         }
         ImGui::End();
     }

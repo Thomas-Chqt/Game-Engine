@@ -9,6 +9,7 @@
 #ifndef FRAMEGRAPH_HPP
 #define FRAMEGRAPH_HPP
 
+#include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Export.hpp"
 
 #include <Graphics/CommandBuffer.hpp>
@@ -76,6 +77,7 @@ struct FramePassSetupContext
 
 struct FramePassExecuteContext
 {
+    AssetManager& assetManager;
     gfx::CommandBuffer& commandBuffer;
     gfx::ParameterBlockPool& parameterBlockPool;
     std::map<std::string, std::shared_ptr<gfx::Texture>>& textureMap;
@@ -102,6 +104,7 @@ struct FramePass
     FramePass(const FramePass&) = default;
     FramePass(FramePass&&) = default;
     FramePass(const FramePassBuilder auto& builder) : FramePass(builder.build()) {}
+    ~FramePass() = default;
     FramePass& operator=(const FramePass&) = default;
     FramePass& operator=(FramePass&&) = default;
 };

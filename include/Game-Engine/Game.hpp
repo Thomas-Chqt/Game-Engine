@@ -15,8 +15,10 @@
 #include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/ScriptLibrary.hpp"
 
+#include <future>
 #include <map>
 #include <string>
+#include <vector>
 
 namespace GE
 {
@@ -26,9 +28,11 @@ class GE_API Game
 public:
     struct Descriptor
     {
-        std::map<std::string, Scene::Descriptor> scenes;
-        std::string activeScene;
+        AssetManager* assetManager;
         InputContext inputContext;
+        std::vector<Scene::Descriptor> scenes;
+        std::string startSceneName;
+        const ScriptLibrary* scriptLibrary;
     };
 
 public:
@@ -36,21 +40,28 @@ public:
     Game(const Game&) = delete;
     Game(Game&&) = delete;
 
-    Game(AssetManager* assetManager, const ScriptLibrary* scriptLibrary, const Descriptor& descriptor);
+    Game(const Descriptor&);
+
+    auto& inputContext(this auto&& self) { return self.m_inputContext; }
+
+    std::shared_future<void> loadScene(const std::string& name);
+    void unloadScene(const std::string& name);
 
     auto& activeScene(this auto&& self) { return *self.m_activeScene; }
     void setActiveScene(const std::string& name);
 
-    auto& inputContext(this auto&& self) { return self.m_inputContext; }
+    bool isSceneLoaded(const std::string& name) const;
 
     ~Game();
 
 private:
-    std::map<std::string, Scene> m_scenes;
-    Scene* m_activeScene = nullptr;
+    AssetManager* m_assetManager = nullptr;
     InputContext m_inputContext;
-
+    std::vector<Scene::Descriptor> m_sceneDescriptors;
+    std::map<std::string, Scene> m_loadedScenes;
     const ScriptLibrary* m_scriptLibrary = nullptr;
+
+    Scene* m_activeScene = nullptr;
 
 public:
     Game& operator = (const Game&) = delete;

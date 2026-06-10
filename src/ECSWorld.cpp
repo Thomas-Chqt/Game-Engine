@@ -25,7 +25,7 @@ ECSWorld::ECSWorld()
     m_archetypes.insert(std::make_pair(ArchetypeID{}, Archetype()));
 }
 
-ECSWorld::EntityID ECSWorld::newEntityID()
+EntityID ECSWorld::newEntityID()
 {
     EntityID newEntityId;
     if (m_availableEntityIDs.empty())
@@ -36,7 +36,7 @@ ECSWorld::EntityID ECSWorld::newEntityID()
     return newEntityId;
 }
 
-void ECSWorld::registerEntityID(ECSWorld::EntityID id)
+void ECSWorld::registerEntityID(EntityID id)
 {
     assert(isValidEntityID(id) == false); // user is responsible to be sure the id is not already used
 
@@ -84,7 +84,7 @@ void ECSWorld::deleteEntityID(EntityID entityId)
     m_availableEntityIDs.insert(entityId);
 }
 
-uint32_t ECSWorld::componentCount()
+uint32_t ECSWorld::componentCount() const
 {
     uint64_t count = 0;
     for (auto& [id, arch] : m_archetypes)

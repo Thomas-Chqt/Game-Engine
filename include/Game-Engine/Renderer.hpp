@@ -12,6 +12,7 @@
 
 #include "Game-Engine/Export.hpp"
 #include "Game-Engine/FrameGraph.hpp"
+#include "Game-Engine/AssetManager.hpp"
 
 #include <Graphics/Device.hpp>
 #include <Graphics/Surface.hpp>
@@ -40,7 +41,7 @@ public:
     Renderer(const Renderer&) = delete;
     Renderer(Renderer&&) = delete;
 
-    Renderer(gfx::Device*, gfx::Surface*);
+    Renderer(gfx::Device*, AssetManager*, gfx::Surface*);
 
     void renderFrame(const FrameGraph&);
 
@@ -58,6 +59,7 @@ private:
     };
 
     gfx::Device* m_device;
+    AssetManager* m_assetManager;
     gfx::Surface* m_surface;
 
     std::shared_ptr<gfx::ParameterBlockLayout> m_frameDataBlockLayout;

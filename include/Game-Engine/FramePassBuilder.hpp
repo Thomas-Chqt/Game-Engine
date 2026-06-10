@@ -27,8 +27,6 @@
 namespace GE
 {
 
-class AssetManager;
-
 template<typename Derived>
 class FramePassBuilderBase
 {
@@ -68,6 +66,10 @@ public:
         m_usedBufferNames.push_back(name);
         return static_cast<Derived&>(*this);
     }
+private:
+    friend Derived;
+
+    FramePassBuilderBase() = default;
 
 protected:
     AttachmentDescriptor m_colorAttachment = AttachmentDescriptor{.clearColor={0.0f, 0.0f, 0.0f, 1.0f}};
@@ -112,14 +114,13 @@ public:
 class GE_API FlatGeometryPassBuilder : public FramePassBuilderBase<FlatGeometryPassBuilder>
 {
 public:
-    FlatGeometryPassBuilder(const Scene*, const ICamera*);
-    FlatGeometryPassBuilder(std::function<const Scene*()>, std::function<const ICamera*()>);
+    FlatGeometryPassBuilder(std::function<const Scene&()>, std::function<const ICamera*()>);
 
     FramePass build() const;
 
 private:
-    std::function<const Scene*()> m_sceneProvider;
-    std::function<const ICamera*()> m_cameraProvider;
+    std::function<const Scene&()> m_sceneProvider;
+    std::function<const ICamera*()> m_cameraOverrideProvider;
 };
 
 }
