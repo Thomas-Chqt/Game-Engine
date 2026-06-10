@@ -1,94 +1,70 @@
-/*
- * ---------------------------------------------------
- * Scene.cpp
- *
- * Author: Thomas Choquet <semoir.dense-0h@icloud.com>
- * Date: 2024/09/08 12:10:58
- * ---------------------------------------------------
- */
-
 #include "Game-Engine/Scene.hpp"
-
 #include "Game-Engine/AssetManager.hpp"
-#include "Game-Engine/AssetManagerView.hpp"
 #include "Game-Engine/Components.hpp"
-#include "Game-Engine/TypeList.hpp"
+#include "Game-Engine/ECSView.hpp"
+#include "Game-Engine/ECSWorld.hpp"
+#include "Game-Engine/Entity.hpp"
 
-#include <ranges>
-#include <type_traits>
-#include <utility>
-#include <variant>
-#include <vector>
+#include <cassert>
+#include <string>
+#include <string_view>
 
 namespace GE
 {
 
-Scene::Scene(AssetManager* assetManager, const std::string& name)
-    : m_assetManagerView(assetManager)
-    , m_name(name)
+Scene::Scene(AssetManager* assetManager, const Descriptor& descriptor)
+    : m_assetManager(assetManager)
+    , m_name(descriptor.name)
+    , m_ecsWorld(descriptor.ecsWorld)
+    , m_activeCameraId(descriptor.activeCameraId)
 {
+    assert(m_assetManager);
+    auto assetIds = m_ecsWorld
+        | ECSView<MeshComponent>()
+        | std::views::transform([](const auto& e){
+            auto& [mesh] = e;
+            return mesh.id;
+        });
+    m_loadFuture = assetManager->loadAssets(assetIds).share();
 }
 
-Scene::Scene(AssetManager* assetManager, const Descriptor& desc)
-    : m_assetManagerView(assetManager, desc.registredAssets)
-    , m_name(desc.name)
-    , m_activeCamera(desc.activeCamera)
+const std::string& Scene::name() const
 {
-    for (auto& [id, vComponents] : desc.entities) {
-        m_ecsWorld.registerEntityID(id);
-        for (auto& vComponent : vComponents) {
-            std::visit([&](auto& component) {
-                m_ecsWorld.emplace<std::remove_cvref_t<decltype(component)>>(id, component);
-            }, vComponent);
-        }
-    }
+    return m_name;;
 }
 
-void Scene::setActiveCamera(const Entity& e)
+void Scene::setName(const std::string& name)
 {
-    assert(e.world == &m_ecsWorld);
-    m_activeCamera = e.entityId;
+    m_name = name;
 }
 
-Entity Scene::newEntity(const std::string& name)
+void Scene::setActiveCamera(EntityID id)
+{
+    m_activeCameraId = id;
+}
+
+std::shared_future<void> Scene::loadFuture() const
+{
+    return m_loadFuture;
+}
+
+Entity Scene::newEntity(std::string_view name)
 {
     Entity newEntity(&m_ecsWorld, m_ecsWorld.newEntityID());
-    newEntity.emplace<NameComponent>(name);
+    newEntity.emplace<NameComponent>(std::string(name));
     return newEntity;
 }
 
-Scene::Descriptor Scene::makeDescriptor() const
+Scene::~Scene()
 {
-    Scene::Descriptor desc;
-    desc.name = m_name;
-    desc.activeCamera = m_activeCamera;
-    desc.registredAssets = m_assetManagerView.assets() | std::views::transform([&](const AssetID& assetId) -> std::pair<std::optional<VAssetLocation>, AssetID> {
-        const std::optional<VAssetLocation> vAssetLocation = m_assetManagerView.assetManager().assetLocation(assetId);
-        return std::make_pair(vAssetLocation, assetId);
-    }) | std::ranges::to<std::vector>();
-
-    for (ECSWorld::EntityID entityId : m_ecsWorld)
-    {
-        std::vector<ComponentVariant> components;
-        const_Entity entity{&m_ecsWorld, entityId};
-
-        forEachType<ECSComponentTypes>([&]<typename ComponentT>() {
-            if (!entity.has<ComponentT>())
-                return;
-
-            if constexpr (std::is_same_v<ComponentT, ScriptComponent>) {
-                ScriptComponent scriptComponent = entity.get<ScriptComponent>();
-                // TODO find a solution to not have to do that
-                scriptComponent.instance.reset();
-                components.emplace_back(std::move(scriptComponent));
-            } else
-                components.emplace_back(entity.get<ComponentT>());
+    assert(m_assetManager);
+    auto assetIds = m_ecsWorld
+        | ECSView<MeshComponent>()
+        | std::views::transform([](const auto& e){
+            auto& [mesh] = e;
+            return mesh.id;
         });
-
-        desc.entities.emplace_back(entityId, std::move(components));
-    }
-
-    return desc;
+    m_assetManager->unloadAssets(assetIds);
 }
 
 }

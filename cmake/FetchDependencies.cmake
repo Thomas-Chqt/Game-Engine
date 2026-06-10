@@ -146,18 +146,4 @@ function(fetch_dependencies)
     if (TARGET fastgltf)
         set_target_properties(fastgltf PROPERTIES FOLDER "dependencies")
     endif()
-
-    # -----------------------------
-    # yaml-cpp
-    # -----------------------------
-    FetchContent_Declare(yaml-cpp
-        GIT_REPOSITORY    https://github.com/jbeder/yaml-cpp.git
-        GIT_TAG           yaml-cpp-0.9.0
-        GIT_SHALLOW       1
-        GIT_PROGRESS      TRUE
-        FIND_PACKAGE_ARGS
-    )
-    set(YAML_CPP_BUILD_TOOLS OFF)
-    FetchContent_MakeAvailable(yaml-cpp)
-    set_target_properties(yaml-cpp PROPERTIES FOLDER "dependencies")
 endfunction()

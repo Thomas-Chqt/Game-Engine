@@ -7,6 +7,7 @@
  */
 
 #include "Game-Engine/FramePassBuilder.hpp"
+#include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Components.hpp"
 #include "Game-Engine/ECSView.hpp"
 #include "Game-Engine/Entity.hpp"
@@ -28,19 +29,15 @@
 namespace GE
 {
 
-FlatGeometryPassBuilder::FlatGeometryPassBuilder(const Scene* scene, const ICamera* camera)
-    : FlatGeometryPassBuilder(
-        [scene]() { return scene; },
-        [camera]() { return camera; })
-{
-}
-
-FlatGeometryPassBuilder::FlatGeometryPassBuilder(std::function<const Scene*()> sceneProvider, std::function<const ICamera*()> cameraProvider)
+FlatGeometryPassBuilder::FlatGeometryPassBuilder(
+    std::function<const Scene&()> sceneProvider,
+    std::function<const ICamera*()> cameraOverrideProvider
+)
     : m_sceneProvider(std::move(sceneProvider))
-    , m_cameraProvider(std::move(cameraProvider))
+    , m_cameraOverrideProvider(std::move(cameraOverrideProvider))
 {
     assert(m_sceneProvider);
-    assert(m_cameraProvider);
+    assert(m_cameraOverrideProvider);
 }
 
 FramePass FlatGeometryPassBuilder::build() const
@@ -60,10 +57,9 @@ FramePass FlatGeometryPassBuilder::build() const
         "frameData", "material", "directionalLights", "pointLights"
     });
 
-    framePass.setup = [sceneProvider=m_sceneProvider, cameraProvider=m_cameraProvider, colorAttachmentName](FramePassSetupContext& ctx)
+    framePass.setup = [sceneProvider=m_sceneProvider, cameraProvider=m_cameraOverrideProvider, colorAttachmentName](FramePassSetupContext& ctx)
     {
-        const Scene* scene = sceneProvider();
-        assert(scene);
+        const Scene& scene = sceneProvider();
         assert(colorAttachmentName.empty() == false);
 
         const std::shared_ptr<gfx::Texture>& colorAttachment = ctx.textureMap.at(colorAttachmentName);
@@ -78,7 +74,7 @@ FramePass FlatGeometryPassBuilder::build() const
         }
         else
         {
-            const_Entity activeCamera = scene->activeCamera();
+            const_Entity activeCamera = scene.activeCamera();
             assert(activeCamera.world != nullptr);
             assert(activeCamera.world->isValidEntityID(activeCamera.entityId));
             assert(activeCamera.has<TransformComponent>());
@@ -96,9 +92,7 @@ FramePass FlatGeometryPassBuilder::build() const
 
         std::vector<shader::DirectionalLight> directionalLights;
         std::vector<shader::PointLight> pointLights;
-        for (GE::const_Entity entity : scene->ecsWorld()
-                                       | const_ECSView<TransformComponent, LightComponent>()
-                                       | std::views::transform([&](auto id){ return GE::const_Entity{&scene->ecsWorld(), id}; }))
+        for (GE::const_Entity entity : scene.ecsWorld() | const_ECSView<TransformComponent, LightComponent>() | MakeEntity())
         {
             const LightComponent& light = entity.get<LightComponent>();
             switch (light.type)
@@ -143,8 +137,7 @@ FramePass FlatGeometryPassBuilder::build() const
 
     framePass.execute = [sceneProvider=m_sceneProvider](FramePassExecuteContext& ctx)
     {
-        const Scene* scene = sceneProvider();
-        assert(scene);
+        const Scene& scene = sceneProvider();
 
         std::shared_ptr<gfx::ParameterBlock> frameDataPBlock = ctx.parameterBlockPool.get(ctx.frameDataBlockLayout);
         frameDataPBlock->setBinding(0, ctx.bufferMap.at("frameData"));
@@ -158,12 +151,12 @@ FramePass FlatGeometryPassBuilder::build() const
         ctx.commandBuffer.setParameterBlock(frameDataPBlock, 0);
         ctx.commandBuffer.setParameterBlock(materialPBlock, 1);
 
-        for (auto entity : scene->ecsWorld() | const_ECSView<TransformComponent, MeshComponent>() | std::views::transform([&](auto id){ return GE::const_Entity{&scene->ecsWorld(), id}; }))
+        for (auto entity : scene.ecsWorld() | const_ECSView<TransformComponent, MeshComponent>() | MakeEntity())
         {
             const MeshComponent& meshComponent = entity.get<MeshComponent>();
-            if (!scene->assetManagerView().assetManager().isAssetLoaded(meshComponent))
+            if (!ctx.assetManager.isAssetLoaded(meshComponent))
                 continue;
-            const std::shared_ptr<Mesh>& loadedMesh = scene->assetManagerView().assetManager().getAsset<Mesh>(meshComponent.id);
+            const std::shared_ptr<Mesh>& loadedMesh = ctx.assetManager.getAsset<Mesh>(meshComponent.id);
 
             std::function<void(const SubMesh&, glm::mat4)> drawSubmesh = [&](const SubMesh& submesh, const glm::mat4& transform) {
                 glm::mat4 modelMatrix = transform * submesh.transform;

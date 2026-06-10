@@ -54,7 +54,7 @@ target_include_directories(Game-Engine
 
 # target_precompile_headers(Graphics PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp")
 
-target_link_libraries(Game-Engine PUBLIC Graphics glfw glm::glm imgui stb_image dlLoad fastgltf::fastgltf yaml-cpp)
+target_link_libraries(Game-Engine PUBLIC Graphics glfw glm::glm imgui stb_image dlLoad fastgltf::fastgltf)
 
 add_subdirectory("shaders")
 

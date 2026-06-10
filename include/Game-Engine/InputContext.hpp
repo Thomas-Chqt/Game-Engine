@@ -13,12 +13,13 @@
 #include "Game-Engine/Event.hpp"
 #include "Game-Engine/Input.hpp"
 
-#include <yaml-cpp/yaml.h>
-
 #include <map>
 #include <string>
 #include <type_traits>
 #include <variant>
+
+template<typename T>
+concept InputRange = std::ranges::range<T> && std::convertible_to<std::ranges::range_value_t<T>, std::pair<std::string, GE::VInput>>;
 
 namespace GE
 {
@@ -29,6 +30,8 @@ public:
     InputContext() = default;
     InputContext(const InputContext&) = default;
     InputContext(InputContext&&) = default;
+
+    InputContext(const InputRange auto&);
 
     void addInput(const std::string& name, const VInput&);
     void removeInput(const std::string& name);
@@ -54,6 +57,13 @@ public:
     InputContext& operator = (InputContext&&) = default;
 };
 
+InputContext::InputContext(const InputRange auto& inputs)
+    : InputContext()
+{
+    for (auto& [name, vInput] : inputs)
+        addInput(name, vInput);
+}
+
 template<InputType T>
 void InputContext::setInputCallback(const std::string& name, const T::CallbackType& callback)
 {
@@ -66,30 +76,5 @@ void InputContext::setInputCallback(const std::string& name, const T::CallbackTy
 }
 
 } // namespace GE
-
-namespace YAML
-{
-
-template<>
-struct convert<GE::InputContext>
-{
-    static Node encode(const GE::InputContext& rhs)
-    {
-        Node node;
-        node["inputs"] = rhs.inputs();
-        return node;
-    }
-
-    static bool decode(const Node& node, GE::InputContext& rhs)
-    {
-        if (!node.IsMap() || !node["inputs"])
-            return false;
-
-        rhs.inputs() = node["inputs"].as<std::map<std::string, GE::VInput>>();
-        return true;
-    }
-};
-
-} // namespace YAML
 
 #endif

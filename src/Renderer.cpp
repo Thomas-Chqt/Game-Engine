@@ -25,7 +25,6 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <print>
 #include <string>
 #include <utility>
 #include <vector>
@@ -34,9 +33,15 @@
 namespace GE
 {
 
-Renderer::Renderer(gfx::Device* device, gfx::Surface* surface)
-    : m_device(device), m_surface(surface)
+Renderer::Renderer(gfx::Device* device, AssetManager* assetManager, gfx::Surface* surface)
+    : m_device(device)
+    , m_assetManager(assetManager)
+    , m_surface(surface)
 {
+    assert(m_device);
+    assert(m_assetManager);
+    assert(m_surface);
+
     m_frameDataBlockLayout = m_device->newParameterBlockLayout({
         .bindings = {
             { .type = gfx::BindingType::constantBuffer,   .usages = gfx::BindingUsage::vertexRead | gfx::BindingUsage::fragmentRead },
@@ -218,6 +223,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         commandBuffer->beginRenderPass(framebuffer);
         {
             FramePassExecuteContext framePassContext = {
+                .assetManager = *m_assetManager,
                 .commandBuffer = *commandBuffer,
                 .parameterBlockPool = *cfd.parameterBlockPool,
                 .textureMap = textureMap,

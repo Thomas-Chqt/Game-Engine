@@ -13,13 +13,9 @@
 #include "Game-Engine/InputMapper.hpp"
 #include "Game-Engine/RawInput.hpp"
 
-#include <yaml-cpp/yaml.h>
-
 #include <concepts>
 #include <functional>
 #include <optional>
-#include <string>
-#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -110,6 +106,8 @@ struct Input
         rebindMapper();
     }
 
+    ~Input() = default;
+
     Input& operator=(const Input& other)
     {
         if (this == &other)
@@ -152,89 +150,6 @@ private:
 
 using VInput = InputTypes::into<std::variant>;
 
-template<InputType T> struct InputTraits;
-
-template<> struct InputTraits<ActionInput>  { static constexpr std::string_view name = "Action";  };
-template<> struct InputTraits<StateInput>   { static constexpr std::string_view name = "State";   };
-template<> struct InputTraits<RangeInput>   { static constexpr std::string_view name = "Range";   };
-template<> struct InputTraits<Range2DInput> { static constexpr std::string_view name = "Range2D"; };
-
 } // namespace GE
-
-namespace YAML
-{
-
-template<>
-struct convert<GE::VInput>
-{
-    static YAML::Node encode(const GE::VInput& rhs)
-    {
-        return std::visit([](const auto& input) -> YAML::Node
-        {
-            YAML::Node node;
-            using InputType = std::remove_cvref_t<decltype(input)>;
-            node["type"] = std::string(GE::InputTraits<InputType>::name);
-            if (input.mapper)
-            {
-                Node mapperNode;
-                std::visit([&](const auto& mapper)
-                {
-                    using MapperType = std::remove_cvref_t<decltype(mapper)>;
-                    using RawInputType = typename MapperType::RawInputType;
-                    mapperNode["type"] = std::string(GE::RawInputTraits<RawInputType>::name);
-                    mapperNode["data"] = mapper;
-                },
-                *input.mapper);
-                node["mapper"] = mapperNode;
-            }
-            return node;
-        },
-        rhs);
-    }
-
-    static bool decode(const YAML::Node& node, GE::VInput& rhs)
-    {
-        if (!node.IsMap() || !node["type"])
-            return false;
-
-        const std::string type = node["type"].as<std::string>();
-        return GE::anyOfType<GE::InputTypes>([&]<typename InputType>() {
-            if (type != GE::InputTraits<InputType>::name)
-                return false;
-
-            InputType input;
-            if (node["mapper"])
-            {
-                const YAML::Node& mapperNode = node["mapper"];
-                if (!mapperNode.IsMap() || !mapperNode["type"] || !mapperNode["data"])
-                    return false;
-
-                const std::string mapperType = mapperNode["type"].as<std::string>();
-                const bool decoded = GE::anyOfType<GE::InputMapperTypes>([&]<typename MapperType>() {
-                    if constexpr (!std::same_as<typename MapperType::InputType, InputType>)
-                        return false;
-                    else
-                    {
-                        using RawInputType = typename MapperType::RawInputType;
-                        if (mapperType != GE::RawInputTraits<RawInputType>::name)
-                            return false;
-
-                        MapperType mapper = mapperNode["data"].as<MapperType>();
-                        input.setMapper(mapper);
-                        return true;
-                    }
-                });
-
-                if (!decoded)
-                    return false;
-            }
-
-            rhs = input;
-            return true;
-        });
-    }
-};
-
-} // namespace YAML
 
 #endif

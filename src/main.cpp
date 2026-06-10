@@ -32,9 +32,9 @@ extern "C"
     GE_EXPORT void DestroyPlatformWindows() { return ImGui::DestroyPlatformWindows(); }
 }
 
-extern std::unique_ptr<GE::Application> createApplication(int argc, char* argv[]);
+extern std::unique_ptr<GE::Application> createApplication(int argc, const char* argv[]); // NOLINT(cppcoreguidelines-avoid-c-arrays)
 
-int main(int argc, char* argv[])
+int main(int argc, const char* argv[])
 {
     createApplication(argc, argv)->run();
 }

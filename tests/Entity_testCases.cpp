@@ -184,12 +184,12 @@ TEST(EntityTest, destroyEntity)
     parent.addChild(child1);
     parent.addChild(child2);
 
-    GE::ECSWorld::EntityID parentId = parent.entityId;
+    GE::EntityID parentId = parent.entityId;
     parent.destroy();
 
     EXPECT_FALSE(ecsWorld.isValidEntityID(parentId));
     EXPECT_EQ(parent.world, nullptr);
-    EXPECT_EQ(parent.entityId, INVALID_ENTITY_ID);
+    EXPECT_EQ(parent.entityId, GE::INVALID_ENTITY_ID);
 
     EXPECT_FALSE(child1.parent().has_value());
     EXPECT_FALSE(child1.nextChild().has_value());
@@ -205,7 +205,7 @@ TEST(EntityTest, destroyChildUnlinksFromParent)
 
     parent.addChild(child);
 
-    GE::ECSWorld::EntityID childId = child.entityId;
+    GE::EntityID childId = child.entityId;
     child.destroy();
 
     EXPECT_FALSE(ecsWorld.isValidEntityID(childId));

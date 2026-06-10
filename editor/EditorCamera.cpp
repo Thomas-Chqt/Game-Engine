@@ -28,6 +28,12 @@ constexpr float kRotateStepPerFrame = 1.5f / 60.0f;
 
 }
 
+EditorCamera::EditorCamera(glm::vec3 pos, glm::vec3 rot)
+    : m_position(pos)
+    , m_rotation(rot)
+{
+}
+
 glm::mat4 EditorCamera::viewProjectionMatrix(float aspectRatio) const
 {
     auto rotationMat = rotationMatrix();

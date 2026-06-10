@@ -13,8 +13,6 @@
 #include "GLFW/glfw3.h"
 #include "Game-Engine/TypeList.hpp"
 
-#include <yaml-cpp/yaml.h>
-
 #include <array>
 #include <optional>
 #include <string_view>
@@ -24,7 +22,7 @@
 namespace GE
 {
 
-enum class KeyboardButton : unsigned int
+enum class KeyboardButton : uint16_t
 {
     esc        = GLFW_KEY_ESCAPE,
     one        = GLFW_KEY_1,
@@ -41,7 +39,7 @@ enum class KeyboardButton : unsigned int
     left_shift = GLFW_KEY_LEFT_SHIFT,
 };
 
-enum class MouseButton : unsigned int
+enum class MouseButton : uint8_t
 {
     l = GLFW_MOUSE_BUTTON_1,
     r = GLFW_MOUSE_BUTTON_2
@@ -99,35 +97,6 @@ inline std::optional<KeyboardButton> keyboardButtonFromName(std::string_view nam
 template<typename T>
 concept RawInput = IsTypeInList<std::remove_cvref_t<T>, RawInputTypes>;
 
-template<RawInput T> struct RawInputTraits;
-
-template<> struct RawInputTraits<KeyboardButton> { static constexpr std::string_view name = "KeyboardButton"; };
-template<> struct RawInputTraits<MouseButton>    { static constexpr std::string_view name = "MouseButton";    };
-
 } // namespace GE
-
-namespace YAML
-{
-
-template<>
-struct convert<GE::KeyboardButton>
-{
-    static Node encode(const GE::KeyboardButton& rhs)
-    {
-        return Node(std::string(GE::keyboardButtonName(rhs)));
-    }
-
-    static bool decode(const Node& node, GE::KeyboardButton& rhs)
-    {
-        if (!node.IsScalar())
-            return false;
-
-        if (const std::optional<GE::KeyboardButton> button = GE::keyboardButtonFromName(node.as<std::string>()))
-            return rhs = *button, true;
-        return false;
-    }
-};
-
-}
 
 #endif // RAWINPUT_HPP

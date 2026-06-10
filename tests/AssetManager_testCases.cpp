@@ -10,9 +10,10 @@
 #include <gtest/gtest.h>
 
 #include "Game-Engine/AssetManager.hpp"
-#include "Game-Engine/AssetManagerView.hpp"
+#include "Game-Engine/Game.hpp"
 #include "Game-Engine/MeshAssetLoader.hpp"
 #include "Game-Engine/Scene.hpp"
+#include "Game-Engine/ScriptLibrary.hpp"
 #include "Game-Engine/TextureAssetLoader.hpp"
 
 #include <Graphics/Buffer.hpp>
@@ -29,11 +30,13 @@
 #include <filesystem>
 #include <fstream>
 #include <future>
+#include <initializer_list>
 #include <memory>
 #include <optional>
 #include <set>
 #include <span>
 #include <stdexcept>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -179,6 +182,31 @@ protected:
     std::shared_ptr<testing::NiceMock<MockCommandBuffer>> m_commandBuffer;
 };
 
+GE::Scene::Descriptor makeSceneDescriptor(
+    std::string name,
+    std::initializer_list<std::pair<GE::EntityID, std::vector<GE::ComponentVariant>>> entities = {},
+    GE::EntityID activeCameraId = GE::INVALID_ENTITY_ID)
+{
+    GE::Scene::Descriptor descriptor{
+        .name = std::move(name),
+        .activeCameraId = activeCameraId
+    };
+
+    for (const auto& [entityId, components] : entities)
+    {
+        descriptor.ecsWorld.registerEntityID(entityId);
+        GE::Entity entity{&descriptor.ecsWorld, entityId};
+        for (const GE::ComponentVariant& component : components)
+        {
+            std::visit([&]<typename ComponentT>(const ComponentT& value) {
+                entity.emplace<ComponentT>(value);
+            }, component);
+        }
+    }
+
+    return descriptor;
+}
+
 std::filesystem::path dummyTexturePath()
 {
     return std::filesystem::path(GE_TEST_RESOURCE_DIR) / "dummy_texture.png";
@@ -216,21 +244,6 @@ std::vector<std::byte> readBinaryFile(const std::filesystem::path& path)
     if (!file)
         throw std::runtime_error("failed to read file: " + path.string());
     return bytes;
-}
-
-std::vector<std::pair<std::optional<GE::VAssetLocation>, GE::AssetID>> registeredAssets(std::initializer_list<std::pair<std::optional<GE::VAssetLocation>, GE::AssetID>> assets)
-{
-    return std::vector<std::pair<std::optional<GE::VAssetLocation>, GE::AssetID>>(assets);
-}
-
-const std::pair<std::optional<GE::VAssetLocation>, GE::AssetID>& findRegisteredAsset(const GE::Scene::Descriptor& descriptor, GE::AssetID assetId)
-{
-    const auto it = std::ranges::find_if(descriptor.registredAssets, [assetId](const auto& asset) {
-        return asset.second == assetId;
-    });
-    if (it == descriptor.registredAssets.end())
-        throw std::runtime_error("asset id not found in descriptor");
-    return *it;
 }
 
 TEST_F(AssetManagerMockDeviceTest, locationBackedRegistrationUsesLocationIdentity)
@@ -465,7 +478,7 @@ TEST_F(AssetManagerMockDeviceTest, concurrentPublicAccessDoesNotRequireExternalS
                 assetManager.loadAssets(assetIds).get();
                 break;
             case 3:
-                assetManager.loadAssetDetached(assetId);
+                assetManager.loadAssetsDetached(assetIds);
                 ASSERT_NE(assetManager.getAsset<gfx::Texture>(assetId), nullptr);
                 break;
             case 4:
@@ -572,30 +585,6 @@ TEST_F(AssetManagerMockDeviceTest, reloadingAnAlreadyLoadedAssetDoesNotCreateANe
 
     assetManager.unloadAsset(textureAssetId);
     assetManager.unloadAsset(textureAssetId);
-}
-
-TEST_F(AssetManagerMockDeviceTest, reportsBuiltInCubeLoadedStateThroughView)
-{
-    GE::AssetManager assetManager(&m_device);
-    GE::AssetManagerView assetManagerView(&assetManager, registeredAssets({
-        { std::nullopt, GE::BUILT_IN_CUBE_ID }
-    }));
-
-    EXPECT_FALSE(assetManagerView.isLoaded());
-    EXPECT_FALSE(assetManager.isAssetLoaded(GE::BUILT_IN_CUBE_ID));
-
-    assetManagerView.load();
-    ASSERT_NE(assetManager.getAsset<GE::Mesh>(GE::BUILT_IN_CUBE_ID), nullptr);
-
-    EXPECT_TRUE(assetManagerView.isLoaded());
-    EXPECT_TRUE(assetManager.isAssetLoaded(GE::BUILT_IN_CUBE_ID));
-    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_CUBE_ID), 1u);
-    EXPECT_EQ(assetManager.getAsset<GE::Mesh>(GE::BUILT_IN_CUBE_ID)->subMeshes.size(), 1u);
-
-    assetManagerView.unload();
-    EXPECT_FALSE(assetManagerView.isLoaded());
-    EXPECT_FALSE(assetManager.isAssetLoaded(GE::BUILT_IN_CUBE_ID));
-    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_CUBE_ID), 0u);
 }
 
 TEST_F(AssetManagerMockDeviceTest, failedLoadCanBeRetriedAfterUnloadResetsTheHandle)
@@ -793,266 +782,185 @@ TEST_F(AssetManagerMockDeviceTest, areAssetsLoadedTracksLoadedSubsets)
     EXPECT_FALSE(assetManager.areAssetsLoaded(assetIds));
 }
 
-TEST_F(AssetManagerMockDeviceTest, sceneLoadAndUnloadAffectsEveryRegisteredAsset)
+TEST_F(AssetManagerMockDeviceTest, sceneConstructionLoadsMeshAssetsReferencedByTheEcsWorld)
 {
-    const std::filesystem::path texturePath = dummyTexturePath();
-    ASSERT_TRUE(std::filesystem::is_regular_file(texturePath));
-
     GE::AssetManager assetManager(&m_device);
-    const GE::AssetID textureAssetId = assetManager.registerAsset<gfx::Texture>(texturePath.stem().string(), texturePath);
-    GE::Scene scene(&assetManager, GE::Scene::Descriptor{
-        .name = "test_scene",
-        .activeCamera = INVALID_ENTITY_ID,
-        .registredAssets = registeredAssets({
-            { std::nullopt, GE::BUILT_IN_CUBE_ID },
-            { std::nullopt, textureAssetId }
-        }),
-        .entities = {}
-    });
+    GE::Scene scene(&assetManager, makeSceneDescriptor("test_scene", {
+        { 1, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
+    }));
 
-    const auto assetIds = std::to_array<GE::AssetID>({ GE::BUILT_IN_CUBE_ID, textureAssetId });
-    EXPECT_FALSE(scene.isLoaded());
-    EXPECT_FALSE(assetManager.areAssetsLoaded(assetIds));
-
-    scene.load();
     ASSERT_NE(assetManager.getAsset<GE::Mesh>(GE::BUILT_IN_CUBE_ID), nullptr);
-    ASSERT_NE(assetManager.getAsset<gfx::Texture>(textureAssetId), nullptr);
-
-    EXPECT_TRUE(scene.isLoaded());
-    EXPECT_TRUE(assetManager.areAssetsLoaded(assetIds));
-
-    scene.unload();
-
-    EXPECT_FALSE(scene.isLoaded());
-    EXPECT_FALSE(assetManager.areAssetsLoaded(assetIds));
+    EXPECT_TRUE(assetManager.isAssetLoaded(GE::BUILT_IN_CUBE_ID));
+    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_CUBE_ID), 1u);
 }
 
-TEST_F(AssetManagerMockDeviceTest, sharedAssetsRemainLoadedUntilAllViewsUnload)
+TEST_F(AssetManagerMockDeviceTest, sceneDestructionUnloadsMeshAssetsReferencedByTheEcsWorld)
 {
-    const std::filesystem::path texturePath = dummyTexturePath();
-    ASSERT_TRUE(std::filesystem::is_regular_file(texturePath));
-
     GE::AssetManager assetManager(&m_device);
-    const GE::AssetID textureAssetId = assetManager.registerAsset<gfx::Texture>(texturePath.stem().string(), texturePath);
-    const auto assets = registeredAssets({
-        { std::nullopt, GE::BUILT_IN_CUBE_ID },
-        { std::nullopt, textureAssetId }
-    });
+    {
+        GE::Scene scene(&assetManager, makeSceneDescriptor("test_scene", {
+            { 1, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
+        }));
 
-    GE::AssetManagerView firstView(&assetManager, assets);
-    GE::AssetManagerView secondView(&assetManager, assets);
-
-    firstView.load();
-    secondView.load();
-    ASSERT_NE(assetManager.getAsset<GE::Mesh>(GE::BUILT_IN_CUBE_ID), nullptr);
-    ASSERT_NE(assetManager.getAsset<gfx::Texture>(textureAssetId), nullptr);
-
-    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_CUBE_ID), 2u);
-    EXPECT_EQ(assetManager.assetLoadCount(textureAssetId), 2u);
-
-    firstView.unload();
-
-    EXPECT_FALSE(firstView.isLoaded());
-    EXPECT_TRUE(secondView.isLoaded());
-    EXPECT_TRUE(assetManager.isAssetLoaded(GE::BUILT_IN_CUBE_ID));
-    EXPECT_TRUE(assetManager.isAssetLoaded(textureAssetId));
-    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_CUBE_ID), 1u);
-    EXPECT_EQ(assetManager.assetLoadCount(textureAssetId), 1u);
-
-    secondView.unload();
+        ASSERT_NE(assetManager.getAsset<GE::Mesh>(GE::BUILT_IN_CUBE_ID), nullptr);
+        EXPECT_TRUE(assetManager.isAssetLoaded(GE::BUILT_IN_CUBE_ID));
+    }
 
     EXPECT_FALSE(assetManager.isAssetLoaded(GE::BUILT_IN_CUBE_ID));
-    EXPECT_FALSE(assetManager.isAssetLoaded(textureAssetId));
     EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_CUBE_ID), 0u);
-    EXPECT_EQ(assetManager.assetLoadCount(textureAssetId), 0u);
 }
 
-TEST_F(AssetManagerMockDeviceTest, repeatedViewLoadAndUnloadAreIdempotent)
+TEST_F(AssetManagerMockDeviceTest, sceneConstructionCountsDuplicateMeshReferences)
 {
-    const std::filesystem::path texturePath = dummyTexturePath();
-    ASSERT_TRUE(std::filesystem::is_regular_file(texturePath));
-
     GE::AssetManager assetManager(&m_device);
-    const GE::AssetID textureAssetId = assetManager.registerAsset<gfx::Texture>(texturePath.stem().string(), texturePath);
-    GE::AssetManagerView assetManagerView(&assetManager, registeredAssets({
-        { std::nullopt, textureAssetId }
+    GE::Scene scene(&assetManager, makeSceneDescriptor("test_scene", {
+        { 1, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } },
+        { 2, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
     }));
 
-    assetManagerView.load();
-    assetManagerView.load();
-    ASSERT_NE(assetManager.getAsset<gfx::Texture>(textureAssetId), nullptr);
-
-    EXPECT_TRUE(assetManagerView.isLoaded());
-    EXPECT_TRUE(assetManager.isAssetLoaded(textureAssetId));
-    EXPECT_EQ(assetManager.assetLoadCount(textureAssetId), 1u);
-
-    assetManagerView.unload();
-
-    EXPECT_FALSE(assetManagerView.isLoaded());
-    EXPECT_FALSE(assetManager.isAssetLoaded(textureAssetId));
-    EXPECT_EQ(assetManager.assetLoadCount(textureAssetId), 0u);
-}
-
-TEST_F(AssetManagerMockDeviceTest, addingAssetsToALoadedViewLoadsThemInBackground)
-{
-    const std::filesystem::path texturePath = dummyTexturePath();
-    const std::filesystem::path meshPath = dummyMeshPath();
-    ASSERT_TRUE(std::filesystem::is_regular_file(texturePath));
-    ASSERT_TRUE(std::filesystem::is_regular_file(meshPath));
-
-    GE::AssetManager assetManager(&m_device);
-    const GE::AssetID existingTextureAssetId = assetManager.registerAsset<gfx::Texture>(texturePath.stem().string(), texturePath, 0, 91);
-    GE::AssetManagerView assetManagerView(&assetManager, registeredAssets({
-        { std::nullopt, GE::BUILT_IN_CUBE_ID }
-    }));
-
-    assetManagerView.load();
     ASSERT_NE(assetManager.getAsset<GE::Mesh>(GE::BUILT_IN_CUBE_ID), nullptr);
-    ASSERT_TRUE(assetManagerView.isLoaded());
-
-    const GE::AssetID newlyRegisteredAssetId = assetManagerView.registerAsset<GE::Mesh>(meshPath);
-    assetManagerView.registerAssetId(existingTextureAssetId);
-
-    EXPECT_FALSE(assetManagerView.isLoaded());
-
-    ASSERT_NE(assetManager.getAsset<GE::Mesh>(newlyRegisteredAssetId), nullptr);
-    ASSERT_NE(assetManager.getAsset<gfx::Texture>(existingTextureAssetId), nullptr);
-    EXPECT_TRUE(assetManagerView.isLoaded());
-    EXPECT_TRUE(assetManager.isAssetLoaded(newlyRegisteredAssetId));
-    EXPECT_TRUE(assetManager.isAssetLoaded(existingTextureAssetId));
-
-    assetManagerView.unload();
+    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_CUBE_ID), 2u);
 }
 
-TEST_F(AssetManagerMockDeviceTest, readdingAnAlreadyTrackedAssetToALoadedViewDoesNotReloadIt)
+TEST_F(AssetManagerMockDeviceTest, sceneLoadsPreRegisteredMeshAssetsByExplicitId)
 {
     const std::filesystem::path meshPath = dummyMeshPath();
     ASSERT_TRUE(std::filesystem::is_regular_file(meshPath));
 
     GE::AssetManager assetManager(&m_device);
-    GE::AssetManagerView assetManagerView(&assetManager);
+    const GE::AssetID meshAssetId = assetManager.registerAsset<GE::Mesh>(meshPath.stem().string(), meshPath, 0, 77);
+    GE::Scene scene(&assetManager, makeSceneDescriptor("scene", {
+        { 5, { GE::MeshComponent{meshAssetId} } }
+    }));
 
-    const GE::AssetID meshAssetId = assetManagerView.registerAsset<GE::Mesh>(meshPath);
-
-    assetManagerView.load();
+    EXPECT_EQ(meshAssetId, 77u);
+    EXPECT_TRUE(assetManager.isValidAssetId(meshAssetId));
     ASSERT_NE(assetManager.getAsset<GE::Mesh>(meshAssetId), nullptr);
-    ASSERT_TRUE(assetManagerView.isLoaded());
-    EXPECT_EQ(assetManager.assetLoadCount(meshAssetId), 1u);
-
-    assetManagerView.registerAssetId(meshAssetId);
-
-    EXPECT_TRUE(assetManagerView.isLoaded());
-    EXPECT_EQ(assetManager.assetLoadCount(meshAssetId), 1u);
-
-    assetManagerView.unload();
-    EXPECT_FALSE(assetManager.isAssetLoaded(meshAssetId));
-    EXPECT_EQ(assetManager.assetLoadCount(meshAssetId), 0u);
+    EXPECT_TRUE(assetManager.isAssetLoaded(meshAssetId));
+    ASSERT_TRUE(assetManager.assetLocation(meshAssetId).has_value());
+    ASSERT_TRUE(std::holds_alternative<GE::AssetLocation<GE::Mesh>>(*assetManager.assetLocation(meshAssetId)));
+    EXPECT_EQ(std::get<GE::AssetLocation<GE::Mesh>>(*assetManager.assetLocation(meshAssetId)).containerPath, meshPath);
+    EXPECT_EQ(std::get<GE::AssetLocation<GE::Mesh>>(*assetManager.assetLocation(meshAssetId)).index, 0u);
 }
 
-TEST_F(AssetManagerMockDeviceTest, moveOperationsPreserveLoadedAssetsUntilTheDestinationUnloads)
+TEST_F(AssetManagerMockDeviceTest, gameLoadSceneConstructsARuntimeSceneWithoutMakingItActive)
 {
-    const std::filesystem::path texturePath = dummyTexturePath();
-    ASSERT_TRUE(std::filesystem::is_regular_file(texturePath));
-
     GE::AssetManager assetManager(&m_device);
-    const GE::AssetID textureAssetId = assetManager.registerAsset<gfx::Texture>(texturePath.stem().string(), texturePath);
-
-    GE::AssetManagerView source(&assetManager, registeredAssets({
-        { std::nullopt, textureAssetId }
-    }));
-    source.load();
-    ASSERT_NE(assetManager.getAsset<gfx::Texture>(textureAssetId), nullptr);
-
-    GE::AssetManagerView moved(std::move(source));
-    EXPECT_FALSE(source.isLoaded());
-    EXPECT_TRUE(moved.isLoaded());
-    EXPECT_TRUE(assetManager.isAssetLoaded(textureAssetId));
-
-    GE::AssetManagerView destination(&assetManager);
-    destination = std::move(moved);
-    EXPECT_FALSE(moved.isLoaded());
-    EXPECT_TRUE(destination.isLoaded());
-    EXPECT_TRUE(assetManager.isAssetLoaded(textureAssetId));
-
-    destination.unload();
-    EXPECT_FALSE(assetManager.isAssetLoaded(textureAssetId));
-}
-
-TEST_F(AssetManagerMockDeviceTest, failedViewLoadCompletesWithAnExceptionAndMarksTheViewLoaded)
-{
-    const testing::Matcher<const std::shared_ptr<gfx::CommandBuffer>&> commandBufferMatcher = testing::_;
-
-    EXPECT_CALL(m_device, submitCommandBuffers(commandBufferMatcher))
-        .WillOnce(testing::Throw(std::runtime_error("submit failed")));
-
-    GE::AssetManager assetManager(&m_device);
-    GE::AssetManagerView assetManagerView(&assetManager, registeredAssets({
-        { std::nullopt, GE::BUILT_IN_CUBE_ID }
-    }));
-
-    EXPECT_NO_THROW(assetManagerView.load());
-    EXPECT_THROW(assetManager.getAsset<GE::Mesh>(GE::BUILT_IN_CUBE_ID), std::runtime_error);
-    EXPECT_TRUE(assetManagerView.isLoaded());
-
-    assetManagerView.unload();
-    EXPECT_FALSE(assetManagerView.isLoaded());
-}
-
-TEST_F(AssetManagerMockDeviceTest, sceneDescriptorPreservesOptionalPathsAndAssetIds)
-{
-    const std::filesystem::path texturePath = dummyTexturePath();
-    ASSERT_TRUE(std::filesystem::is_regular_file(texturePath));
-
-    GE::AssetManager assetManager(&m_device);
-    GE::Scene scene(&assetManager, "scene");
-    scene.assetManagerView().registerAssetId(GE::BUILT_IN_CUBE_ID);
-    const GE::AssetID textureAssetId = scene.assetManagerView().registerAsset<gfx::Texture>(texturePath);
-
-    const GE::Scene::Descriptor descriptor = scene.makeDescriptor();
-    ASSERT_EQ(descriptor.registredAssets.size(), 2u);
-
-    const auto& builtInAsset = findRegisteredAsset(descriptor, GE::BUILT_IN_CUBE_ID);
-    EXPECT_FALSE(builtInAsset.first.has_value());
-
-    const auto& textureAsset = findRegisteredAsset(descriptor, textureAssetId);
-    ASSERT_TRUE(textureAsset.first.has_value());
-    ASSERT_TRUE(std::holds_alternative<GE::AssetLocation<gfx::Texture>>(*textureAsset.first));
-    EXPECT_EQ(std::get<GE::AssetLocation<gfx::Texture>>(*textureAsset.first).containerPath, texturePath);
-    EXPECT_EQ(std::get<GE::AssetLocation<gfx::Texture>>(*textureAsset.first).index, 0u);
-}
-
-TEST_F(AssetManagerMockDeviceTest, sceneDescriptorUsesExplicitSerializedAssetIdsForPathBackedAssets)
-{
-    const std::filesystem::path meshPath = dummyMeshPath();
-    ASSERT_TRUE(std::filesystem::is_regular_file(meshPath));
-
-    GE::AssetManager assetManager(&m_device);
-    GE::Scene scene(&assetManager, GE::Scene::Descriptor{
-        .name = "scene",
-        .activeCamera = INVALID_ENTITY_ID,
-        .registredAssets = registeredAssets({
-            { GE::AssetLocation<GE::Mesh>{meshPath, 0}, 77 }
-        }),
-        .entities = {
-            { 5, { GE::MeshComponent{77} } }
-        }
+    GE::Game game(GE::Game::Descriptor{
+        .assetManager = &assetManager,
+        .inputContext = {},
+        .scenes = {
+            makeSceneDescriptor("first"),
+            makeSceneDescriptor("second", {
+                { 2, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
+            })
+        },
+        .startSceneName = "first",
+        .scriptLibrary = nullptr
     });
 
-    EXPECT_TRUE(scene.assetManagerView().assets().contains(77));
-    EXPECT_TRUE(assetManager.isValidAssetId(77));
-    EXPECT_EQ(std::get<GE::MeshComponent>(scene.makeDescriptor().entities.front().second.front()).id, 77u);
+    EXPECT_EQ(game.activeScene().name(), "first");
+    EXPECT_FALSE(assetManager.isAssetLoaded(GE::BUILT_IN_CUBE_ID));
 
-    scene.load();
-    ASSERT_NE(assetManager.getAsset<GE::Mesh>(77), nullptr);
-    EXPECT_TRUE(assetManager.isAssetLoaded(77));
+    game.loadScene("second");
+    ASSERT_NE(assetManager.getAsset<GE::Mesh>(GE::BUILT_IN_CUBE_ID), nullptr);
 
-    const GE::Scene::Descriptor descriptor = scene.makeDescriptor();
-    const auto& registeredAsset = findRegisteredAsset(descriptor, 77);
-    ASSERT_TRUE(registeredAsset.first.has_value());
-    EXPECT_EQ(std::get<GE::AssetLocation<GE::Mesh>>(*registeredAsset.first).containerPath, meshPath);
-    EXPECT_EQ(std::get<GE::AssetLocation<GE::Mesh>>(*registeredAsset.first).index, 0u);
+    EXPECT_EQ(game.activeScene().name(), "first");
+    EXPECT_TRUE(assetManager.isAssetLoaded(GE::BUILT_IN_CUBE_ID));
+    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_CUBE_ID), 1u);
+}
 
-    scene.unload();
+TEST_F(AssetManagerMockDeviceTest, gameSetActiveSceneRequiresTheSceneToBeLoaded)
+{
+    GE::AssetManager assetManager(&m_device);
+    GE::Game game(GE::Game::Descriptor{
+        .assetManager = &assetManager,
+        .inputContext = {},
+        .scenes = {
+            makeSceneDescriptor("first"),
+            makeSceneDescriptor("second")
+        },
+        .startSceneName = "first",
+        .scriptLibrary = nullptr
+    });
+
+    EXPECT_DEATH(game.setActiveScene("second"), "");
+}
+
+TEST_F(AssetManagerMockDeviceTest, gameSwitchingActiveScenesKeepsLoadedAssetsResidentUntilExplicitUnload)
+{
+    GE::AssetManager assetManager(&m_device);
+    GE::Game game(GE::Game::Descriptor{
+        .assetManager = &assetManager,
+        .inputContext = {},
+        .scenes = {
+            makeSceneDescriptor("first", {
+                { 1, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
+            }),
+            makeSceneDescriptor("second")
+        },
+        .startSceneName = "first",
+        .scriptLibrary = nullptr
+    });
+
+    ASSERT_NE(assetManager.getAsset<GE::Mesh>(GE::BUILT_IN_CUBE_ID), nullptr);
+    EXPECT_TRUE(assetManager.isAssetLoaded(GE::BUILT_IN_CUBE_ID));
+
+    game.loadScene("second");
+    game.setActiveScene("second");
+
+    EXPECT_EQ(game.activeScene().name(), "second");
+    EXPECT_TRUE(assetManager.isAssetLoaded(GE::BUILT_IN_CUBE_ID));
+    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_CUBE_ID), 1u);
+
+    game.unloadScene("first");
+
+    EXPECT_FALSE(assetManager.isAssetLoaded(GE::BUILT_IN_CUBE_ID));
+    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_CUBE_ID), 0u);
+}
+
+TEST_F(AssetManagerMockDeviceTest, gameUnloadingTheActiveSceneAsserts)
+{
+    GE::AssetManager assetManager(&m_device);
+    GE::Game game(GE::Game::Descriptor{
+        .assetManager = &assetManager,
+        .inputContext = {},
+        .scenes = {
+            makeSceneDescriptor("first")
+        },
+        .startSceneName = "first",
+        .scriptLibrary = nullptr
+    });
+
+    EXPECT_DEATH(game.unloadScene("first"), "");
+}
+
+TEST_F(AssetManagerMockDeviceTest, gameSceneActivationRunsScriptSetupAndTeardownWithoutUnloadingTheScene)
+{
+    GE::AssetManager assetManager(&m_device);
+    GE::ScriptLibrary scriptLibrary(GE_TEST_SCRIPT_LIB);
+    GE::Game game(GE::Game::Descriptor{
+        .assetManager = &assetManager,
+        .inputContext = {},
+        .scenes = {
+            makeSceneDescriptor("first", {
+                { 1, {
+                    GE::TransformComponent{},
+                    GE::ScriptComponent{ .name = "TestScript" }
+                }}
+            }),
+            makeSceneDescriptor("second")
+        },
+        .startSceneName = "first",
+        .scriptLibrary = &scriptLibrary
+    });
+
+    ASSERT_EQ(game.activeScene().ecsWorld().get<GE::ScriptComponent>(1).instance != nullptr, true);
+
+    game.loadScene("second");
+    game.setActiveScene("second");
+
+    EXPECT_EQ(game.activeScene().name(), "second");
 }
 
 } // namespace
