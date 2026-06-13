@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <chrono>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -32,8 +33,10 @@
 #include <future>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <ranges>
+#include <set>
 #include <span>
 #include <string>
 #include <string_view>
@@ -50,6 +53,8 @@ template<typename T>
 concept AssetIdRange = std::ranges::range<T> && std::convertible_to<std::ranges::range_value_t<T>, AssetID>;
 
 constexpr AssetID BUILT_IN_CUBE_ID = 0;
+
+class TextureTable;
 
 class GE_API AssetManager
 {
@@ -76,14 +81,14 @@ public:
         AssetLoader<T>&&);
 
     template<ManagableAsset T>
-    std::shared_future<std::shared_ptr<T>> loadAsset(AssetID, gfx::CommandBufferPool* pool = nullptr);
+    std::shared_future<std::shared_ptr<T>> loadAsset(AssetID);
 
-    std::shared_future<void> loadAsset(AssetID, gfx::CommandBufferPool* pool  = nullptr);
+    std::shared_future<void> loadAsset(AssetID);
 
     [[nodiscard("destructing the future will wait for completion")]]
-    std::future<void> loadAssets(const AssetIdRange auto&, gfx::CommandBufferPool* pool = nullptr);
+    std::future<void> loadAssets(const AssetIdRange auto&);
 
-    void loadAssetsDetached(const AssetIdRange auto&, gfx::CommandBufferPool* pool = nullptr);
+    void loadAssetsDetached(const AssetIdRange auto&);
 
     void unloadAsset(AssetID);
     void unloadAssets(const AssetIdRange auto&);
@@ -109,10 +114,19 @@ public:
     bool areAssetsLoaded(const AssetIdRange auto&) const;
 
     std::shared_ptr<AssetContainer> assetContainer(const std::filesystem::path&);
+    void attachTextureTable(const std::shared_ptr<TextureTable>&);
 
     ~AssetManager() = default;
 
 private:
+    enum class LoadStatus : uint8_t
+    {
+        unloaded,
+        loading,
+        loaded,
+        error
+    };
+
     template<ManagableAsset T>
     struct AssetHandle
     {
@@ -124,6 +138,7 @@ private:
         AssetLoader<T> loader;
 
         uint32_t loadCount = 0;
+        std::atomic<LoadStatus> loadStatus = LoadStatus::unloaded;
 
         std::shared_future<std::shared_ptr<T>> future;
         std::shared_future<void> voidFuture;
@@ -132,11 +147,17 @@ private:
     using AssetHandleTypes = ManagableAssetTypes::wrapped<AssetHandle>;
     using VAssetHandle = AssetHandleTypes::into<std::variant>;
 
+    void setTexture(AssetID, const std::shared_ptr<gfx::Texture>&);
+    void removeTexture(AssetID);
+
     gfx::Device* m_device = nullptr;
 
     std::map<VAssetLocation, AssetID> m_registeredAssets;
     std::map<std::filesystem::path, std::weak_ptr<AssetContainer>> m_assetContainers;
     std::map<AssetID, VAssetHandle> m_assetHandles;
+    std::weak_ptr<TextureTable> m_textureTable;
+
+    mutable std::mutex m_assetContainersMutex;
 
 public:
     AssetManager& operator=(const AssetManager&) = delete;
@@ -188,7 +209,7 @@ AssetID AssetManager::registerAsset(std::optional<AssetID> assetId, std::string_
 }
 
 template<ManagableAsset T>
-std::shared_future<std::shared_ptr<T>> AssetManager::loadAsset(AssetID assetId, gfx::CommandBufferPool* a_commandBufferPool)
+std::shared_future<std::shared_ptr<T>> AssetManager::loadAsset(AssetID assetId)
 {
     assert(isValidAssetId(assetId));
     assert(assetTypeIs<T>(assetId));
@@ -197,43 +218,38 @@ std::shared_future<std::shared_ptr<T>> AssetManager::loadAsset(AssetID assetId, 
 
     std::future<void> dependentAssetsFuture;
     if (handle.dependentAssets.empty() == false)
-        dependentAssetsFuture = loadAssets(handle.dependentAssets, nullptr);
+        dependentAssetsFuture = loadAssets(handle.dependentAssets);
 
     handle.loadCount++;
-
-    if (handle.future.valid() == false)
+    auto expected = LoadStatus::unloaded;
+    if (handle.loadStatus.compare_exchange_strong(expected, LoadStatus::loading))
     {
-        std::unique_ptr<gfx::CommandBufferPool> localCommandBufferPool;
-        gfx::CommandBufferPool* commandBufferPool = nullptr;
-
-        if (a_commandBufferPool)
-            commandBufferPool = a_commandBufferPool;
-        else {
-            localCommandBufferPool = m_device->newCommandBufferPool();
-            assert(localCommandBufferPool);
-            commandBufferPool = localCommandBufferPool.get();
-        }
-
-        std::shared_ptr<gfx::CommandBuffer> commandBuffer = commandBufferPool->get();
-        assert(commandBuffer);
+        assert(handle.loadCount == 1);
+        assert(handle.future.valid() == false);
+        assert(handle.voidFuture.valid() == false);
 
         std::promise<void> promise;
         handle.voidFuture = promise.get_future().share();
-        handle.future = std::async(std::launch::async, [
-            &loader=handle.loader,
-            device=m_device,
-            commandBuffer=std::move(commandBuffer),
-            promise=std::move(promise),
-            dependentAssetsFuture=std::move(dependentAssetsFuture)] mutable -> std::shared_ptr<T>
-        {
+        handle.future = std::async(std::launch::async, [this, assetId, &handle, promise=std::move(promise), dependentAssetsFuture=std::move(dependentAssetsFuture)] mutable -> std::shared_ptr<T> {
             try {
-                std::shared_ptr<T> asset = loader.load(*commandBuffer);
-                device->submitCommandBuffers(commandBuffer);
+                std::unique_ptr<gfx::CommandBufferPool> commandBufferPool = m_device->newCommandBufferPool();
+                assert(commandBufferPool);
+                std::shared_ptr<gfx::CommandBuffer> commandBuffer = commandBufferPool->get();
+                assert(commandBuffer);
+
+                std::shared_ptr<T> asset = handle.loader.load(*commandBuffer);
+                m_device->submitCommandBuffers(commandBuffer);
+                if constexpr (std::same_as<T, gfx::Texture>)
+                    setTexture(assetId, asset);
+                else
+                    (void)assetId;
                 promise.set_value();
                 if (dependentAssetsFuture.valid())
                     dependentAssetsFuture.get();
+                handle.loadStatus.store(LoadStatus::loaded);
                 return asset;
             } catch (...) {
+                handle.loadStatus.store(LoadStatus::error);
                 promise.set_exception(std::current_exception());
                 throw;
             }
@@ -243,22 +259,11 @@ std::shared_future<std::shared_ptr<T>> AssetManager::loadAsset(AssetID assetId, 
     return handle.future;
 }
 
-std::future<void> AssetManager::loadAssets(const AssetIdRange auto& assetIds, gfx::CommandBufferPool* a_commandBufferPool)
+std::future<void> AssetManager::loadAssets(const AssetIdRange auto& assetIds)
 {
     assert(std::ranges::all_of(assetIds, [this](AssetID assetId) { return isValidAssetId(assetId); }));
 
-    std::unique_ptr<gfx::CommandBufferPool> localCommandBufferPool;
-    gfx::CommandBufferPool* commandBufferPool = nullptr;
-
-    if (a_commandBufferPool)
-        commandBufferPool = a_commandBufferPool;
-    else {
-        localCommandBufferPool = m_device->newCommandBufferPool();
-        assert(localCommandBufferPool);
-        commandBufferPool = localCommandBufferPool.get();
-    }
-
-    auto futures = assetIds | std::views::transform([&](AssetID id) -> std::shared_future<void> { return loadAsset(id, commandBufferPool); });
+    auto futures = assetIds | std::views::transform([&](AssetID id) -> std::shared_future<void> { return loadAsset(id); });
 
     return std::async(std::launch::async, [futures=futures|std::ranges::to<std::vector>()] mutable {
         for (auto& future : futures)
@@ -266,23 +271,12 @@ std::future<void> AssetManager::loadAssets(const AssetIdRange auto& assetIds, gf
     });
 }
 
-void AssetManager::loadAssetsDetached(const AssetIdRange auto& assetIds, gfx::CommandBufferPool* a_commandBufferPool)
+void AssetManager::loadAssetsDetached(const AssetIdRange auto& assetIds)
 {
     assert(std::ranges::all_of(assetIds, [this](AssetID assetId) { return isValidAssetId(assetId); }));
 
-    std::unique_ptr<gfx::CommandBufferPool> localCommandBufferPool;
-    gfx::CommandBufferPool* commandBufferPool = nullptr;
-
-    if (a_commandBufferPool)
-        commandBufferPool = a_commandBufferPool;
-    else {
-        localCommandBufferPool = m_device->newCommandBufferPool();
-        assert(localCommandBufferPool);
-        commandBufferPool = localCommandBufferPool.get();
-    }
-
     for(AssetID id : assetIds)
-        loadAsset(id, commandBufferPool);
+        loadAsset(id);
 }
 
 void AssetManager::unloadAssets(const AssetIdRange auto& assetIds)
@@ -320,8 +314,8 @@ bool AssetManager::areAssetsLoaded(const AssetIdRange auto& assetIds) const
     return std::ranges::all_of(assetIds
         | std::views::transform([&](AssetID id) -> const VAssetHandle& { return m_assetHandles.at(id); })
         | std::views::transform([&](const VAssetHandle& vHandle){
-            return std::visit([&]<ManagableAsset T>(const AssetHandle<T>& handle) {
-                return handle.isLoaded();
+            return std::visit([]<ManagableAsset T>(const AssetHandle<T>& handle) {
+                return handle.future.valid() && handle.future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
             }, vHandle);
         })
     );

@@ -15,11 +15,16 @@
 #include "Game-Engine/Scene.hpp"
 #include "Game-Engine/ScriptLibrary.hpp"
 #include "Game-Engine/TextureAssetLoader.hpp"
+#include "../src/TextureTable.hpp"
 
 #include <Graphics/Buffer.hpp>
 #include <Graphics/CommandBuffer.hpp>
 #include <Graphics/CommandBufferPool.hpp>
 #include <Graphics/Device.hpp>
+#include <Graphics/ParameterBlock.hpp>
+#include <Graphics/ParameterBlockLayout.hpp>
+#include <Graphics/ParameterBlockPool.hpp>
+#include <Graphics/Sampler.hpp>
 #include <Graphics/Texture.hpp>
 
 #include <array>
@@ -30,6 +35,7 @@
 #include <fstream>
 #include <future>
 #include <initializer_list>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <set>
@@ -44,6 +50,8 @@ namespace GE_tests
 
 namespace
 {
+
+constexpr uint32_t TEXTURE_TABLE_CAPACITY = 4096;
 
 class MockBuffer final : public gfx::Buffer
 {
@@ -95,6 +103,52 @@ public:
 
 private:
     Descriptor m_desc;
+};
+
+class TestSampler final : public gfx::Sampler
+{
+};
+
+class TestParameterBlockLayout final : public gfx::ParameterBlockLayout
+{
+public:
+    explicit TestParameterBlockLayout(Descriptor desc)
+        : m_desc(std::move(desc))
+    {
+    }
+
+    const std::vector<gfx::ParameterBlockBinding>& bindings() const override { return m_desc.bindings; }
+
+private:
+    Descriptor m_desc;
+};
+
+class MockParameterBlock : public gfx::ParameterBlock
+{
+public:
+    MOCK_METHOD(std::shared_ptr<gfx::ParameterBlockLayout>, layout, (), (const, override));
+    MOCK_METHOD(void, setBinding, (uint32_t, (const std::shared_ptr<gfx::Buffer>&)), (override));
+    MOCK_METHOD(void, setBinding, (uint32_t, (const std::shared_ptr<gfx::Texture>&)), (override));
+    MOCK_METHOD(void, setBinding, (uint32_t, uint32_t, (const std::shared_ptr<gfx::Texture>&)), (override));
+    MOCK_METHOD(void, setBinding, (uint32_t, uint32_t, std::span<const std::shared_ptr<gfx::Texture>>), (override));
+    MOCK_METHOD(void, setBinding, (uint32_t, (const std::shared_ptr<gfx::Sampler>&)), (override));
+    MOCK_METHOD(void, clearBinding, (uint32_t, uint32_t), (override));
+    MOCK_METHOD(void, clearBinding, (uint32_t, uint32_t, uint32_t), (override));
+};
+
+class TestParameterBlockPool final : public gfx::ParameterBlockPool
+{
+public:
+    explicit TestParameterBlockPool(std::shared_ptr<gfx::ParameterBlock> parameterBlock)
+        : m_parameterBlock(std::move(parameterBlock))
+    {
+    }
+
+    std::shared_ptr<gfx::ParameterBlock> get(const std::shared_ptr<gfx::ParameterBlockLayout>&) override { return m_parameterBlock; }
+    void reset() override {}
+
+private:
+    std::shared_ptr<gfx::ParameterBlock> m_parameterBlock;
 };
 
 class MockCommandBuffer : public gfx::CommandBuffer
@@ -157,9 +211,20 @@ class AssetManagerMockDeviceTest : public ::testing::Test
 {
 protected:
     AssetManagerMockDeviceTest()
-        : m_commandBuffer(std::make_shared<testing::NiceMock<MockCommandBuffer>>())
+        : m_textureParameterBlock(std::make_shared<testing::NiceMock<MockParameterBlock>>())
+        , m_commandBuffer(std::make_shared<testing::NiceMock<MockCommandBuffer>>())
     {
         ON_CALL(m_device, backend()).WillByDefault(testing::Return(gfx::Backend::metal));
+        ON_CALL(m_device, newParameterBlockLayout(testing::_)).WillByDefault([](const gfx::ParameterBlockLayout::Descriptor& desc) {
+            return std::make_unique<TestParameterBlockLayout>(desc);
+        });
+        ON_CALL(m_device, newParameterBlockPool(testing::_)).WillByDefault([this](const gfx::ParameterBlockPool::Descriptor& desc) {
+            m_parameterBlockPoolDescriptors.push_back(desc);
+            return std::make_unique<TestParameterBlockPool>(m_textureParameterBlock);
+        });
+        ON_CALL(m_device, newSampler(testing::_)).WillByDefault([](const gfx::Sampler::Descriptor&) {
+            return std::make_unique<TestSampler>();
+        });
         ON_CALL(m_device, newBuffer(testing::_)).WillByDefault([](const gfx::Buffer::Descriptor& desc) {
             return std::make_unique<MockBuffer>(desc);
         });
@@ -177,7 +242,40 @@ protected:
     }
 
     testing::NiceMock<MockDevice> m_device;
+    std::shared_ptr<testing::NiceMock<MockParameterBlock>> m_textureParameterBlock;
+    std::shared_ptr<gfx::ParameterBlockLayout> m_textureParameterBlockLayout;
+    std::vector<gfx::ParameterBlockPool::Descriptor> m_parameterBlockPoolDescriptors;
     std::shared_ptr<testing::NiceMock<MockCommandBuffer>> m_commandBuffer;
+
+    std::shared_ptr<GE::TextureTable> makeTextureTable()
+    {
+        m_textureParameterBlockLayout = m_device.newParameterBlockLayout({
+            .bindings = {
+                { .type = gfx::BindingType::sampler,        .usages = gfx::BindingUsage::fragmentRead },
+                { .type = gfx::BindingType::sampledTexture, .usages = gfx::BindingUsage::fragmentRead, .count = TEXTURE_TABLE_CAPACITY },
+            }
+        });
+        ON_CALL(*m_textureParameterBlock, layout()).WillByDefault(testing::Return(m_textureParameterBlockLayout));
+
+        std::unique_ptr<gfx::ParameterBlockPool> textureTableBlockPool = m_device.newParameterBlockPool({
+            .maxBindingCount = {
+                { gfx::BindingType::sampler, 1 },
+                { gfx::BindingType::sampledTexture, TEXTURE_TABLE_CAPACITY },
+            },
+            .updateAfterBind = true
+        });
+        std::shared_ptr<gfx::ParameterBlock> textureTableBlock = textureTableBlockPool->get(m_textureParameterBlockLayout);
+        textureTableBlock->setBinding(0, std::shared_ptr<gfx::Sampler>(m_device.newSampler(gfx::Sampler::Descriptor{})));
+
+        return std::make_shared<GE::TextureTable>(textureTableBlock.get(), 1);
+    }
+
+    std::shared_ptr<GE::TextureTable> attachTextureTable(GE::AssetManager& assetManager)
+    {
+        std::shared_ptr<GE::TextureTable> textureTable = makeTextureTable();
+        assetManager.attachTextureTable(textureTable);
+        return textureTable;
+    }
 };
 
 GE::Scene::Descriptor makeSceneDescriptor(
@@ -398,6 +496,222 @@ TEST_F(AssetManagerMockDeviceTest, reportsTextureLoadedStateAndMetadata)
     EXPECT_EQ(assetManager.assetLoadCount(assetId), 0u);
 }
 
+TEST_F(AssetManagerMockDeviceTest, createsTextureParameterBlockTable)
+{
+    EXPECT_CALL(*m_textureParameterBlock, setBinding(0u, testing::An<const std::shared_ptr<gfx::Sampler>&>()));
+
+    const std::shared_ptr<GE::TextureTable> textureTable = makeTextureTable();
+
+    ASSERT_NE(textureTable, nullptr);
+    const std::shared_ptr<gfx::ParameterBlockLayout> layout = m_textureParameterBlockLayout;
+    ASSERT_NE(layout, nullptr);
+    ASSERT_EQ(layout->bindings().size(), 2u);
+    EXPECT_EQ(layout->bindings().at(0).type, gfx::BindingType::sampler);
+    EXPECT_EQ(layout->bindings().at(0).usages, gfx::BindingUsage::fragmentRead);
+    EXPECT_EQ(layout->bindings().at(0).count, 1u);
+    EXPECT_EQ(layout->bindings().at(1).type, gfx::BindingType::sampledTexture);
+    EXPECT_EQ(layout->bindings().at(1).usages, gfx::BindingUsage::fragmentRead);
+    EXPECT_EQ(layout->bindings().at(1).count, TEXTURE_TABLE_CAPACITY);
+
+    ASSERT_EQ(m_parameterBlockPoolDescriptors.size(), 1u);
+    EXPECT_TRUE(m_parameterBlockPoolDescriptors.front().updateAfterBind);
+    EXPECT_THAT(
+        m_parameterBlockPoolDescriptors.front().maxBindingCount,
+        testing::ElementsAre(
+            std::pair<const gfx::BindingType, uint32_t>{gfx::BindingType::sampledTexture, TEXTURE_TABLE_CAPACITY},
+            std::pair<const gfx::BindingType, uint32_t>{gfx::BindingType::sampler, 1u}
+        )
+    );
+}
+
+TEST_F(AssetManagerMockDeviceTest, loadingTextureAssignsTextureTableIndex)
+{
+    const std::filesystem::path texturePath = dummyTexturePath();
+    ASSERT_TRUE(std::filesystem::is_regular_file(texturePath));
+
+    GE::AssetManager assetManager(&m_device);
+    const GE::AssetID assetId = assetManager.registerAsset<gfx::Texture>(texturePath.stem().string(), texturePath);
+    const std::shared_ptr<GE::TextureTable> textureTable = attachTextureTable(assetManager);
+
+    uint32_t boundIndex = std::numeric_limits<uint32_t>::max();
+    std::shared_ptr<gfx::Texture> boundTexture;
+    EXPECT_CALL(*m_textureParameterBlock, setBinding(1u, testing::_, testing::An<const std::shared_ptr<gfx::Texture>&>()))
+        .WillOnce([&](uint32_t, uint32_t textureIndex, const std::shared_ptr<gfx::Texture>& texture) {
+            boundIndex = textureIndex;
+            boundTexture = texture;
+        });
+
+    const std::shared_ptr<gfx::Texture> texture = assetManager.loadAsset<gfx::Texture>(assetId).get();
+
+    ASSERT_NE(texture, nullptr);
+    EXPECT_EQ(boundTexture, texture);
+    EXPECT_EQ(textureTable->textureIndex(assetId), boundIndex);
+
+    assetManager.unloadAsset(assetId);
+}
+
+TEST_F(AssetManagerMockDeviceTest, unloadingTextureClearsTextureTableIndex)
+{
+    const std::filesystem::path texturePath = dummyTexturePath();
+    ASSERT_TRUE(std::filesystem::is_regular_file(texturePath));
+
+    GE::AssetManager assetManager(&m_device);
+    const GE::AssetID assetId = assetManager.registerAsset<gfx::Texture>(texturePath.stem().string(), texturePath);
+    const std::shared_ptr<GE::TextureTable> textureTable = attachTextureTable(assetManager);
+
+    uint32_t boundIndex = std::numeric_limits<uint32_t>::max();
+    EXPECT_CALL(*m_textureParameterBlock, setBinding(1u, testing::_, testing::An<const std::shared_ptr<gfx::Texture>&>()))
+        .WillOnce([&](uint32_t, uint32_t textureIndex, const std::shared_ptr<gfx::Texture>&) {
+            boundIndex = textureIndex;
+        });
+
+    ASSERT_NE(assetManager.loadAsset<gfx::Texture>(assetId).get(), nullptr);
+    ASSERT_EQ(textureTable->textureIndex(assetId), boundIndex);
+
+    EXPECT_CALL(*m_textureParameterBlock, clearBinding(1u, boundIndex));
+    assetManager.unloadAsset(assetId);
+
+    #ifndef NDEBUG
+    EXPECT_DEATH({
+        [[maybe_unused]] const uint32_t textureIndex = textureTable->textureIndex(assetId);
+    }, "");
+    #endif
+}
+
+TEST_F(AssetManagerMockDeviceTest, failedTextureLoadCanUnloadWithoutClearingTextureTableIndex)
+{
+    const std::array<std::byte, 4> invalidBytes = {
+        std::byte{1}, std::byte{2}, std::byte{3}, std::byte{4}
+    };
+
+    GE::AssetManager assetManager(&m_device);
+    const std::shared_ptr<GE::TextureTable> textureTable = attachTextureTable(assetManager);
+    const GE::AssetID assetId = assetManager.registerAsset<gfx::Texture>(
+        std::nullopt,
+        "invalid_texture",
+        std::nullopt,
+        std::array<GE::AssetID, 0>{},
+        GE::AssetLoader<gfx::Texture>(&m_device, &assetManager, std::span<const std::byte>(invalidBytes))
+    );
+
+    EXPECT_ANY_THROW(assetManager.loadAsset<gfx::Texture>(assetId).get());
+    EXPECT_CALL(*m_textureParameterBlock, clearBinding(testing::_, testing::_)).Times(0);
+    assetManager.unloadAsset(assetId);
+}
+
+TEST_F(AssetManagerMockDeviceTest, attachingTextureTableFillsAlreadyLoadedTextures)
+{
+    const std::filesystem::path texturePath = dummyTexturePath();
+    ASSERT_TRUE(std::filesystem::is_regular_file(texturePath));
+
+    GE::AssetManager assetManager(&m_device);
+    const GE::AssetID assetId = assetManager.registerAsset<gfx::Texture>(texturePath.stem().string(), texturePath);
+
+    const std::shared_ptr<gfx::Texture> texture = assetManager.loadAsset<gfx::Texture>(assetId).get();
+    ASSERT_NE(texture, nullptr);
+
+    const std::shared_ptr<GE::TextureTable> textureTable = makeTextureTable();
+    uint32_t boundIndex = std::numeric_limits<uint32_t>::max();
+    std::shared_ptr<gfx::Texture> boundTexture;
+    EXPECT_CALL(*m_textureParameterBlock, setBinding(1u, testing::_, testing::An<const std::shared_ptr<gfx::Texture>&>()))
+        .WillOnce([&](uint32_t, uint32_t textureIndex, const std::shared_ptr<gfx::Texture>& bound) {
+            boundIndex = textureIndex;
+            boundTexture = bound;
+        });
+
+    assetManager.attachTextureTable(textureTable);
+
+    EXPECT_EQ(boundTexture, texture);
+    EXPECT_EQ(textureTable->textureIndex(assetId), boundIndex);
+
+    assetManager.unloadAsset(assetId);
+}
+
+TEST_F(AssetManagerMockDeviceTest, expiredTextureTableIsNotWrittenAfterTextureLoad)
+{
+    const std::filesystem::path texturePath = dummyTexturePath();
+    ASSERT_TRUE(std::filesystem::is_regular_file(texturePath));
+
+    GE::AssetManager assetManager(&m_device);
+    const GE::AssetID assetId = assetManager.registerAsset<gfx::Texture>(texturePath.stem().string(), texturePath);
+
+    {
+        const std::shared_ptr<GE::TextureTable> textureTable = attachTextureTable(assetManager);
+        ASSERT_NE(textureTable, nullptr);
+    }
+
+    EXPECT_CALL(*m_textureParameterBlock, setBinding(1u, testing::_, testing::An<const std::shared_ptr<gfx::Texture>&>()))
+        .Times(0);
+    EXPECT_CALL(*m_textureParameterBlock, clearBinding(testing::_, testing::_)).Times(0);
+
+    ASSERT_NE(assetManager.loadAsset<gfx::Texture>(assetId).get(), nullptr);
+    assetManager.unloadAsset(assetId);
+}
+
+TEST_F(AssetManagerMockDeviceTest, reloadingTextureCanReuseFreedTextureTableIndex)
+{
+    const std::filesystem::path texturePath = dummyTexturePath();
+    ASSERT_TRUE(std::filesystem::is_regular_file(texturePath));
+
+    GE::AssetManager assetManager(&m_device);
+    const GE::AssetID assetId = assetManager.registerAsset<gfx::Texture>(texturePath.stem().string(), texturePath);
+    const std::shared_ptr<GE::TextureTable> textureTable = attachTextureTable(assetManager);
+
+    std::vector<uint32_t> boundIndices;
+    EXPECT_CALL(*m_textureParameterBlock, setBinding(1u, testing::_, testing::An<const std::shared_ptr<gfx::Texture>&>()))
+        .Times(2)
+        .WillRepeatedly([&](uint32_t, uint32_t textureIndex, const std::shared_ptr<gfx::Texture>&) {
+            boundIndices.push_back(textureIndex);
+        });
+
+    ASSERT_NE(assetManager.loadAsset<gfx::Texture>(assetId).get(), nullptr);
+    ASSERT_EQ(boundIndices.size(), 1u);
+    const uint32_t firstIndex = boundIndices.at(0);
+
+    EXPECT_CALL(*m_textureParameterBlock, clearBinding(1u, firstIndex)).RetiresOnSaturation();
+    assetManager.unloadAsset(assetId);
+
+    ASSERT_NE(assetManager.loadAsset<gfx::Texture>(assetId).get(), nullptr);
+    ASSERT_EQ(boundIndices.size(), 2u);
+    EXPECT_EQ(boundIndices.at(1), firstIndex);
+}
+
+TEST_F(AssetManagerMockDeviceTest, loadedTexturesUseDifferentTextureTableIndices)
+{
+    const std::array<std::byte, 8> rgbaBytes = {
+        std::byte{255}, std::byte{0}, std::byte{0}, std::byte{255},
+        std::byte{0}, std::byte{255}, std::byte{0}, std::byte{255}
+    };
+
+    GE::AssetManager assetManager(&m_device);
+    const std::shared_ptr<GE::TextureTable> textureTable = attachTextureTable(assetManager);
+    const GE::AssetID firstId = assetManager.registerAsset<gfx::Texture>(
+        std::nullopt,
+        "first_texture",
+        std::nullopt,
+        std::array<GE::AssetID, 0>{},
+        GE::AssetLoader<gfx::Texture>(&m_device, &assetManager, rgbaBytes.data(), 2, 1)
+    );
+    const GE::AssetID secondId = assetManager.registerAsset<gfx::Texture>(
+        std::nullopt,
+        "second_texture",
+        std::nullopt,
+        std::array<GE::AssetID, 0>{},
+        GE::AssetLoader<gfx::Texture>(&m_device, &assetManager, rgbaBytes.data(), 2, 1)
+    );
+
+    EXPECT_CALL(*m_textureParameterBlock, setBinding(1u, testing::_, testing::An<const std::shared_ptr<gfx::Texture>&>()))
+        .Times(2);
+
+    ASSERT_NE(assetManager.loadAsset<gfx::Texture>(firstId).get(), nullptr);
+    ASSERT_NE(assetManager.loadAsset<gfx::Texture>(secondId).get(), nullptr);
+
+    EXPECT_NE(textureTable->textureIndex(firstId), textureTable->textureIndex(secondId));
+
+    assetManager.unloadAsset(secondId);
+    assetManager.unloadAsset(firstId);
+}
+
 TEST_F(AssetManagerMockDeviceTest, reportsAssetIdsAndTypesForDebugInspection)
 {
     const std::filesystem::path texturePath = dummyTexturePath();
@@ -555,27 +869,6 @@ TEST_F(AssetManagerMockDeviceTest, loadAssetsLoadsEveryAssetInTheRange)
     EXPECT_EQ(assetManager.assetLoadCount(textureAssetId), 1u);
 
     assetManager.unloadAssets(assetIds);
-}
-
-TEST_F(AssetManagerMockDeviceTest, loadAssetAcceptsProvidedCommandBufferPool)
-{
-    const std::filesystem::path texturePath = dummyTexturePath();
-    ASSERT_TRUE(std::filesystem::is_regular_file(texturePath));
-
-    GE::AssetManager assetManager(&m_device);
-    const GE::AssetID textureAssetId = assetManager.registerAsset<gfx::Texture>(texturePath.stem().string(), texturePath);
-    testing::NiceMock<MockCommandBufferPool> commandBufferPool;
-    ON_CALL(commandBufferPool, get()).WillByDefault(testing::Return(m_commandBuffer));
-
-    EXPECT_CALL(m_device, newCommandBufferPool()).Times(0);
-    EXPECT_CALL(commandBufferPool, get()).Times(1);
-
-    ASSERT_NE(assetManager.loadAsset<gfx::Texture>(textureAssetId, &commandBufferPool).get(), nullptr);
-    ASSERT_NE(assetManager.loadAsset<gfx::Texture>(textureAssetId, &commandBufferPool).get(), nullptr);
-    EXPECT_EQ(assetManager.assetLoadCount(textureAssetId), 2u);
-
-    assetManager.unloadAsset(textureAssetId);
-    assetManager.unloadAsset(textureAssetId);
 }
 
 TEST_F(AssetManagerMockDeviceTest, meshAssetLoadsFromFileAndPreservesPathMetadata)

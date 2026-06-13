@@ -14,6 +14,7 @@
 #include "Game-Engine/Mesh.hpp"
 #include "Game-Engine/MeshAssetLoader.hpp"
 #include "Graphics/Texture.hpp"
+#include "TextureTable.hpp"
 #include "fastgltf/types.hpp"
 
 #include <algorithm>
@@ -125,11 +126,11 @@ void AssetManager::importGltf(const std::filesystem::path& path)
     );
 }
 
-std::shared_future<void> AssetManager::loadAsset(AssetID assetId, gfx::CommandBufferPool* commandBufferPool)
+std::shared_future<void> AssetManager::loadAsset(AssetID assetId)
 {
     assert(isValidAssetId(assetId));
     return std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) -> std::shared_future<void> {
-        loadAsset<T>(assetId, commandBufferPool);
+        loadAsset<T>(assetId);
         return handle.voidFuture;
     },
     m_assetHandles.at(assetId));
@@ -149,8 +150,13 @@ void AssetManager::unloadAsset(AssetID assetId)
         handle.future.wait();
         handle.loadCount--;
         if (handle.loadCount == 0) {
+            if constexpr (std::same_as<T, gfx::Texture>) {
+                if (handle.loadStatus.load() == LoadStatus::loaded)
+                    removeTexture(assetId);
+            }
             handle.future = std::shared_future<std::shared_ptr<T>>();
             handle.voidFuture = std::shared_future<void>();
+            handle.loadStatus.store(LoadStatus::unloaded);
         }
         unloadAssets(handle.dependentAssets);
     },
@@ -215,6 +221,44 @@ uint32_t AssetManager::assetLoadCount(AssetID assetId) const
     }, vHandle);
 }
 
+void AssetManager::setTexture(AssetID assetId, const std::shared_ptr<gfx::Texture>& texture)
+{
+    assert(isValidAssetId(assetId));
+    assert(assetTypeIs<gfx::Texture>(assetId));
+    assert(texture);
+
+    if (std::shared_ptr<TextureTable> textureTable = m_textureTable.lock())
+        textureTable->addTexture(assetId, texture);
+}
+
+void AssetManager::removeTexture(AssetID assetId)
+{
+    assert(isValidAssetId(assetId));
+    assert(assetTypeIs<gfx::Texture>(assetId));
+
+    if (std::shared_ptr<TextureTable> textureTable = m_textureTable.lock())
+        textureTable->removeTexture(assetId);
+}
+
+void AssetManager::attachTextureTable(const std::shared_ptr<TextureTable>& textureTable)
+{
+    assert(textureTable);
+
+    m_textureTable = textureTable;
+
+    for (const auto& [assetId, vHandle] : m_assetHandles) {
+        std::visit([&]<ManagableAsset T>(const AssetHandle<T>& handle) {
+            if constexpr (std::same_as<T, gfx::Texture>) {
+                if (handle.loadCount == 0 || handle.future.valid() == false)
+                    return;
+                if (handle.future.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+                    return;
+                textureTable->addTexture(assetId, handle.future.get());
+            }
+        }, vHandle);
+    }
+}
+
 bool AssetManager::isRegistered(const VAssetLocation& location) const
 {
     return m_registeredAssets.contains(location);
@@ -231,18 +275,22 @@ bool AssetManager::isAssetLoaded(AssetID assetId) const
     const VAssetHandle& vHandle = m_assetHandles.at(assetId);
 
     return std::visit([]<ManagableAsset T>(const AssetHandle<T>& handle) -> bool {
-        return handle.future.valid() && handle.future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+        return handle.loadStatus.load() == LoadStatus::loaded;
     }, vHandle);
 }
 
 bool AssetManager::isAssetContainerLoaded(const std::filesystem::path& path) const
 {
+    std::lock_guard lock(m_assetContainersMutex);
+
     const auto it = m_assetContainers.find(path);
     return it != m_assetContainers.end() && it->second.expired() == false;
 }
 
 std::shared_ptr<AssetContainer> AssetManager::assetContainer(const std::filesystem::path& path)
 {
+    std::lock_guard lock(m_assetContainersMutex);
+
     if (auto it = m_assetContainers.find(path); it != m_assetContainers.end()) {
         if (std::shared_ptr<AssetContainer> container = it->second.lock())
             return container;

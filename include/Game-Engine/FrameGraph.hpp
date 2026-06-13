@@ -13,6 +13,8 @@
 #include "Game-Engine/Export.hpp"
 
 #include <Graphics/CommandBuffer.hpp>
+#include <Graphics/ParameterBlock.hpp>
+#include <Graphics/ParameterBlockLayout.hpp>
 #include <Graphics/ParameterBlockPool.hpp>
 #include <Graphics/Enums.hpp>
 #include <Graphics/Texture.hpp>
@@ -78,6 +80,7 @@ struct FramePassSetupContext
 struct FramePassExecuteContext
 {
     AssetManager& assetManager;
+    TextureTable& textureTable;
     gfx::CommandBuffer& commandBuffer;
     gfx::ParameterBlockPool& parameterBlockPool;
     std::map<std::string, std::shared_ptr<gfx::Texture>>& textureMap;
@@ -85,6 +88,7 @@ struct FramePassExecuteContext
 
     std::shared_ptr<gfx::ParameterBlockLayout> frameDataBlockLayout;
     std::shared_ptr<gfx::ParameterBlockLayout> materialBlockLayout;
+    std::shared_ptr<gfx::ParameterBlock> textureTableBlock;
     std::shared_ptr<gfx::GraphicsPipeline> gfxPipeline; // only one for now
 };
 
