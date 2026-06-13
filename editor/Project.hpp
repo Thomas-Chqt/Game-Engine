@@ -36,7 +36,7 @@ struct Project
     std::optional<std::filesystem::path> resourceDir;
     std::optional<std::filesystem::path> scriptLibPath;
 
-    std::vector<std::tuple<std::string, GE::VAssetLocation, GE::AssetID>> registeredAssets;
+    std::vector<std::tuple<std::string, GE::VAssetLocation, GE::AssetID, std::vector<GE::AssetID>>> registeredAssets;
 
     std::vector<std::pair<std::string, GE::VInput>> inputs;
 

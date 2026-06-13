@@ -59,17 +59,18 @@ struct convert<GE::VAssetLocation>
     }
 };
 
-Node convert<std::tuple<std::string, GE::VAssetLocation, GE::AssetID>>::encode(const std::tuple<std::string, GE::VAssetLocation, GE::AssetID>& rhs)
+Node convert<std::tuple<std::string, GE::VAssetLocation, GE::AssetID, std::vector<GE::AssetID>>>::encode(const std::tuple<std::string, GE::VAssetLocation, GE::AssetID, std::vector<GE::AssetID>>& rhs)
 {
     Node node;
-    auto& [name, location, id] = rhs;
+    auto& [name, location, id, dependentAssets] = rhs;
     node["name"] = name;
     node["location"] = location;
     node["id"] = id;
+    node["dependentAssets"] = dependentAssets;
     return node;
 }
 
-bool convert<std::tuple<std::string, GE::VAssetLocation, GE::AssetID>>::decode(const Node& node, std::tuple<std::string, GE::VAssetLocation, GE::AssetID>& rhs)
+bool convert<std::tuple<std::string, GE::VAssetLocation, GE::AssetID, std::vector<GE::AssetID>>>::decode(const Node& node, std::tuple<std::string, GE::VAssetLocation, GE::AssetID, std::vector<GE::AssetID>>& rhs)
 {
     if (!node.IsMap() || !node["name"] || !node["location"] || !node["id"])
         return false;
@@ -77,7 +78,8 @@ bool convert<std::tuple<std::string, GE::VAssetLocation, GE::AssetID>>::decode(c
     rhs = {
         node["name"].as<std::string>(),
         node["location"].as<GE::VAssetLocation>(),
-        node["id"].as<GE::AssetID>()
+        node["id"].as<GE::AssetID>(),
+        node["dependentAssets"] ? node["dependentAssets"].as<std::vector<GE::AssetID>>() : std::vector<GE::AssetID>{}
     };
     return true;
 }

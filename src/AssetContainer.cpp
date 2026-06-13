@@ -1,6 +1,7 @@
 #include "Game-Engine/AssetContainer.hpp"
 
 #include <fstream>
+#include <ios>
 #include <stdexcept>
 #include <utility>
 
@@ -18,9 +19,9 @@ std::vector<std::byte> readBinaryFile(const std::filesystem::path& path)
     if (!file)
         throw std::runtime_error("failed to open file: " + path.string());
 
-    const std::streamsize size = static_cast<std::streamsize>(std::filesystem::file_size(path));
-    std::vector<std::byte> bytes(static_cast<std::size_t>(size));
-    file.read(reinterpret_cast<char*>(bytes.data()), size); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+    const std::size_t size = std::filesystem::file_size(path);
+    std::vector<std::byte> bytes(size);
+    file.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(size)); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
     if (!file)
         throw std::runtime_error("failed to read file: " + path.string());
     return bytes;

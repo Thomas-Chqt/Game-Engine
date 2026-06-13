@@ -8,10 +8,10 @@ namespace YAML
 {
 
 template<>
-struct convert<std::tuple<std::string, GE::VAssetLocation, GE::AssetID>>
+struct convert<std::tuple<std::string, GE::VAssetLocation, GE::AssetID, std::vector<GE::AssetID>>>
 {
-    static Node encode(const std::tuple<std::string, GE::VAssetLocation, GE::AssetID>& rhs);
-    static bool decode(const Node& node, std::tuple<std::string, GE::VAssetLocation, GE::AssetID>& rhs);
+    static Node encode(const std::tuple<std::string, GE::VAssetLocation, GE::AssetID, std::vector<GE::AssetID>>& rhs);
+    static bool decode(const Node& node, std::tuple<std::string, GE::VAssetLocation, GE::AssetID, std::vector<GE::AssetID>>& rhs);
 };
 
 }

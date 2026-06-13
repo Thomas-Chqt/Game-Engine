@@ -154,12 +154,12 @@ void componentEditWidget<GE::MeshComponent>(GE::Entity entity, [[maybe_unused]] 
 {
     GE::MeshComponent& mesh = entity.get<GE::MeshComponent>();
 
-    if (ImGui::BeginCombo("Mesh##RegistredMesh", assetManager.assetName(mesh).c_str()))
+    if (ImGui::BeginCombo("Mesh##RegistredMesh", assetManager.assetName(mesh).data())) // NOLINT(bugprone-suspicious-stringview-data-usage)
     {
         for (const GE::AssetID& assetId : assetManager.assetIds() | std::views::filter([&](const GE::AssetID& id) { return assetManager.assetTypeIs<GE::Mesh>(id); }))
         {
             const bool is_selected = (assetId == mesh.id);
-            if (ImGui::Selectable(assetManager.assetName(assetId).c_str(), is_selected)) {
+            if (ImGui::Selectable(assetManager.assetName(assetId).data(), is_selected)) { // NOLINT(bugprone-suspicious-stringview-data-usage)
                 assetManager.unloadAsset(mesh.id);
                 mesh.id = assetId;
                 assetManager.loadAsset(mesh.id);

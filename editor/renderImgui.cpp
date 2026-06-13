@@ -88,6 +88,18 @@ void Editor::renderImgui()
             m_viewportSize = {newWidth, newHeight};
             rebuildFrameGraph();
         }
+
+        if (ImGui::BeginDragDropTarget())
+        {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("resource_dnd"); payload && payload->IsDelivery())
+            {
+                assert(payload->DataSize > 0);
+                std::filesystem::path path = std::string_view(static_cast<const char*>(payload->Data), static_cast<std::size_t>(payload->DataSize - 1));
+                if (path.extension() == ".gltf" || path.extension() == ".glb")
+                    assetManager().importGltf(path);
+            }
+            ImGui::EndDragDropTarget();
+        }
     }
     ImGui::End();
 

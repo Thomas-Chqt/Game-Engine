@@ -1,5 +1,6 @@
 #include "imgui_render.hpp"
 
+#include <cstddef>
 #include <imgui.h>
 
 namespace
@@ -9,10 +10,10 @@ struct AssetDebugRow
 {
     GE::AssetID assetId;
     std::string_view typeName;
-    std::string assetName;
+    std::string_view assetName;
     uint32_t loadCount;
     bool isLoaded;
-    uint32_t index;
+    std::size_t index;
 };
 
 std::string_view assetTypeName(const GE::AssetManager& assetManager, GE::AssetID assetId)
@@ -35,8 +36,8 @@ namespace GE_Editor
 
 void renderAssetManagerDebugWindow(GE::AssetManager& manager)
 {
-    const std::set<GE::AssetID> assetIds = manager.assetIds();
-    const std::set<std::filesystem::path> containerPaths = manager.assetContainerPaths();
+    auto assetIds = manager.assetIds();
+    auto containerPaths = manager.assetContainerPaths();
 
     std::map<std::filesystem::path, std::vector<AssetDebugRow>> assetsByContainer;
     std::vector<AssetDebugRow> builtInAssets;
@@ -66,7 +67,7 @@ void renderAssetManagerDebugWindow(GE::AssetManager& manager)
                        *assetLocation);
         }
         else
-            builtInAssets.push_back(std::move(row));
+            builtInAssets.push_back(row);
     }
 
     uint32_t loadedContainerCount = 0;
@@ -114,10 +115,10 @@ void renderAssetManagerDebugWindow(GE::AssetManager& manager)
             ImGui::TextUnformatted(asset.typeName.data()); // NOLINT(bugprone-suspicious-stringview-data-usage)
 
             ImGui::TableSetColumnIndex(2);
-            ImGui::TextUnformatted(asset.assetName.c_str());
+            ImGui::TextUnformatted(asset.assetName.data()); // NOLINT(bugprone-suspicious-stringview-data-usage)
 
             ImGui::TableSetColumnIndex(3);
-            ImGui::Text("%u", asset.index); // NOLINT(cppcoreguidelines-pro-type-vararg)
+            ImGui::Text("%zu", asset.index); // NOLINT(cppcoreguidelines-pro-type-vararg)
 
             ImGui::TableSetColumnIndex(4);
             ImGui::TextUnformatted(stateText.c_str());

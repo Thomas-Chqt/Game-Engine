@@ -13,15 +13,24 @@
 #include "Game-Engine/ManagableAsset.hpp"
 #include "Game-Engine/Mesh.hpp"
 #include "Game-Engine/MeshAssetLoader.hpp"
+#include "Graphics/Texture.hpp"
+#include "fastgltf/types.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cctype>
+#include <chrono>
+#include <cstddef>
+#include <filesystem>
+#include <format>
 #include <future>
-#include <mutex>
+#include <optional>
 #include <ranges>
+#include <set>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <variant>
 
 namespace GE
@@ -52,178 +61,188 @@ AssetManager::AssetManager(gfx::Device* device)
     assert(m_device != nullptr);
 
     const AssetID builtInCubeId = registerAsset<Mesh>(
+        BUILT_IN_CUBE_ID,
         "build_in_cube",
-        AssetLoader<Mesh>(m_device, this, BuiltInMesh::cube),
-        BUILT_IN_CUBE_ID
+        std::nullopt,
+        std::array<AssetID, 0>(),
+        AssetLoader<Mesh>(m_device, this, BuiltInMesh::cube)
     );
     assert(builtInCubeId == BUILT_IN_CUBE_ID);
 }
 
-AssetID AssetManager::registerAsset(std::string_view name, const VAssetLocation& location, std::optional<AssetID> assetId)
+void AssetManager::importGltf(const std::filesystem::path& path)
 {
-    std::lock_guard lock(m_registryMutex);
+    std::shared_ptr<AssetContainer> container = assetContainer(path);
+    auto* gltfContainer = dynamic_cast<GltfAssetContainer*>(container.get());
+    assert(gltfContainer);
 
-    #ifndef NDEBUG
-    const std::filesystem::path& containerPath = std::visit([](const auto& typedLocation) -> const std::filesystem::path& {
-        return typedLocation.containerPath;
-    }, location);
-    assert(std::filesystem::is_regular_file(containerPath));
-    if (const auto registeredAssetIt = m_registeredAssets.find(location); registeredAssetIt != m_registeredAssets.end()) {
-        const AssetID registeredAssetId = registeredAssetIt->second;
-        if (assetId.has_value())
-            assert(registeredAssetId == assetId.value());
-        assert(m_assetHandles.contains(registeredAssetId));
-        std::visit([&](const auto& typedLocation) {
-            using T = typename std::remove_cvref_t<decltype(typedLocation)>::AssetType;
-            const VAssetHandle& vHandle = m_assetHandles.at(registeredAssetId);
-            assert(std::holds_alternative<AssetHandle<T>>(vHandle));
-            const AssetHandle<T>& handle = std::get<AssetHandle<T>>(vHandle);
-            assert(handle.name() == name);
-            assert(handle.location() == location);
-        }, location);
-    }
-    else if (assetId.has_value()) {
-        assert(m_assetHandles.contains(assetId.value()) == false);
-    }
-    #endif
+    const fastgltf::Asset& asset = gltfContainer->asset();
+    if (asset.scenes.empty())
+        throw std::runtime_error(std::format("{}: failed to load glTF: no scene", path.string()));
+    const fastgltf::Scene& scene = asset.defaultScene ? asset.scenes[*asset.defaultScene] : asset.scenes.front();
 
-    auto [it, inserted] = m_registeredAssets.try_emplace(location);
-    if (inserted) {
-        it->second = std::visit([&]<typename T>(const AssetLocation<T>& typedLocation) {
-            return registerAssetHandle<T>(assetId, name, location, AssetLoader<T>(m_device, this, typedLocation));
-        }, location);
-    }
-    return it->second;
+    std::set<AssetID> dependentAssets;
+
+    auto registerDependentTexture = [&](const fastgltf::TextureInfo& textureInfo) {
+        fastgltf::Texture texure = asset.textures.at(textureInfo.textureIndex);
+        assert(texure.imageIndex.has_value());
+        std::string name = texure.name.empty() == false
+            ? std::string(texure.name)
+            : asset.images[*texure.imageIndex].name.empty() == false
+            ? std::string(asset.images[*texure.imageIndex].name)
+            : std::string(std::format("{}#texture{}", path.stem().string(), textureInfo.textureIndex));
+        dependentAssets.insert(registerAsset<gfx::Texture>(name, path, textureInfo.textureIndex));
+    };
+
+    auto processNode = [&](this auto&& self, const fastgltf::Node& node) -> void {
+        if (fastgltf::Optional<std::size_t> meshIndex = node.meshIndex) {
+            for (const fastgltf::Primitive& primitive : asset.meshes[*meshIndex].primitives) {
+                if (primitive.materialIndex.has_value() == false)
+                    continue;
+                const fastgltf::Material& material = asset.materials[*primitive.materialIndex];
+                if(material.pbrData.baseColorTexture.has_value())
+                    registerDependentTexture(material.pbrData.baseColorTexture.value());
+                if(material.pbrData.metallicRoughnessTexture.has_value())
+                    registerDependentTexture(material.pbrData.metallicRoughnessTexture.value());
+                if(material.normalTexture.has_value())
+                    registerDependentTexture(material.normalTexture.value());
+                if(material.emissiveTexture.has_value())
+                    registerDependentTexture(material.emissiveTexture.value());
+            }
+        }
+        for (const fastgltf::Node& childNode : node.children | std::views::transform([&](std::size_t i) -> fastgltf::Node { return asset.nodes[i]; }))
+            self(childNode);
+    };
+
+    for (const fastgltf::Node& node : scene.nodeIndices | std::views::transform([&](std::size_t i) -> fastgltf::Node { return asset.nodes[i]; }))
+        processNode(node);
+
+    registerAsset(
+        std::nullopt,
+        path.stem().string(),
+        VAssetLocation(AssetLocation<Mesh>{path, 0}),
+        dependentAssets | std::ranges::to<std::vector>()
+    );
 }
 
-std::shared_future<void> AssetManager::loadAsset(AssetID assetId)
+std::shared_future<void> AssetManager::loadAsset(AssetID assetId, gfx::CommandBufferPool* commandBufferPool)
 {
-    VAssetHandle& vHandle = [&]() -> VAssetHandle& {
-        std::scoped_lock lock(m_registryMutex);
-        assert(m_assetHandles.contains(assetId));
-        return m_assetHandles.at(assetId);
-    }();
-
+    assert(isValidAssetId(assetId));
     return std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) -> std::shared_future<void> {
-        return handle.loadVoid(m_device, nullptr);
-    }, vHandle);
+        loadAsset<T>(assetId, commandBufferPool);
+        return handle.voidFuture;
+    },
+    m_assetHandles.at(assetId));
 }
 
 void AssetManager::unloadAsset(AssetID assetId)
 {
-    VAssetHandle& vHandle = [&]() -> VAssetHandle& {
-        std::scoped_lock lock(m_registryMutex);
-        assert(m_assetHandles.contains(assetId));
-        return m_assetHandles.at(assetId);
-    }();
+    assert(isValidAssetId(assetId));
+    assert(std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) -> bool {
+        return handle.future.valid();
+    }, m_assetHandles.at(assetId)));
+    assert(std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) -> bool {
+        return handle.loadCount > 0;
+    }, m_assetHandles.at(assetId)));
 
     std::visit([&]<ManagableAsset T>(AssetHandle<T>& handle) {
-        handle.unload();
-    }, vHandle);
-}
-
-std::set<AssetID> AssetManager::assetIds() const
-{
-    std::lock_guard lock(m_registryMutex);
-    std::set<AssetID> assetIds;
-    for (const auto& [assetId, _] : m_assetHandles)
-        assetIds.insert(assetId);
-    return assetIds;
+        handle.future.wait();
+        handle.loadCount--;
+        if (handle.loadCount == 0) {
+            handle.future = std::shared_future<std::shared_ptr<T>>();
+            handle.voidFuture = std::shared_future<void>();
+        }
+        unloadAssets(handle.dependentAssets);
+    },
+    m_assetHandles.at(assetId));
 }
 
 std::set<std::filesystem::path> AssetManager::assetContainerPaths() const
 {
-    std::lock_guard lock(m_registryMutex);
-    std::set<std::filesystem::path> containerPaths;
-    for (const auto& [path, _] : m_assetContainers)
-        containerPaths.insert(path);
-    for (const auto& [location, _] : m_registeredAssets) {
-        std::visit([&](const auto& typedLocation) {
-            containerPaths.insert(typedLocation.containerPath);
-        }, location);
-    }
-    return containerPaths;
+    return m_registeredAssets
+        | std::views::keys
+        | std::views::transform([](const VAssetLocation& vLocation) -> const std::filesystem::path& {
+            return std::visit([]<typename T>(const AssetLocation<T>& location) -> const std::filesystem::path& {
+                return location.containerPath;
+            }, vLocation);
+        })
+        | std::ranges::to<std::set>();
 }
 
 AssetID AssetManager::assetId(const VAssetLocation& location) const
 {
-    std::scoped_lock lock(m_registryMutex);
-    assert(m_registeredAssets.contains(location));
+    assert(isRegistered(location));
     return m_registeredAssets.at(location);
 }
 
-std::string AssetManager::assetName(AssetID assetId) const
+std::string_view AssetManager::assetName(AssetID assetId) const
 {
-    const VAssetHandle& vHandle = [&]() -> const VAssetHandle& {
-        std::scoped_lock lock(m_registryMutex);
-        assert(m_assetHandles.contains(assetId));
-        return m_assetHandles.at(assetId);
-    }();
+    assert(isValidAssetId(assetId));
+    const VAssetHandle& vHandle = m_assetHandles.at(assetId);
 
-    return std::visit([]<ManagableAsset T>(const AssetHandle<T>& handle) -> std::string {
-        return handle.name();
+    return std::visit([]<ManagableAsset T>(const AssetHandle<T>& handle) -> std::string_view {
+        return handle.name;
+    }, vHandle);
+}
+
+std::span<const AssetID> AssetManager::assetDependencies(AssetID assetId) const
+{
+    assert(isValidAssetId(assetId));
+    const VAssetHandle& vHandle = m_assetHandles.at(assetId);
+
+    return std::visit([]<ManagableAsset T>(const AssetHandle<T>& handle) -> std::span<const AssetID> {
+        return handle.dependentAssets;
     }, vHandle);
 }
 
 std::optional<VAssetLocation> AssetManager::assetLocation(AssetID assetId) const
 {
-    const VAssetHandle& vHandle = [&]() -> const VAssetHandle& {
-        std::scoped_lock lock(m_registryMutex);
-        assert(m_assetHandles.contains(assetId));
-        return m_assetHandles.at(assetId);
-    }();
+    assert(isValidAssetId(assetId));
+    const VAssetHandle& vHandle = m_assetHandles.at(assetId);
 
     return std::visit([]<ManagableAsset T>(const AssetHandle<T>& handle) -> std::optional<VAssetLocation> {
-        return handle.location();
+        return handle.location;
     }, vHandle);
 }
 
 uint32_t AssetManager::assetLoadCount(AssetID assetId) const
 {
-    const VAssetHandle& vHandle = [&]() -> const VAssetHandle& {
-        std::scoped_lock lock(m_registryMutex);
-        assert(m_assetHandles.contains(assetId));
-        return m_assetHandles.at(assetId);
-    }();
+    assert(isValidAssetId(assetId));
+    const VAssetHandle& vHandle = m_assetHandles.at(assetId);
 
-    return std::visit([]<ManagableAsset T>(const AssetHandle<T>& handle) {
-        return handle.loadCount();
+    return std::visit([]<ManagableAsset T>(const AssetHandle<T>& handle) -> uint32_t {
+        return handle.loadCount;
     }, vHandle);
 }
 
 bool AssetManager::isRegistered(const VAssetLocation& location) const
 {
-    std::lock_guard lock(m_registryMutex);
     return m_registeredAssets.contains(location);
 }
 
 bool AssetManager::isValidAssetId(AssetID assetId) const
 {
-    std::lock_guard lock(m_registryMutex);
     return m_assetHandles.contains(assetId);
 }
 
 bool AssetManager::isAssetLoaded(AssetID assetId) const
 {
-    std::lock_guard lock(m_registryMutex);
-    assert(m_assetHandles.contains(assetId));
+    assert(isValidAssetId(assetId));
     const VAssetHandle& vHandle = m_assetHandles.at(assetId);
+
     return std::visit([]<ManagableAsset T>(const AssetHandle<T>& handle) -> bool {
-        return handle.isLoaded();
+        return handle.future.valid() && handle.future.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
     }, vHandle);
 }
 
 bool AssetManager::isAssetContainerLoaded(const std::filesystem::path& path) const
 {
-    std::lock_guard lock(m_registryMutex);
     const auto it = m_assetContainers.find(path);
     return it != m_assetContainers.end() && it->second.expired() == false;
 }
 
 std::shared_ptr<AssetContainer> AssetManager::assetContainer(const std::filesystem::path& path)
 {
-    std::lock_guard lock(m_registryMutex);
-
     if (auto it = m_assetContainers.find(path); it != m_assetContainers.end()) {
         if (std::shared_ptr<AssetContainer> container = it->second.lock())
             return container;

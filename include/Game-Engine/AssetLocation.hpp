@@ -12,7 +12,7 @@
 #include "Game-Engine/ManagableAsset.hpp"
 #include "Game-Engine/TypeList.hpp"
 
-#include <cstdint>
+#include <cstddef>
 #include <filesystem>
 #include <variant>
 
@@ -24,7 +24,7 @@ struct AssetLocation
 {
     using AssetType = T;
     std::filesystem::path containerPath;
-    uint32_t index = 0;
+    std::size_t index = 0;
 
     auto operator<=>(const AssetLocation&) const = default;
 };

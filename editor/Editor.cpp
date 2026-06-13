@@ -29,6 +29,7 @@
 
 #include <Graphics/Enums.hpp>
 
+#include <vector>
 #include <yaml-cpp/yaml.h>
 
 #include <filesystem>
@@ -151,8 +152,8 @@ void Editor::loadProject(Project&& project)
     m_resourceDir = std::move(project.resourceDir);
     m_scriptLibPath = std::move(project.scriptLibPath);
 
-    for (auto& [name, location, id] : project.registeredAssets)
-        assetManager().registerAsset(name, location, id);
+    for (auto& [name, location, id, dependentAssets] : project.registeredAssets)
+        assetManager().registerAsset(id, name, location, dependentAssets);
     m_gameInputs = project.inputs;
 
     m_sceneDescriptors = std::move(project.scenes);
@@ -178,20 +179,36 @@ void Editor::saveProject()
     if (m_editedScene)
         syncEditedScene();
 
+    std::vector<std::tuple<std::string, GE::VAssetLocation, GE::AssetID, std::vector<GE::AssetID>>> registeredAssets;
+
+    auto addRegisteredAsset = [&](this auto&& self, GE::AssetID id) -> void {
+        for (GE::AssetID childId : assetManager().assetDependencies(id))
+            self(childId);
+        registeredAssets.emplace_back(
+            std::string(assetManager().assetName(id)),
+            assetManager().assetLocation(id).value(),
+            id,
+            assetManager().assetDependencies(id) | std::ranges::to<std::vector>()
+        );
+    };
+
+    auto topAssetIds = m_sceneDescriptors
+        | std::views::transform([](const GE::Scene::Descriptor& desc) { return desc.ecsWorld | GE::const_ECSView<GE::MeshComponent>(); })
+        | std::views::join
+        | std::views::transform([](const auto& e){ return static_cast<GE::AssetID>(e.template get<0>()); })
+        | std::ranges::to<std::set>()
+        | std::views::filter([&](GE::AssetID id) -> bool { return assetManager().assetLocation(id).has_value(); });
+
+    for (GE::AssetID id : topAssetIds)
+        addRegisteredAsset(id);
+
     Project project{
         .name = m_projectName,
 
         .resourceDir = m_resourceDir,
         .scriptLibPath = m_scriptLibPath,
 
-        .registeredAssets = m_sceneDescriptors
-            | std::views::transform([](const GE::Scene::Descriptor& desc) { return desc.ecsWorld | GE::const_ECSView<GE::MeshComponent>(); })
-            | std::views::join
-            | std::views::transform([](const auto& e){ return static_cast<GE::AssetID>(e.template get<0>()); })
-            | std::ranges::to<std::set>()
-            | std::views::filter([&](GE::AssetID id) -> bool { return assetManager().assetLocation(id).has_value(); })
-            | std::views::transform([&](GE::AssetID id) { return std::make_tuple(assetManager().assetName(id), assetManager().assetLocation(id).value(), id); })
-            | std::ranges::to<std::vector>(),
+        .registeredAssets = std::move(registeredAssets),
 
         .inputs = m_gameInputs,
 
