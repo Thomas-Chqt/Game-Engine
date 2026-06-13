@@ -16,6 +16,7 @@
 #include "Game-Engine/Export.hpp"
 #include "Game-Engine/MeshAssetLoader.hpp" // IWYU pragma: keep
 #include "Game-Engine/TextureAssetLoader.hpp" // IWYU pragma: keep
+#include "Game-Engine/ThreadPool.hpp"
 
 #include <Graphics/CommandBuffer.hpp>
 #include <Graphics/CommandBufferPool.hpp>
@@ -63,7 +64,7 @@ public:
     AssetManager(const AssetManager&) = delete;
     AssetManager(AssetManager&&) = delete;
 
-    AssetManager(gfx::Device*);
+    AssetManager(gfx::Device*, ThreadPool*);
 
     void importGltf(const std::filesystem::path&);
 
@@ -151,6 +152,7 @@ private:
     void removeTexture(AssetID);
 
     gfx::Device* m_device = nullptr;
+    ThreadPool* m_threadPool = nullptr;
 
     std::map<VAssetLocation, AssetID> m_registeredAssets;
     std::map<std::filesystem::path, std::weak_ptr<AssetContainer>> m_assetContainers;
@@ -230,7 +232,7 @@ std::shared_future<std::shared_ptr<T>> AssetManager::loadAsset(AssetID assetId)
 
         std::promise<void> promise;
         handle.voidFuture = promise.get_future().share();
-        handle.future = std::async(std::launch::async, [this, assetId, &handle, promise=std::move(promise), dependentAssetsFuture=std::move(dependentAssetsFuture)] mutable -> std::shared_ptr<T> {
+        handle.future = m_threadPool->submit([this, assetId, &handle, promise=std::move(promise), dependentAssetsFuture=std::move(dependentAssetsFuture)] mutable -> std::shared_ptr<T> {
             try {
                 std::unique_ptr<gfx::CommandBufferPool> commandBufferPool = m_device->newCommandBufferPool();
                 assert(commandBufferPool);
@@ -253,7 +255,7 @@ std::shared_future<std::shared_ptr<T>> AssetManager::loadAsset(AssetID assetId)
                 promise.set_exception(std::current_exception());
                 throw;
             }
-        });
+        }).share();
     }
 
     return handle.future;
@@ -265,7 +267,7 @@ std::future<void> AssetManager::loadAssets(const AssetIdRange auto& assetIds)
 
     auto futures = assetIds | std::views::transform([&](AssetID id) -> std::shared_future<void> { return loadAsset(id); });
 
-    return std::async(std::launch::async, [futures=futures|std::ranges::to<std::vector>()] mutable {
+    return m_threadPool->submit([futures=futures|std::ranges::to<std::vector>()] mutable {
         for (auto& future : futures)
             future.get();
     });
