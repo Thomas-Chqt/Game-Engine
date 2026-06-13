@@ -156,7 +156,7 @@ FramePass FlatGeometryPassBuilder::build() const
             const MeshComponent& meshComponent = entity.get<MeshComponent>();
             if (!ctx.assetManager.isAssetLoaded(meshComponent))
                 continue;
-            const std::shared_ptr<Mesh>& loadedMesh = ctx.assetManager.getAsset<Mesh>(meshComponent.id);
+            std::shared_ptr<Mesh> loadedMesh = ctx.assetManager.getAsset<Mesh>(meshComponent.id);
 
             std::function<void(const SubMesh&, glm::mat4)> drawSubmesh = [&](const SubMesh& submesh, const glm::mat4& transform) {
                 glm::mat4 modelMatrix = transform * submesh.transform;

@@ -152,8 +152,8 @@ bool convert<GE_Editor::Project>::decode(const Node& node, GE_Editor::Project& r
     }
 
     rhs.registeredAssets = node["registeredAssets"]
-        ? node["registeredAssets"].as<std::vector<std::tuple<std::string, GE::VAssetLocation, GE::AssetID>>>()
-        : std::vector<std::tuple<std::string, GE::VAssetLocation, GE::AssetID>>{};
+        ? node["registeredAssets"].as<std::vector<std::tuple<std::string, GE::VAssetLocation, GE::AssetID, std::vector<GE::AssetID>>>>()
+        : std::vector<std::tuple<std::string, GE::VAssetLocation, GE::AssetID, std::vector<GE::AssetID>>>{};
 
     rhs.inputs = node["inputs"]
         ? node["inputs"].as<std::vector<std::pair<std::string, GE::VInput>>>()
