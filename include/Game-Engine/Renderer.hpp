@@ -13,6 +13,7 @@
 #include "Game-Engine/Export.hpp"
 #include "Game-Engine/FrameGraph.hpp"
 #include "Game-Engine/AssetManager.hpp"
+#include "Graphics/ParameterBlock.hpp"
 
 #include <Graphics/Device.hpp>
 #include <Graphics/Surface.hpp>
@@ -33,6 +34,8 @@ namespace GE
 {
 
 constexpr uint8_t maxFrameInFlight = 3;
+
+class TextureTable;
 
 class GE_API Renderer
 {
@@ -65,6 +68,9 @@ private:
     std::shared_ptr<gfx::ParameterBlockLayout> m_frameDataBlockLayout;
     std::shared_ptr<gfx::ParameterBlockLayout> m_materialBlockLayout;
     std::shared_ptr<gfx::GraphicsPipeline> m_gfxPipeline; // only one for now
+
+    std::shared_ptr<gfx::ParameterBlock> m_textureTableBlock;
+    std::shared_ptr<TextureTable> m_textureTable;
 
     std::unique_ptr<gfx::Swapchain> m_swapchain;
 

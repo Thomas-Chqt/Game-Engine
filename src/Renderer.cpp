@@ -10,6 +10,7 @@
 #include "Game-Engine/Renderer.hpp"
 #include "Game-Engine/FrameGraph.hpp"
 #include "Game-Engine/Mesh.hpp"
+#include "TextureTable.hpp"
 
 #include <Graphics/CommandBuffer.hpp>
 #include <Graphics/Drawable.hpp>
@@ -33,6 +34,13 @@
 namespace GE
 {
 
+namespace
+{
+
+constexpr uint32_t MAX_TEXTURES = 4096;
+
+}
+
 Renderer::Renderer(gfx::Device* device, AssetManager* assetManager, gfx::Surface* surface)
     : m_device(device)
     , m_assetManager(assetManager)
@@ -52,6 +60,13 @@ Renderer::Renderer(gfx::Device* device, AssetManager* assetManager, gfx::Surface
     m_materialBlockLayout = m_device->newParameterBlockLayout({
         .bindings = {
             { .type = gfx::BindingType::constantBuffer, .usages = gfx::BindingUsage::fragmentRead }
+        }
+    });
+
+    std::shared_ptr<gfx::ParameterBlockLayout> textureTablePBLayout = m_device->newParameterBlockLayout(gfx::ParameterBlockLayout::Descriptor{
+        .bindings = {
+            gfx::ParameterBlockBinding{ .type = gfx::BindingType::sampler,        .usages = gfx::BindingUsage::fragmentRead },
+            gfx::ParameterBlockBinding{ .type = gfx::BindingType::sampledTexture, .usages = gfx::BindingUsage::fragmentRead, .count = MAX_TEXTURES },
         }
     });
 
@@ -80,6 +95,19 @@ Renderer::Renderer(gfx::Device* device, AssetManager* assetManager, gfx::Surface
             m_materialBlockLayout
         }
     });
+
+    m_textureTableBlock = m_device->newParameterBlockPool(gfx::ParameterBlockPool::Descriptor{
+        .maxBindingCount = {
+            { gfx::BindingType::sampler, 1 },
+            { gfx::BindingType::sampledTexture, MAX_TEXTURES },
+        },
+        .updateAfterBind = true
+    })->get(textureTablePBLayout);
+
+    m_textureTableBlock->setBinding(0, std::shared_ptr<gfx::Sampler>(m_device->newSampler(gfx::Sampler::Descriptor{})));
+
+    m_textureTable = std::make_shared<TextureTable>(m_textureTableBlock.get(), 1);
+    m_assetManager->attachTextureTable(m_textureTable);
 
     for (auto& inFlightData : m_inFlightDatas)
     {
@@ -224,12 +252,14 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         {
             FramePassExecuteContext framePassContext = {
                 .assetManager = *m_assetManager,
+                .textureTable = *m_textureTable,
                 .commandBuffer = *commandBuffer,
                 .parameterBlockPool = *cfd.parameterBlockPool,
                 .textureMap = textureMap,
                 .bufferMap = bufferMap,
                 .frameDataBlockLayout = m_frameDataBlockLayout,
                 .materialBlockLayout = m_materialBlockLayout,
+                .textureTableBlock = m_textureTableBlock,
                 .gfxPipeline = m_gfxPipeline
             };
             framePass.execute(framePassContext);

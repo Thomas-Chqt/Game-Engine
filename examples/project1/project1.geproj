@@ -2,13 +2,104 @@ name: project1
 resourceDir: examples/project1/resources
 scriptLib: examples/project1/project1_scriptLib
 registeredAssets:
-  - name: cube
+  - name: chess_set_board_diff_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 1
+    id: 1
+    dependentAssets:
+      []
+  - name: chess_set_board_arm_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 2
+    id: 2
+    dependentAssets:
+      []
+  - name: chess_set_board_nor_gl_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 0
+    id: 3
+    dependentAssets:
+      []
+  - name: chess_set_pieces_black_diff_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 4
+    id: 4
+    dependentAssets:
+      []
+  - name: chess_set_pieces_black_arm_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 5
+    id: 5
+    dependentAssets:
+      []
+  - name: chess_set_pieces_black_nor_gl_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 3
+    id: 6
+    dependentAssets:
+      []
+  - name: chess_set_pieces_white_diff_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 7
+    id: 7
+    dependentAssets:
+      []
+  - name: chess_set_pieces_white_arm_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 8
+    id: 8
+    dependentAssets:
+      []
+  - name: chess_set_pieces_white_nor_gl_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 6
+    id: 9
+    dependentAssets:
+      []
+  - name: chess_set
     location:
       type: Mesh
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 0
-    id: 1
+    id: 10
+    dependentAssets:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+      - 9
 inputs:
   - name: player_jump
     input:
@@ -68,7 +159,7 @@ scenes:
                 z: 10
           - type: MeshComponent
             data:
-              id: 1
+              id: 10
       - entityId: 1
         components:
           - type: NameComponent
@@ -216,4 +307,4 @@ editorCamera:
   zNear: 0.1
 editedScene: default_scene
 selectedEntity: 0
-imguiSettings: "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1280,701\nCollapsed=0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][viewport]\nPos=0,19\nSize=1004,525\nCollapsed=0\nDockId=0x00000001,0\n\n[Window][Scene graph]\nPos=1006,19\nSize=274,273\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][Entity inspector]\nPos=1006,294\nSize=274,426\nCollapsed=0\nDockId=0x00000006,0\n\n[Window][Scenes]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,0\n\n[Window][Project properties]\nPos=371,108\nSize=537,504\nCollapsed=0\n\n[Window][Resources]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Window][Asset manager]\nPos=60,60\nSize=832,324\nCollapsed=0\n\n[Window][##MainMenuBar]\nPos=0,0\nSize=1280,19\nCollapsed=0\n\n[Table][0x816C4F30,5]\nRefScale=13\n\n[Table][0xEE864C8F,5]\nRefScale=13\n\n[Docking][Data]\nDockSpace     ID=0x08BD597D Window=0x1BBC0F80 Pos=0,19 Size=1280,701 Split=X\n  DockNode    ID=0x00000003 Parent=0x08BD597D SizeRef=1004,701 Split=Y\n    DockNode  ID=0x00000001 Parent=0x00000003 SizeRef=1280,525 CentralNode=1 Selected=0xF6034841\n    DockNode  ID=0x00000002 Parent=0x00000003 SizeRef=1280,174 Selected=0x30401527\n  DockNode    ID=0x00000004 Parent=0x08BD597D SizeRef=274,701 Split=Y Selected=0x848E2614\n    DockNode  ID=0x00000005 Parent=0x00000004 SizeRef=142,273 Selected=0x2C1AB1E4\n    DockNode  ID=0x00000006 Parent=0x00000004 SizeRef=142,426 Selected=0x848E2614\n\n"
+imguiSettings: "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1280,701\nCollapsed=0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][viewport]\nPos=0,19\nSize=1004,525\nCollapsed=0\nDockId=0x00000001,0\n\n[Window][Scene graph]\nPos=1006,19\nSize=274,273\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][Entity inspector]\nPos=1006,294\nSize=274,426\nCollapsed=0\nDockId=0x00000006,0\n\n[Window][Scenes]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,0\n\n[Window][Project properties]\nPos=371,108\nSize=537,504\nCollapsed=0\n\n[Window][Resources]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Window][Asset manager]\nPos=60,60\nSize=806,398\nCollapsed=0\n\n[Window][##MainMenuBar]\nPos=0,0\nSize=1280,19\nCollapsed=0\n\n[Table][0x816C4F30,5]\nRefScale=13\n\n[Table][0xEE864C8F,5]\nRefScale=13\n\n[Table][0x69E08589,5]\nRefScale=13\n\n[Docking][Data]\nDockSpace     ID=0x08BD597D Window=0x1BBC0F80 Pos=0,19 Size=1280,701 Split=X\n  DockNode    ID=0x00000003 Parent=0x08BD597D SizeRef=1004,701 Split=Y\n    DockNode  ID=0x00000001 Parent=0x00000003 SizeRef=1280,525 CentralNode=1 Selected=0xF6034841\n    DockNode  ID=0x00000002 Parent=0x00000003 SizeRef=1280,174 Selected=0x30401527\n  DockNode    ID=0x00000004 Parent=0x08BD597D SizeRef=274,701 Split=Y Selected=0x848E2614\n    DockNode  ID=0x00000005 Parent=0x00000004 SizeRef=142,273 Selected=0x2C1AB1E4\n    DockNode  ID=0x00000006 Parent=0x00000004 SizeRef=142,426 Selected=0x848E2614\n\n"
