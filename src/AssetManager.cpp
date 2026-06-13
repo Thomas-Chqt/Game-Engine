@@ -56,10 +56,12 @@ bool isImagePath(const std::filesystem::path& path)
 
 } // namespace
 
-AssetManager::AssetManager(gfx::Device* device)
+AssetManager::AssetManager(gfx::Device* device, ThreadPool* threadPool)
     : m_device(device)
+    , m_threadPool(threadPool)
 {
     assert(m_device != nullptr);
+    assert(m_threadPool != nullptr);
 
     const AssetID builtInCubeId = registerAsset<Mesh>(
         BUILT_IN_CUBE_ID,

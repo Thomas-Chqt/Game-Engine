@@ -17,6 +17,7 @@
 #include "Game-Engine/InputContext.hpp"
 #include "Game-Engine/Window.hpp"
 #include "Game-Engine/Renderer.hpp"
+#include "Game-Engine/ThreadPool.hpp"
 
 #include <Graphics/Instance.hpp>
 #include <Graphics/Device.hpp>
@@ -56,6 +57,7 @@ private:
     std::unique_ptr<Window> m_window = nullptr;
     std::unique_ptr<gfx::Device> m_device = nullptr;
     std::unique_ptr<void, std::function<void(void*)>> m_imguiGuard;
+    ThreadPool m_threadPool;
     std::unique_ptr<Renderer> m_renderer = nullptr;
     std::unique_ptr<AssetManager> m_assetManager = nullptr;
 

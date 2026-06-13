@@ -21,13 +21,16 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
+#include <thread>
 
 namespace GE
 {
 
 Application::Application()
+    : m_threadPool(std::max<std::size_t>(1, std::thread::hardware_concurrency()))
 {
     auto res = ::glfwInit();
     assert(res == GLFW_TRUE);
@@ -92,7 +95,7 @@ Application::Application()
         }
     };
 
-    m_assetManager = std::make_unique<AssetManager>(m_device.get());
+    m_assetManager = std::make_unique<AssetManager>(m_device.get(), &m_threadPool);
     m_renderer = std::make_unique<Renderer>(m_device.get(), m_assetManager.get(), m_window->surface());
 }
 
