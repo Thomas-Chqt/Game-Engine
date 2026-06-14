@@ -144,10 +144,10 @@ FramePass FlatGeometryPassBuilder::build() const
         frameDataPBlock->setBinding(1, ctx.bufferMap.at("directionalLights"));
         frameDataPBlock->setBinding(2, ctx.bufferMap.at("pointLights"));
 
-        std::shared_ptr<gfx::ParameterBlock> materialPBlock = ctx.parameterBlockPool.get(ctx.materialBlockLayout);
+        std::shared_ptr<gfx::ParameterBlock> materialPBlock = ctx.parameterBlockPool.get(ctx.flatColorMaterialPBlockLayout);
         materialPBlock->setBinding(0, ctx.bufferMap.at("material"));
 
-        ctx.commandBuffer.usePipeline(ctx.gfxPipeline);
+        ctx.commandBuffer.usePipeline(ctx.flatColorPipeline);
         ctx.commandBuffer.setParameterBlock(frameDataPBlock, 0);
         ctx.commandBuffer.setParameterBlock(materialPBlock, 1);
 

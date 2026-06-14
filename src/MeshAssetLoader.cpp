@@ -11,9 +11,11 @@
 #include "Game-Engine/AssetContainer.hpp"
 #include "Game-Engine/AssetLoader.hpp"
 #include "Game-Engine/AssetManager.hpp"
+#include "Game-Engine/Material.hpp"
 #include "Game-Engine/Mesh.hpp"
 
 #include <Graphics/Device.hpp>
+#include <cassert>
 
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -34,6 +36,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <format>
+#include <map>
 #include <memory>
 #include <ranges>
 #include <utility>
@@ -110,6 +113,42 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const AssetLocation<Mesh>& locatio
     const gltf::Scene& scene = asset.defaultScene ? asset.scenes[*asset.defaultScene] : asset.scenes.front();
 
     auto mesh = std::make_shared<Mesh>();
+    std::map<std::size_t, std::shared_ptr<Material>> materialCache;
+    std::shared_ptr<Material> defaultMaterial;
+    auto getDefaultMaterial = [&]() -> std::shared_ptr<Material> {
+        if (defaultMaterial == nullptr) {
+            defaultMaterial = std::make_shared<Material>(Material{
+                .diffuseColor = glm::vec4(1.0f),
+                .diffuseTexture = BUILT_IN_WHITE_TEXTURE_ID,
+                .specularColor = glm::vec3(0.0f),
+                .shininess = 0.0f
+            });
+        }
+        return defaultMaterial;
+    };
+
+    auto getMaterial = [&](std::size_t materialIndex) -> std::shared_ptr<Material> {
+        auto [it, inserted] = materialCache.try_emplace(materialIndex);
+        if (inserted) {
+            const gltf::Material& gltfMaterial = asset.materials.at(materialIndex);
+            AssetID diffuseTexture = BUILT_IN_WHITE_TEXTURE_ID;
+            if (gltfMaterial.pbrData.baseColorTexture.has_value()) {
+                const AssetLocation<gfx::Texture> diffuseTextureLocation{
+                    .containerPath = location.containerPath,
+                    .index = gltfMaterial.pbrData.baseColorTexture->textureIndex
+                };
+                diffuseTexture = m_assetManager->assetId(VAssetLocation(diffuseTextureLocation));
+            }
+
+            it->second = std::make_shared<Material>(Material{
+                .diffuseColor = glm::make_vec4(gltfMaterial.pbrData.baseColorFactor.data()),
+                .diffuseTexture = diffuseTexture,
+                .specularColor = glm::vec3(0.0f),
+                .shininess = 0.0f
+            });
+        }
+        return it->second;
+    };
 
     auto addNode = [&](this auto&& self, std::vector<SubMesh>& dst, const gltf::Node& node, const glm::mat4x4& additionalTransform = glm::mat4x4(1.0f)) -> void
     {
@@ -166,6 +205,7 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const AssetLocation<Mesh>& locatio
                     .indexBuffer = this->newDeviceLocalBuffer(*m_device, commandBuffer, gfx::BufferUsage::indexBuffer, std::views::iota(std::size_t(0), indicesAccessor->count) | std::views::transform([&](std::size_t i) -> uint32_t {
                         return gltf::getAccessorElement<uint32_t>(asset, *indicesAccessor, i);
                     })),
+                    .material = primitive.materialIndex.has_value() ? getMaterial(*primitive.materialIndex) : getDefaultMaterial(),
                 });
             }
         }
@@ -199,6 +239,12 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const BuiltInMesh& builtInMesh, gf
                 .transform = glm::mat4(1.0f),
                 .vertexBuffer = newDeviceLocalBuffer(*m_device, commandBuffer, gfx::BufferUsage::vertexBuffer, vertices),
                 .indexBuffer = newDeviceLocalBuffer(*m_device, commandBuffer, gfx::BufferUsage::indexBuffer, indices),
+                .material = std::make_shared<Material>(Material{
+                    .diffuseColor = glm::vec4(1.0f),
+                    .diffuseTexture = BUILT_IN_WHITE_TEXTURE_ID,
+                    .specularColor = glm::vec3(0.0f),
+                    .shininess = 0.0f
+                }),
                 .subMeshes = {}
             }}
         });

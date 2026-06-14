@@ -28,6 +28,7 @@ namespace shader
     #define CBUFFER_END
     #define FLOAT3_PADDING(n) float _padding3##n
     #define FLOAT1_PADDING(n) float _padding1a##n, _padding1b##n, _padding1c##n
+    #define UINT32_PADDING(n) uint32_t _paddinguinta##n, _paddinguintb##n, _paddinguintc##n
 #else
     #define SLANG_PUBLIC public
     #define SLANG_MODULE_DEF(name) module name
@@ -38,9 +39,11 @@ namespace shader
     #ifdef __SPIRV__
         #define FLOAT3_PADDING(n) float _padding3##n
         #define FLOAT1_PADDING(n) float _padding1a##n, _padding1b##n, _padding1c##n
+        #define UINT32_PADDING(n) uint32_t _paddinguinta##n, _paddinguintb##n, _paddinguintc##n
     #else
         #define FLOAT3_PADDING(n)
         #define FLOAT1_PADDING(n)
+        #define UINT32_PADDING(n)
     #endif
     #ifdef __METAL__
         #define PUSH_CONSTANT [[vk::push_constant]] cbuffer PushConstant : register(b6)

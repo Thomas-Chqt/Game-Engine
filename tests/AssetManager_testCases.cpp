@@ -11,6 +11,7 @@
 
 #include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Game.hpp"
+#include "Game-Engine/Material.hpp"
 #include "Game-Engine/MeshAssetLoader.hpp"
 #include "Game-Engine/Scene.hpp"
 #include "Game-Engine/ScriptLibrary.hpp"
@@ -416,6 +417,25 @@ TEST_F(AssetManagerMockDeviceTest, importGltfMeshLoadAlsoLoadsRegisteredTextureD
     EXPECT_EQ(assetManager.assetLoadCount(textureAssetId), 1u);
 }
 
+TEST_F(AssetManagerMockDeviceTest, importGltfMeshWithoutMaterialDependsOnBuiltInWhiteTexture)
+{
+    const std::filesystem::path meshPath = transformedDummyMeshPath();
+    ASSERT_TRUE(std::filesystem::is_regular_file(meshPath));
+
+    GE::AssetManager assetManager(&m_device, &m_threadPool);
+    assetManager.importGltf(meshPath);
+
+    const GE::AssetID meshAssetId = assetManager.assetId(GE::VAssetLocation(GE::AssetLocation<GE::Mesh>{meshPath, 0}));
+
+    EXPECT_THAT(assetManager.assetDependencies(meshAssetId) | std::ranges::to<std::vector>(), testing::ElementsAre(GE::BUILT_IN_WHITE_TEXTURE_ID));
+
+    ASSERT_NE(assetManager.loadAsset<GE::Mesh>(meshAssetId).get(), nullptr);
+    EXPECT_TRUE(assetManager.isAssetLoaded(meshAssetId));
+    EXPECT_TRUE(assetManager.isAssetLoaded(GE::BUILT_IN_WHITE_TEXTURE_ID));
+    EXPECT_EQ(assetManager.assetLoadCount(meshAssetId), 1u);
+    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_WHITE_TEXTURE_ID), 1u);
+}
+
 TEST_F(AssetManagerMockDeviceTest, loadingImportedMeshTwiceKeepsTextureDependenciesReferencedAfterOneUnload)
 {
     const std::filesystem::path meshPath = dummyMeshPath();
@@ -722,8 +742,9 @@ TEST_F(AssetManagerMockDeviceTest, reportsAssetIdsAndTypesForDebugInspection)
     const GE::AssetID textureAssetId = assetManager.registerAsset<gfx::Texture>(texturePath.stem().string(), texturePath);
     const GE::AssetID meshAssetId = assetManager.registerAsset<GE::Mesh>(meshPath.stem().string(), meshPath);
 
-    EXPECT_THAT(assetManager.assetIds(), testing::ElementsAre(GE::BUILT_IN_CUBE_ID, textureAssetId, meshAssetId));
+    EXPECT_THAT(assetManager.assetIds(), testing::ElementsAre(GE::BUILT_IN_CUBE_ID, GE::BUILT_IN_WHITE_TEXTURE_ID, textureAssetId, meshAssetId));
     EXPECT_TRUE(assetManager.assetTypeIs<GE::Mesh>(GE::BUILT_IN_CUBE_ID));
+    EXPECT_TRUE(assetManager.assetTypeIs<gfx::Texture>(GE::BUILT_IN_WHITE_TEXTURE_ID));
     EXPECT_TRUE(assetManager.assetTypeIs<gfx::Texture>(textureAssetId));
     EXPECT_TRUE(assetManager.assetTypeIs<GE::Mesh>(meshAssetId));
     EXPECT_TRUE(assetManager.isRegistered(GE::VAssetLocation(GE::AssetLocation<gfx::Texture>{texturePath, 0})));
@@ -851,6 +872,7 @@ TEST_F(AssetManagerMockDeviceTest, loaderBackedAssetRegistrationAutoAssignedIdsR
 
     EXPECT_EQ(registeredAssetIds.size(), 8u);
     EXPECT_FALSE(registeredAssetIds.contains(GE::BUILT_IN_CUBE_ID));
+    EXPECT_FALSE(registeredAssetIds.contains(GE::BUILT_IN_WHITE_TEXTURE_ID));
 }
 
 TEST_F(AssetManagerMockDeviceTest, loadAssetsLoadsEveryAssetInTheRange)
@@ -865,8 +887,10 @@ TEST_F(AssetManagerMockDeviceTest, loadAssetsLoadsEveryAssetInTheRange)
     assetManager.loadAssets(assetIds).get();
 
     EXPECT_TRUE(assetManager.isAssetLoaded(GE::BUILT_IN_CUBE_ID));
+    EXPECT_TRUE(assetManager.isAssetLoaded(GE::BUILT_IN_WHITE_TEXTURE_ID));
     EXPECT_TRUE(assetManager.isAssetLoaded(textureAssetId));
     EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_CUBE_ID), 1u);
+    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_WHITE_TEXTURE_ID), 1u);
     EXPECT_EQ(assetManager.assetLoadCount(textureAssetId), 1u);
 
     assetManager.unloadAssets(assetIds);
@@ -878,7 +902,8 @@ TEST_F(AssetManagerMockDeviceTest, meshAssetLoadsFromFileAndPreservesPathMetadat
     ASSERT_TRUE(std::filesystem::is_regular_file(meshPath));
 
     GE::AssetManager assetManager(&m_device, &m_threadPool);
-    const GE::AssetID meshAssetId = assetManager.registerAsset<GE::Mesh>(meshPath.stem().string(), meshPath);
+    assetManager.importGltf(meshPath);
+    const GE::AssetID meshAssetId = assetManager.assetId(GE::VAssetLocation(GE::AssetLocation<GE::Mesh>{meshPath, 0}));
 
     const std::shared_ptr<GE::Mesh> mesh = assetManager.loadAsset<GE::Mesh>(meshAssetId).get();
     ASSERT_NE(mesh, nullptr);
@@ -930,6 +955,12 @@ TEST_F(AssetManagerMockDeviceTest, transformedMeshAssetComposesParentAndChildTra
     EXPECT_FLOAT_EQ(transform[3][0], 5.0f);
     EXPECT_FLOAT_EQ(transform[3][1], 7.0f);
     EXPECT_FLOAT_EQ(transform[3][2], 9.0f);
+    ASSERT_NE(mesh->subMeshes.front().material, nullptr);
+    EXPECT_EQ(mesh->subMeshes.front().material->diffuseTexture, GE::BUILT_IN_WHITE_TEXTURE_ID);
+    EXPECT_FLOAT_EQ(mesh->subMeshes.front().material->diffuseColor.r, 1.0f);
+    EXPECT_FLOAT_EQ(mesh->subMeshes.front().material->diffuseColor.g, 1.0f);
+    EXPECT_FLOAT_EQ(mesh->subMeshes.front().material->diffuseColor.b, 1.0f);
+    EXPECT_FLOAT_EQ(mesh->subMeshes.front().material->diffuseColor.a, 1.0f);
 }
 
 TEST_F(AssetManagerMockDeviceTest, meshLoaderThrowsForFilesWithoutScenes)
@@ -1012,6 +1043,17 @@ TEST_F(AssetManagerMockDeviceTest, textureLoaderSupportsRawPixelBytes)
     EXPECT_EQ(texture->pixelFormat(), gfx::PixelFormat::RGBA8Unorm);
 }
 
+TEST_F(AssetManagerMockDeviceTest, textureLoaderSupportsFlatColorTexture)
+{
+    GE::AssetLoader<gfx::Texture> loader(&m_device, nullptr, glm::vec4(1.0f));
+    const std::shared_ptr<gfx::Texture> texture = loader.load(*m_commandBuffer);
+
+    ASSERT_NE(texture, nullptr);
+    EXPECT_EQ(texture->width(), 2u);
+    EXPECT_EQ(texture->height(), 2u);
+    EXPECT_EQ(texture->pixelFormat(), gfx::PixelFormat::RGBA8Unorm);
+}
+
 TEST_F(AssetManagerMockDeviceTest, sceneConstructionLoadsMeshAssetsReferencedByTheEcsWorld)
 {
     GE::AssetManager assetManager(&m_device, &m_threadPool);
@@ -1059,11 +1101,12 @@ TEST_F(AssetManagerMockDeviceTest, sceneLoadsPreRegisteredMeshAssetsByExplicitId
     ASSERT_TRUE(std::filesystem::is_regular_file(meshPath));
 
     GE::AssetManager assetManager(&m_device, &m_threadPool);
+    const GE::AssetID textureAssetId = assetManager.registerAsset<gfx::Texture>(meshPath.stem().string(), meshPath, 0);
     const GE::AssetID meshAssetId = assetManager.registerAsset(
         GE::AssetID{77},
         meshPath.stem().string(),
         GE::VAssetLocation(GE::AssetLocation<GE::Mesh>{meshPath, 0}),
-        std::array<GE::AssetID, 0>{}
+        std::to_array<GE::AssetID>({ textureAssetId })
     );
     GE::Scene scene(&assetManager, makeSceneDescriptor("scene", {
         { 5, { GE::MeshComponent{meshAssetId} } }

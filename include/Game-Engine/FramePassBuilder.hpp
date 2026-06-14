@@ -123,6 +123,18 @@ private:
     std::function<const ICamera*()> m_cameraOverrideProvider;
 };
 
+class GE_API TexturedGeometryPassBuilder : public FramePassBuilderBase<TexturedGeometryPassBuilder>
+{
+public:
+    TexturedGeometryPassBuilder(std::function<const Scene&()>, std::function<const ICamera*()>);
+
+    FramePass build() const;
+
+private:
+    std::function<const Scene&()> m_sceneProvider;
+    std::function<const ICamera*()> m_cameraOverrideProvider;
+};
+
 }
 
 #endif

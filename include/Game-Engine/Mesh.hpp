@@ -21,6 +21,8 @@
 namespace GE
 {
 
+struct Material;
+
 struct Vertex
 {
     glm::vec3 pos;
@@ -35,7 +37,7 @@ struct SubMesh
     glm::mat4x4 transform;
     std::shared_ptr<gfx::Buffer> vertexBuffer;
     std::shared_ptr<gfx::Buffer> indexBuffer;
-    // std::shared_ptr<Material> material;
+    std::shared_ptr<Material> material;
     std::vector<SubMesh> subMeshes;
 };
 
