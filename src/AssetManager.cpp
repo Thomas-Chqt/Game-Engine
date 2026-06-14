@@ -17,6 +17,8 @@
 #include "TextureTable.hpp"
 #include "fastgltf/types.hpp"
 
+#include <glm/glm.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -63,11 +65,21 @@ AssetManager::AssetManager(gfx::Device* device, ThreadPool* threadPool)
     assert(m_device != nullptr);
     assert(m_threadPool != nullptr);
 
+    const glm::vec4 whiteColor(1.0f);
+    const AssetID builtInWhiteTextureId = registerAsset<gfx::Texture>(
+        BUILT_IN_WHITE_TEXTURE_ID,
+        "built_in_white_texture",
+        std::nullopt,
+        std::array<AssetID, 0>(),
+        AssetLoader<gfx::Texture>(m_device, this, whiteColor)
+    );
+    assert(builtInWhiteTextureId == BUILT_IN_WHITE_TEXTURE_ID);
+
     const AssetID builtInCubeId = registerAsset<Mesh>(
         BUILT_IN_CUBE_ID,
         "build_in_cube",
         std::nullopt,
-        std::array<AssetID, 0>(),
+        std::array<AssetID, 1>{ BUILT_IN_WHITE_TEXTURE_ID },
         AssetLoader<Mesh>(m_device, this, BuiltInMesh::cube)
     );
     assert(builtInCubeId == BUILT_IN_CUBE_ID);
@@ -100,11 +112,15 @@ void AssetManager::importGltf(const std::filesystem::path& path)
     auto processNode = [&](this auto&& self, const fastgltf::Node& node) -> void {
         if (fastgltf::Optional<std::size_t> meshIndex = node.meshIndex) {
             for (const fastgltf::Primitive& primitive : asset.meshes[*meshIndex].primitives) {
-                if (primitive.materialIndex.has_value() == false)
+                if (primitive.materialIndex.has_value() == false) {
+                    dependentAssets.insert(BUILT_IN_WHITE_TEXTURE_ID);
                     continue;
+                }
                 const fastgltf::Material& material = asset.materials[*primitive.materialIndex];
                 if(material.pbrData.baseColorTexture.has_value())
                     registerDependentTexture(material.pbrData.baseColorTexture.value());
+                else
+                    dependentAssets.insert(BUILT_IN_WHITE_TEXTURE_ID);
                 if(material.pbrData.metallicRoughnessTexture.has_value())
                     registerDependentTexture(material.pbrData.metallicRoughnessTexture.value());
                 if(material.normalTexture.has_value())
@@ -167,6 +183,7 @@ void AssetManager::unloadAsset(AssetID assetId)
 
 std::set<std::filesystem::path> AssetManager::assetContainerPaths() const
 {
+    std::scoped_lock lock(m_registeredAssetsMutex);
     return m_registeredAssets
         | std::views::keys
         | std::views::transform([](const VAssetLocation& vLocation) -> const std::filesystem::path& {
@@ -179,7 +196,8 @@ std::set<std::filesystem::path> AssetManager::assetContainerPaths() const
 
 AssetID AssetManager::assetId(const VAssetLocation& location) const
 {
-    assert(isRegistered(location));
+    std::scoped_lock lock(m_registeredAssetsMutex);
+    assert(m_registeredAssets.contains(location));
     return m_registeredAssets.at(location);
 }
 
@@ -263,6 +281,7 @@ void AssetManager::attachTextureTable(const std::shared_ptr<TextureTable>& textu
 
 bool AssetManager::isRegistered(const VAssetLocation& location) const
 {
+    std::scoped_lock lock(m_registeredAssetsMutex);
     return m_registeredAssets.contains(location);
 }
 

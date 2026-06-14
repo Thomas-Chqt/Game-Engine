@@ -50,49 +50,10 @@ Renderer::Renderer(gfx::Device* device, AssetManager* assetManager, gfx::Surface
     assert(m_assetManager);
     assert(m_surface);
 
-    m_frameDataBlockLayout = m_device->newParameterBlockLayout({
-        .bindings = {
-            { .type = gfx::BindingType::constantBuffer,   .usages = gfx::BindingUsage::vertexRead | gfx::BindingUsage::fragmentRead },
-            { .type = gfx::BindingType::structuredBuffer, .usages = gfx::BindingUsage::vertexRead | gfx::BindingUsage::fragmentRead },
-            { .type = gfx::BindingType::structuredBuffer, .usages = gfx::BindingUsage::vertexRead | gfx::BindingUsage::fragmentRead }
-        }
-    });
-    m_materialBlockLayout = m_device->newParameterBlockLayout({
-        .bindings = {
-            { .type = gfx::BindingType::constantBuffer, .usages = gfx::BindingUsage::fragmentRead }
-        }
-    });
-
     std::shared_ptr<gfx::ParameterBlockLayout> textureTablePBLayout = m_device->newParameterBlockLayout(gfx::ParameterBlockLayout::Descriptor{
         .bindings = {
             gfx::ParameterBlockBinding{ .type = gfx::BindingType::sampler,        .usages = gfx::BindingUsage::fragmentRead },
             gfx::ParameterBlockBinding{ .type = gfx::BindingType::sampledTexture, .usages = gfx::BindingUsage::fragmentRead, .count = MAX_TEXTURES },
-        }
-    });
-
-    auto shaderLib = m_device->newShaderLib(SHADER_DIR"/flat_color.slib");
-
-    m_gfxPipeline = m_device->newGraphicsPipeline(gfx::GraphicsPipeline::Descriptor{
-        .vertexLayout = gfx::VertexLayout{
-            .stride = sizeof(Vertex),
-            .attributes = {
-                gfx::VertexAttribute{
-                    .format = gfx::VertexAttributeFormat::float3,
-                    .offset = offsetof(Vertex, pos)},
-                gfx::VertexAttribute{
-                    .format = gfx::VertexAttributeFormat::float3,
-                    .offset = offsetof(Vertex, normal)},
-            }
-        },
-        .vertexShader = &shaderLib->getFunction("vertexMain"),
-        .fragmentShader = &shaderLib->getFunction("fragmentMain"),
-        .colorAttachmentPxFormats = {gfx::PixelFormat::BGRA8Unorm},
-        .depthAttachmentPxFormat = gfx::PixelFormat::Depth32Float,
-        .blendOperation = gfx::BlendOperation::blendingOff,
-        .cullMode = gfx::CullMode::back,
-        .parameterBlockLayouts = {
-            m_frameDataBlockLayout,
-            m_materialBlockLayout
         }
     });
 
@@ -104,10 +65,94 @@ Renderer::Renderer(gfx::Device* device, AssetManager* assetManager, gfx::Surface
         .updateAfterBind = true
     })->get(textureTablePBLayout);
 
-    m_textureTableBlock->setBinding(0, std::shared_ptr<gfx::Sampler>(m_device->newSampler(gfx::Sampler::Descriptor{})));
-
+    m_textureTableBlock->setBinding(0, std::shared_ptr<gfx::Sampler>(m_device->newSampler(gfx::Sampler::Descriptor{
+        .sAddressMode = gfx::SamplerAddressMode::Repeat,
+        .tAddressMode = gfx::SamplerAddressMode::Repeat,
+        .rAddressMode = gfx::SamplerAddressMode::Repeat,
+        .minFilter = gfx::SamplerMinMagFilter::Linear,
+        .magFilter = gfx::SamplerMinMagFilter::Linear
+    })));
     m_textureTable = std::make_shared<TextureTable>(m_textureTableBlock.get(), 1);
     m_assetManager->attachTextureTable(m_textureTable);
+
+    m_frameDataBlockLayout = m_device->newParameterBlockLayout({
+        .bindings = {
+            { .type = gfx::BindingType::constantBuffer,   .usages = gfx::BindingUsage::vertexRead | gfx::BindingUsage::fragmentRead },
+            { .type = gfx::BindingType::structuredBuffer, .usages = gfx::BindingUsage::vertexRead | gfx::BindingUsage::fragmentRead },
+            { .type = gfx::BindingType::structuredBuffer, .usages = gfx::BindingUsage::vertexRead | gfx::BindingUsage::fragmentRead }
+        }
+    });
+
+    // ------------- flat color ------------- //
+    m_flatColorMaterialPBlockLayout = m_device->newParameterBlockLayout({
+        .bindings = {
+            { .type = gfx::BindingType::constantBuffer, .usages = gfx::BindingUsage::fragmentRead }
+        }
+    });
+
+    auto flatColorShaderLib = m_device->newShaderLib(SHADER_DIR"/flat_color.slib");
+
+    m_flatColorPipeline = m_device->newGraphicsPipeline(gfx::GraphicsPipeline::Descriptor{
+        .vertexLayout = gfx::VertexLayout{
+            .stride = sizeof(Vertex),
+            .attributes = {
+                gfx::VertexAttribute{
+                    .format = gfx::VertexAttributeFormat::float3,
+                    .offset = offsetof(Vertex, pos)},
+                gfx::VertexAttribute{
+                    .format = gfx::VertexAttributeFormat::float3,
+                    .offset = offsetof(Vertex, normal)},
+            }
+        },
+        .vertexShader = &flatColorShaderLib->getFunction("vertexMain"),
+        .fragmentShader = &flatColorShaderLib->getFunction("fragmentMain"),
+        .colorAttachmentPxFormats = {gfx::PixelFormat::BGRA8Unorm},
+        .depthAttachmentPxFormat = gfx::PixelFormat::Depth32Float,
+        .blendOperation = gfx::BlendOperation::blendingOff,
+        .cullMode = gfx::CullMode::back,
+        .parameterBlockLayouts = {
+            m_frameDataBlockLayout,
+            m_flatColorMaterialPBlockLayout
+        }
+    });
+
+    // ------------- textured ------------- //
+
+    m_texturedMaterialPBlockLayout = m_device->newParameterBlockLayout({
+        .bindings = {
+            { .type = gfx::BindingType::structuredBuffer, .usages = gfx::BindingUsage::fragmentRead }
+        }
+    });
+
+    auto texturedShaderLib = m_device->newShaderLib(SHADER_DIR"/textured.slib");
+
+    m_texturedPipeline = m_device->newGraphicsPipeline(gfx::GraphicsPipeline::Descriptor{
+        .vertexLayout = gfx::VertexLayout{
+            .stride = sizeof(Vertex),
+            .attributes = {
+                gfx::VertexAttribute{
+                    .format = gfx::VertexAttributeFormat::float3,
+                    .offset = offsetof(Vertex, pos)},
+                gfx::VertexAttribute{
+                    .format = gfx::VertexAttributeFormat::float2,
+                    .offset = offsetof(Vertex, uv)},
+                gfx::VertexAttribute{
+                    .format = gfx::VertexAttributeFormat::float3,
+                    .offset = offsetof(Vertex, normal)},
+            }
+        },
+        .vertexShader = &texturedShaderLib->getFunction("vertexMain"),
+        .fragmentShader = &texturedShaderLib->getFunction("fragmentMain"),
+        .colorAttachmentPxFormats = {gfx::PixelFormat::BGRA8Unorm},
+        .depthAttachmentPxFormat = gfx::PixelFormat::Depth32Float,
+        .blendOperation = gfx::BlendOperation::blendingOff,
+        .cullMode = gfx::CullMode::back,
+        .parameterBlockLayouts = {
+            textureTablePBLayout,
+            m_frameDataBlockLayout,
+            m_texturedMaterialPBlockLayout
+        }
+    });
 
     for (auto& inFlightData : m_inFlightDatas)
     {
@@ -117,12 +162,11 @@ Renderer::Renderer(gfx::Device* device, AssetManager* assetManager, gfx::Surface
         inFlightData.parameterBlockPool = m_device->newParameterBlockPool({
             .maxBindingCount = {
                 {gfx::BindingType::constantBuffer, 2},
-                {gfx::BindingType::structuredBuffer, 2},
+                {gfx::BindingType::structuredBuffer, 3},
             }
         });
         assert(inFlightData.parameterBlockPool);
     }
-
 }
 
 void Renderer::renderFrame(const FrameGraph& frameGraph)
@@ -155,7 +199,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
             m_swapchain = m_device->newSwapchain(swapchainDescriptor);
             assert(m_swapchain);
         }
-        else
+        else if (textureName != frameGraph.backBufferName())
         {
             std::shared_ptr<gfx::Texture> texture;
             auto it = cfd.textureCache.find(textureDescriptor);
@@ -187,7 +231,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
     auto setStructuredBufferContent = [&](const std::string& bufferName, const void* data, uint32_t size) {
         if (size == 0)
             return;
-        gfx::Buffer::Descriptor bufferDescriptor = gfx::Buffer::Descriptor{
+        auto bufferDescriptor = gfx::Buffer::Descriptor{
             .size = size,
             .usages = gfx::BufferUsage::structuredBuffer,
             .storageMode = gfx::ResourceStorageMode::hostVisible
@@ -220,6 +264,8 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         if (framePass.setup)
         {
             FramePassSetupContext setupContext = {
+                .assetManager = *m_assetManager,
+                .textureTable = *m_textureTable,
                 .textureMap = textureMap,
                 .constantBuffers = bufferMap,
                 .setStructuredBufferContent = setStructuredBufferContent,
@@ -253,14 +299,21 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
             FramePassExecuteContext framePassContext = {
                 .assetManager = *m_assetManager,
                 .textureTable = *m_textureTable,
+
                 .commandBuffer = *commandBuffer,
                 .parameterBlockPool = *cfd.parameterBlockPool,
+
                 .textureMap = textureMap,
                 .bufferMap = bufferMap,
-                .frameDataBlockLayout = m_frameDataBlockLayout,
-                .materialBlockLayout = m_materialBlockLayout,
+
                 .textureTableBlock = m_textureTableBlock,
-                .gfxPipeline = m_gfxPipeline
+                .frameDataBlockLayout = m_frameDataBlockLayout,
+
+                .flatColorMaterialPBlockLayout = m_flatColorMaterialPBlockLayout,
+                .flatColorPipeline = m_flatColorPipeline,
+
+                .texturedMaterialPBlockLayout = m_texturedMaterialPBlockLayout,
+                .texturedPipeline = m_texturedPipeline
             };
             framePass.execute(framePassContext);
         }

@@ -8,7 +8,7 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 1
-    id: 1
+    id: 2
     dependentAssets:
       []
   - name: chess_set_board_arm_1k
@@ -17,7 +17,7 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 2
-    id: 2
+    id: 3
     dependentAssets:
       []
   - name: chess_set_board_nor_gl_1k
@@ -26,7 +26,7 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 0
-    id: 3
+    id: 4
     dependentAssets:
       []
   - name: chess_set_pieces_black_diff_1k
@@ -35,7 +35,7 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 4
-    id: 4
+    id: 5
     dependentAssets:
       []
   - name: chess_set_pieces_black_arm_1k
@@ -44,7 +44,7 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 5
-    id: 5
+    id: 6
     dependentAssets:
       []
   - name: chess_set_pieces_black_nor_gl_1k
@@ -53,7 +53,7 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 3
-    id: 6
+    id: 7
     dependentAssets:
       []
   - name: chess_set_pieces_white_diff_1k
@@ -62,7 +62,7 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 7
-    id: 7
+    id: 8
     dependentAssets:
       []
   - name: chess_set_pieces_white_arm_1k
@@ -71,7 +71,7 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 8
-    id: 8
+    id: 9
     dependentAssets:
       []
   - name: chess_set_pieces_white_nor_gl_1k
@@ -80,7 +80,7 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 6
-    id: 9
+    id: 10
     dependentAssets:
       []
   - name: chess_set
@@ -89,9 +89,8 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 0
-    id: 10
+    id: 11
     dependentAssets:
-      - 1
       - 2
       - 3
       - 4
@@ -100,6 +99,7 @@ registeredAssets:
       - 7
       - 8
       - 9
+      - 10
 inputs:
   - name: player_jump
     input:
@@ -159,7 +159,7 @@ scenes:
                 z: 10
           - type: MeshComponent
             data:
-              id: 10
+              id: 11
       - entityId: 1
         components:
           - type: NameComponent

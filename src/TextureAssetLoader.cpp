@@ -15,8 +15,10 @@
 
 #include <Graphics/Texture.hpp>
 
+#include <glm/glm.hpp>
 #include <stb_image/stb_image.h>
 
+#include <array>
 #include <concepts>
 #include <cstddef>
 #include <cassert>
@@ -49,6 +51,16 @@ AssetLoader<gfx::Texture>::AssetLoader(gfx::Device* device, AssetManager* assetM
 {
 }
 
+AssetLoader<gfx::Texture>::AssetLoader(gfx::Device* device, AssetManager* assetManager, const glm::vec4& color)
+    : AssetLoaderBase<gfx::Texture>(device, assetManager)
+    , m_source(color)
+{
+    assert(color.r >= 0.0f && color.r <= 1.0f);
+    assert(color.g >= 0.0f && color.g <= 1.0f);
+    assert(color.b >= 0.0f && color.b <= 1.0f);
+    assert(color.a >= 0.0f && color.a <= 1.0f);
+}
+
 std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(gfx::CommandBuffer& commandBuffer)
 {
     return std::visit([&](const auto& source) {
@@ -61,6 +73,8 @@ std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(gfx::CommandBuffer
             auto& [bytes, width, height] = source;
             return load(bytes, width, height, commandBuffer);
         }
+        if constexpr (std::same_as<SourceType, glm::vec4>)
+            return load(source, commandBuffer);
         std::unreachable();
     }, m_source);
 }
@@ -124,6 +138,31 @@ std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(const std::span<co
     if (!bytes)
         throw std::runtime_error("failed to load embedded texture");
     return load(reinterpret_cast<const std::byte*>(bytes.get()), static_cast<uint32_t>(width), static_cast<uint32_t>(height), commandBuffer); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+}
+
+std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(const glm::vec4& color, gfx::CommandBuffer& commandBuffer)
+{
+    assert(color.r >= 0.0f && color.r <= 1.0f);
+    assert(color.g >= 0.0f && color.g <= 1.0f);
+    assert(color.b >= 0.0f && color.b <= 1.0f);
+    assert(color.a >= 0.0f && color.a <= 1.0f);
+
+    const auto toByte = [](float value) {
+        return static_cast<std::byte>(static_cast<uint8_t>(value * 255.0f));
+    };
+    const std::array<std::byte, 4> pixel = {
+        toByte(color.r),
+        toByte(color.g),
+        toByte(color.b),
+        toByte(color.a)
+    };
+    const std::array<std::byte, 16> pixels = {
+        pixel[0], pixel[1], pixel[2], pixel[3],
+        pixel[0], pixel[1], pixel[2], pixel[3],
+        pixel[0], pixel[1], pixel[2], pixel[3],
+        pixel[0], pixel[1], pixel[2], pixel[3]
+    };
+    return load(pixels.data(), 2, 2, commandBuffer);
 }
 
 std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(const std::byte* bytes, uint32_t width, uint32_t height, gfx::CommandBuffer& commandBuffer)

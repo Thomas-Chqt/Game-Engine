@@ -54,6 +54,7 @@ template<typename T>
 concept AssetIdRange = std::ranges::range<T> && std::convertible_to<std::ranges::range_value_t<T>, AssetID>;
 
 constexpr AssetID BUILT_IN_CUBE_ID = 0;
+constexpr AssetID BUILT_IN_WHITE_TEXTURE_ID = 1;
 
 class TextureTable;
 
@@ -159,6 +160,7 @@ private:
     std::map<AssetID, VAssetHandle> m_assetHandles;
     std::weak_ptr<TextureTable> m_textureTable;
 
+    mutable std::mutex m_registeredAssetsMutex;
     mutable std::mutex m_assetContainersMutex;
 
 public:
@@ -182,10 +184,17 @@ AssetID AssetManager::registerAsset(std::optional<AssetID> assetId, std::string_
 template<ManagableAsset T>
 AssetID AssetManager::registerAsset(std::optional<AssetID> assetId, std::string_view name, const std::optional<AssetLocation<T>>& location, const AssetIdRange auto& dependentAssets, AssetLoader<T>&& loader)
 {
-    if (location.has_value() && isRegistered(*location)) {
+    std::optional<AssetID> registeredAssetId;
+    if (location.has_value()) {
+        std::scoped_lock lock(m_registeredAssetsMutex);
+        if (m_registeredAssets.contains(*location))
+            registeredAssetId = m_registeredAssets.at(*location);
+    }
+
+    if (registeredAssetId.has_value()) {
         if (assetId.has_value())
-            assert(this->assetId(*location) == *assetId);
-        return this->assetId(*location);
+            assert(*registeredAssetId == *assetId);
+        return *registeredAssetId;
     }
 
     AssetID newAssetId = 0;
@@ -197,15 +206,18 @@ AssetID AssetManager::registerAsset(std::optional<AssetID> assetId, std::string_
             newAssetId++;
     }
 
-    m_assetHandles.try_emplace(newAssetId, std::in_place_type<AssetHandle<T>>,
+    auto [_, inserted] = m_assetHandles.try_emplace(newAssetId, std::in_place_type<AssetHandle<T>>,
         std::string(name),
         std::move(location),
         dependentAssets | std::ranges::to<std::vector>(),
         std::move(loader)
     );
+    assert(inserted);
 
-    if (location.has_value())
+    if (location.has_value()) {
+        std::scoped_lock lock(m_registeredAssetsMutex);
         m_registeredAssets.try_emplace(*location, newAssetId);
+    }
 
     return newAssetId;
 }
@@ -245,9 +257,9 @@ std::shared_future<std::shared_ptr<T>> AssetManager::loadAsset(AssetID assetId)
                     setTexture(assetId, asset);
                 else
                     (void)assetId;
-                promise.set_value();
                 if (dependentAssetsFuture.valid())
                     dependentAssetsFuture.get();
+                promise.set_value();
                 handle.loadStatus.store(LoadStatus::loaded);
                 return asset;
             } catch (...) {

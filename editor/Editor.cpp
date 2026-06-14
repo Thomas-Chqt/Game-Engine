@@ -184,12 +184,14 @@ void Editor::saveProject()
     auto addRegisteredAsset = [&](this auto&& self, GE::AssetID id) -> void {
         for (GE::AssetID childId : assetManager().assetDependencies(id))
             self(childId);
-        registeredAssets.emplace_back(
-            std::string(assetManager().assetName(id)),
-            assetManager().assetLocation(id).value(),
-            id,
-            assetManager().assetDependencies(id) | std::ranges::to<std::vector>()
-        );
+            if (assetManager().assetLocation(id).has_value()) {
+                registeredAssets.emplace_back(
+                    std::string(assetManager().assetName(id)),
+                    assetManager().assetLocation(id).value(),
+                    id,
+                    assetManager().assetDependencies(id) | std::ranges::to<std::vector>()
+                );
+            }
     };
 
     auto topAssetIds = m_sceneDescriptors
@@ -336,7 +338,7 @@ void Editor::rebuildFrameGraph()
             { .name = "windowBackBuffer",   .size = window().frameBufferSize(), .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
         },
         .passes = {
-            GE::FlatGeometryPassBuilder(std::move(sceneProvider), std::move(cameraProvider))
+            GE::TexturedGeometryPassBuilder(std::move(sceneProvider), std::move(cameraProvider))
                 .setColorAttachment("viewportBackBuffer")
                 .setDepthAttachment("depthBuffer"),
             GE::ImguiPassBuilder()

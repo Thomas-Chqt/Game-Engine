@@ -72,6 +72,9 @@ struct AttachmentDescriptor
 
 struct FramePassSetupContext
 {
+    AssetManager& assetManager;
+    TextureTable& textureTable;
+
     std::map<std::string, std::shared_ptr<gfx::Texture>>& textureMap;
     std::map<std::string, std::shared_ptr<gfx::Buffer>>& constantBuffers;
     std::function<void(const std::string& name, const void* data, uint32_t size)> setStructuredBufferContent;
@@ -81,15 +84,21 @@ struct FramePassExecuteContext
 {
     AssetManager& assetManager;
     TextureTable& textureTable;
+
     gfx::CommandBuffer& commandBuffer;
     gfx::ParameterBlockPool& parameterBlockPool;
+
     std::map<std::string, std::shared_ptr<gfx::Texture>>& textureMap;
     std::map<std::string, std::shared_ptr<gfx::Buffer>>& bufferMap;
 
-    std::shared_ptr<gfx::ParameterBlockLayout> frameDataBlockLayout;
-    std::shared_ptr<gfx::ParameterBlockLayout> materialBlockLayout;
     std::shared_ptr<gfx::ParameterBlock> textureTableBlock;
-    std::shared_ptr<gfx::GraphicsPipeline> gfxPipeline; // only one for now
+    std::shared_ptr<gfx::ParameterBlockLayout> frameDataBlockLayout;
+
+    std::shared_ptr<gfx::ParameterBlockLayout> flatColorMaterialPBlockLayout;
+    std::shared_ptr<gfx::GraphicsPipeline> flatColorPipeline;
+
+    std::shared_ptr<gfx::ParameterBlockLayout> texturedMaterialPBlockLayout;
+    std::shared_ptr<gfx::GraphicsPipeline> texturedPipeline;
 };
 
 struct FramePass

@@ -65,12 +65,16 @@ private:
     AssetManager* m_assetManager;
     gfx::Surface* m_surface;
 
-    std::shared_ptr<gfx::ParameterBlockLayout> m_frameDataBlockLayout;
-    std::shared_ptr<gfx::ParameterBlockLayout> m_materialBlockLayout;
-    std::shared_ptr<gfx::GraphicsPipeline> m_gfxPipeline; // only one for now
-
     std::shared_ptr<gfx::ParameterBlock> m_textureTableBlock;
     std::shared_ptr<TextureTable> m_textureTable;
+
+    std::shared_ptr<gfx::ParameterBlockLayout> m_frameDataBlockLayout;
+
+    std::shared_ptr<gfx::ParameterBlockLayout> m_flatColorMaterialPBlockLayout;
+    std::shared_ptr<gfx::GraphicsPipeline> m_flatColorPipeline;
+
+    std::shared_ptr<gfx::ParameterBlockLayout> m_texturedMaterialPBlockLayout;
+    std::shared_ptr<gfx::GraphicsPipeline> m_texturedPipeline;
 
     std::unique_ptr<gfx::Swapchain> m_swapchain;
 
