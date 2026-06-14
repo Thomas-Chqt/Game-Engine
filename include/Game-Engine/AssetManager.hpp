@@ -23,6 +23,8 @@
 #include <Graphics/Device.hpp>
 #include <Graphics/Texture.hpp>
 
+#include <tracy/Tracy.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -245,6 +247,8 @@ std::shared_future<std::shared_ptr<T>> AssetManager::loadAsset(AssetID assetId)
         std::promise<void> promise;
         handle.voidFuture = promise.get_future().share();
         handle.future = m_threadPool->submit([this, assetId, &handle, promise=std::move(promise), dependentAssetsFuture=std::move(dependentAssetsFuture)] mutable -> std::shared_ptr<T> {
+            ZoneScopedN("AssetManager::load task");
+            ZoneText(handle.name.data(), handle.name.size());
             try {
                 std::unique_ptr<gfx::CommandBufferPool> commandBufferPool = m_device->newCommandBufferPool();
                 assert(commandBufferPool);
@@ -280,6 +284,7 @@ std::future<void> AssetManager::loadAssets(const AssetIdRange auto& assetIds)
     auto futures = assetIds | std::views::transform([&](AssetID id) -> std::shared_future<void> { return loadAsset(id); });
 
     return m_threadPool->submit([futures=futures|std::ranges::to<std::vector>()] mutable {
+        ZoneScopedN("AssetManager::wait asset range");
         for (auto& future : futures)
             future.get();
     });

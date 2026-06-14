@@ -20,6 +20,9 @@
 #include <Graphics/Enums.hpp>
 #include <Graphics/Buffer.hpp>
 
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyC.h>
+
 #include <cassert>
 #include <cstddef>
 #include <cstring>
@@ -171,8 +174,11 @@ Renderer::Renderer(gfx::Device* device, AssetManager* assetManager, gfx::Surface
 
 void Renderer::renderFrame(const FrameGraph& frameGraph)
 {
+    ZoneScopedN("Renderer::renderFrame");
+
     if (cfd.waitedCmdBuffer != nullptr)
     {
+        ZoneScopedN("Renderer::wait in-flight frame");
         m_device->waitCommandBuffer(*cfd.waitedCmdBuffer);
         cfd.waitedCmdBuffer = nullptr;
         cfd.commandBufferPool->reset();
@@ -181,10 +187,12 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
 
     std::map<std::string, std::shared_ptr<gfx::Texture>> textureMap;
     std::map<gfx::Texture::Descriptor, std::set<std::shared_ptr<gfx::Texture>>> newTextureCache;
+    TracyCZoneN(rendererPreparetextures, "Renderer::prepare textures", true);
     for (auto& [textureName, textureDescriptor] : frameGraph.textureDescriptors())
     {
         if (textureName == frameGraph.backBufferName() && (m_swapchain == nullptr || m_swapchain->drawablesTextureDescriptor() != textureDescriptor))
         {
+            ZoneScopedN("Renderer::recreate swapchain");
             gfx::Swapchain::Descriptor swapchainDescriptor = {
                 .surface = m_surface,
                 .width = textureDescriptor.width,
@@ -212,9 +220,11 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
             newTextureCache[textureDescriptor].insert(texture);
         }
     }
+    TracyCZoneEnd(rendererPreparetextures);
 
     std::map<std::string, std::shared_ptr<gfx::Buffer>> bufferMap;
     std::map<gfx::Buffer::Descriptor, std::set<std::shared_ptr<gfx::Buffer>>> newBufferCache;
+    TracyCZoneN(rendererPrepareConstantBuffers, "Renderer::prepare constant buffers", true);
     for (auto& [bufferName, bufferDescriptor] : frameGraph.constantBufferDescriptors())
     {
         std::shared_ptr<gfx::Buffer> buffer;
@@ -227,6 +237,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         assert(inserted);
         newBufferCache[bufferDescriptor].insert(buffer);
     }
+    TracyCZoneEnd(rendererPrepareConstantBuffers);
 
     auto setStructuredBufferContent = [&](const std::string& bufferName, const void* data, uint32_t size) {
         if (size == 0)
@@ -253,6 +264,8 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
     std::shared_ptr<gfx::Drawable> drawable;
     for (auto& framePass : frameGraph.passes())
     {
+        ZoneScopedN("Renderer::frame pass");
+
         if (drawable == nullptr /* TODO check if pass uses swapchain image */)
         {
             drawable = m_swapchain->nextDrawable();

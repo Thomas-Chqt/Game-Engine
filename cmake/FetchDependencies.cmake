@@ -18,7 +18,7 @@ function(fetch_dependencies)
     # -----------------------------
     FetchContent_Declare(Graphics
         GIT_REPOSITORY    https://github.com/Thomas-Chqt/Graphics.git
-        GIT_TAG           9813ed1009c651b324e58be09697417910444ee2
+        GIT_TAG           b8e0f1ff297e9b1a371b2629c069db780f2a0dc6
         GIT_SHALLOW       1
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
@@ -29,7 +29,7 @@ function(fetch_dependencies)
     set(GFX_ENABLE_GLFW      ON)
     set(GFX_BUILD_EXAMPLES   OFF)
     set(GFX_BUILD_TESTS      OFF)
-    set(GFX_BUILD_TRACY      OFF)
+    set(GFX_BUILD_TRACY      ON)
     set(GFX_INSTALL          ${GE_INSTALL})
     FetchContent_MakeAvailable(Graphics)
     set_target_properties(Graphics PROPERTIES FOLDER "dependencies/Graphics")

@@ -19,6 +19,8 @@
 #include "Game-Engine/Components.hpp"
 #include "Game-Engine/ECSView.hpp"
 
+#include <tracy/Tracy.hpp>
+
 #include <algorithm>
 #include <cassert>
 #include <optional>
@@ -140,6 +142,7 @@ struct basic_entity
 
     glm::mat4 worldTransform() const
     {
+        ZoneScoped;
         if (auto parent = this->parent())
         {
             assert(parent->template has<TransformComponent>());

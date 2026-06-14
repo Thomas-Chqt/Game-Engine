@@ -19,6 +19,7 @@
 
 #include <imgui.h>
 #include <glm/glm.hpp>
+#include <tracy/Tracy.hpp>
 
 #include <optional>
 #include <string>
@@ -85,6 +86,8 @@ public:
     {
         GE::FramePass framePass = FramePassBuilderBase<ImguiPassBuilder>::build();
         framePass.execute = [](FramePassExecuteContext& ctx) {
+            ZoneScopedN("ImguiPass::execute");
+
             ImDrawData* drawData = ImGui::GetDrawData();
             for (int i = 0; i < drawData->CmdListsCount; ++i) {
                 for (ImDrawCmd& cmd : drawData->CmdLists[i]->CmdBuffer) {
