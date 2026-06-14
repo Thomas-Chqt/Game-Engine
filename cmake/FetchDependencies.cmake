@@ -146,4 +146,19 @@ function(fetch_dependencies)
     if (TARGET fastgltf)
         set_target_properties(fastgltf PROPERTIES FOLDER "dependencies")
     endif()
+
+    # -----------------------------
+    # ImGuizmo
+    # -----------------------------
+    FetchContent_Declare(imguizmo
+        GIT_REPOSITORY    https://github.com/CedricGuillemet/ImGuizmo.git
+        GIT_TAG           1.10
+        GIT_SHALLOW       1
+        GIT_PROGRESS      TRUE
+        FIND_PACKAGE_ARGS
+    )
+    set(IMGUIZMO_BUILD_EXAMPLE OFF)
+    FetchContent_MakeAvailable(imguizmo)
+    set_target_properties(imguizmo PROPERTIES FOLDER "dependencies")
+    target_link_libraries(imguizmo PRIVATE imgui)
 endfunction()

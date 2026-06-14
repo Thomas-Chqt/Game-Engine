@@ -33,8 +33,11 @@ public:
     EditorCamera(glm::vec3 pos, glm::vec3 rot);
 
     inline glm::vec3 position() const override { return m_position; }
+    glm::mat4 viewMatrix() const;
+    glm::mat4 projectionMatrix(float aspectRatio) const;
     glm::mat4 viewProjectionMatrix(float aspectRatio) const override;
 
+    void setViewMatrix(const glm::mat4& viewMatrix);
     void onMoveInput(const glm::vec2& value);
     void onRotationInput(const glm::vec2& value);
 

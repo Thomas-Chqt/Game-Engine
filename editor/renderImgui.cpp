@@ -7,6 +7,7 @@
  */
 
 #include "Editor.hpp"
+#include "ImGuizmo.h"
 #include "imgui_render/imgui_render.hpp"
 
 #include <Game-Engine/AssetManager.hpp>
@@ -18,8 +19,10 @@
 #include <imgui.h>
 #include <tracy/Tracy.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -30,6 +33,9 @@
 #include <utility>
 
 constexpr float TILE_SIZE = 60.0f;
+constexpr float VIEW_MANIPULATE_SIZE = 64.0f;
+constexpr float VIEW_MANIPULATE_PADDING = 4.0f;
+constexpr float VIEW_MANIPULATE_ORBIT_DISTANCE = 8.0f;
 
 namespace
 {
@@ -43,6 +49,46 @@ template<> struct EditableEntityComponentTraits<GE::CameraComponent>    { static
 template<> struct EditableEntityComponentTraits<GE::LightComponent>     { static constexpr const char* label = "Light component";     };
 template<> struct EditableEntityComponentTraits<GE::ScriptComponent>    { static constexpr const char* label = "Script component";    };
 template<> struct EditableEntityComponentTraits<GE::MeshComponent>      { static constexpr const char* label = "Mesh component";      };
+
+GE::TransformComponent decomposeEngineTransform(const glm::mat4x4& matrix)
+{
+    GE::TransformComponent transform;
+
+    transform.position = glm::vec3(matrix[3]);
+    transform.scale = {
+        glm::length(glm::vec3(matrix[0])),
+        glm::length(glm::vec3(matrix[1])),
+        glm::length(glm::vec3(matrix[2]))
+    };
+
+    assert(transform.scale.x != 0.0f);
+    assert(transform.scale.y != 0.0f);
+    assert(transform.scale.z != 0.0f);
+
+    const glm::mat3 rotationMatrix{
+        glm::vec3(matrix[0]) / transform.scale.x,
+        glm::vec3(matrix[1]) / transform.scale.y,
+        glm::vec3(matrix[2]) / transform.scale.z
+    };
+
+    const float sinY = std::clamp(rotationMatrix[2][0], -1.0f, 1.0f);
+    transform.rotation.y = std::asin(sinY);
+
+    if (std::abs(std::cos(transform.rotation.y)) > 0.0001f)
+    {
+        transform.rotation.x = std::atan2(-rotationMatrix[2][1], rotationMatrix[2][2]);
+        transform.rotation.z = std::atan2(-rotationMatrix[1][0], rotationMatrix[0][0]);
+    }
+    else
+    {
+        transform.rotation.x = sinY > 0.0f
+            ? std::atan2(rotationMatrix[0][1], rotationMatrix[1][1])
+            : std::atan2(-rotationMatrix[0][1], rotationMatrix[1][1]);
+        transform.rotation.z = 0.0f;
+    }
+
+    return transform;
+}
 
 } // namespace
 
@@ -58,6 +104,7 @@ void Editor::renderImgui()
     static std::filesystem::path resourceBrowserSubDir;
 
     ImGui::NewFrame();
+    ImGuizmo::BeginFrame();
 
     ImGui::DockSpaceOverViewport();
 
@@ -81,7 +128,11 @@ void Editor::renderImgui()
     {
         static std::variant<std::string, uint64_t> textureIdPlaceholder = std::string("viewportBackBuffer");
 
+        ImVec2 cursorPos = ImGui::GetCursorScreenPos();
         ImVec2 contentRegionAvai = ImGui::GetContentRegionAvail();
+
+        ImGuizmo::SetRect(cursorPos.x, cursorPos.y, contentRegionAvai.x, contentRegionAvai.y);
+
         uint32_t newWidth = contentRegionAvai.x <= 0 ? 1 : static_cast<uint32_t>(contentRegionAvai.x);
         uint32_t newHeight = contentRegionAvai.y <= 0 ? 1 : static_cast<uint32_t>(contentRegionAvai.y);
 
@@ -102,6 +153,47 @@ void Editor::renderImgui()
                     assetManager().importGltf(path);
             }
             ImGui::EndDragDropTarget();
+        }
+
+        if (m_game.has_value() == false) {
+            float aspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
+            glm::mat4x4 viewMatrix = m_editorCamera.viewMatrix();
+            glm::mat4x4 projectionMatrix = m_editorCamera.projectionMatrix(aspectRatio);
+            ImGuizmo::SetDrawlist();
+
+            if (m_selectedEntity.has_value()) {
+                glm::mat4x4 matrix = m_selectedEntity->worldTransform();
+                ImGuizmo::OPERATION operations = ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::ROTATE;
+                if (ImGuizmo::Manipulate((float*)&viewMatrix, (float*)&projectionMatrix, operations, ImGuizmo::MODE::LOCAL, (float*)&matrix)) {
+                    glm::mat4x4 localMatrix = matrix;
+                    if (auto parent = m_selectedEntity->parent()) {
+                        assert(parent->has<GE::TransformComponent>());
+                        localMatrix = glm::inverse(parent->worldTransform()) * matrix;
+                    }
+                    m_selectedEntity->get<GE::TransformComponent>() = decomposeEngineTransform(localMatrix);
+                }
+            }
+
+            glm::mat4x4 identityMatrix(1.0f);
+            const ImVec2 viewManipulatePosition(
+                cursorPos.x + std::max(0.0f, contentRegionAvai.x - VIEW_MANIPULATE_SIZE - VIEW_MANIPULATE_PADDING),
+                cursorPos.y + VIEW_MANIPULATE_PADDING
+            );
+            const ImVec2 viewManipulateSize(VIEW_MANIPULATE_SIZE, VIEW_MANIPULATE_SIZE);
+            ImGuizmo::ViewManipulate(
+                (float*)&viewMatrix,
+                (float*)&projectionMatrix,
+                ImGuizmo::OPERATION::ROTATE,
+                ImGuizmo::MODE::LOCAL,
+                (float*)&identityMatrix,
+                VIEW_MANIPULATE_ORBIT_DISTANCE,
+                viewManipulatePosition,
+                viewManipulateSize,
+                IM_COL32(16, 16, 16, 96)
+            );
+            if (ImGuizmo::IsUsingViewManipulate()) {
+                m_editorCamera.setViewMatrix(viewMatrix);
+            }
         }
     }
     ImGui::End();
