@@ -51,6 +51,7 @@
 #include <ranges>
 #include <string_view>
 #include <tuple>
+#include <tracy/Tracy.hpp>
 
 extern std::unique_ptr<GE::Application> createApplication(int argc, const char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays)
 {
@@ -119,10 +120,12 @@ Editor::Editor(std::span<const char*> args)
 
 void Editor::onUpdate()
 {
+    ZoneScopedN("Editor::onUpdate");
     processDropedFiles();
 
     if (m_game.has_value())
     {
+        ZoneScopedN("Editor::game update");
         // game update
         // TODO ? maybe move into game class
         for (auto [scriptComponent] : m_game->activeScene().ecsWorld() | GE::ECSView<GE::ScriptComponent>())
@@ -301,6 +304,8 @@ void Editor::setPrimaryInputContext(GE::InputContext& inputContext)
 
 void Editor::processDropedFiles()
 {
+    ZoneScopedN("Editor::processDropedFiles");
+
     while (const std::optional<std::filesystem::path> droppedFile = window().popDroppedFile())
     {
         if (std::filesystem::is_regular_file(*droppedFile) && droppedFile->extension() == ".geproj") {

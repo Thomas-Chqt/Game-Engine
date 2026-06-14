@@ -21,6 +21,9 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyC.h>
+
 #include <algorithm>
 #include <cassert>
 #include <memory>
@@ -104,20 +107,28 @@ void Application::run()
     m_running = true;
     while (true)
     {
+        TracyCZoneN(glfwPollEventsCtx, "Application::poll events", true);
         ::glfwPollEvents();
+        TracyCZoneEnd(glfwPollEventsCtx);
 
+        TracyCZoneN(applicationDispachInputsCtx, "Application::dispatch input", true);
         for (InputContext* inputContext : m_inputContextStack)
             inputContext->dispatchInputs();
+        TracyCZoneEnd(applicationDispachInputsCtx);
 
         if (m_running == false)
             break;
 
+        TracyCZoneN(imguiNewFrameCtx, "Application::imgui new frame", true);
         m_device->imguiNewFrame();
         ImGui_ImplGlfw_NewFrame();
+        TracyCZoneEnd(imguiNewFrameCtx);
 
         onUpdate();
 
         m_renderer->renderFrame(frameGraph());
+
+        FrameMark;
     }
 }
 

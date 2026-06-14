@@ -20,6 +20,9 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyC.h>
+
 #include <cassert>
 #include <functional>
 #include <limits>
@@ -42,6 +45,8 @@ FlatGeometryPassBuilder::FlatGeometryPassBuilder(
 
 FramePass FlatGeometryPassBuilder::build() const
 {
+    ZoneScopedN("FlatGeometryPassBuilder::build");
+
     GE::FramePass framePass = FramePassBuilderBase<FlatGeometryPassBuilder>::build();
     const std::string colorAttachmentName = m_colorAttachment.texture;
 
@@ -59,6 +64,8 @@ FramePass FlatGeometryPassBuilder::build() const
 
     framePass.setup = [sceneProvider=m_sceneProvider, cameraProvider=m_cameraOverrideProvider, colorAttachmentName](FramePassSetupContext& ctx)
     {
+        ZoneScopedN("FlatGeometryPass::setup");
+
         const Scene& scene = sceneProvider();
         assert(colorAttachmentName.empty() == false);
 
@@ -89,6 +96,8 @@ FramePass FlatGeometryPassBuilder::build() const
             frameData.cameraPosition = position;
         }
         frameData.ambientLightColor = glm::vec3(1.0f, 1.0f, 1.0f) * 0.1f;
+
+        TracyCZoneN(FlatGeometryPassCollectLight, "FlatGeometryPass::collect lights", true);
 
         std::vector<shader::DirectionalLight> directionalLights;
         std::vector<shader::PointLight> pointLights;
@@ -129,6 +138,8 @@ FramePass FlatGeometryPassBuilder::build() const
         ctx.setStructuredBufferContent("directionalLights", directionalLights.data(), static_cast<uint32_t>(directionalBufferBytes));
         ctx.setStructuredBufferContent("pointLights", pointLights.data(), static_cast<uint32_t>(pointBufferBytes));
 
+        TracyCZoneEnd(FlatGeometryPassCollectLight);
+
         shader::flat_color::Material& material = *ctx.constantBuffers.at("material")->content<shader::flat_color::Material>();
         material.diffuseColor = glm::vec4(1.0f);
         material.specularColor = glm::vec3(0.0f);
@@ -137,6 +148,8 @@ FramePass FlatGeometryPassBuilder::build() const
 
     framePass.execute = [sceneProvider=m_sceneProvider](FramePassExecuteContext& ctx)
     {
+        ZoneScopedN("FlatGeometryPass::execute");
+
         const Scene& scene = sceneProvider();
 
         std::shared_ptr<gfx::ParameterBlock> frameDataPBlock = ctx.parameterBlockPool.get(ctx.frameDataBlockLayout);

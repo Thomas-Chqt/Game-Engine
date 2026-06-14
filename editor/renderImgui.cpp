@@ -16,6 +16,7 @@
 #include <Game-Engine/Scene.hpp>
 
 #include <imgui.h>
+#include <tracy/Tracy.hpp>
 
 #include <array>
 #include <cassert>
@@ -50,6 +51,8 @@ namespace GE_Editor
 
 void Editor::renderImgui()
 {
+    ZoneScopedN("Editor::renderImgui");
+
     static bool projectPropertiesOpen = false;
     static bool assetManagerWindowOpen = false;
     static std::filesystem::path resourceBrowserSubDir;

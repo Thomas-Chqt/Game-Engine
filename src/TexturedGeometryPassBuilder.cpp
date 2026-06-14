@@ -16,6 +16,9 @@
 #include <cstddef>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyC.h>
+
 #include <cassert>
 #include <functional>
 #include <limits>
@@ -59,6 +62,8 @@ TexturedGeometryPassBuilder::TexturedGeometryPassBuilder(
 
 FramePass TexturedGeometryPassBuilder::build() const
 {
+    ZoneScopedN("TexturedGeometryPassBuilder::build");
+
     GE::FramePass framePass = FramePassBuilderBase<TexturedGeometryPassBuilder>::build();
     const std::string colorAttachmentName = m_colorAttachment.texture;
 
@@ -78,6 +83,8 @@ FramePass TexturedGeometryPassBuilder::build() const
 
     framePass.setup = [sceneProvider=m_sceneProvider, cameraProvider=m_cameraOverrideProvider, colorAttachmentName, renderables](FramePassSetupContext& ctx)
     {
+        ZoneScopedN("TexturedGeometryPass::setup");
+
         const Scene& scene = sceneProvider();
         assert(colorAttachmentName.empty() == false);
 
@@ -108,6 +115,8 @@ FramePass TexturedGeometryPassBuilder::build() const
             frameData.cameraPosition = position;
         }
         frameData.ambientLightColor = glm::vec3(1.0f, 1.0f, 1.0f) * 0.1f;
+
+        TracyCZoneN(TexturedGeometryPassCollectLight, "TexturedGeometryPass::collect lights", true);
 
         std::vector<shader::DirectionalLight> directionalLights;
         std::vector<shader::PointLight> pointLights;
@@ -148,6 +157,9 @@ FramePass TexturedGeometryPassBuilder::build() const
         ctx.setStructuredBufferContent("directionalLights", directionalLights.data(), static_cast<uint32_t>(directionalBufferBytes));
         ctx.setStructuredBufferContent("pointLights", pointLights.data(), static_cast<uint32_t>(pointBufferBytes));
 
+        TracyCZoneEnd(TexturedGeometryPassCollectLight);
+
+        TracyCZoneN(TexturedGeometryPassCollectRenderables, "TexturedGeometryPass::collect renderables", true);
         std::vector<shader::textured::Material> materials;
         std::map<std::shared_ptr<Material>, uint32_t> materialIndices;
 
@@ -161,11 +173,14 @@ FramePass TexturedGeometryPassBuilder::build() const
             std::shared_ptr<Mesh> loadedMesh = ctx.assetManager.getAsset<Mesh>(meshComponent.id);
 
             std::function<void(const SubMesh&, glm::mat4)> addSubmesh = [&](const SubMesh& submesh, const glm::mat4& transform) {
+                TracyCZoneN(modelMatrixCalculationCtx, "addSubmesh::calculate model matrix", true);
                 glm::mat4 modelMatrix = transform * submesh.transform;
+                TracyCZoneEnd(modelMatrixCalculationCtx);
 
                 for (auto& childSubmesh : submesh.subMeshes)
                     addSubmesh(childSubmesh, modelMatrix);
 
+                TracyCZoneN(emplaceMaterial, "addSubmesh::emplace material", true);
                 assert(submesh.material != nullptr);
                 auto [it, inserted] = materialIndices.try_emplace(submesh.material, static_cast<uint32_t>(materials.size()));
                 if (inserted) {
@@ -176,18 +191,26 @@ FramePass TexturedGeometryPassBuilder::build() const
                         .shininess = submesh.material->shininess
                     });
                 }
+                TracyCZoneEnd(emplaceMaterial);
+
+                TracyCZoneN(appendMatrix, "addSubmesh::append model matrix", true);
                 (*renderables)[std::make_pair(submesh.vertexBuffer, submesh.indexBuffer)].emplace_back(modelMatrix, it->second);
+                TracyCZoneEnd(appendMatrix);
             };
 
+            glm::mat4x4 worldTransform = entity.worldTransform();
             for (auto& submesh : loadedMesh->subMeshes)
-                addSubmesh(submesh, entity.worldTransform());
+                addSubmesh(submesh, worldTransform);
         }
 
         ctx.setStructuredBufferContent("materials", materials.data(), static_cast<uint32_t>(materials.size()) * sizeof(shader::textured::Material));
+        TracyCZoneEnd(TexturedGeometryPassCollectRenderables);
     };
 
     framePass.execute = [sceneProvider=m_sceneProvider, renderables](FramePassExecuteContext& ctx)
     {
+        ZoneScopedN("TexturedGeometryPass::execute");
+
         if (renderables->empty())
             return;
 

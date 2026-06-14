@@ -18,6 +18,7 @@
 #include "fastgltf/types.hpp"
 
 #include <glm/glm.hpp>
+#include <tracy/Tracy.hpp>
 
 #include <algorithm>
 #include <array>
@@ -87,6 +88,8 @@ AssetManager::AssetManager(gfx::Device* device, ThreadPool* threadPool)
 
 void AssetManager::importGltf(const std::filesystem::path& path)
 {
+    ZoneScopedN("AssetManager::importGltf");
+
     std::shared_ptr<AssetContainer> container = assetContainer(path);
     auto* gltfContainer = dynamic_cast<GltfAssetContainer*>(container.get());
     assert(gltfContainer);

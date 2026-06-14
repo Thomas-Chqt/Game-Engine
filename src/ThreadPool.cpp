@@ -9,6 +9,10 @@
 #include "Game-Engine/ThreadPool.hpp"
 
 #include <cassert>
+#include <common/TracySystem.hpp>
+#include <format>
+
+#include <tracy/Tracy.hpp>
 
 namespace GE
 {
@@ -20,7 +24,10 @@ ThreadPool::ThreadPool(std::size_t workerCount)
     try {
         m_workers.reserve(workerCount);
         for (std::size_t i = 0; i < workerCount; i++)
-            m_workers.emplace_back([this] { workerLoop(); });
+            m_workers.emplace_back([this, i] {
+                tracy::SetThreadNameWithHint(std::format("pool_worker_{}", i).c_str(), 1);
+                workerLoop();
+            });
     } catch (...) {
         {
             std::lock_guard lock(m_mutex);

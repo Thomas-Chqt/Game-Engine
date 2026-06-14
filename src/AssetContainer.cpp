@@ -1,5 +1,7 @@
 #include "Game-Engine/AssetContainer.hpp"
 
+#include <tracy/Tracy.hpp>
+
 #include <fstream>
 #include <ios>
 #include <stdexcept>
@@ -48,6 +50,8 @@ std::span<const std::byte> ImageAssetContainer::encodedBytes() const
 GltfAssetContainer::GltfAssetContainer(std::filesystem::path path)
     : m_path(std::move(path))
 {
+    ZoneScopedN("GltfAssetContainer::GltfAssetContainer");
+
     gltf::Expected<gltf::GltfDataBuffer> gltfDataBuffer = gltf::GltfDataBuffer::FromPath(m_path);
     if (gltfDataBuffer.error() != gltf::Error::None)
         throw std::runtime_error(m_path.string() + ": failed to load glTF: data error");

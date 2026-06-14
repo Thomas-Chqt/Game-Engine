@@ -13,6 +13,7 @@
 #include <Graphics/Buffer.hpp>
 
 #include <stdexcept>
+#include <tracy/Tracy.hpp>
 
 namespace GE
 {
@@ -21,6 +22,8 @@ FrameGraph::FrameGraph(const Descriptor& desc)
     : m_passes(desc.passes)
     , m_backBufferName(desc.backBufferName)
 {
+    ZoneScopedN("FrameGraph::build");
+
     // Process texture declarations - all go into m_textureDescriptors including back buffer
     for (const TextureDescriptor& texture : desc.textures)
     {
