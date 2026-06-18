@@ -87,7 +87,16 @@ struct convert<GE_Editor::EditorCamera>
         if (!node.IsMap())
             return false;
         rhs.m_position = node["position"] ? node["position"].as<glm::vec3>() : glm::vec3{ 0.0f, 0.0f, 0.0f };
-        rhs.m_rotation = node["rotation"] ? node["rotation"].as<glm::vec3>() : glm::vec3{ 0.0f, 0.0f, 0.0f };
+        if (const Node rotationNode = node["rotation"])
+        {
+            rhs.m_rotation = rotationNode["w"]
+                ? rotationNode.as<glm::quat>()
+                : glm::normalize(glm::quat(rotationNode.as<glm::vec3>()));
+        }
+        else
+        {
+            rhs.m_rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+        }
         rhs.m_fov = node["fov"] ? node["fov"].as<float>() : glm::radians(60.0f);
         rhs.m_zFar = node["zFar"] ? node["zFar"].as<float>() : 1000.0f;
         rhs.m_zNear = node["zNear"] ? node["zNear"].as<float>() : 0.1f;

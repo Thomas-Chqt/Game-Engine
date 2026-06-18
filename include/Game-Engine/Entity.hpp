@@ -111,22 +111,16 @@ struct basic_entity
         return transform.position;
     }
 
-    glm::mat3 worldRotation() const
+    glm::quat worldRotation() const
     {
         const TransformComponent& transform = get<TransformComponent>();
-
-        glm::mat4 rotationMatrix = glm::mat4(1.0f);
-        rotationMatrix = glm::rotate(rotationMatrix, transform.rotation.x, glm::vec3(1, 0, 0));
-        rotationMatrix = glm::rotate(rotationMatrix, transform.rotation.y, glm::vec3(0, 1, 0));
-        rotationMatrix = glm::rotate(rotationMatrix, transform.rotation.z, glm::vec3(0, 0, 1));
-        const glm::mat3 localRotation = glm::mat3(rotationMatrix);
 
         if (auto parent = this->parent())
         {
             assert(parent->template has<TransformComponent>());
-            return parent->worldRotation() * localRotation;
+            return glm::normalize(parent->worldRotation() * transform.rotation);
         }
-        return localRotation;
+        return transform.rotation;
     }
 
     glm::vec3 worldScale() const

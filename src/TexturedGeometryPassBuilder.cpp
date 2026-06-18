@@ -107,7 +107,7 @@ FramePass TexturedGeometryPassBuilder::build() const
             assert(activeCamera.has<CameraComponent>());
 
             const glm::vec3 position = activeCamera.worldPosition();
-            const glm::mat3 rotation = activeCamera.worldRotation();
+            const glm::quat rotation = activeCamera.worldRotation();
             const glm::vec3 direction = rotation * glm::vec3(0.0f, 0.0f, -1.0f);
             const glm::vec3 up = rotation * glm::vec3(0.0f, 1.0f, 0.0f);
 

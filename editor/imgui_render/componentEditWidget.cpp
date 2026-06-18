@@ -1,6 +1,8 @@
 #include "imgui_render.hpp"
 
+#include <glm/gtc/quaternion.hpp>
 #include <imgui.h>
+
 #include <numbers>
 #include <string>
 
@@ -26,9 +28,10 @@ void componentEditWidget<GE::TransformComponent>(GE::Entity entity, [[maybe_unus
         if (ImGui::DragFloat3("position##TransformComponent_position", buff, 0.01f, -1000.0f, 1000.0f))
             transform.position = glm::vec3{buff[0], buff[1], buff[2]};
     });
-    floatBuff<3>(transform.rotation, [&](float* buff){
+    glm::vec3 eulerRotation = glm::eulerAngles(transform.rotation);
+    floatBuff<3>(eulerRotation, [&](float* buff){
         if (ImGui::DragFloat3("rotation##TransformComponent_rotation", buff, 0.01f, -2*std::numbers::pi_v<float>, 2*std::numbers::pi_v<float>))
-            transform.rotation = glm::vec3{buff[0], buff[1], buff[2]};
+            transform.rotation = glm::normalize(glm::quat(glm::vec3{buff[0], buff[1], buff[2]}));
     });
     floatBuff<3>(transform.scale, [&](float* buff){
         if (ImGui::DragFloat3("scale##TransformComponent_scale", buff, 0.01f, 0.0f, 10.0f))
