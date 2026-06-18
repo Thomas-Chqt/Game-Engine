@@ -9,6 +9,8 @@
 #include <Game-Engine/Game.hpp>
 #include <Game-Engine/Script.hpp>
 
+#include <glm/gtc/quaternion.hpp>
+
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -32,13 +34,17 @@ class PlayerController final : public GE::Script
         auto it = std::ranges::find_if(children, [](const GE::Entity& child) -> bool { return child.name() == "camera"; });
         assert(it != children.end());
 
+        const auto& cameraTransform = it->get<GE::TransformComponent>();
+        const glm::vec3 cameraForward = cameraTransform.rotation * glm::vec3(0.0f, 0.0f, -1.0f);
+        m_cameraPitch = std::asin(std::clamp(cameraForward.y, -1.0f, 1.0f));
+
         game.inputContext().setInputCallback<GE::Range2DInput>(
             "player_move",
             [this, entity](const glm::vec2& value) mutable
             {
                 auto& transform = entity.get<GE::TransformComponent>();
-                const auto forward = glm::vec3(-std::sin(transform.rotation.y), 0.0f, -std::cos(transform.rotation.y));
-                const auto right = glm::vec3(std::cos(transform.rotation.y), 0.0f, -std::sin(transform.rotation.y));
+                const auto forward = transform.rotation * glm::vec3(0.0f, 0.0f, -1.0f);
+                const auto right = transform.rotation * glm::vec3(1.0f, 0.0f, 0.0f);
                 transform.position += (right * value.x + forward * value.y) * move_speed;
             }
         );
@@ -50,14 +56,17 @@ class PlayerController final : public GE::Script
                 auto& entityTransform = entity.get<GE::TransformComponent>();
                 auto& cameraTransform = camera.get<GE::TransformComponent>();
 
-                entityTransform.rotation.y += value.y * rotate_speed;
-                cameraTransform.rotation.x = std::clamp(cameraTransform.rotation.x + value.x * rotate_speed, glm::radians(-89.0f), glm::radians(89.0f));
+                const glm::quat yawDelta = glm::angleAxis(value.y * rotate_speed, glm::vec3(0.0f, 1.0f, 0.0f));
+                entityTransform.rotation = glm::normalize(yawDelta * entityTransform.rotation);
+
+                m_cameraPitch = std::clamp(m_cameraPitch + value.x * rotate_speed, glm::radians(-89.0f), glm::radians(89.0f));
+                cameraTransform.rotation = glm::angleAxis(m_cameraPitch, glm::vec3(1.0f, 0.0f, 0.0f));
             }
         );
 
         game.inputContext().setInputCallback<GE::ActionInput>(
             "player_jump",
-            [this]()
+            [this]
             {
                 if (!m_grounded)
                     return;
@@ -89,5 +98,6 @@ private:
     GE::Entity m_entity;
     float m_groundHeight = 0.0f;
     float m_verticalVelocity = 0.0f;
+    float m_cameraPitch = 0.0f;
     bool m_grounded = true;
 };

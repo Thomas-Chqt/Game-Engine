@@ -13,6 +13,7 @@
 #include <Game-Engine/ICamera.hpp>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 namespace YAML
 {
@@ -30,7 +31,7 @@ public:
     EditorCamera(const EditorCamera&) = default;
     EditorCamera(EditorCamera&&) = default;
 
-    EditorCamera(glm::vec3 pos, glm::vec3 rot);
+    EditorCamera(glm::vec3 pos, glm::quat rot);
 
     inline glm::vec3 position() const override { return m_position; }
     glm::mat4 viewMatrix() const;
@@ -47,7 +48,7 @@ private:
     glm::mat4 rotationMatrix() const;
 
     glm::vec3 m_position = { 0.0f, 0.0f, 0.0f };
-    glm::vec3 m_rotation = { 0.0f, 0.0f, 0.0f };
+    glm::quat m_rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
 
     float m_fov = glm::radians(60.0f);
     float m_zFar = 1000.0f;

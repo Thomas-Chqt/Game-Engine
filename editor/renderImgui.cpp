@@ -16,6 +16,7 @@
 #include <Game-Engine/Entity.hpp>
 #include <Game-Engine/Scene.hpp>
 
+#include <glm/gtc/quaternion.hpp>
 #include <imgui.h>
 #include <tracy/Tracy.hpp>
 
@@ -71,21 +72,7 @@ GE::TransformComponent decomposeEngineTransform(const glm::mat4x4& matrix)
         glm::vec3(matrix[2]) / transform.scale.z
     };
 
-    const float sinY = std::clamp(rotationMatrix[2][0], -1.0f, 1.0f);
-    transform.rotation.y = std::asin(sinY);
-
-    if (std::abs(std::cos(transform.rotation.y)) > 0.0001f)
-    {
-        transform.rotation.x = std::atan2(-rotationMatrix[2][1], rotationMatrix[2][2]);
-        transform.rotation.z = std::atan2(-rotationMatrix[1][0], rotationMatrix[0][0]);
-    }
-    else
-    {
-        transform.rotation.x = sinY > 0.0f
-            ? std::atan2(rotationMatrix[0][1], rotationMatrix[1][1])
-            : std::atan2(-rotationMatrix[0][1], rotationMatrix[1][1]);
-        transform.rotation.z = 0.0f;
-    }
+    transform.rotation = glm::normalize(glm::quat_cast(rotationMatrix));
 
     return transform;
 }

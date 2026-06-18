@@ -14,11 +14,10 @@
 #include <glm/glm.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <numbers>
 
 namespace GE_Editor
 {
@@ -28,7 +27,6 @@ namespace
 
 constexpr float kMoveStepPerFrame = 5.0f / 60.0f;
 constexpr float kRotateStepPerFrame = 1.5f / 60.0f;
-constexpr float kMaxPitch = std::numbers::pi_v<float> * 0.5f - 0.001f;
 
 bool isFinite(const glm::mat4& matrix)
 {
@@ -45,10 +43,11 @@ bool isFinite(const glm::mat4& matrix)
 
 }
 
-EditorCamera::EditorCamera(glm::vec3 pos, glm::vec3 rot)
+EditorCamera::EditorCamera(glm::vec3 pos, glm::quat rot)
     : m_position(pos)
-    , m_rotation(rot)
 {
+    assert(glm::length(rot) != 0.0f);
+    m_rotation = glm::normalize(rot);
 }
 
 glm::mat4 EditorCamera::viewMatrix() const
@@ -82,25 +81,8 @@ void EditorCamera::setViewMatrix(const glm::mat4& viewMatrix)
     if (!isFinite(cameraTransform))
         return;
 
-    const glm::mat3 rotationMatrix(cameraTransform);
-    const float sinPitch = std::clamp(-rotationMatrix[2][1], -1.0f, 1.0f);
-
     m_position = glm::vec3(cameraTransform[3]);
-    m_rotation.x = std::asin(sinPitch);
-    if (std::abs(std::cos(m_rotation.x)) > 0.0001f)
-    {
-        m_rotation.y = std::atan2(rotationMatrix[2][0], rotationMatrix[2][2]);
-        m_rotation.z = std::atan2(rotationMatrix[0][1], rotationMatrix[1][1]);
-    }
-    else
-    {
-        m_rotation.y = sinPitch > 0.0f
-            ? std::atan2(rotationMatrix[1][0], rotationMatrix[0][0])
-            : std::atan2(-rotationMatrix[1][0], rotationMatrix[0][0]);
-        m_rotation.z = 0.0f;
-    }
-
-    m_rotation.x = std::clamp(m_rotation.x, -kMaxPitch, kMaxPitch);
+    m_rotation = glm::normalize(glm::quat_cast(glm::mat3(cameraTransform)));
 }
 
 void EditorCamera::onMoveInput(const glm::vec2& value)
@@ -110,17 +92,14 @@ void EditorCamera::onMoveInput(const glm::vec2& value)
 
 void EditorCamera::onRotationInput(const glm::vec2& value)
 {
-    m_rotation.y -= value.y * kRotateStepPerFrame;
-    m_rotation.x += value.x * kRotateStepPerFrame;
+    const glm::quat yawDelta = glm::angleAxis(-value.y * kRotateStepPerFrame, glm::vec3(0.0f, 1.0f, 0.0f));
+    const glm::quat pitchDelta = glm::angleAxis(value.x * kRotateStepPerFrame, glm::vec3(1.0f, 0.0f, 0.0f));
+    m_rotation = glm::normalize(yawDelta * m_rotation * pitchDelta);
 }
 
 glm::mat4 EditorCamera::rotationMatrix() const
 {
-    auto rotationMat = glm::mat4x4(1.0f);
-    rotationMat = glm::rotate(rotationMat, m_rotation.y, glm::vec3(0, 1, 0));
-    rotationMat = glm::rotate(rotationMat, m_rotation.x, glm::vec3(1, 0, 0));
-    rotationMat = glm::rotate(rotationMat, m_rotation.z, glm::vec3(0, 0, 1));
-    return rotationMat;
+    return glm::mat4_cast(m_rotation);
 }
 
 }

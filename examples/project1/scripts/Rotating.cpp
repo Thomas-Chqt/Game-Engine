@@ -9,6 +9,8 @@
 #include <Game-Engine/Game.hpp>
 #include <Game-Engine/Script.hpp>
 
+#include <glm/gtc/quaternion.hpp>
+
 class Rotating final : public GE::Script
 {
     GE_SCRIPT(Rotating, "Rotating");
@@ -23,7 +25,7 @@ class Rotating final : public GE::Script
     void onUpdate() override
     {
         auto& transform = m_entity.get<GE::TransformComponent>();
-        transform.rotation.y += speed;
+        transform.rotation = glm::normalize(transform.rotation * glm::angleAxis(speed, glm::vec3(0.0f, 1.0f, 0.0f)));
     }
 
 private:

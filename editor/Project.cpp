@@ -13,6 +13,7 @@
 #include <Game-Engine/Mesh.hpp>
 #include <Game-Engine/Scene.hpp>
 
+#include <glm/gtc/quaternion.hpp>
 #include <imgui.h>
 
 #include <string>
@@ -59,7 +60,7 @@ GE::Scene::Descriptor makeDefaultCubeScene(std::string_view name)
     camera.emplace<GE::NameComponent>("camera");
     auto& transformComponent = camera.emplace<GE::TransformComponent>();
     transformComponent.position = {  3.0f, 3.0f, 5.0f };
-    transformComponent.rotation = { -0.5f, 0.5f, 0.0f };
+    transformComponent.rotation = glm::quat(glm::vec3{ -0.5f, 0.5f, 0.0f });
     transformComponent.scale    = {  1.0f, 1.0f, 1.0f };
     camera.emplace<GE::CameraComponent>();
 
@@ -86,7 +87,7 @@ Project makeDefaultProject()
         .name = "Untitled Project",
         .scenes = { makeDefaultCubeScene("default_scene") },
         .startSceneName = "default_scene",
-        .editorCamera = {{3.0f, 3.0f, 5.0f}, {-0.5f, 0.5f, 0.0f}},
+        .editorCamera = {{3.0f, 3.0f, 5.0f}, glm::quat(glm::vec3{-0.5f, 0.5f, 0.0f})},
         .editedSceneName = "default_scene",
         .imguiSettings = std::string(DEFAULT_IMGUI_SETTINGS)
     };

@@ -83,7 +83,16 @@ struct convert<GE::TransformComponent>
             return false;
 
         rhs.position = node["position"] ? node["position"].as<glm::vec3>() : glm::vec3{0.0f, 0.0f, 0.0f};
-        rhs.rotation = node["rotation"] ? node["rotation"].as<glm::vec3>() : glm::vec3{0.0f, 0.0f, 0.0f};
+        if (const Node rotationNode = node["rotation"])
+        {
+            rhs.rotation = rotationNode["w"]
+                ? rotationNode.as<glm::quat>()
+                : glm::normalize(glm::quat(rotationNode.as<glm::vec3>()));
+        }
+        else
+        {
+            rhs.rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+        }
         rhs.scale = node["scale"] ? node["scale"].as<glm::vec3>() : glm::vec3{1.0f, 1.0f, 1.0f};
         return true;
     }
