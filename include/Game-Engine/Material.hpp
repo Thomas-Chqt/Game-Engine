@@ -13,6 +13,8 @@ struct Material
 
     glm::vec3 specularColor;
 
+    glm::vec3 emissiveColor;
+
     float shininess;
 };
 

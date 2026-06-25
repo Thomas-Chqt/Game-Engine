@@ -188,6 +188,7 @@ FramePass TexturedGeometryPassBuilder::build() const
                         .diffuseColor = submesh.material->diffuseColor,
                         .diffuseTextureIdx = ctx.textureTable.textureIndex(submesh.material->diffuseTexture),
                         .specularColor = submesh.material->specularColor,
+                        .emissiveColor = submesh.material->emissiveColor,
                         .shininess = submesh.material->shininess
                     });
                 }

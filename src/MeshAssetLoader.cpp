@@ -141,9 +141,14 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const AssetLocation<Mesh>& locatio
             }
 
             it->second = std::make_shared<Material>(Material{
-                .diffuseColor = glm::make_vec4(gltfMaterial.pbrData.baseColorFactor.data()),
+                .diffuseColor = glm::vec4(
+                    glm::make_vec3(gltfMaterial.pbrData.baseColorFactor.data()),
+                    gltfMaterial.alphaMode == gltf::AlphaMode::Opaque
+                        ? 1.0f
+                        : gltfMaterial.pbrData.baseColorFactor.w()),
                 .diffuseTexture = diffuseTexture,
                 .specularColor = glm::vec3(0.0f),
+                .emissiveColor = glm::make_vec3(gltfMaterial.emissiveFactor.data()),
                 .shininess = 0.0f
             });
         }
