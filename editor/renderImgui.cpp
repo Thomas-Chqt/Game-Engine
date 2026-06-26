@@ -127,7 +127,6 @@ void Editor::renderImgui()
 
         if (newWidth != m_viewportSize.first || newHeight != m_viewportSize.second) {
             m_viewportSize = {newWidth, newHeight};
-            rebuildFrameGraph();
         }
 
         if (ImGui::BeginDragDropTarget())

@@ -11,17 +11,16 @@
 #include "Project.hpp"
 #include "yaml_convert/convert_project.hpp"
 
+#include <Game-Engine/BuiltInPasses.hpp>
 #include <Game-Engine/Event.hpp>
 #include <Game-Engine/RawInput.hpp>
 #include <Game-Engine/AssetManager.hpp>
 #include <Game-Engine/ECSView.hpp>
 #include <Game-Engine/Entity.hpp>
 #include <Game-Engine/FrameGraph.hpp>
-#include <Game-Engine/FramePassBuilder.hpp>
 #include <Game-Engine/Components.hpp>
 #include <Game-Engine/Script.hpp>
 #include <Game-Engine/Scene.hpp>
-#include <Game-Engine/ICamera.hpp>
 #include <Game-Engine/InputFwd.hpp>
 #include <Game-Engine/InputContext.hpp>
 #include <Game-Engine/ECSWorld.hpp>
@@ -29,10 +28,19 @@
 
 #include <Graphics/Enums.hpp>
 
+#include <cassert>
+#include <cstdint>
+#include <span>
 #include <vector>
 #include <yaml-cpp/yaml.h>
 
 #include <filesystem>
+#include <map>
+#include <memory>
+#include <utility>
+
+#include <glm/gtc/matrix_transform.hpp>
+#include <tracy/TracyC.h>
 #include <format>
 #include <fstream>
 #include <memory>
@@ -114,8 +122,6 @@ Editor::Editor(std::span<const char*> args)
 
     pushInputContext(&m_editorInputContext);
     pushInputContext(&m_imguiInputContext);
-
-    rebuildFrameGraph();
 }
 
 void Editor::onUpdate()
@@ -141,7 +147,6 @@ void Editor::onUpdate()
 void Editor::onEvent(GE::Event& event)
 {
     if (event.dispatch<GE::WindowRequestCloseEvent>([&](auto&) { terminate(); })) return;
-    if (event.dispatch<GE::WindowResizeEvent>([&](auto&) { rebuildFrameGraph(); })) return;
 }
 
 void Editor::loadProject(Project&& project)
@@ -162,7 +167,7 @@ void Editor::loadProject(Project&& project)
     m_sceneDescriptors = std::move(project.scenes);
     m_startSceneName = std::move(project.startSceneName);
 
-    m_editorCamera = std::move(project.editorCamera);
+    m_editorCamera = project.editorCamera;
     editScene(project.editedSceneName);
     m_selectedEntity = project.selectedEntityId.transform([&](GE::EntityID id){ return GE::Entity{&m_editedScene->ecsWorld(), id}; });
 
@@ -320,37 +325,55 @@ void Editor::processDropedFiles()
     }
 }
 
-void Editor::rebuildFrameGraph()
+void Editor::recordFrameGraph(GE::FrameGraphBuilder& builder)
 {
-    std::function<const GE::Scene&()> sceneProvider = [this]() -> const GE::Scene& {
+    ZoneScopedN("Editor::recordFrameGraph");
+
+    const GE::Scene& scene = [&]() -> const GE::Scene& {
         if (m_game.has_value())
             return m_game->activeScene();
         assert(m_editedScene);
         return *m_editedScene;
-    };
+    }();
 
-    std::function<const GE::ICamera*()> cameraProvider = [this]() -> const GE::ICamera* {
-        if (m_game.has_value())
-            return nullptr; // use scene main camera
-        return &m_editorCamera;
-    };
+    GE::FrameGraph::TextureRef viewportBackBuffer = builder.newTexture("backBuffer", m_viewportSize, gfx::PixelFormat::BGRA8Unorm);
+    builder.aliasTexture("viewportBackBuffer", viewportBackBuffer);
+    builder.newTexture("depthBuffer", m_viewportSize, gfx::PixelFormat::Depth32Float);
+    auto windowBackBuffer = builder.newTexture("windowBackBuffer", window().frameBufferSize(), gfx::PixelFormat::BGRA8Unorm);
+    builder.setBackBuffer(windowBackBuffer);
 
-    m_frameGraph = GE::FrameGraph(GE::FrameGraph::Descriptor{
-        .backBufferName = "windowBackBuffer",
-        .textures = {
-            { .name = "viewportBackBuffer", .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
-            { .name = "depthBuffer",        .size = m_viewportSize,             .pixelFormat = gfx::PixelFormat::Depth32Float },
-            { .name = "windowBackBuffer",   .size = window().frameBufferSize(), .pixelFormat = gfx::PixelFormat::BGRA8Unorm },
-        },
-        .passes = {
-            GE::TexturedGeometryPassBuilder(std::move(sceneProvider), std::move(cameraProvider))
-                .setColorAttachment("viewportBackBuffer")
-                .setDepthAttachment("depthBuffer"),
-            GE::ImguiPassBuilder()
-                .setColorAttachment("windowBackBuffer")
-                .addSampledTexture("viewportBackBuffer")
-        }
-    });
+    assert(m_viewportSize.second != 0);
+    const float aspectRatio = static_cast<float>(m_viewportSize.first) / static_cast<float>(m_viewportSize.second);
+
+    glm::mat4 viewProjectionMatrix;
+    glm::vec3 cameraPosition;
+    if (m_game.has_value())
+    {
+        GE::const_Entity activeCamera = scene.activeCamera();
+        assert(activeCamera.world != nullptr);
+        assert(activeCamera.world->isValidEntityID(activeCamera.entityId));
+        assert(activeCamera.has<GE::TransformComponent>());
+        assert(activeCamera.has<GE::CameraComponent>());
+
+        const glm::vec3 position = activeCamera.worldPosition();
+        const glm::quat rotation = activeCamera.worldRotation();
+        const glm::vec3 direction = rotation * glm::vec3(0.0f, 0.0f, -1.0f);
+        const glm::vec3 up = rotation * glm::vec3(0.0f, 1.0f, 0.0f);
+
+        viewProjectionMatrix = activeCamera.get<GE::CameraComponent>().projectionMatrix(aspectRatio) * glm::lookAt(position, position + direction, up);
+        cameraPosition = position;
+    }
+    else
+    {
+        viewProjectionMatrix = m_editorCamera.viewProjectionMatrix(aspectRatio);
+        cameraPosition = m_editorCamera.position();
+    }
+
+    GE::TexturedGeometryPass{scene, viewProjectionMatrix, cameraPosition}
+        .record(builder);
+
+    GE::ImGuiPass{}
+        .record(builder);
 }
 
 void Editor::syncEditedScene()

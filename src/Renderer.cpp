@@ -20,6 +20,8 @@
 #include <Graphics/Enums.hpp>
 #include <Graphics/Buffer.hpp>
 
+#include <algorithm>
+#include <cstdint>
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyC.h>
 
@@ -86,41 +88,6 @@ Renderer::Renderer(gfx::Device* device, AssetManager* assetManager, gfx::Surface
         }
     });
 
-    // ------------- flat color ------------- //
-    m_flatColorMaterialPBlockLayout = m_device->newParameterBlockLayout({
-        .bindings = {
-            { .type = gfx::BindingType::constantBuffer, .usages = gfx::BindingUsage::fragmentRead }
-        }
-    });
-
-    auto flatColorShaderLib = m_device->newShaderLib(SHADER_DIR"/flat_color.slib");
-
-    m_flatColorPipeline = m_device->newGraphicsPipeline(gfx::GraphicsPipeline::Descriptor{
-        .vertexLayout = gfx::VertexLayout{
-            .stride = sizeof(Vertex),
-            .attributes = {
-                gfx::VertexAttribute{
-                    .format = gfx::VertexAttributeFormat::float3,
-                    .offset = offsetof(Vertex, pos)},
-                gfx::VertexAttribute{
-                    .format = gfx::VertexAttributeFormat::float3,
-                    .offset = offsetof(Vertex, normal)},
-            }
-        },
-        .vertexShader = &flatColorShaderLib->getFunction("vertexMain"),
-        .fragmentShader = &flatColorShaderLib->getFunction("fragmentMain"),
-        .colorAttachmentPxFormats = {gfx::PixelFormat::BGRA8Unorm},
-        .depthAttachmentPxFormat = gfx::PixelFormat::Depth32Float,
-        .blendOperation = gfx::BlendOperation::blendingOff,
-        .cullMode = gfx::CullMode::back,
-        .parameterBlockLayouts = {
-            m_frameDataBlockLayout,
-            m_flatColorMaterialPBlockLayout
-        }
-    });
-
-    // ------------- textured ------------- //
-
     m_texturedMaterialPBlockLayout = m_device->newParameterBlockLayout({
         .bindings = {
             { .type = gfx::BindingType::structuredBuffer, .usages = gfx::BindingUsage::fragmentRead }
@@ -172,6 +139,11 @@ Renderer::Renderer(gfx::Device* device, AssetManager* assetManager, gfx::Surface
     }
 }
 
+FrameGraphBuilder Renderer::newFrameGraphBuilder()
+{
+    return {m_textureTable.get(), m_assetManager};
+}
+
 void Renderer::renderFrame(const FrameGraph& frameGraph)
 {
     ZoneScopedN("Renderer::renderFrame");
@@ -185,110 +157,82 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         cfd.parameterBlockPool->reset();
     }
 
-    std::map<std::string, std::shared_ptr<gfx::Texture>> textureMap;
-    std::map<gfx::Texture::Descriptor, std::set<std::shared_ptr<gfx::Texture>>> newTextureCache;
     TracyCZoneN(rendererPreparetextures, "Renderer::prepare textures", true);
-    for (auto& [textureName, textureDescriptor] : frameGraph.textureDescriptors())
+    std::vector<std::shared_ptr<gfx::Texture>> textureMap(frameGraph.textures.size());
+    std::map<gfx::Texture::Descriptor, std::set<std::shared_ptr<gfx::Texture>>> newTextureCache;
+    for (uint32_t textureIdx = 0; const auto& texture : frameGraph.textures)
     {
-        if (textureName == frameGraph.backBufferName() && (m_swapchain == nullptr || m_swapchain->drawablesTextureDescriptor() != textureDescriptor))
+        if (textureIdx == frameGraph.backBuffer && (m_swapchain == nullptr || m_swapchain->drawablesTextureDescriptor() != texture.descriptor))
         {
             ZoneScopedN("Renderer::recreate swapchain");
             gfx::Swapchain::Descriptor swapchainDescriptor = {
                 .surface = m_surface,
-                .width = textureDescriptor.width,
-                .height = textureDescriptor.height,
+                .width = texture.descriptor.width,
+                .height = texture.descriptor.height,
                 .imageCount = 3,
                 .drawableCount = maxFrameInFlight,
-                .pixelFormat = textureDescriptor.pixelFormat,
+                .pixelFormat = texture.descriptor.pixelFormat,
                 .presentMode = gfx::PresentMode::fifo,
             };
-            // std::println("recreating swapchain with size w:{}, h:{}", swapchainDescriptor.width, swapchainDescriptor.height);
             m_device->waitIdle();
             m_swapchain = m_device->newSwapchain(swapchainDescriptor);
             assert(m_swapchain);
         }
-        else if (textureName != frameGraph.backBufferName())
+        else if (textureIdx != frameGraph.backBuffer)
         {
-            std::shared_ptr<gfx::Texture> texture;
-            auto it = cfd.textureCache.find(textureDescriptor);
+            std::shared_ptr<gfx::Texture> gfxTexture;
+            auto it = cfd.textureCache.find(texture.descriptor);
             if (it == cfd.textureCache.end() || it->second.empty())
-                texture = m_device->newTexture(textureDescriptor);
+                gfxTexture = m_device->newTexture(texture.descriptor);
             else
-                texture = it->second.extract(it->second.begin()).value();
-            auto [_, inserted] = textureMap.insert(std::make_pair(textureName, texture));
-            assert(inserted);
-            newTextureCache[textureDescriptor].insert(texture);
+                gfxTexture = it->second.extract(it->second.begin()).value();
+            textureMap.at(textureIdx) = gfxTexture;
+            newTextureCache[texture.descriptor].insert(gfxTexture);
         }
+        textureIdx++;
     }
     TracyCZoneEnd(rendererPreparetextures);
 
-    std::map<std::string, std::shared_ptr<gfx::Buffer>> bufferMap;
+    TracyCZoneN(rendererPrepareBuffers, "Renderer::prepare buffers", true);
+    std::vector<std::shared_ptr<gfx::Buffer>> bufferMap(frameGraph.buffers.size());
     std::map<gfx::Buffer::Descriptor, std::set<std::shared_ptr<gfx::Buffer>>> newBufferCache;
-    TracyCZoneN(rendererPrepareConstantBuffers, "Renderer::prepare constant buffers", true);
-    for (auto& [bufferName, bufferDescriptor] : frameGraph.constantBufferDescriptors())
+    for (uint32_t bufferIdx = 0; const auto& buffer : frameGraph.buffers)
     {
-        std::shared_ptr<gfx::Buffer> buffer;
-        auto it = cfd.bufferCache.find(bufferDescriptor);
+        std::shared_ptr<gfx::Buffer> gfxBuffer;
+        auto it = cfd.bufferCache.find(buffer.descriptor);
         if (it == cfd.bufferCache.end() || it->second.empty())
-            buffer = m_device->newBuffer(bufferDescriptor);
+            gfxBuffer = m_device->newBuffer(buffer.descriptor);
         else
-            buffer = it->second.extract(it->second.begin()).value();
-        auto [_, inserted] = bufferMap.insert(std::make_pair(bufferName, buffer));
-        assert(inserted);
-        newBufferCache[bufferDescriptor].insert(buffer);
-    }
-    TracyCZoneEnd(rendererPrepareConstantBuffers);
+            gfxBuffer = it->second.extract(it->second.begin()).value();
 
-    auto setStructuredBufferContent = [&](const std::string& bufferName, const void* data, uint32_t size) {
-        if (size == 0)
-            return;
-        auto bufferDescriptor = gfx::Buffer::Descriptor{
-            .size = size,
-            .usages = gfx::BufferUsage::structuredBuffer,
-            .storageMode = gfx::ResourceStorageMode::hostVisible
-        };
-        std::shared_ptr<gfx::Buffer> buffer;
-        auto it = cfd.bufferCache.find(bufferDescriptor);
-        if (it == cfd.bufferCache.end() || it->second.empty())
-            buffer = m_device->newBuffer(bufferDescriptor);
-        else
-            buffer = it->second.extract(it->second.begin()).value();
-        auto [_, inserted] = bufferMap.insert(std::make_pair(bufferName, buffer));
-        assert(inserted);
-        newBufferCache[bufferDescriptor].insert(buffer);
-        if (data != nullptr)
-            std::memcpy(buffer->content<std::byte>(), data, size);
-    };
+        const std::span<const std::byte> bufferContent(frameGraph.buffersContent.data() + buffer.offset, buffer.descriptor.size);
+        std::memcpy(gfxBuffer->content<std::byte>(), bufferContent.data(), bufferContent.size());
+
+        bufferMap.at(bufferIdx) = gfxBuffer;
+        newBufferCache[buffer.descriptor].insert(gfxBuffer);
+        bufferIdx++;
+    }
+    TracyCZoneEnd(rendererPrepareBuffers);
 
     std::shared_ptr<gfx::CommandBuffer> commandBuffer = cfd.commandBufferPool->get();
     std::shared_ptr<gfx::Drawable> drawable;
-    for (auto& framePass : frameGraph.passes())
+    for (auto& framePass : frameGraph.passes)
     {
         ZoneScopedN("Renderer::frame pass");
 
-        if (drawable == nullptr /* TODO check if pass uses swapchain image */)
+        if (drawable == nullptr && std::ranges::any_of(framePass.colorAttachments, [&](auto& attachment){return attachment.texture == frameGraph.backBuffer ;}))
         {
             drawable = m_swapchain->nextDrawable();
-            if (drawable == nullptr)
+            if (drawable == nullptr) {
+                m_swapchain = nullptr;
                 return;
-            textureMap[frameGraph.backBufferName()] = drawable->texture();
-        }
-
-        if (framePass.setup)
-        {
-            FramePassSetupContext setupContext = {
-                .assetManager = *m_assetManager,
-                .textureTable = *m_textureTable,
-                .textureMap = textureMap,
-                .constantBuffers = bufferMap,
-                .setStructuredBufferContent = setStructuredBufferContent,
-            };
-            framePass.setup(setupContext);
+            }
+            textureMap.at(frameGraph.backBuffer) = drawable->texture();
         }
 
         gfx::Framebuffer framebuffer = gfx::Framebuffer{
             .colorAttachments = framePass.colorAttachments
-                                | std::views::transform([&](const AttachmentDescriptor& attachment) {
+                                | std::views::transform([&](const FrameGraph::Attachment& attachment) {
                                       return gfx::Framebuffer::Attachment{
                                           .loadAction = attachment.loadAction,
                                           .clearColor = attachment.clearColor,
@@ -304,27 +248,19 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
                                    : std::nullopt
         };
 
-        for (auto& textureName : framePass.sampledTextures)
-            commandBuffer->addSampledTexture(textureMap.at(textureName));
+        for (FrameGraph::TextureRef texture : framePass.sampledTextures)
+            commandBuffer->addSampledTexture(textureMap.at(texture));
 
         commandBuffer->beginRenderPass(framebuffer);
         {
-            FramePassExecuteContext framePassContext = {
+            FramePass::ExecuteContext framePassContext = {
                 .assetManager = *m_assetManager,
-                .textureTable = *m_textureTable,
-
                 .commandBuffer = *commandBuffer,
                 .parameterBlockPool = *cfd.parameterBlockPool,
-
-                .textureMap = textureMap,
-                .bufferMap = bufferMap,
-
                 .textureTableBlock = m_textureTableBlock,
                 .frameDataBlockLayout = m_frameDataBlockLayout,
-
-                .flatColorMaterialPBlockLayout = m_flatColorMaterialPBlockLayout,
-                .flatColorPipeline = m_flatColorPipeline,
-
+                .texture = [&](FrameGraph::TextureRef ref){ return textureMap.at(ref); },
+                .buffer = [&](FrameGraph::BufferRef ref){ return bufferMap.at(ref); },
                 .texturedMaterialPBlockLayout = m_texturedMaterialPBlockLayout,
                 .texturedPipeline = m_texturedPipeline
             };

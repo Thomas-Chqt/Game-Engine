@@ -48,7 +48,7 @@ public:
     void onUpdate() override;
     void onEvent(GE::Event& event) override;
 
-    inline const GE::FrameGraph& frameGraph() override { return m_frameGraph; }
+    void recordFrameGraph(GE::FrameGraphBuilder&) override;
 
     void loadProject(Project&&);
     void saveProject();
@@ -64,7 +64,6 @@ public:
 private:
     void setPrimaryInputContext(GE::InputContext&);
     void processDropedFiles();
-    void rebuildFrameGraph();
     void renderImgui();
     void syncEditedScene();
 
@@ -90,7 +89,6 @@ private:
     std::optional<GE::Game> m_game;
 
     std::pair<uint32_t, uint32_t> m_viewportSize = {0, 0};
-    GE::FrameGraph m_frameGraph; // TODO move into render (something like render->setGraph())
 
     std::optional<GE::ScriptLibrary> m_scriptLibrary;
 

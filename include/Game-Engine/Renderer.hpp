@@ -46,6 +46,7 @@ public:
 
     Renderer(gfx::Device*, AssetManager*, gfx::Surface*);
 
+    FrameGraphBuilder newFrameGraphBuilder();
     void renderFrame(const FrameGraph&);
 
     ~Renderer();
@@ -67,11 +68,7 @@ private:
 
     std::shared_ptr<gfx::ParameterBlock> m_textureTableBlock;
     std::shared_ptr<TextureTable> m_textureTable;
-
     std::shared_ptr<gfx::ParameterBlockLayout> m_frameDataBlockLayout;
-
-    std::shared_ptr<gfx::ParameterBlockLayout> m_flatColorMaterialPBlockLayout;
-    std::shared_ptr<gfx::GraphicsPipeline> m_flatColorPipeline;
 
     std::shared_ptr<gfx::ParameterBlockLayout> m_texturedMaterialPBlockLayout;
     std::shared_ptr<gfx::GraphicsPipeline> m_texturedPipeline;

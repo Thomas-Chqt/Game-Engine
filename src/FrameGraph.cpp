@@ -8,124 +8,124 @@
 
 #include "Game-Engine/FrameGraph.hpp"
 #include "Graphics/Enums.hpp"
+#include "TextureTable.hpp"
 
-#include <Graphics/Texture.hpp>
 #include <Graphics/Buffer.hpp>
+#include <Graphics/Texture.hpp>
 
-#include <stdexcept>
+#include <algorithm>
+#include <cassert>
+#include <optional>
+#include <ranges>
 #include <tracy/Tracy.hpp>
+#include <utility>
 
 namespace GE
 {
 
-FrameGraph::FrameGraph(const Descriptor& desc)
-    : m_passes(desc.passes)
-    , m_backBufferName(desc.backBufferName)
+FrameGraphBuilder::FrameGraphBuilder(TextureTable* textureTable, AssetManager* assetManager)
+    : m_textureTable(textureTable)
+    , m_assetManager(assetManager)
 {
-    ZoneScopedN("FrameGraph::build");
-
-    // Process texture declarations - all go into m_textureDescriptors including back buffer
-    for (const TextureDescriptor& texture : desc.textures)
-    {
-        const gfx::Texture::Descriptor newDescriptor{
-            .width = texture.size.first,
-            .height = texture.size.second,
-            .pixelFormat = texture.pixelFormat,
-            .usages = {},
-        };
-
-        auto [it, inserted] = m_textureDescriptors.emplace(texture.name, newDescriptor);
-        if (!inserted)
-            throw std::runtime_error("Duplicate texture declaration for \"" + texture.name + "\"");
-    }
-
-    // Process constant buffer declarations from graph level
-    for (const ConstantBufferDescriptor& cbDesc : desc.constantBuffers)
-    {
-        gfx::Buffer::Descriptor bufferDesc{
-            .size = cbDesc.size,
-            .usages = gfx::BufferUsage::constantBuffer,
-            .storageMode = gfx::ResourceStorageMode::hostVisible
-        };
-
-        auto [it, inserted] = m_constantBufferDescriptors.emplace(cbDesc.name, bufferDesc);
-        if (!inserted)
-            throw std::runtime_error("Duplicate constant buffer declaration for \"" + cbDesc.name + "\"");
-    }
-
-    // Process structured buffer declarations from graph level
-    for (const StructuredBufferDescriptor& sbDesc : desc.structuredBuffers)
-    {
-        auto [it, inserted] = m_structuredBufferNames.insert(sbDesc.name);
-        if (!inserted)
-            throw std::runtime_error("Duplicate structured buffer declaration for \"" + sbDesc.name + "\"");
-    }
-
-    // Process resource declarations from passes
-    for (const FramePass& pass : m_passes)
-    {
-        for (const TextureDescriptor& texture : pass.textureDeclarations)
-        {
-            const gfx::Texture::Descriptor newDescriptor{
-                .width = texture.size.first,
-                .height = texture.size.second,
-                .pixelFormat = texture.pixelFormat,
-                .usages = {},
-            };
-
-            auto [it, inserted] = m_textureDescriptors.emplace(texture.name, newDescriptor);
-            if (!inserted)
-                throw std::runtime_error("Duplicate texture declaration for \"" + texture.name + "\"");
-        }
-
-        for (const ConstantBufferDescriptor& cbDesc : pass.constantBufferDeclarations)
-        {
-            gfx::Buffer::Descriptor bufferDesc{
-                .size = cbDesc.size,
-                .usages = gfx::BufferUsage::constantBuffer,
-                .storageMode = gfx::ResourceStorageMode::hostVisible
-            };
-
-            auto [it, inserted] = m_constantBufferDescriptors.emplace(cbDesc.name, bufferDesc);
-            if (!inserted)
-                throw std::runtime_error("Duplicate constant buffer declaration for \"" + cbDesc.name + "\"");
-        }
-
-        for (const StructuredBufferDescriptor& sbDesc : pass.structuredBufferDeclarations)
-        {
-            auto [it, inserted] = m_structuredBufferNames.insert(sbDesc.name);
-            if (!inserted)
-                throw std::runtime_error("Duplicate structured buffer declaration for \"" + sbDesc.name + "\"");
-        }
-    }
-
-    // Add texture usage flags based on how passes reference the textures
-    auto addUsageToTexture = [&](const std::string& name, gfx::TextureUsages usage) {
-        auto it = m_textureDescriptors.find(name);
-        if (it == m_textureDescriptors.end())
-            throw std::runtime_error("Texture \"" + name + "\" is used but not declared");
-        it->second.usages |= usage;
-    };
-
-    for (const FramePass& pass : m_passes)
-    {
-        for (const AttachmentDescriptor& colorAttachment : pass.colorAttachments)
-            addUsageToTexture(colorAttachment.texture, gfx::TextureUsage::colorAttachment);
-
-        if (pass.depthAttachment)
-            addUsageToTexture(pass.depthAttachment->texture, gfx::TextureUsage::depthStencilAttachment);
-
-        for (const std::string& sampledTexture : pass.sampledTextures)
-            addUsageToTexture(sampledTexture, gfx::TextureUsage::shaderRead);
-
-        // Validate usedBuffers reference declared buffers
-        for (const std::string& bufferName : pass.usedBuffers)
-        {
-            if (m_constantBufferDescriptors.find(bufferName) == m_constantBufferDescriptors.end()
-                && m_structuredBufferNames.find(bufferName) == m_structuredBufferNames.end())
-                throw std::runtime_error("Buffer \"" + bufferName + "\" is used but not declared");
-        }
-    }
+    assert(m_textureTable);
+    assert(m_assetManager);
 }
 
+FrameGraph::TextureRef FrameGraphBuilder::newTexture(const gfx::Texture::Descriptor& desc)
+{
+    FrameGraph::TextureRef newTextureRef = m_frameGraph.textures.size();
+    m_frameGraph.textures.emplace_back(desc);
+    return newTextureRef;
 }
+
+FrameGraph::TextureRef FrameGraphBuilder::newTexture(std::pair<uint32_t, uint32_t> size, gfx::PixelFormat pixelFormat)
+{
+    return newTexture(gfx::Texture::Descriptor{
+        .type = gfx::TextureType::texture2d,
+        .width = size.first,
+        .height = size.second,
+        .pixelFormat = pixelFormat,
+        .usages = gfx::TextureUsage{0},
+        .storageMode = gfx::ResourceStorageMode::deviceLocal
+    });
+}
+
+FrameGraph::TextureRef FrameGraphBuilder::newTexture(std::string name, const gfx::Texture::Descriptor& desc)
+{
+    FrameGraph::TextureRef textureRef = newTexture(desc);
+    aliasTexture(std::move(name), textureRef);
+    return textureRef;
+}
+
+FrameGraph::TextureRef FrameGraphBuilder::newTexture(std::string name, std::pair<uint32_t, uint32_t> size, gfx::PixelFormat pixelFormat)
+{
+    return newTexture(std::move(name), gfx::Texture::Descriptor{
+        .type = gfx::TextureType::texture2d,
+        .width = size.first,
+        .height = size.second,
+        .pixelFormat = pixelFormat,
+        .usages = gfx::TextureUsage{0},
+        .storageMode = gfx::ResourceStorageMode::deviceLocal
+    });
+}
+
+void FrameGraphBuilder::aliasTexture(std::string name, FrameGraph::TextureRef textureRef)
+{
+    assert(textureRef < m_frameGraph.textures.size());
+    auto [_, inserted] = m_textureNames.emplace(std::move(name), textureRef);
+    assert(inserted);
+}
+
+FrameGraph::TextureRef FrameGraphBuilder::texture(std::string_view name) const
+{
+    auto it = m_textureNames.find(name);
+    assert(it != m_textureNames.end());
+    return it->second;
+}
+
+const std::map<std::string, FrameGraph::TextureRef, std::less<>>& FrameGraphBuilder::textureNames() const
+{
+    return m_textureNames;
+}
+
+void FrameGraphBuilder::setBackBuffer(FrameGraph::TextureRef textureRef)
+{
+    assert(m_frameGraph.textures.size() > textureRef);
+    m_frameGraph.backBuffer = textureRef;
+}
+
+void FrameGraphBuilder::addPass(FramePass pass)
+{
+    assert(std::ranges::all_of(pass.colorAttachments, [&](auto& attachment){ return m_frameGraph.textures.size() > attachment.texture; }));
+    assert(pass.depthAttachment.has_value() == false || m_frameGraph.textures.size() > pass.depthAttachment->texture);
+    assert(std::ranges::all_of(pass.sampledTextures, [&](auto& textureRef){ return m_frameGraph.textures.size() > textureRef; }));
+
+    for (FrameGraph::Texture& texture : pass.colorAttachments | std::views::transform([&](auto& attachement) -> FrameGraph::Texture& { return m_frameGraph.textures.at(attachement.texture); }))
+        texture.descriptor.usages |= gfx::TextureUsage::colorAttachment;
+
+    if (pass.depthAttachment)
+        m_frameGraph.textures.at(pass.depthAttachment->texture).descriptor.usages |= gfx::TextureUsage::depthStencilAttachment;
+
+    for (FrameGraph::Texture& texture : pass.sampledTextures | std::views::transform([&](auto& textureRef) -> FrameGraph::Texture& { return m_frameGraph.textures.at(textureRef); }))
+        texture.descriptor.usages |= gfx::TextureUsage::shaderRead;
+
+    m_frameGraph.passes.push_back(std::move(pass));
+}
+
+AssetManager& FrameGraphBuilder::assetManager() const
+{
+    return *m_assetManager;
+}
+
+uint32_t FrameGraphBuilder::textureIndex(AssetID assetId) const
+{
+    return m_textureTable->textureIndex(assetId);
+}
+
+FrameGraph FrameGraphBuilder::build() &&
+{
+    assert(m_frameGraph.backBuffer < m_frameGraph.textures.size());
+    return std::move(m_frameGraph);
+}
+
+} // namespace GE

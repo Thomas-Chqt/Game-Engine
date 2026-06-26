@@ -47,7 +47,7 @@ public:
     virtual void onUpdate() = 0;
     virtual void onEvent(Event&) = 0;
 
-    virtual const FrameGraph& frameGraph() = 0;
+    virtual void recordFrameGraph(FrameGraphBuilder&) = 0;
 
     virtual ~Application() = default;
 
