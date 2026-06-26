@@ -10,156 +10,216 @@
 #define FRAMEGRAPH_HPP
 
 #include "Game-Engine/AssetManager.hpp"
-#include "Game-Engine/Export.hpp"
 
+#include <Graphics/Buffer.hpp>
 #include <Graphics/CommandBuffer.hpp>
+#include <Graphics/Enums.hpp>
+#include <Graphics/GraphicsPipeline.hpp>
 #include <Graphics/ParameterBlock.hpp>
 #include <Graphics/ParameterBlockLayout.hpp>
 #include <Graphics/ParameterBlockPool.hpp>
-#include <Graphics/Enums.hpp>
 #include <Graphics/Texture.hpp>
-#include <Graphics/Buffer.hpp>
 
-#include <concepts>
+#include <array>
+#include <cassert>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <functional>
+#include <limits>
 #include <map>
-#include <set>
-#include <string>
-#include <utility>
-#include <vector>
 #include <memory>
 #include <optional>
-#include <array>
+#include <span>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <vector>
 
 namespace GE
 {
 
 struct FramePass;
 
-template<class T>
-concept FramePassBuilder = requires(const T& b) {
-    { b.build() } -> std::convertible_to<FramePass>;
-};
-
-struct TextureDescriptor
+struct FrameGraph
 {
-    std::string name;
-    std::pair<uint32_t, uint32_t> size;
-    gfx::PixelFormat pixelFormat;
-};
-
-struct ConstantBufferDescriptor
-{
-    std::string name;
-    uint32_t size;
-};
-
-struct StructuredBufferDescriptor
-{
-    std::string name;
-};
-
-struct AttachmentDescriptor
-{
-    std::string texture;
-    gfx::LoadAction loadAction;
-    union {
-        std::array<float, 4> clearColor;
-        float clearDepth;
+    struct Texture
+    {
+        gfx::Texture::Descriptor descriptor;
     };
-};
 
-struct FramePassSetupContext
-{
-    AssetManager& assetManager;
-    TextureTable& textureTable;
+    struct Buffer
+    {
+        gfx::Buffer::Descriptor descriptor;
+        size_t offset = 0; // offset into buffersContent where the data starts
+    };
 
-    std::map<std::string, std::shared_ptr<gfx::Texture>>& textureMap;
-    std::map<std::string, std::shared_ptr<gfx::Buffer>>& constantBuffers;
-    std::function<void(const std::string& name, const void* data, uint32_t size)> setStructuredBufferContent;
-};
+    using TextureRef = size_t;
+    using BufferRef = size_t;
 
-struct FramePassExecuteContext
-{
-    AssetManager& assetManager;
-    TextureTable& textureTable;
+    struct Attachment
+    {
+        TextureRef texture;
+        gfx::LoadAction loadAction;
+        union {
+            std::array<float, 4> clearColor;
+            float clearDepth;
+        };
+    };
 
-    gfx::CommandBuffer& commandBuffer;
-    gfx::ParameterBlockPool& parameterBlockPool;
+    std::vector<std::byte> buffersContent;
 
-    std::map<std::string, std::shared_ptr<gfx::Texture>>& textureMap;
-    std::map<std::string, std::shared_ptr<gfx::Buffer>>& bufferMap;
-
-    std::shared_ptr<gfx::ParameterBlock> textureTableBlock;
-    std::shared_ptr<gfx::ParameterBlockLayout> frameDataBlockLayout;
-
-    std::shared_ptr<gfx::ParameterBlockLayout> flatColorMaterialPBlockLayout;
-    std::shared_ptr<gfx::GraphicsPipeline> flatColorPipeline;
-
-    std::shared_ptr<gfx::ParameterBlockLayout> texturedMaterialPBlockLayout;
-    std::shared_ptr<gfx::GraphicsPipeline> texturedPipeline;
+    std::vector<Texture> textures;
+    std::vector<Buffer> buffers;
+    TextureRef backBuffer = std::numeric_limits<TextureRef>::max();
+    std::vector<FramePass> passes;
 };
 
 struct FramePass
 {
-    std::vector<AttachmentDescriptor> colorAttachments;
-    std::optional<AttachmentDescriptor> depthAttachment;
-    std::vector<std::string> sampledTextures;
-    std::vector<std::string> usedBuffers;
-    std::vector<TextureDescriptor> textureDeclarations;
-    std::vector<ConstantBufferDescriptor> constantBufferDeclarations;
-    std::vector<StructuredBufferDescriptor> structuredBufferDeclarations;
-    std::function<void(FramePassSetupContext&)> setup;
-    std::function<void(FramePassExecuteContext&)> execute;
-
-    FramePass() = default;
-    FramePass(const FramePass&) = default;
-    FramePass(FramePass&&) = default;
-    FramePass(const FramePassBuilder auto& builder) : FramePass(builder.build()) {}
-    ~FramePass() = default;
-    FramePass& operator=(const FramePass&) = default;
-    FramePass& operator=(FramePass&&) = default;
-};
-
-class GE_API FrameGraph
-{
-public:
-    struct Descriptor
+    struct ExecuteContext
     {
-        std::string backBufferName;
-        std::vector<TextureDescriptor> textures;
-        std::vector<ConstantBufferDescriptor> constantBuffers;
-        std::vector<StructuredBufferDescriptor> structuredBuffers;
-        std::vector<FramePass> passes;
+        AssetManager& assetManager;
+        gfx::CommandBuffer& commandBuffer;
+        gfx::ParameterBlockPool& parameterBlockPool;
+        std::shared_ptr<gfx::ParameterBlock> textureTableBlock;
+        std::shared_ptr<gfx::ParameterBlockLayout> frameDataBlockLayout;
+
+        std::function<std::shared_ptr<gfx::Texture>(FrameGraph::TextureRef)> texture;
+        std::function<std::shared_ptr<gfx::Buffer>(FrameGraph::BufferRef)> buffer;
+        std::shared_ptr<gfx::ParameterBlockLayout> texturedMaterialPBlockLayout;
+        std::shared_ptr<gfx::GraphicsPipeline> texturedPipeline;
     };
 
+    std::vector<FrameGraph::Attachment> colorAttachments;
+    std::optional<FrameGraph::Attachment> depthAttachment;
+
+    std::vector<FrameGraph::TextureRef> sampledTextures;
+
+    std::function<void(ExecuteContext&)> execute;
+};
+
+class TextureTable;
+
+class FrameGraphBuilder
+{
 public:
-    FrameGraph() = default;
-    FrameGraph(const FrameGraph&) = default;
-    FrameGraph(FrameGraph&&) = default;
+    FrameGraphBuilder() = delete;
+    FrameGraphBuilder(const FrameGraphBuilder&) = delete;
+    FrameGraphBuilder(FrameGraphBuilder&&) = default;
 
-    FrameGraph(const Descriptor&);
+    FrameGraphBuilder(TextureTable*, AssetManager*);
 
-    const std::string& backBufferName() const { return m_backBufferName; }
-    const std::map<std::string, gfx::Texture::Descriptor>& textureDescriptors() const { return m_textureDescriptors; }
-    const std::map<std::string, gfx::Buffer::Descriptor>& constantBufferDescriptors() const { return m_constantBufferDescriptors; }
-    const std::set<std::string>& structuredBufferNames() const { return m_structuredBufferNames; }
-    const std::vector<FramePass>& passes() const { return m_passes; }
+    FrameGraph::TextureRef newTexture(const gfx::Texture::Descriptor&);
+    FrameGraph::TextureRef newTexture(std::pair<uint32_t, uint32_t> size, gfx::PixelFormat);
+    FrameGraph::TextureRef newTexture(std::string name, const gfx::Texture::Descriptor&);
+    FrameGraph::TextureRef newTexture(std::string name, std::pair<uint32_t, uint32_t> size, gfx::PixelFormat);
+    void aliasTexture(std::string name, FrameGraph::TextureRef);
+    FrameGraph::TextureRef texture(std::string_view name) const;
+    const std::map<std::string, FrameGraph::TextureRef, std::less<>>& textureNames() const;
 
-    ~FrameGraph() = default;
+    template<typename T>
+    FrameGraph::BufferRef newConstantBuffer() requires std::is_trivially_copyable_v<T>;
+
+    template<typename T>
+    FrameGraph::BufferRef newStructuredBuffer(size_t count) requires std::is_trivially_copyable_v<T>;
+
+    void setBackBuffer(FrameGraph::TextureRef);
+
+    template<typename T>
+    T& constantBufferContent(FrameGraph::BufferRef) requires std::is_trivially_copyable_v<T>;
+
+    template<typename T>
+    std::span<T> structuredBufferContent(FrameGraph::BufferRef) requires std::is_trivially_copyable_v<T>;
+
+    void addPass(FramePass);
+
+    AssetManager& assetManager() const;
+    uint32_t textureIndex(AssetID) const;
+
+    FrameGraph build() &&;
+
+    ~FrameGraphBuilder() = default;
 
 private:
-    std::vector<FramePass> m_passes;
-    std::string m_backBufferName;
-    std::map<std::string, gfx::Texture::Descriptor> m_textureDescriptors;
-    std::map<std::string, gfx::Buffer::Descriptor> m_constantBufferDescriptors;
-    std::set<std::string> m_structuredBufferNames;
+    TextureTable* m_textureTable;
+    AssetManager* m_assetManager;
+    FrameGraph m_frameGraph;
+    std::map<std::string, FrameGraph::TextureRef, std::less<>> m_textureNames;
+    size_t m_nextOffset = 0;
 
 public:
-    FrameGraph& operator=(const FrameGraph&) = default;
-    FrameGraph& operator=(FrameGraph&&) = default;
+    FrameGraphBuilder& operator=(const FrameGraphBuilder&) = delete;
+    FrameGraphBuilder& operator=(FrameGraphBuilder&&) = default;
+
 };
+
+template<typename T>
+FrameGraph::BufferRef FrameGraphBuilder::newConstantBuffer() requires std::is_trivially_copyable_v<T>
+{
+    const size_t remainder = m_nextOffset % alignof(T);
+    const size_t offset = remainder == 0 ? m_nextOffset : m_nextOffset + alignof(T) - remainder;
+    m_frameGraph.buffersContent.resize(offset + sizeof(T));
+
+    FrameGraph::BufferRef buffer = m_frameGraph.buffers.size();
+    m_frameGraph.buffers.emplace_back(gfx::Buffer::Descriptor{
+        .size = sizeof(T),
+        .usages = gfx::BufferUsage::constantBuffer,
+        .storageMode = gfx::ResourceStorageMode::hostVisible
+    }, offset);
+    m_nextOffset = offset + sizeof(T);
+
+    return buffer;
+}
+
+template<typename T>
+FrameGraph::BufferRef FrameGraphBuilder::newStructuredBuffer(size_t count) requires std::is_trivially_copyable_v<T>
+{
+    assert(count > 0);
+    const size_t size = count * sizeof(T);
+    const size_t remainder = m_nextOffset % alignof(T);
+    const size_t offset = remainder == 0 ? m_nextOffset : m_nextOffset + alignof(T) - remainder;
+    m_frameGraph.buffersContent.resize(offset + size);
+
+    FrameGraph::BufferRef buffer = m_frameGraph.buffers.size();
+    m_frameGraph.buffers.emplace_back(gfx::Buffer::Descriptor{
+        .size = size,
+        .usages = gfx::BufferUsage::structuredBuffer,
+        .storageMode = gfx::ResourceStorageMode::hostVisible
+    }, offset);
+    m_nextOffset = offset + size;
+
+    return buffer;
+}
+
+template<typename T>
+T& FrameGraphBuilder::constantBufferContent(FrameGraph::BufferRef buffRef) requires std::is_trivially_copyable_v<T>
+{
+    assert(buffRef < m_frameGraph.buffers.size());
+    const FrameGraph::Buffer& buffer = m_frameGraph.buffers[buffRef];
+    assert(buffer.descriptor.size >= sizeof(T));
+    assert(buffer.offset + sizeof(T) <= m_frameGraph.buffersContent.size());
+
+    std::byte* ptr = m_frameGraph.buffersContent.data() + buffer.offset;
+    assert(reinterpret_cast<std::uintptr_t>(ptr) % alignof(T) == 0); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+    return *reinterpret_cast<T*>(ptr); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+}
+
+template<typename T>
+std::span<T> FrameGraphBuilder::structuredBufferContent(FrameGraph::BufferRef buffRef) requires std::is_trivially_copyable_v<T>
+{
+    assert(buffRef < m_frameGraph.buffers.size());
+    const FrameGraph::Buffer& buffer = m_frameGraph.buffers[buffRef];
+    assert(buffer.descriptor.size % sizeof(T) == 0);
+    assert(buffer.offset + buffer.descriptor.size <= m_frameGraph.buffersContent.size());
+
+    std::byte* ptr = m_frameGraph.buffersContent.data() + buffer.offset;
+    assert(reinterpret_cast<std::uintptr_t>(ptr) % alignof(T) == 0); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+    return std::span<T>(
+        reinterpret_cast<T*>(ptr), // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+        buffer.descriptor.size / sizeof(T)
+    );
+}
 
 } // namespace GE
 

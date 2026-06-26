@@ -10,7 +10,6 @@
 #define EDITORCAMERA_HPP
 
 #include <Game-Engine/Scene.hpp>
-#include <Game-Engine/ICamera.hpp>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -24,7 +23,7 @@ struct convert;
 namespace GE_Editor
 {
 
-class EditorCamera : public GE::ICamera
+class EditorCamera
 {
 public:
     EditorCamera() = default;
@@ -33,16 +32,16 @@ public:
 
     EditorCamera(glm::vec3 pos, glm::quat rot);
 
-    inline glm::vec3 position() const override { return m_position; }
+    inline glm::vec3 position() const { return m_position; }
     glm::mat4 viewMatrix() const;
     glm::mat4 projectionMatrix(float aspectRatio) const;
-    glm::mat4 viewProjectionMatrix(float aspectRatio) const override;
+    glm::mat4 viewProjectionMatrix(float aspectRatio) const;
 
     void setViewMatrix(const glm::mat4& viewMatrix);
     void onMoveInput(const glm::vec2& value);
     void onRotationInput(const glm::vec2& value);
 
-    ~EditorCamera() override = default;
+    ~EditorCamera() = default;
 
 private:
     glm::mat4 rotationMatrix() const;

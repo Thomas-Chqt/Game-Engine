@@ -28,6 +28,7 @@
 #include <cassert>
 #include <memory>
 #include <thread>
+#include <utility>
 
 namespace GE
 {
@@ -126,7 +127,10 @@ void Application::run()
 
         onUpdate();
 
-        m_renderer->renderFrame(frameGraph());
+        FrameGraphBuilder frameGraphBuilder = m_renderer->newFrameGraphBuilder();
+        recordFrameGraph(frameGraphBuilder);
+        FrameGraph frameGraph = std::move(frameGraphBuilder).build();
+        m_renderer->renderFrame(frameGraph);
 
         FrameMark;
     }
