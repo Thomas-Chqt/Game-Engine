@@ -14,6 +14,7 @@ struct Material
     glm::vec3 specularColor;
 
     glm::vec3 emissiveColor;
+    AssetID emissiveTexture;
 
     float shininess;
 };
