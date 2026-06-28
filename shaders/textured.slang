@@ -10,9 +10,10 @@ namespace shader::textured
 struct alignas(16) Material
 {
     float4 diffuseColor;
-    uint32_t diffuseTextureIdx; UINT32_PADDING(0);
-    float3 specularColor;       FLOAT3_PADDING(0);
-    float3 emissiveColor;       FLOAT3_PADDING(1);
+    uint32_t diffuseTextureIdx;  UINT32_PADDING(0);
+    float3 specularColor;        FLOAT3_PADDING(0);
+    float3 emissiveColor;        FLOAT3_PADDING(1);
+    uint32_t emissiveTextureIdx;
     float shininess;
 };
 
@@ -75,7 +76,9 @@ float4 fragmentMain(VSOutput input) : SV_TARGET
     let diffuseTexture: Texture2D<float4> = textureArray.textures[materials[materialIdx].diffuseTextureIdx];
 
     let specularColor: float3 = materials[materialIdx].specularColor;
+
     let emissiveColor: float3 = materials[materialIdx].emissiveColor;
+    let emissiveTexture: Texture2D<float4> = textureArray.textures[materials[materialIdx].emissiveTextureIdx];
 
     let shininess: float = materials[materialIdx].shininess;
 
@@ -97,7 +100,7 @@ float4 fragmentMain(VSOutput input) : SV_TARGET
         finalColor += phong::evalDirectionalLight(fragCtx, frameData.directionalLights[i]);
     for (int i = 0; i < frameData.pointLightCount; ++i)
         finalColor += phong::evalPointLight(fragCtx, frameData.pointLights[i]);
-    finalColor += emissiveColor;
+    finalColor += emissiveColor * emissiveTexture.Sample(sampler, input.uv).rgb;
 
     return float4(saturate(finalColor), diffuseColor.a);
 }

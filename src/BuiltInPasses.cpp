@@ -155,6 +155,7 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
                     .diffuseTextureIdx = builder.textureIndex(submesh.material->diffuseTexture),
                     .specularColor = submesh.material->specularColor,
                     .emissiveColor = submesh.material->emissiveColor,
+                    .emissiveTextureIdx = builder.textureIndex(submesh.material->emissiveTexture),
                     .shininess = submesh.material->shininess
                 });
             }

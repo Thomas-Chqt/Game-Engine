@@ -121,6 +121,8 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const AssetLocation<Mesh>& locatio
                 .diffuseColor = glm::vec4(1.0f),
                 .diffuseTexture = BUILT_IN_WHITE_TEXTURE_ID,
                 .specularColor = glm::vec3(0.0f),
+                .emissiveColor = glm::vec3(0.0f),
+                .emissiveTexture = BUILT_IN_WHITE_TEXTURE_ID,
                 .shininess = 0.0f
             });
         }
@@ -140,6 +142,15 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const AssetLocation<Mesh>& locatio
                 diffuseTexture = m_assetManager->assetId(VAssetLocation(diffuseTextureLocation));
             }
 
+            AssetID emissiveTexture = BUILT_IN_WHITE_TEXTURE_ID;
+            if (gltfMaterial.emissiveTexture.has_value()) {
+                const AssetLocation<gfx::Texture> emissiveTextureLocation{
+                    .containerPath = location.containerPath,
+                    .index = gltfMaterial.emissiveTexture->textureIndex
+                };
+                emissiveTexture = m_assetManager->assetId(VAssetLocation(emissiveTextureLocation));
+            }
+
             it->second = std::make_shared<Material>(Material{
                 .diffuseColor = glm::vec4(
                     glm::make_vec3(gltfMaterial.pbrData.baseColorFactor.data()),
@@ -149,6 +160,7 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const AssetLocation<Mesh>& locatio
                 .diffuseTexture = diffuseTexture,
                 .specularColor = glm::vec3(0.0f),
                 .emissiveColor = glm::make_vec3(gltfMaterial.emissiveFactor.data()),
+                .emissiveTexture = emissiveTexture,
                 .shininess = 0.0f
             });
         }
@@ -248,6 +260,8 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const BuiltInMesh& builtInMesh, gf
                     .diffuseColor = glm::vec4(1.0f),
                     .diffuseTexture = BUILT_IN_WHITE_TEXTURE_ID,
                     .specularColor = glm::vec3(0.0f),
+                    .emissiveColor = glm::vec3(0.0f),
+                    .emissiveTexture = BUILT_IN_WHITE_TEXTURE_ID,
                     .shininess = 0.0f
                 }),
                 .subMeshes = {}
