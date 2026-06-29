@@ -146,25 +146,26 @@ FrameGraphBuilder Renderer::newFrameGraphBuilder()
 
 void Renderer::renderFrame(const FrameGraph& frameGraph)
 {
-    ZoneScopedN("Renderer::renderFrame");
+    ZoneScoped;
 
     if (cfd.waitedCmdBuffer != nullptr)
     {
-        ZoneScopedN("Renderer::wait in-flight frame");
+        ZoneScopedN("Renderer::wait_in-flight_frame");
         m_device->waitCommandBuffer(*cfd.waitedCmdBuffer);
         cfd.waitedCmdBuffer = nullptr;
         cfd.commandBufferPool->reset();
         cfd.parameterBlockPool->reset();
     }
 
-    TracyCZoneN(rendererPreparetextures, "Renderer::prepare textures", true);
+    TracyCZoneN(rendererPreparetextures, "Renderer::prepare_textures", true);
     std::vector<std::shared_ptr<gfx::Texture>> textureMap(frameGraph.textures.size());
     std::map<gfx::Texture::Descriptor, std::set<std::shared_ptr<gfx::Texture>>> newTextureCache;
-    for (uint32_t textureIdx = 0; const auto& texture : frameGraph.textures)
+    for (uint32_t textureIdx = 0; textureIdx < frameGraph.textures.size(); textureIdx++)
     {
+        const FrameGraph::Texture& texture = frameGraph.textures.at(textureIdx);
         if (textureIdx == frameGraph.backBuffer && (m_swapchain == nullptr || m_swapchain->drawablesTextureDescriptor() != texture.descriptor))
         {
-            ZoneScopedN("Renderer::recreate swapchain");
+            ZoneScopedN("Renderer::recreate_swapchain");
             gfx::Swapchain::Descriptor swapchainDescriptor = {
                 .surface = m_surface,
                 .width = texture.descriptor.width,
@@ -189,15 +190,15 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
             textureMap.at(textureIdx) = gfxTexture;
             newTextureCache[texture.descriptor].insert(gfxTexture);
         }
-        textureIdx++;
     }
     TracyCZoneEnd(rendererPreparetextures);
 
-    TracyCZoneN(rendererPrepareBuffers, "Renderer::prepare buffers", true);
+    TracyCZoneN(rendererPrepareBuffers, "Renderer::prepare_buffers", true);
     std::vector<std::shared_ptr<gfx::Buffer>> bufferMap(frameGraph.buffers.size());
     std::map<gfx::Buffer::Descriptor, std::set<std::shared_ptr<gfx::Buffer>>> newBufferCache;
-    for (uint32_t bufferIdx = 0; const auto& buffer : frameGraph.buffers)
+    for (uint32_t bufferIdx = 0; bufferIdx < frameGraph.buffers.size(); bufferIdx++)
     {
+        const FrameGraph::Buffer& buffer = frameGraph.buffers.at(bufferIdx);
         std::shared_ptr<gfx::Buffer> gfxBuffer;
         auto it = cfd.bufferCache.find(buffer.descriptor);
         if (it == cfd.bufferCache.end() || it->second.empty())
@@ -210,7 +211,6 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
 
         bufferMap.at(bufferIdx) = gfxBuffer;
         newBufferCache[buffer.descriptor].insert(gfxBuffer);
-        bufferIdx++;
     }
     TracyCZoneEnd(rendererPrepareBuffers);
 
@@ -218,7 +218,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
     std::shared_ptr<gfx::Drawable> drawable;
     for (auto& framePass : frameGraph.passes)
     {
-        ZoneScopedN("Renderer::frame pass");
+        ZoneScopedN("Renderer::frame_pass");
 
         if (drawable == nullptr && std::ranges::any_of(framePass.colorAttachments, [&](auto& attachment){return attachment.texture == frameGraph.backBuffer ;}))
         {
@@ -230,26 +230,29 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
             textureMap.at(frameGraph.backBuffer) = drawable->texture();
         }
 
-        gfx::Framebuffer framebuffer = gfx::Framebuffer{
-            .colorAttachments = framePass.colorAttachments
-                                | std::views::transform([&](const FrameGraph::Attachment& attachment) {
-                                      return gfx::Framebuffer::Attachment{
-                                          .loadAction = attachment.loadAction,
-                                          .clearColor = attachment.clearColor,
-                                          .texture = textureMap.at(attachment.texture)
-                                      };
-                                  })
-                                | std::ranges::to<std::vector>(),
-            .depthAttachment = framePass.depthAttachment
-                                   ? std::make_optional(gfx::Framebuffer::Attachment{
-                                         .loadAction = framePass.depthAttachment->loadAction,
-                                         .clearDepth = framePass.depthAttachment->clearDepth,
-                                         .texture = textureMap.at(framePass.depthAttachment->texture) })
-                                   : std::nullopt
-        };
-
         for (FrameGraph::TextureRef texture : framePass.sampledTextures)
             commandBuffer->addSampledTexture(textureMap.at(texture));
+
+        auto colorAttachments = framePass.colorAttachments | std::views::transform([&](const FrameGraph::Attachment& attachment) {
+            return gfx::Framebuffer::Attachment{
+                .loadAction = attachment.loadAction,
+                .clearColor = attachment.clearColor,
+                .texture = textureMap.at(attachment.texture)
+            };
+        });
+
+        auto depthAttachment = framePass.depthAttachment.transform([&](const FrameGraph::Attachment& attachment) {
+            return gfx::Framebuffer::Attachment{
+                .loadAction = attachment.loadAction,
+                .clearDepth = attachment.clearDepth,
+                .texture = textureMap.at(attachment.texture)
+            };
+        });
+
+        gfx::Framebuffer framebuffer = gfx::Framebuffer{
+            .colorAttachments = std::move(colorAttachments) | std::ranges::to<std::vector>(),
+            .depthAttachment = std::move(depthAttachment)
+        };
 
         commandBuffer->beginRenderPass(framebuffer);
         {
