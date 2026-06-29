@@ -9,5 +9,5 @@ default.profraw
 **/imgui.ini
 graph.drawio.svg
 **/.DS_Store
-examples/project1/project1_scriptLib*
+examples/*/*_scriptLib*
 __cmake_systeminformation
