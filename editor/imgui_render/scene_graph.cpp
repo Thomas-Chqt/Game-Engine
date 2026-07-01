@@ -4,6 +4,9 @@
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Scene.hpp"
 
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyC.h>
+
 #include <optional>
 
 namespace GE_Editor
@@ -14,6 +17,7 @@ namespace
 
 void sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager)
 {
+    ZoneScoped;
     bool node_open = false;
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen;
 
@@ -85,43 +89,48 @@ void sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity,
 
 void renderSceneGraph(GE::Scene& editedScene, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager)
 {
+    ZoneScoped;
     if (ImGui::BeginChild("scene_graph_child"))
     {
-        for (GE::Entity entity : editedScene.ecsWorld()
+        TracyCZoneN(TracyCZoneN_a, "build_root_entities", true);
+        std::vector<GE::Entity> rootEntities = editedScene.ecsWorld()
             | GE::ECSView<GE::NameComponent>()
-            | std::views::transform([&](auto id){ return GE::Entity{&editedScene.ecsWorld(), id}; })
-            | std::ranges::to<std::vector>())
-    {
-        if (entity.parent().has_value() == false)
-            sceneGrapRow(entity, selectedEntity, assetManager);
-    }
+            | GE::MakeEntity{}
+            | std::views::filter([](GE::Entity entity){ return entity.hasParent() == false; })
+            | std::ranges::to<std::vector>();
+        TracyCZoneEnd(TracyCZoneN_a);
 
-    if (ImGui::BeginPopupContextWindow("scene_graph_context", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
-    {
-        menuFromPath(std::to_array<MenuItem>({
-            {"Add/Cube", [&] {
-                GE::Entity newEntity = editedScene.newEntity("cube");
-                newEntity.emplace<GE::TransformComponent>();
-                newEntity.emplace<GE::MeshComponent>(GE::BUILT_IN_CUBE_ID);
-                assetManager.loadAsset(GE::BUILT_IN_CUBE_ID);
-                selectedEntity = newEntity;
-            }},
-            {"Add/Light", [&] {
-                GE::Entity newEntity = editedScene.newEntity("light");
-                newEntity.emplace<GE::TransformComponent>();
-                newEntity.emplace<GE::LightComponent>();
-                selectedEntity = newEntity;
-            }},
-            {"Add/Camera", [&] {
-                GE::Entity newEntity = editedScene.newEntity("camera");
-                newEntity.emplace<GE::TransformComponent>();
-                newEntity.emplace<GE::CameraComponent>();
-                selectedEntity = newEntity;
-            }}
-        }));
-        ImGui::EndPopup();
-    }
-    ImGui::EndChild();
+        TracyCZoneN(TracyCZoneN_b, "render_graph_rows", true);
+        for (auto entity : rootEntities)
+            sceneGrapRow(entity, selectedEntity, assetManager);
+        TracyCZoneEnd(TracyCZoneN_b);
+
+        if (ImGui::BeginPopupContextWindow("scene_graph_context", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+        {
+            menuFromPath(std::to_array<MenuItem>({
+                {"Add/Cube", [&] {
+                    GE::Entity newEntity = editedScene.newEntity("cube");
+                    newEntity.emplace<GE::TransformComponent>();
+                    newEntity.emplace<GE::MeshComponent>(GE::BUILT_IN_CUBE_ID);
+                    assetManager.loadAsset(GE::BUILT_IN_CUBE_ID);
+                    selectedEntity = newEntity;
+                }},
+                {"Add/Light", [&] {
+                    GE::Entity newEntity = editedScene.newEntity("light");
+                    newEntity.emplace<GE::TransformComponent>();
+                    newEntity.emplace<GE::LightComponent>();
+                    selectedEntity = newEntity;
+                }},
+                {"Add/Camera", [&] {
+                    GE::Entity newEntity = editedScene.newEntity("camera");
+                    newEntity.emplace<GE::TransformComponent>();
+                    newEntity.emplace<GE::CameraComponent>();
+                    selectedEntity = newEntity;
+                }}
+            }));
+            ImGui::EndPopup();
+        }
+        ImGui::EndChild();
     }
     if (ImGui::BeginDragDropTarget())
     {

@@ -50,14 +50,17 @@ ECSWorld::Archetype::Archetype(const Archetype& cp) : m_size(cp.m_size), m_capac
     }
 }
 
-ECSWorld::Archetype::Archetype(Archetype&& mv)
+ECSWorld::Archetype::Archetype(Archetype&& mv) noexcept
     : m_size(mv.m_size), m_capacity(mv.m_capacity)
 {
     for (auto& [id, row] : mv.m_rows)
     {
-        auto [_, sucess] = m_rows.insert(std::pair(id, Row{
-            row.buffer, row.componentSize, row.copyConstructor,
-            row.moveConstructor, row.destructor
+        [[maybe_unused]] auto [_, sucess] = m_rows.insert(std::pair(id, Row{
+            .buffer=row.buffer,
+            .componentSize=row.componentSize,
+            .copyConstructor=row.copyConstructor,
+            .moveConstructor=row.moveConstructor,
+            .destructor=row.destructor
         }));
         assert(sucess);
         row.buffer = nullptr;
@@ -196,7 +199,7 @@ ECSWorld::Archetype& ECSWorld::Archetype::operator = (const Archetype& cp)
     return *this;
 }
 
-ECSWorld::Archetype& ECSWorld::Archetype::operator = (Archetype&& mv)
+ECSWorld::Archetype& ECSWorld::Archetype::operator = (Archetype&& mv) noexcept
 {
     if (this != &mv)
     {
@@ -214,9 +217,12 @@ ECSWorld::Archetype& ECSWorld::Archetype::operator = (Archetype&& mv)
         m_capacity = mv.m_capacity;
         for (auto& [id, row] : mv.m_rows)
         {
-            auto [_, success] = m_rows.insert(std::make_pair(id, Row{
-                row.buffer, row.componentSize, row.copyConstructor,
-                row.moveConstructor, row.destructor
+            [[maybe_unused]] auto [_, success] = m_rows.insert(std::make_pair(id, Row{
+                .buffer=row.buffer,
+                .componentSize=row.componentSize,
+                .copyConstructor=row.copyConstructor,
+                .moveConstructor=row.moveConstructor,
+                .destructor=row.destructor
             }));
             assert(success);
             row.buffer = nullptr;

@@ -81,7 +81,7 @@ VScriptValue ScriptLibrary::getScriptDefaultParameterValue(const std::string& sc
 {
     const char* typeName = m_getScriptParameterTypeName(scriptName.c_str(), parameterName.c_str());
     VScriptValue defaultValue = false;
-    const bool matchedDefaultType = anyOfType<ScriptValueTypes>([&]<typename T>() {
+    [[maybe_unused]] const bool matchedDefaultType = anyOfType<ScriptValueTypes>([&]<typename T>() {
         if (ScriptValueTraits<T>::name != typeName)
             return false;
 
@@ -97,7 +97,7 @@ VScriptValue ScriptLibrary::getScriptDefaultParameterValue(const std::string& sc
 void ScriptLibrary::setScriptParameter(const std::string& scriptName, const std::string& parameterName, Script& script, const VScriptValue& value) const
 {
     const char* typeName = m_getScriptParameterTypeName(scriptName.c_str(), parameterName.c_str());
-    const bool matchedSetType = anyOfType<ScriptValueTypes>([&]<typename T>() {
+    [[maybe_unused]] const bool matchedSetType = anyOfType<ScriptValueTypes>([&]<typename T>() {
         if (ScriptValueTraits<T>::name != typeName)
             return false;
 

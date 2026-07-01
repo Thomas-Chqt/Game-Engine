@@ -14,6 +14,7 @@
 #include "Game-Engine/AssetLocation.hpp"
 #include "Game-Engine/AssetLoader.hpp"
 #include "Game-Engine/Export.hpp"
+#include "Game-Engine/ManagableAsset.hpp"
 #include "Game-Engine/MeshAssetLoader.hpp" // IWYU pragma: keep
 #include "Game-Engine/TextureAssetLoader.hpp" // IWYU pragma: keep
 #include "Game-Engine/ThreadPool.hpp"
@@ -208,7 +209,7 @@ AssetID AssetManager::registerAsset(std::optional<AssetID> assetId, std::string_
             newAssetId++;
     }
 
-    auto [_, inserted] = m_assetHandles.try_emplace(newAssetId, std::in_place_type<AssetHandle<T>>,
+    [[maybe_unused]] auto [_, inserted] = m_assetHandles.try_emplace(newAssetId, std::in_place_type<AssetHandle<T>>,
         std::string(name),
         std::move(location),
         dependentAssets | std::ranges::to<std::vector>(),
@@ -247,7 +248,7 @@ std::shared_future<std::shared_ptr<T>> AssetManager::loadAsset(AssetID assetId)
         std::promise<void> promise;
         handle.voidFuture = promise.get_future().share();
         handle.future = m_threadPool->submit([this, assetId, &handle, promise=std::move(promise), dependentAssetsFuture=std::move(dependentAssetsFuture)] mutable -> std::shared_ptr<T> {
-            ZoneScopedN("AssetManager::load task");
+            ZoneScopedN("AssetManager::load_task");
             ZoneText(handle.name.data(), handle.name.size());
             try {
                 std::unique_ptr<gfx::CommandBufferPool> commandBufferPool = m_device->newCommandBufferPool();
@@ -261,8 +262,10 @@ std::shared_future<std::shared_ptr<T>> AssetManager::loadAsset(AssetID assetId)
                     setTexture(assetId, asset);
                 else
                     (void)assetId;
-                if (dependentAssetsFuture.valid())
+                if (dependentAssetsFuture.valid()) {
+                    ZoneScopedN("wait_dependent_assets");
                     dependentAssetsFuture.get();
+                }
                 promise.set_value();
                 handle.loadStatus.store(LoadStatus::loaded);
                 return asset;
@@ -284,7 +287,7 @@ std::future<void> AssetManager::loadAssets(const AssetIdRange auto& assetIds)
     auto futures = assetIds | std::views::transform([&](AssetID id) -> std::shared_future<void> { return loadAsset(id); });
 
     return m_threadPool->submit([futures=futures|std::ranges::to<std::vector>()] mutable {
-        ZoneScopedN("AssetManager::wait asset range");
+        ZoneScopedN("AssetManager::wait_asset_range");
         for (auto& future : futures)
             future.get();
     });
@@ -309,6 +312,7 @@ void AssetManager::unloadAssets(const AssetIdRange auto& assetIds)
 template<ManagableAsset T>
 std::shared_ptr<T> AssetManager::getAsset(AssetID assetId) const
 {
+    ZoneScoped;
     assert(isValidAssetId(assetId));
     assert(assetTypeIs<T>(assetId));
     const AssetHandle<T>& handle = std::get<AssetHandle<T>>(m_assetHandles.at(assetId));

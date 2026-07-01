@@ -15,7 +15,6 @@
 #include "Game-Engine/Mesh.hpp"
 
 #include <Graphics/Device.hpp>
-#include <cassert>
 
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -30,16 +29,22 @@
 #pragma clang diagnostic pop
 #endif
 
-#include <filesystem>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyC.h>
 
 #include <format>
 #include <map>
 #include <memory>
 #include <ranges>
+#include <string_view>
 #include <utility>
+#include <cassert>
+#include <filesystem>
+#include <source_location>
 
 namespace gltf = fastgltf;
 
@@ -101,6 +106,8 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(gfx::CommandBuffer& commandBuffer)
 
 std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const AssetLocation<Mesh>& location, gfx::CommandBuffer& commandBuffer) const
 {
+    ZoneScopedN(std::source_location::current().function_name());
+
     assert(m_assetManager);
     std::shared_ptr<AssetContainer> container = m_assetManager->assetContainer(location.containerPath);
     auto* gltfContainer = dynamic_cast<GltfAssetContainer*>(container.get());
@@ -246,6 +253,8 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const AssetLocation<Mesh>& locatio
 
 std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const BuiltInMesh& builtInMesh, gfx::CommandBuffer& commandBuffer) const
 {
+    ZoneScopedN(std::source_location::current().function_name());
+
     switch (builtInMesh)
     {
     case BuiltInMesh::cube:

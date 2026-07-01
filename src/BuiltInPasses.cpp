@@ -72,7 +72,7 @@ TexturedGeometryPass::TexturedGeometryPass(const Scene& scene, glm::mat4 viewPro
 
 void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
 {
-    ZoneScopedN("TexturedGeometryPass::record");
+    ZoneScoped;
 
     assert(m_scene);
     const Scene& scene = *m_scene;
@@ -94,7 +94,7 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
     }
 
     FrameGraph::BufferRef frameDataBuffer = builder.newConstantBuffer<shader::FrameData>();
-    shader::FrameData& frameData = builder.constantBufferContent<shader::FrameData>(frameDataBuffer);
+    auto& frameData = builder.constantBufferContent<shader::FrameData>(frameDataBuffer);
     frameData.vpMatrix = m_viewProjectionMatrix;
     frameData.cameraPosition = m_cameraPosition;
     frameData.ambientLightColor = glm::vec3(1.0f, 1.0f, 1.0f) * 0.1f;
@@ -133,6 +133,7 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
     Renderables renderables;
     std::vector<shader::textured::Material> materials;
     std::map<std::shared_ptr<Material>, uint32_t> materialIndices;
+    TracyCZoneN(TracyCZoneN_loop_renderableEntities, "loop_renderableEntities", true);
     for (const_Entity entity : scene.ecsWorld() | const_ECSView<TransformComponent, MeshComponent>() | MakeEntity())
     {
         const MeshComponent& meshComponent = entity.get<MeshComponent>();
@@ -148,6 +149,8 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
                 addSubmesh(childSubmesh, modelMatrix);
 
             assert(submesh.material != nullptr);
+
+            TracyCZoneN(TracyCZoneN_add_material, "add_material", true);
             auto [it, inserted] = materialIndices.try_emplace(submesh.material, static_cast<uint32_t>(materials.size()));
             if (inserted) {
                 materials.push_back(shader::textured::Material{
@@ -159,17 +162,24 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
                     .shininess = submesh.material->shininess
                 });
             }
+            TracyCZoneEnd(TracyCZoneN_add_material);
 
+            TracyCZoneN(TracyCZoneN_add_renderable, "add_renderable", true);
             renderables[std::make_pair(submesh.vertexBuffer, submesh.indexBuffer)].emplace_back(modelMatrix, it->second);
+            TracyCZoneEnd(TracyCZoneN_add_renderable);
         };
 
         glm::mat4x4 worldTransform = entity.worldTransform();
         for (auto& submesh : loadedMesh->subMeshes)
             addSubmesh(submesh, worldTransform);
     }
+    TracyCZoneEnd(TracyCZoneN_loop_renderableEntities);
 
+    TracyCZoneN(TracyCZoneN_make_material_gpu_buffer, "make_material_gpu_buffer", true);
     FrameGraph::BufferRef materialsBuffer = builder.newStructuredBuffer<shader::textured::Material>(std::max<size_t>(materials.size(), 1));
     std::ranges::copy(materials, builder.structuredBufferContent<shader::textured::Material>(materialsBuffer).begin());
+    TracyCZoneEnd(TracyCZoneN_make_material_gpu_buffer);
+
     TracyCZoneEnd(TexturedGeometryPassRecordRenderables);
 
     const FrameGraph::TextureRef colorTexture = builder.texture("backBuffer");

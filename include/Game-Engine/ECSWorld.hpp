@@ -12,6 +12,9 @@
 
 #include "Game-Engine/Export.hpp"
 
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyC.h>
+
 #include <bitset>
 #include <cassert>
 #include <cstddef>
@@ -23,6 +26,7 @@
 #include <iterator>
 #include <type_traits>
 #include <typeinfo>
+#include <source_location>
 
 namespace GE
 {
@@ -229,6 +233,7 @@ void ECSWorld::remove(EntityID entityId)
 template<Component T>
 bool ECSWorld::has(EntityID entityId) const
 {
+    ZoneScopedN(std::source_location::current().function_name());
     assert(isValidEntityID(entityId));
     return m_entityDatas[entityId].archetypeId.test(componentID<T>());
 }
@@ -236,6 +241,7 @@ bool ECSWorld::has(EntityID entityId) const
 template<Component T>
 auto& ECSWorld::get(this auto&& self, EntityID entityId)
 {
+    ZoneScopedN(std::source_location::current().function_name());
     assert(self.isValidEntityID(entityId));
     assert(self.template has<T>(entityId));
 
@@ -308,6 +314,7 @@ void ECSWorld::Archetype::rmvRowType()
 template<Component T>
 auto* ECSWorld::Archetype::getComponentPointer(this auto&& self, uint64_t idx)
 {
+    ZoneScoped;
     using Self = std::remove_reference_t<decltype(self)>;
     using ComponentPtr = std::conditional_t<std::is_const_v<Self>, const T*, T*>;
     auto& row = self.m_rows.at(componentID<T>());

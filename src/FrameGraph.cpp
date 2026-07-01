@@ -72,7 +72,7 @@ FrameGraph::TextureRef FrameGraphBuilder::newTexture(std::string name, std::pair
 void FrameGraphBuilder::aliasTexture(std::string name, FrameGraph::TextureRef textureRef)
 {
     assert(textureRef < m_frameGraph.textures.size());
-    auto [_, inserted] = m_textureNames.emplace(std::move(name), textureRef);
+    [[maybe_unused]] auto [_, inserted] = m_textureNames.emplace(std::move(name), textureRef);
     assert(inserted);
 }
 
