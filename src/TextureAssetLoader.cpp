@@ -16,7 +16,11 @@
 #include <Graphics/Texture.hpp>
 
 #include <glm/glm.hpp>
+
 #include <stb_image/stb_image.h>
+
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyC.h>
 
 #include <array>
 #include <concepts>
@@ -29,6 +33,7 @@
 #include <type_traits>
 #include <utility>
 #include <variant>
+#include <source_location>
 
 namespace GE
 {
@@ -81,6 +86,8 @@ std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(gfx::CommandBuffer
 
 std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(const AssetLocation<gfx::Texture>& location, gfx::CommandBuffer& commandBuffer)
 {
+    ZoneScopedN(std::source_location::current().function_name());
+
     assert(m_assetManager);
     std::shared_ptr<AssetContainer> container = m_assetManager->assetContainer(location.containerPath);
 
@@ -132,11 +139,16 @@ std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(const std::span<co
 
     int width = 0;
     int height = 0;
+
+    TracyCZoneN(tracyZoneCtx, "stbi_load_from_memory", true);
     UniqueStbiUc bytes = UniqueStbiUc(
         stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(encodedBytes.data()), static_cast<int>(encodedBytes.size()), &width, &height, nullptr, STBI_rgb_alpha), // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
         stbi_image_free);
+    TracyCZoneEnd(tracyZoneCtx);
+
     if (!bytes)
         throw std::runtime_error("failed to load embedded texture");
+
     return load(reinterpret_cast<const std::byte*>(bytes.get()), static_cast<uint32_t>(width), static_cast<uint32_t>(height), commandBuffer); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
 }
 
@@ -167,6 +179,8 @@ std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(const glm::vec4& c
 
 std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(const std::byte* bytes, uint32_t width, uint32_t height, gfx::CommandBuffer& commandBuffer)
 {
+    ZoneScopedN("AssetLoader<gfx::Texture>::upload_bytes_to_gpu");
+
     assert(bytes);
     assert(width > 0);
     assert(height > 0);

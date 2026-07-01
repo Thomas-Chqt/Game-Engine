@@ -147,6 +147,7 @@ struct basic_entity
 
     std::optional<basic_entity<ECSWorldT>> parent(this auto&& self)
     {
+        ZoneScoped;
         if (self.template has<HierarchyComponent>())
         {
             auto& component = self.template get<HierarchyComponent>();
@@ -164,6 +165,7 @@ struct basic_entity
 
     std::optional<basic_entity<ECSWorldT>> firstChild(this auto&& self)
     {
+        ZoneScoped;
         if (self.template has<HierarchyComponent>())
         {
             auto& component = self.template get<HierarchyComponent>();
@@ -181,6 +183,7 @@ struct basic_entity
 
     std::optional<basic_entity<ECSWorldT>> nextChild(this auto&& self)
     {
+        ZoneScoped;
         if (self.template has<HierarchyComponent>())
         {
             auto& component = self.template get<HierarchyComponent>();
@@ -198,6 +201,7 @@ struct basic_entity
 
     std::vector<basic_entity<ECSWorldT>> children(this auto&& self)
     {
+        ZoneScoped;
         std::vector<basic_entity<ECSWorldT>> vec;
         std::optional<basic_entity<ECSWorldT>> curr = self.firstChild();
         while (curr.has_value())
@@ -218,6 +222,16 @@ struct basic_entity
             curr = curr->parent();
         }
         return false;
+    }
+
+    bool hasChild() const
+    {
+        return firstChild() != std::nullopt;
+    }
+
+    bool hasParent() const
+    {
+        return parent() != std::nullopt;
     }
 
     void addChild(this EntityLike auto&& self, EntityLike auto& child, EntityLike auto& after)

@@ -2,6 +2,8 @@
 
 #include <Game-Engine/RawInput.hpp>
 
+#include <tracy/Tracy.hpp>
+
 #include <algorithm>
 #include <cstring>
 #include <imgui.h>
@@ -69,6 +71,7 @@ void keyboardButtonCombo(const char* label, GE::KeyboardButton& button)
 
 bool renderPropertiesWindow(EditableProjectProperties& properties)
 {
+    ZoneScoped;
     ImGui::Spacing();
 
     if (beginPropertyTable("##project_settings"))

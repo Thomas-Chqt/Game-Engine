@@ -44,6 +44,7 @@ public:
 
     inline value_type operator*() const
     {
+        ZoneScoped;
         return value_type{
             .entityId = *m_entityIt,
             .components = {*m_archetypeIt->second.template getComponentPointer<Cs>(m_entityIt.idx())...}
@@ -52,6 +53,7 @@ public:
 
     inline Iterator& operator++()
     {
+        ZoneScoped;
         ++m_entityIt;
         if (m_entityIt == m_archetypeIt->second.end())
         {

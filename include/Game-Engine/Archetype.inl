@@ -14,7 +14,7 @@ public:
 
     Archetype();
     Archetype(const Archetype&); // copy constructor make no sense inside the same ECSWorld. ment to be used only when copying the ECSWorld
-    Archetype(Archetype&&);
+    Archetype(Archetype&&) noexcept;
 
     uint64_t size() const { return m_size; }
 
@@ -57,7 +57,7 @@ private:
 
 public:
     Archetype& operator=(const Archetype&);
-    Archetype& operator=(Archetype&&);
+    Archetype& operator=(Archetype&&) noexcept;
 
 public:
     #include "Game-Engine/ArchetypeIterator.inl"

@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <imgui.h>
 
+#include <tracy/Tracy.hpp>
+
 namespace
 {
 
@@ -36,6 +38,7 @@ namespace GE_Editor
 
 void renderAssetManagerDebugWindow(GE::AssetManager& manager)
 {
+    ZoneScoped;
     auto assetIds = manager.assetIds();
     auto containerPaths = manager.assetContainerPaths();
 

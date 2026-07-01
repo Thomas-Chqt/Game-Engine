@@ -14,6 +14,7 @@
 #include <Graphics/Device.hpp>
 #include <Graphics/CommandBuffer.hpp>
 
+#include <cassert>
 #include <functional>
 #include <memory>
 #include <type_traits>

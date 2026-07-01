@@ -17,7 +17,7 @@ namespace GE
 
 void InputContext::addInput(const std::string& name, const VInput& input)
 {
-    auto [_, insterted] = m_inputs.insert(std::make_pair(name, input));
+    [[maybe_unused]] auto [_, insterted] = m_inputs.insert(std::make_pair(name, input));
     assert(insterted);
 }
 

@@ -67,7 +67,7 @@ AssetManager::AssetManager(gfx::Device* device, ThreadPool* threadPool)
     assert(m_threadPool != nullptr);
 
     const glm::vec4 whiteColor(1.0f);
-    const AssetID builtInWhiteTextureId = registerAsset<gfx::Texture>(
+    [[maybe_unused]] const AssetID builtInWhiteTextureId = registerAsset<gfx::Texture>(
         BUILT_IN_WHITE_TEXTURE_ID,
         "built_in_white_texture",
         std::nullopt,
@@ -76,7 +76,7 @@ AssetManager::AssetManager(gfx::Device* device, ThreadPool* threadPool)
     );
     assert(builtInWhiteTextureId == BUILT_IN_WHITE_TEXTURE_ID);
 
-    const AssetID builtInCubeId = registerAsset<Mesh>(
+    [[maybe_unused]] const AssetID builtInCubeId = registerAsset<Mesh>(
         BUILT_IN_CUBE_ID,
         "build_in_cube",
         std::nullopt,
@@ -295,6 +295,7 @@ bool AssetManager::isValidAssetId(AssetID assetId) const
 
 bool AssetManager::isAssetLoaded(AssetID assetId) const
 {
+    ZoneScoped;
     assert(isValidAssetId(assetId));
     const VAssetHandle& vHandle = m_assetHandles.at(assetId);
 

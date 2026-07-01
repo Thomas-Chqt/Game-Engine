@@ -113,6 +113,7 @@ void Editor::renderImgui()
 
     if (ImGui::Begin("viewport"))
     {
+        ZoneScopedN("ImGuiWindow(\"viewport\")");
         static std::variant<std::string, uint64_t> textureIdPlaceholder = std::string("viewportBackBuffer");
 
         ImVec2 cursorPos = ImGui::GetCursorScreenPos();
@@ -193,6 +194,7 @@ void Editor::renderImgui()
 
     if (ImGui::Begin("Scenes"))
     {
+        ZoneScopedN("ImGuiWindow(\"Scenes\")");
         tileGrid(m_sceneDescriptors, std::function([](const GE::Scene::Descriptor& scene){
             ImGui::BeginGroup();
             {
@@ -216,6 +218,7 @@ void Editor::renderImgui()
 
     if (ImGui::Begin("Resources") && m_resourceDir.has_value() && std::filesystem::exists(*m_resourceDir))
     {
+        ZoneScopedN("ImGuiWindow(\"Resources\")");
         ImGui::BeginDisabled(resourceBrowserSubDir.empty());
         if (ImGui::Button("<"))
             resourceBrowserSubDir = resourceBrowserSubDir.parent_path();
@@ -267,6 +270,7 @@ void Editor::renderImgui()
 
     if (ImGui::Begin("Entity inspector"))
     {
+        ZoneScopedN("EntityInspectorWindow");
         ImGui::PushItemWidth(-80);
         if (!m_selectedEntity || m_selectedEntity->world == nullptr || m_selectedEntity->entityId == GE::INVALID_ENTITY_ID)
             ImGui::TextUnformatted("No entity selected");
