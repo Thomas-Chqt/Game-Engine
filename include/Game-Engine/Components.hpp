@@ -44,13 +44,15 @@ struct HierarchyComponent
 
 struct TransformComponent
 {
-    glm::vec3 position = {0.0f, 0.0f, 0.0f};
-    glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-    glm::vec3 scale    = {1.0f, 1.0f, 1.0f};
+    glm::vec3 position = glm::vec3(0.0f);
+    glm::quat rotation = glm::identity<glm::quat>();
+    glm::vec3 scale    = glm::vec3(1.0f);
 
-    inline operator glm::mat4 () const
+    glm::mat4 worldTransform = 1.0f;
+
+    glm::mat4 localTransform() const
     {
-        auto matrix = glm::mat4x4(1.0f);
+        auto matrix = glm::mat4(1.0f);
         matrix = glm::translate(matrix, position);
         matrix = matrix * glm::mat4_cast(rotation);
         matrix = glm::scale(matrix, glm::vec3(scale));

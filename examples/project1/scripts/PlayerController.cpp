@@ -46,6 +46,8 @@ class PlayerController final : public GE::Script
                 const auto forward = transform.rotation * glm::vec3(0.0f, 0.0f, -1.0f);
                 const auto right = transform.rotation * glm::vec3(1.0f, 0.0f, 0.0f);
                 transform.position += (right * value.x + forward * value.y) * move_speed;
+
+                entity.updateTransformHierarchy();
             }
         );
 
@@ -61,6 +63,8 @@ class PlayerController final : public GE::Script
 
                 m_cameraPitch = std::clamp(m_cameraPitch + value.x * rotate_speed, glm::radians(-89.0f), glm::radians(89.0f));
                 cameraTransform.rotation = glm::angleAxis(m_cameraPitch, glm::vec3(1.0f, 0.0f, 0.0f));
+
+                entity.updateTransformHierarchy();
             }
         );
 

@@ -10,28 +10,41 @@
 #include "ImGuizmo.h"
 #include "imgui_render/imgui_render.hpp"
 
+#include <Game-Engine/AssetContainer.hpp>
+#include <Game-Engine/AssetLocation.hpp>
 #include <Game-Engine/AssetManager.hpp>
 #include <Game-Engine/Components.hpp>
 #include <Game-Engine/ECSWorld.hpp>
 #include <Game-Engine/Entity.hpp>
 #include <Game-Engine/Scene.hpp>
 
+#include <fastgltf/math.hpp>
+#include <fastgltf/types.hpp>
+
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <imgui.h>
+
 #include <tracy/Tracy.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <cmath>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <cctype>
 #include <filesystem>
 #include <format>
 #include <functional>
+#include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 
 constexpr float TILE_SIZE = 60.0f;
 constexpr float VIEW_MANIPULATE_SIZE = 64.0f;
@@ -50,32 +63,6 @@ template<> struct EditableEntityComponentTraits<GE::CameraComponent>    { static
 template<> struct EditableEntityComponentTraits<GE::LightComponent>     { static constexpr const char* label = "Light component";     };
 template<> struct EditableEntityComponentTraits<GE::ScriptComponent>    { static constexpr const char* label = "Script component";    };
 template<> struct EditableEntityComponentTraits<GE::MeshComponent>      { static constexpr const char* label = "Mesh component";      };
-
-GE::TransformComponent decomposeEngineTransform(const glm::mat4x4& matrix)
-{
-    GE::TransformComponent transform;
-
-    transform.position = glm::vec3(matrix[3]);
-    transform.scale = {
-        glm::length(glm::vec3(matrix[0])),
-        glm::length(glm::vec3(matrix[1])),
-        glm::length(glm::vec3(matrix[2]))
-    };
-
-    assert(transform.scale.x != 0.0f);
-    assert(transform.scale.y != 0.0f);
-    assert(transform.scale.z != 0.0f);
-
-    const glm::mat3 rotationMatrix{
-        glm::vec3(matrix[0]) / transform.scale.x,
-        glm::vec3(matrix[1]) / transform.scale.y,
-        glm::vec3(matrix[2]) / transform.scale.z
-    };
-
-    transform.rotation = glm::normalize(glm::quat_cast(rotationMatrix));
-
-    return transform;
-}
 
 } // namespace
 
@@ -148,16 +135,18 @@ void Editor::renderImgui()
             glm::mat4x4 projectionMatrix = m_editorCamera.projectionMatrix(aspectRatio);
             ImGuizmo::SetDrawlist();
 
-            if (m_selectedEntity.has_value()) {
-                glm::mat4x4 matrix = m_selectedEntity->worldTransform();
+            if (m_selectedEntity.has_value() && m_selectedEntity->has<GE::TransformComponent>()) {
+                GE::TransformComponent& transformComponent = m_selectedEntity->get<GE::TransformComponent>();
                 ImGuizmo::OPERATION operations = ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::ROTATE;
-                if (ImGuizmo::Manipulate((float*)&viewMatrix, (float*)&projectionMatrix, operations, ImGuizmo::MODE::LOCAL, (float*)&matrix)) {
-                    glm::mat4x4 localMatrix = matrix;
-                    if (auto parent = m_selectedEntity->parent()) {
-                        assert(parent->has<GE::TransformComponent>());
-                        localMatrix = glm::inverse(parent->worldTransform()) * matrix;
-                    }
-                    m_selectedEntity->get<GE::TransformComponent>() = decomposeEngineTransform(localMatrix);
+                if (ImGuizmo::Manipulate((float*)&viewMatrix, (float*)&projectionMatrix, operations, ImGuizmo::MODE::LOCAL, (float*)&transformComponent.worldTransform)) {
+                    glm::mat4x4 localTransform = transformComponent.worldTransform;
+                    auto parent = m_selectedEntity->parent();
+                    if (parent.has_value() && parent->has<GE::TransformComponent>())
+                        localTransform = glm::inverse(parent->worldTransform()) * transformComponent.worldTransform;
+                    [[maybe_unused]] glm::vec3 skew;
+                    [[maybe_unused]] glm::vec4 perspective;
+                    glm::decompose(localTransform, transformComponent.scale, transformComponent.rotation, transformComponent.position, skew, perspective);
+                    m_selectedEntity->updateTransformHierarchy();
                 }
             }
 

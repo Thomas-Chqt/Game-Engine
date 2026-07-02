@@ -2750,6 +2750,40 @@ registeredAssets:
       - 273
       - 274
       - 275
+inputs:
+  - name: player_jump
+    input:
+      type: Action
+      mapper:
+        type: KeyboardButton
+        data:
+          button: space
+  - name: player_move
+    input:
+      type: Range2D
+      mapper:
+        type: KeyboardButton
+        data:
+          xPos: d
+          xNeg: a
+          xScale: 1
+          yPos: w
+          yNeg: s
+          yScale: 1
+          triggerValue: 0.5
+  - name: player_rotate
+    input:
+      type: Range2D
+      mapper:
+        type: KeyboardButton
+        data:
+          xPos: up
+          xNeg: down
+          xScale: 1
+          yPos: left
+          yNeg: right
+          yScale: 1
+          triggerValue: 0.5
 scenes:
   - name: default_scene
     activeCamera: 1
@@ -2794,10 +2828,10 @@ scenes:
                 y: 1.41
                 z: 1.19
               rotation:
-                x: -0.31456655
+                x: -0.31456658
                 y: 0
                 z: 0
-                w: 0.94923544
+                w: 0.9492355
               scale:
                 x: 0.01
                 y: 0.01
@@ -2823,9 +2857,9 @@ scenes:
           - type: TransformComponent
             data:
               position:
-                x: -7.33
+                x: -10.213316
                 y: 5
-                z: 0
+                z: 4.5074134
               rotation:
                 x: 0
                 y: 0
@@ -2885,18 +2919,18 @@ scenes:
           - type: TransformComponent
             data:
               position:
-                x: -10.11751
-                y: 0.9421378
-                z: 3.260457
+                x: -12.070857
+                y: 1.0709687
+                z: -0.5073075
               rotation:
                 x: 0
-                y: 0.81406504
+                y: -0.70682514
                 z: 0
-                w: -0.5807738
+                w: 0.7073883
               scale:
-                x: 1.0000046
+                x: 0.9999951
                 y: 1
-                z: 1.0000037
+                z: 0.9999951
           - type: ScriptComponent
             data:
               name: PlayerController
@@ -2916,17 +2950,17 @@ scenes:
 startScene: default_scene
 editorCamera:
   position:
-    x: -15.49401
-    y: 5.8717775
-    z: -3.1203218
+    x: -20.959558
+    y: 9.782716
+    z: -3.4196754
   rotation:
-    x: -0.06471948
-    y: -0.87307864
-    z: -0.120754324
-    w: 0.46793523
+    x: -0.12446377
+    y: -0.8089214
+    z: -0.1850883
+    w: 0.54396445
   fov: 1.0471976
   zFar: 1000
   zNear: 0.1
 editedScene: default_scene
 selectedEntity: 4
-imguiSettings: "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1280,701\nCollapsed=0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][viewport]\nPos=0,19\nSize=1023,525\nCollapsed=0\nDockId=0x00000001,0\n\n[Window][Scene graph]\nPos=1025,19\nSize=255,273\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][Entity inspector]\nPos=1025,294\nSize=255,426\nCollapsed=0\nDockId=0x00000006,0\n\n[Window][Scenes]\nPos=0,546\nSize=1023,174\nCollapsed=0\nDockId=0x00000002,0\n\n[Window][Project properties]\nPos=496,146\nSize=718,682\nCollapsed=0\n\n[Window][Ressources]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Window][Resources]\nPos=0,546\nSize=1023,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Window][##MainMenuBar]\nPos=0,0\nSize=1280,19\nCollapsed=0\n\n[Docking][Data]\nDockSpace     ID=0x08BD597D Window=0x1BBC0F80 Pos=0,19 Size=1280,701 Split=X\n  DockNode    ID=0x00000003 Parent=0x08BD597D SizeRef=1023,701 Split=Y\n    DockNode  ID=0x00000001 Parent=0x00000003 SizeRef=1280,525 CentralNode=1 Selected=0xF6034841\n    DockNode  ID=0x00000002 Parent=0x00000003 SizeRef=1280,174 Selected=0x30401527\n  DockNode    ID=0x00000004 Parent=0x08BD597D SizeRef=255,701 Split=Y Selected=0x848E2614\n    DockNode  ID=0x00000005 Parent=0x00000004 SizeRef=142,273 Selected=0x2C1AB1E4\n    DockNode  ID=0x00000006 Parent=0x00000004 SizeRef=142,426 Selected=0x848E2614\n\n"
+imguiSettings: "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1280,701\nCollapsed=0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][viewport]\nPos=0,19\nSize=1023,525\nCollapsed=0\nDockId=0x00000001,0\n\n[Window][Scene graph]\nPos=1025,19\nSize=255,273\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][Entity inspector]\nPos=1025,294\nSize=255,426\nCollapsed=0\nDockId=0x00000006,0\n\n[Window][Scenes]\nPos=0,546\nSize=1023,174\nCollapsed=0\nDockId=0x00000002,0\n\n[Window][Project properties]\nPos=371,108\nSize=537,504\nCollapsed=0\n\n[Window][Ressources]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Window][Resources]\nPos=0,546\nSize=1023,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Window][##MainMenuBar]\nPos=0,0\nSize=1280,19\nCollapsed=0\n\n[Docking][Data]\nDockSpace     ID=0x08BD597D Window=0x1BBC0F80 Pos=0,19 Size=1280,701 Split=X\n  DockNode    ID=0x00000003 Parent=0x08BD597D SizeRef=1023,701 Split=Y\n    DockNode  ID=0x00000001 Parent=0x00000003 SizeRef=1280,525 CentralNode=1 Selected=0xF6034841\n    DockNode  ID=0x00000002 Parent=0x00000003 SizeRef=1280,174 Selected=0x30401527\n  DockNode    ID=0x00000004 Parent=0x08BD597D SizeRef=255,701 Split=Y Selected=0x848E2614\n    DockNode  ID=0x00000005 Parent=0x00000004 SizeRef=142,273 Selected=0x2C1AB1E4\n    DockNode  ID=0x00000006 Parent=0x00000004 SizeRef=142,426 Selected=0x848E2614\n\n"

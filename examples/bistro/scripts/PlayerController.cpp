@@ -9,7 +9,6 @@
 #include <Game-Engine/Game.hpp>
 #include <Game-Engine/Script.hpp>
 
-#include <glm/geometric.hpp>
 #include <glm/gtc/quaternion.hpp>
 
 #include <algorithm>
@@ -47,6 +46,8 @@ class PlayerController final : public GE::Script
                 const auto forward = transform.rotation * glm::vec3(0.0f, 0.0f, -1.0f);
                 const auto right = transform.rotation * glm::vec3(1.0f, 0.0f, 0.0f);
                 transform.position += (right * value.x + forward * value.y) * move_speed;
+
+                entity.updateTransformHierarchy();
             }
         );
 
@@ -58,16 +59,18 @@ class PlayerController final : public GE::Script
                 auto& cameraTransform = camera.get<GE::TransformComponent>();
 
                 const glm::quat yawDelta = glm::angleAxis(value.y * rotate_speed, glm::vec3(0.0f, 1.0f, 0.0f));
-                m_cameraPitch = std::clamp(m_cameraPitch + value.x * rotate_speed, glm::radians(-89.0f), glm::radians(89.0f));
-
                 entityTransform.rotation = glm::normalize(yawDelta * entityTransform.rotation);
+
+                m_cameraPitch = std::clamp(m_cameraPitch + value.x * rotate_speed, glm::radians(-89.0f), glm::radians(89.0f));
                 cameraTransform.rotation = glm::angleAxis(m_cameraPitch, glm::vec3(1.0f, 0.0f, 0.0f));
+
+                entity.updateTransformHierarchy();
             }
         );
 
         game.inputContext().setInputCallback<GE::ActionInput>(
             "player_jump",
-            [this]()
+            [this]
             {
                 if (!m_grounded)
                     return;
@@ -99,6 +102,6 @@ private:
     GE::Entity m_entity;
     float m_groundHeight = 0.0f;
     float m_verticalVelocity = 0.0f;
-    bool m_grounded = true;
     float m_cameraPitch = 0.0f;
+    bool m_grounded = true;
 };

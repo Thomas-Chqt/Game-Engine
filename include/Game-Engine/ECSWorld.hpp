@@ -19,6 +19,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <unordered_map>
 #include <utility>
 #include <set>
 #include <functional>
@@ -56,19 +57,6 @@ private:
     using ComponentID = uint32_t;
     static constexpr std::size_t maxComponentTypes = 256;
     using ArchetypeID = std::bitset<maxComponentTypes>;
-
-    struct ArchetypeIDLess
-    {
-        bool operator()(const ArchetypeID& lhs, const ArchetypeID& rhs) const
-        {
-            for (std::size_t i = maxComponentTypes; i-- > 0;)
-            {
-                if (lhs.test(i) != rhs.test(i))
-                    return rhs.test(i);
-            }
-            return false;
-        }
-    };
 
     using CopyConstructor = std::function<void(void* src, void* dst)>;
     using MoveConstructor = std::function<void(void* src, void* dst)>;
@@ -128,7 +116,7 @@ private:
     std::vector<EntityData> m_entityDatas;
     std::set<EntityID> m_availableEntityIDs;
 
-    std::map<ArchetypeID, Archetype, ArchetypeIDLess> m_archetypes;
+    std::unordered_map<ArchetypeID, Archetype> m_archetypes;
 
 public:
     ECSWorld& operator=(const ECSWorld&) = default;
