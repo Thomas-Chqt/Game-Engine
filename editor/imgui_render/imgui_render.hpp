@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <array>

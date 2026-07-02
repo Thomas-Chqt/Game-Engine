@@ -5,7 +5,6 @@
 
 #include <yaml-cpp/yaml.h>
 
-
 namespace YAML
 {
 

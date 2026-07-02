@@ -1,3 +1,4 @@
+#include "Game-Engine/Components.hpp"
 #include "imgui.h"
 #include "imgui_render.hpp"
 
@@ -8,6 +9,7 @@
 #include <tracy/TracyC.h>
 
 #include <optional>
+#include <ranges>
 
 namespace GE_Editor
 {
@@ -20,11 +22,12 @@ void sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity,
     ZoneScoped;
     bool node_open = false;
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen;
+    std::optional<GE::Entity> firstChild = entity.firstChild();
 
     if (selectedEntity == entity)
         flags |= ImGuiTreeNodeFlags_Selected;
 
-    if (entity.children().size() > 0)
+    if (firstChild.has_value())
         node_open = ImGui::TreeNodeEx(reinterpret_cast<void*>(entity.entityId), flags, "%s", entity.name().c_str()); // NOLINT
     else
     {
@@ -50,6 +53,7 @@ void sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity,
                 if (auto parent = droped.parent())
                     parent->removeChild(droped);
                 entity.addChild(droped);
+                droped.updateTransformHierarchy();
             }
         }
         ImGui::EndDragDropTarget();
@@ -77,9 +81,9 @@ void sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity,
             return;
     }
 
-    if (node_open && entity.children().size() > 0)
+    if (node_open && firstChild.has_value())
     {
-        for (auto curr = entity.firstChild(); curr; curr = curr->nextChild())
+        for (auto curr = firstChild; curr; curr = curr->nextChild())
             sceneGrapRow(*curr, selectedEntity, assetManager);
         ImGui::TreePop();
     }

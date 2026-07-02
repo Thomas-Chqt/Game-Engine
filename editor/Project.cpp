@@ -70,6 +70,7 @@ GE::Scene::Descriptor makeDefaultCubeScene(std::string_view name)
     light.emplace<GE::LightComponent>();
 
     camera.addChild(light);
+    camera.updateTransformHierarchy();
 
     scene.activeCameraId = camera.entityId;
 

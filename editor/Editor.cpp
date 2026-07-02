@@ -28,19 +28,14 @@
 
 #include <Graphics/Enums.hpp>
 
-#include <cassert>
-#include <cstdint>
-#include <span>
-#include <vector>
 #include <yaml-cpp/yaml.h>
 
-#include <filesystem>
-#include <map>
-#include <memory>
-#include <utility>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/matrix_decompose.hpp>
 
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyC.h>
+
 #include <format>
 #include <fstream>
 #include <memory>
@@ -59,7 +54,12 @@
 #include <ranges>
 #include <string_view>
 #include <tuple>
-#include <tracy/Tracy.hpp>
+#include <filesystem>
+#include <memory>
+#include <utility>
+#include <cassert>
+#include <span>
+#include <vector>
 
 extern std::unique_ptr<GE::Application> createApplication(int argc, const char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays)
 {
@@ -165,6 +165,11 @@ void Editor::loadProject(Project&& project)
     m_gameInputs = project.inputs;
 
     m_sceneDescriptors = std::move(project.scenes);
+    for(auto& scene : m_sceneDescriptors)
+    {
+        for (GE::Entity rootEntity : scene.ecsWorld | GE::ECSView<GE::NameComponent>() | GE::MakeEntity{} | std::views::filter([](GE::Entity entity){ return entity.hasParent() == false; }))
+            rootEntity.updateTransformHierarchy();
+    }
     m_startSceneName = std::move(project.startSceneName);
 
     m_editorCamera = project.editorCamera;
@@ -355,8 +360,15 @@ void Editor::recordFrameGraph(GE::FrameGraphBuilder& builder)
         assert(activeCamera.has<GE::TransformComponent>());
         assert(activeCamera.has<GE::CameraComponent>());
 
-        const glm::vec3 position = activeCamera.worldPosition();
-        const glm::quat rotation = activeCamera.worldRotation();
+        glm::vec3 position;
+        glm::quat rotation;
+
+        [[maybe_unused]] glm::vec3 scale;
+        [[maybe_unused]] glm::vec3 skew;
+        [[maybe_unused]] glm::vec4 perspective;
+
+        glm::decompose(activeCamera.worldTransform(), scale, rotation, position, skew, perspective);
+
         const glm::vec3 direction = rotation * glm::vec3(0.0f, 0.0f, -1.0f);
         const glm::vec3 up = rotation * glm::vec3(0.0f, 1.0f, 0.0f);
 

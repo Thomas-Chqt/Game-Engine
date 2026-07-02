@@ -29,10 +29,10 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <ranges>
 #include <span>
 #include <string>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -48,11 +48,6 @@ namespace GE
 namespace
 {
 
-using Renderables = std::map<
-    std::pair<std::shared_ptr<gfx::Buffer>, std::shared_ptr<gfx::Buffer>>,
-    std::vector<std::pair<glm::mat4x4, uint32_t>>
->;
-
 struct PushConstant
 {
     uint32_t materialIndex;
@@ -60,6 +55,16 @@ struct PushConstant
 };
 
 static_assert(sizeof(PushConstant) == 80);
+
+struct BufferPairHash
+{
+    size_t operator()(const std::pair<std::shared_ptr<gfx::Buffer>, std::shared_ptr<gfx::Buffer>>& buffers) const
+    {
+        const size_t firstHash = std::hash<std::shared_ptr<gfx::Buffer>>{}(buffers.first);
+        const size_t secondHash = std::hash<std::shared_ptr<gfx::Buffer>>{}(buffers.second);
+        return firstHash ^ (secondHash << 1);
+    }
+};
 
 }
 
@@ -130,23 +135,31 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
     }
 
     TracyCZoneN(TexturedGeometryPassRecordRenderables, "TexturedGeometryPass::record renderables", true);
-    Renderables renderables;
+
+    TracyCZoneN(TracyCZoneN_setup, "TexturedGeometryPass::setup_renderable_record", true);
+    std::unordered_map<std::pair<std::shared_ptr<gfx::Buffer>, std::shared_ptr<gfx::Buffer>>, std::vector<std::pair<glm::mat4x4, uint32_t>>, BufferPairHash> renderables;
     std::vector<shader::textured::Material> materials;
-    std::map<std::shared_ptr<Material>, uint32_t> materialIndices;
+    std::unordered_map<std::shared_ptr<Material>, uint32_t> materialIndices;
+    auto renderableEntities = scene.ecsWorld() | const_ECSView<TransformComponent, MeshComponent>();
+    auto renderableEntitiesSize = renderables.size();
+    renderables.reserve(renderableEntitiesSize);
+    materials.reserve(renderableEntitiesSize);
+    materialIndices.reserve(renderableEntitiesSize);
+    TracyCZoneEnd(TracyCZoneN_setup);
+
     TracyCZoneN(TracyCZoneN_loop_renderableEntities, "loop_renderableEntities", true);
-    for (const_Entity entity : scene.ecsWorld() | const_ECSView<TransformComponent, MeshComponent>() | MakeEntity())
+    for (auto [transform, mesh] : renderableEntities)
     {
-        const MeshComponent& meshComponent = entity.get<MeshComponent>();
-        if (!assetManager.isAssetLoaded(meshComponent))
+        if (!assetManager.isAssetLoaded(mesh))
             continue;
 
-        std::shared_ptr<Mesh> loadedMesh = assetManager.getAsset<Mesh>(meshComponent.id);
+        std::shared_ptr<Mesh> loadedMesh = assetManager.getAsset<Mesh>(mesh);
 
-        std::function<void(const SubMesh&, glm::mat4)> addSubmesh = [&](const SubMesh& submesh, const glm::mat4& transform) {
+        auto addSubmesh = [&](this auto&& self, const SubMesh& submesh, const glm::mat4& transform) -> void {
             glm::mat4 modelMatrix = transform * submesh.transform;
 
             for (auto& childSubmesh : submesh.subMeshes)
-                addSubmesh(childSubmesh, modelMatrix);
+                self(childSubmesh, modelMatrix);
 
             assert(submesh.material != nullptr);
 
@@ -168,10 +181,8 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
             renderables[std::make_pair(submesh.vertexBuffer, submesh.indexBuffer)].emplace_back(modelMatrix, it->second);
             TracyCZoneEnd(TracyCZoneN_add_renderable);
         };
-
-        glm::mat4x4 worldTransform = entity.worldTransform();
         for (auto& submesh : loadedMesh->subMeshes)
-            addSubmesh(submesh, worldTransform);
+            addSubmesh(submesh, transform.worldTransform);
     }
     TracyCZoneEnd(TracyCZoneN_loop_renderableEntities);
 

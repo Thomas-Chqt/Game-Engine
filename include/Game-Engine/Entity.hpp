@@ -97,52 +97,34 @@ struct basic_entity
         return self.template get<NameComponent>().name;
     }
 
-    inline glm::mat4 transform() const { return static_cast<glm::mat4>(get<TransformComponent>()); }
-
-    glm::vec3 worldPosition() const
+    const glm::mat4& localTransform() const
     {
-        const TransformComponent& transform = get<TransformComponent>();
-        if (auto parent = this->parent())
-        {
-            assert(parent->template has<TransformComponent>());
-            const glm::vec3 scaledLocalPosition = parent->worldScale() * transform.position;
-            return parent->worldPosition() + parent->worldRotation() * scaledLocalPosition;
-        }
-        return transform.position;
+        assert(has<TransformComponent>());
+        return get<TransformComponent>().localTransform;
     }
 
-    glm::quat worldRotation() const
+    const glm::mat4& worldTransform() const
     {
-        const TransformComponent& transform = get<TransformComponent>();
-
-        if (auto parent = this->parent())
-        {
-            assert(parent->template has<TransformComponent>());
-            return glm::normalize(parent->worldRotation() * transform.rotation);
-        }
-        return transform.rotation;
+        assert(has<TransformComponent>());
+        return get<TransformComponent>().worldTransform;
     }
 
-    glm::vec3 worldScale() const
+    void updateTransformHierarchy(this EntityLike auto&& self, const glm::mat4& parentTransform)
     {
-        const TransformComponent& transform = get<TransformComponent>();
-        if (auto parent = this->parent())
-        {
-            assert(parent->template has<TransformComponent>());
-            return parent->worldScale() * transform.scale;
-        }
-        return transform.scale;
+        assert(self.template has<TransformComponent>());
+        TransformComponent& transformComponent = self.template get<TransformComponent>();
+
+        transformComponent.worldTransform = parentTransform * transformComponent.localTransform();
+
+        for (std::optional<Entity> child = self.firstChild(); child; child = child->nextChild())
+            child->updateTransformHierarchy(transformComponent.worldTransform);
     }
 
-    glm::mat4 worldTransform() const
+    void updateTransformHierarchy(this EntityLike auto&& self)
     {
-        ZoneScoped;
-        if (auto parent = this->parent())
-        {
-            assert(parent->template has<TransformComponent>());
-            return parent->worldTransform() * transform();
-        }
-        return transform();
+        self.updateTransformHierarchy(self.parent().transform([](GE::Entity parent) -> glm::mat4 {
+            return parent.has<GE::TransformComponent>() ? parent.worldTransform() : glm::mat4(1.0f);
+        }).value_or(glm::mat4(1.0f)));
     }
 
     std::optional<basic_entity<ECSWorldT>> parent(this auto&& self)
