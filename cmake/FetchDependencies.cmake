@@ -18,8 +18,8 @@ function(fetch_dependencies)
     # -----------------------------
     FetchContent_Declare(Graphics
         GIT_REPOSITORY    https://github.com/Thomas-Chqt/Graphics.git
-        GIT_TAG           b8e0f1ff297e9b1a371b2629c069db780f2a0dc6
-        GIT_SHALLOW       1
+        GIT_TAG           383a162c02f562398a5a2fb4ef1497b6c154de01
+        GIT_SHALLOW       0
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
     )
@@ -86,7 +86,7 @@ function(fetch_dependencies)
     FetchContent_Declare(imgui
         GIT_REPOSITORY    https://github.com/Thomas-Chqt/imgui.git
         GIT_TAG           4d8f55183c2e974916daf6336ee2c4b9c8e72891
-        GIT_SHALLOW       1
+        GIT_SHALLOW       0
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
     )
@@ -104,7 +104,7 @@ function(fetch_dependencies)
     FetchContent_Declare(stb_image
         GIT_REPOSITORY    https://github.com/Thomas-Chqt/stb_image.git
         GIT_TAG           a09b799a2ba95c14f511493db4ea59811b2fcc97
-        GIT_SHALLOW       1
+        GIT_SHALLOW       0
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
     )
@@ -119,7 +119,7 @@ function(fetch_dependencies)
     FetchContent_Declare(dlLoad
         GIT_REPOSITORY    https://github.com/Thomas-Chqt/dlLoad.git
         GIT_TAG           fd860b8200983b89d3ca58b371f6ec25b9972bd3
-        GIT_SHALLOW       1
+        GIT_SHALLOW       0
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
     )
