@@ -23,7 +23,6 @@
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/matrix_decompose.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -42,7 +41,9 @@
 #include <format>
 #include <functional>
 #include <optional>
+#include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <variant>
 
@@ -57,12 +58,96 @@ namespace
 using EditableEntityComponents = GE::TypeList<GE::NameComponent, GE::TransformComponent, GE::CameraComponent, GE::LightComponent, GE::ScriptComponent, GE::MeshComponent>;
 
 template<typename T> struct EditableEntityComponentTraits;
-template<> struct EditableEntityComponentTraits<GE::NameComponent>      { static constexpr const char* label = "Name component"; };
+template<> struct EditableEntityComponentTraits<GE::NameComponent>      { static constexpr const char* label = "Name component";      };
 template<> struct EditableEntityComponentTraits<GE::TransformComponent> { static constexpr const char* label = "Transform component"; };
 template<> struct EditableEntityComponentTraits<GE::CameraComponent>    { static constexpr const char* label = "Camera component";    };
 template<> struct EditableEntityComponentTraits<GE::LightComponent>     { static constexpr const char* label = "Light component";     };
 template<> struct EditableEntityComponentTraits<GE::ScriptComponent>    { static constexpr const char* label = "Script component";    };
 template<> struct EditableEntityComponentTraits<GE::MeshComponent>      { static constexpr const char* label = "Mesh component";      };
+
+bool isGltfPath(const std::filesystem::path& path)
+{
+    std::string extension = path.extension().string();
+    std::ranges::transform(extension, extension.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return extension == ".gltf" || extension == ".glb";
+}
+
+std::string gltfNodeName(const fastgltf::Asset& asset, const std::filesystem::path& path, std::size_t nodeIndex)
+{
+    const fastgltf::Node& node = asset.nodes.at(nodeIndex);
+    if (node.name.empty() == false)
+        return std::string(node.name);
+    if (node.meshIndex.has_value() && asset.meshes.at(*node.meshIndex).name.empty() == false)
+        return std::string(asset.meshes.at(*node.meshIndex).name);
+    return std::format("{}#node{}", path.stem().string(), nodeIndex);
+}
+
+std::tuple<glm::vec3, glm::quat, glm::vec3> gltfNodeLocalTransform(const fastgltf::Node& node)
+{
+    if (const fastgltf::TRS* nodeTRS = std::get_if<fastgltf::TRS>(&node.transform)) {
+        const glm::vec3 position = glm::make_vec3(nodeTRS->translation.data());
+        const glm::quat rotation(nodeTRS->rotation.w(), nodeTRS->rotation.x(), nodeTRS->rotation.y(), nodeTRS->rotation.z());
+        const glm::vec3 scale = glm::make_vec3(nodeTRS->scale.data());
+        return {position, rotation, scale};
+    }
+
+    if (const fastgltf::math::fmat4x4* nodeTransform = std::get_if<fastgltf::math::fmat4x4>(&node.transform)) {
+        glm::vec3 position;
+        glm::quat rotation;
+        glm::vec3 scale;
+        [[maybe_unused]] glm::vec3 skew;
+        [[maybe_unused]] glm::vec4 perspective;
+        glm::decompose(glm::make_mat4x4(nodeTransform->data()), scale, rotation, position, skew, perspective);
+        return {position, rotation, scale};
+    }
+
+    std::unreachable();
+}
+
+void importDroppedGltf(const std::filesystem::path& path, GE::AssetManager& assetManager, GE::Scene& scene)
+{
+    assert(isGltfPath(path));
+
+    std::shared_ptr<GE::AssetContainer> container = assetManager.assetContainer(path);
+
+    assetManager.importGltf(path);
+
+    auto* gltfContainer = dynamic_cast<GE::GltfAssetContainer*>(container.get());
+    assert(gltfContainer);
+
+    const fastgltf::Asset& asset = gltfContainer->asset();
+    assert(asset.scenes.empty() == false);
+    const fastgltf::Scene& gltfScene = asset.defaultScene ? asset.scenes[*asset.defaultScene] : asset.scenes.front();
+
+    auto createEntity = [&](this auto&& self, std::size_t nodeIndex, std::optional<GE::Entity> parent) -> GE::Entity
+    {
+        const fastgltf::Node& node = asset.nodes.at(nodeIndex);
+        GE::Entity entity = scene.newEntity(gltfNodeName(asset, path, nodeIndex));
+        const auto [position, rotation, scale] = gltfNodeLocalTransform(node);
+        entity.emplace<GE::TransformComponent>(position, rotation, scale);
+
+        if (parent.has_value())
+            parent->addChild(entity);
+
+        if (node.meshIndex.has_value()) {
+            const GE::AssetLocation<GE::Mesh> meshLocation{
+                .containerPath = path,
+                .index = *node.meshIndex
+            };
+            const GE::AssetID meshAssetId = assetManager.assetId(GE::VAssetLocation(meshLocation));
+            entity.emplace<GE::MeshComponent>(meshAssetId);
+            assetManager.loadAsset(meshAssetId);
+        }
+
+        for (std::size_t childNodeIndex : node.children)
+            self(childNodeIndex, entity);
+
+        return entity;
+    };
+
+    for (std::size_t nodeIndex : gltfScene.nodeIndices)
+        createEntity(nodeIndex, std::nullopt).updateTransformHierarchy();
+}
 
 } // namespace
 
@@ -119,12 +204,13 @@ void Editor::renderImgui()
 
         if (ImGui::BeginDragDropTarget())
         {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("resource_dnd"); payload && payload->IsDelivery())
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("resource_dnd");
+                payload && payload->IsDelivery() && m_game.has_value() == false && m_editedScene.has_value())
             {
                 assert(payload->DataSize > 0);
                 std::filesystem::path path = std::string_view(static_cast<const char*>(payload->Data), static_cast<std::size_t>(payload->DataSize - 1));
-                if (path.extension() == ".gltf" || path.extension() == ".glb")
-                    assetManager().importGltf(path);
+                if (isGltfPath(path))
+                    importDroppedGltf(path, assetManager(), *m_editedScene);
             }
             ImGui::EndDragDropTarget();
         }

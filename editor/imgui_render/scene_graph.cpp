@@ -10,6 +10,7 @@
 
 #include <optional>
 #include <ranges>
+#include <vector>
 
 namespace GE_Editor
 {
@@ -17,17 +18,16 @@ namespace GE_Editor
 namespace
 {
 
-void sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager)
+bool sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager)
 {
     ZoneScoped;
     bool node_open = false;
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen;
-    std::optional<GE::Entity> firstChild = entity.firstChild();
 
     if (selectedEntity == entity)
         flags |= ImGuiTreeNodeFlags_Selected;
 
-    if (firstChild.has_value())
+    if (entity.hasChild())
         node_open = ImGui::TreeNodeEx(reinterpret_cast<void*>(entity.entityId), flags, "%s", entity.name().c_str()); // NOLINT
     else
     {
@@ -65,7 +65,7 @@ void sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity,
     if (ImGui::BeginPopupContextItem())
     {
         bool destroyed = false;
-        menuFromPath(std::to_array<MenuItem>({
+        std::vector<MenuItem> items = {
             {"Delete", [&] {
                 if (selectedEntity && entity == *selectedEntity)
                     selectedEntity = std::nullopt;
@@ -73,20 +73,41 @@ void sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity,
                     assetManager.unloadAsset(entity.get<GE::MeshComponent>().id);
                 entity.destroy();
                 destroyed = true;
-            }}
-        }));
+            }},
+        };
+        if (entity.hasChild()) {
+            items.emplace_back("Delete all", [&] {
+                auto cascadeDestroy = [&selectedEntity, &assetManager](this auto&& self, GE::Entity entity) -> void {
+                    for (auto& child : entity.children())
+                        self(child);
+                    if (selectedEntity && entity == *selectedEntity)
+                        selectedEntity = std::nullopt;
+                    if (entity.has<GE::MeshComponent>())
+                        assetManager.unloadAsset(entity.get<GE::MeshComponent>().id);
+                    entity.destroy();
+                };
+                cascadeDestroy(entity);
+                destroyed = true;
+            });
+        }
+
+        menuFromPath(items);
+
         ImGui::EndPopup();
 
         if (destroyed)
-            return;
+            return node_open;
     }
 
-    if (node_open && firstChild.has_value())
+    if (node_open && entity.hasChild())
     {
-        for (auto curr = firstChild; curr; curr = curr->nextChild())
-            sceneGrapRow(*curr, selectedEntity, assetManager);
-        ImGui::TreePop();
+        for (auto& child : entity.children()) {
+            if (sceneGrapRow(child, selectedEntity, assetManager))
+                ImGui::TreePop();
+        }
     }
+
+    return node_open;
 }
 
 } // namespace
@@ -105,8 +126,10 @@ void renderSceneGraph(GE::Scene& editedScene, std::optional<GE::Entity>& selecte
         TracyCZoneEnd(TracyCZoneN_a);
 
         TracyCZoneN(TracyCZoneN_b, "render_graph_rows", true);
-        for (auto entity : rootEntities)
-            sceneGrapRow(entity, selectedEntity, assetManager);
+        for (auto entity : rootEntities) {
+            if (sceneGrapRow(entity, selectedEntity, assetManager))
+                ImGui::TreePop();
+        }
         TracyCZoneEnd(TracyCZoneN_b);
 
         if (ImGui::BeginPopupContextWindow("scene_graph_context", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))

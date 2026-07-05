@@ -9,8 +9,6 @@
 #include <cstddef>
 #include <format>
 
-#include <tracy/Tracy.hpp>
-
 namespace
 {
 

@@ -320,6 +320,16 @@ std::filesystem::path transformedDummyMeshPath()
     return std::filesystem::path(GE_TEST_RESOURCE_DIR) / "triangle_transformed.gltf";
 }
 
+std::filesystem::path multiNodeMeshPath()
+{
+    return std::filesystem::path(GE_TEST_RESOURCE_DIR) / "two_triangles.gltf";
+}
+
+std::filesystem::path multiPrimitiveMeshPath()
+{
+    return std::filesystem::path(GE_TEST_RESOURCE_DIR) / "two_primitives.gltf";
+}
+
 std::filesystem::path noSceneDummyMeshPath()
 {
     return std::filesystem::path(GE_TEST_RESOURCE_DIR) / "triangle_no_scene.gltf";
@@ -342,6 +352,14 @@ std::vector<std::byte> readBinaryFile(const std::filesystem::path& path)
     if (!file)
         throw std::runtime_error("failed to read file: " + path.string());
     return bytes;
+}
+
+GE::AssetLocation<GE::Mesh> meshLocation(const std::filesystem::path& path, std::size_t meshIndex)
+{
+    return GE::AssetLocation<GE::Mesh>{
+        .containerPath = path,
+        .index = meshIndex
+    };
 }
 
 TEST_F(AssetManagerMockDeviceTest, locationBackedRegistrationUsesLocationIdentity)
@@ -384,8 +402,56 @@ TEST_F(AssetManagerMockDeviceTest, importGltfRegistersMeshesTexturesAndMeshDepen
     const GE::AssetID meshAssetId = assetManager.assetId(GE::VAssetLocation(meshLocation));
     const GE::AssetID textureAssetId = assetManager.assetId(GE::VAssetLocation(textureLocation));
 
-    EXPECT_THAT(assetManager.assetDependencies(meshAssetId) | std::ranges::to<std::vector>(), testing::ElementsAre(textureAssetId));
+    EXPECT_THAT(assetManager.assetDependencies(meshAssetId) | std::ranges::to<std::vector>(), testing::ElementsAre(GE::BUILT_IN_WHITE_TEXTURE_ID, textureAssetId));
     EXPECT_THAT(assetManager.assetDependencies(textureAssetId) | std::ranges::to<std::vector>(), testing::IsEmpty());
+}
+
+TEST_F(AssetManagerMockDeviceTest, importGltfRegistersSeparateMeshIdsWithSelectedDependencies)
+{
+    const std::filesystem::path meshPath = multiNodeMeshPath();
+    ASSERT_TRUE(std::filesystem::is_regular_file(meshPath));
+
+    GE::AssetManager assetManager(&m_device, &m_threadPool);
+    assetManager.importGltf(meshPath);
+
+    const GE::AssetID childMeshAssetId = assetManager.assetId(GE::VAssetLocation(meshLocation(meshPath, 0)));
+    const GE::AssetID rootMeshAssetId = assetManager.assetId(GE::VAssetLocation(meshLocation(meshPath, 1)));
+    const GE::AssetID firstTextureAssetId = assetManager.assetId(GE::VAssetLocation(GE::AssetLocation<gfx::Texture>{meshPath, 0}));
+    const GE::AssetID secondTextureAssetId = assetManager.assetId(GE::VAssetLocation(GE::AssetLocation<gfx::Texture>{meshPath, 1}));
+
+    EXPECT_TRUE(assetManager.isRegistered(GE::VAssetLocation(meshLocation(meshPath, 0))));
+    EXPECT_TRUE(assetManager.isRegistered(GE::VAssetLocation(meshLocation(meshPath, 1))));
+    EXPECT_THAT(assetManager.assetDependencies(childMeshAssetId) | std::ranges::to<std::vector>(), testing::ElementsAre(GE::BUILT_IN_WHITE_TEXTURE_ID, firstTextureAssetId));
+    EXPECT_THAT(assetManager.assetDependencies(rootMeshAssetId) | std::ranges::to<std::vector>(), testing::ElementsAre(GE::BUILT_IN_WHITE_TEXTURE_ID, secondTextureAssetId));
+
+    const std::shared_ptr<GE::Mesh> childMesh = assetManager.loadAsset<GE::Mesh>(childMeshAssetId).get();
+    const std::shared_ptr<GE::Mesh> rootMesh = assetManager.loadAsset<GE::Mesh>(rootMeshAssetId).get();
+    ASSERT_NE(childMesh, nullptr);
+    ASSERT_NE(rootMesh, nullptr);
+    ASSERT_EQ(childMesh->subMeshes.size(), 1u);
+    ASSERT_EQ(rootMesh->subMeshes.size(), 1u);
+    EXPECT_EQ(childMesh->subMeshes.front().name, "child_triangle0");
+    EXPECT_EQ(rootMesh->subMeshes.front().name, "root_triangle0");
+}
+
+TEST_F(AssetManagerMockDeviceTest, meshLoaderCreatesOneSubMeshPerGltfPrimitive)
+{
+    const std::filesystem::path meshPath = multiPrimitiveMeshPath();
+    ASSERT_TRUE(std::filesystem::is_regular_file(meshPath));
+
+    GE::AssetManager assetManager(&m_device, &m_threadPool);
+    assetManager.importGltf(meshPath);
+    const GE::AssetID meshAssetId = assetManager.assetId(GE::VAssetLocation(meshLocation(meshPath, 0)));
+    const GE::AssetID firstTextureAssetId = assetManager.assetId(GE::VAssetLocation(GE::AssetLocation<gfx::Texture>{meshPath, 0}));
+    const GE::AssetID secondTextureAssetId = assetManager.assetId(GE::VAssetLocation(GE::AssetLocation<gfx::Texture>{meshPath, 1}));
+
+    EXPECT_THAT(assetManager.assetDependencies(meshAssetId) | std::ranges::to<std::vector>(), testing::ElementsAre(GE::BUILT_IN_WHITE_TEXTURE_ID, firstTextureAssetId, secondTextureAssetId));
+
+    const std::shared_ptr<GE::Mesh> mesh = assetManager.loadAsset<GE::Mesh>(meshAssetId).get();
+    ASSERT_NE(mesh, nullptr);
+    ASSERT_EQ(mesh->subMeshes.size(), 2u);
+    EXPECT_EQ(mesh->subMeshes[0].name, "two_primitives0");
+    EXPECT_EQ(mesh->subMeshes[1].name, "two_primitives1");
 }
 
 TEST_F(AssetManagerMockDeviceTest, importGltfReportsOneContainerPathForAllAssetsInTheFile)
@@ -412,8 +478,10 @@ TEST_F(AssetManagerMockDeviceTest, importGltfMeshLoadAlsoLoadsRegisteredTextureD
 
     ASSERT_NE(assetManager.loadAsset<GE::Mesh>(meshAssetId).get(), nullptr);
     EXPECT_TRUE(assetManager.isAssetLoaded(meshAssetId));
+    EXPECT_TRUE(assetManager.isAssetLoaded(GE::BUILT_IN_WHITE_TEXTURE_ID));
     EXPECT_TRUE(assetManager.isAssetLoaded(textureAssetId));
     EXPECT_EQ(assetManager.assetLoadCount(meshAssetId), 1u);
+    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_WHITE_TEXTURE_ID), 1u);
     EXPECT_EQ(assetManager.assetLoadCount(textureAssetId), 1u);
 }
 
@@ -451,15 +519,19 @@ TEST_F(AssetManagerMockDeviceTest, loadingImportedMeshTwiceKeepsTextureDependenc
     ASSERT_NE(assetManager.loadAsset<GE::Mesh>(meshAssetId).get(), nullptr);
 
     EXPECT_TRUE(assetManager.isAssetLoaded(meshAssetId));
+    EXPECT_TRUE(assetManager.isAssetLoaded(GE::BUILT_IN_WHITE_TEXTURE_ID));
     EXPECT_TRUE(assetManager.isAssetLoaded(textureAssetId));
     EXPECT_EQ(assetManager.assetLoadCount(meshAssetId), 2u);
+    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_WHITE_TEXTURE_ID), 2u);
     EXPECT_EQ(assetManager.assetLoadCount(textureAssetId), 2u);
 
     assetManager.unloadAsset(meshAssetId);
 
     EXPECT_TRUE(assetManager.isAssetLoaded(meshAssetId));
+    EXPECT_TRUE(assetManager.isAssetLoaded(GE::BUILT_IN_WHITE_TEXTURE_ID));
     EXPECT_TRUE(assetManager.isAssetLoaded(textureAssetId));
     EXPECT_EQ(assetManager.assetLoadCount(meshAssetId), 1u);
+    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_WHITE_TEXTURE_ID), 1u);
     EXPECT_EQ(assetManager.assetLoadCount(textureAssetId), 1u);
 }
 
@@ -476,14 +548,18 @@ TEST_F(AssetManagerMockDeviceTest, unloadingImportedMeshAlsoUnloadsItsTextureDep
 
     ASSERT_NE(assetManager.loadAsset<GE::Mesh>(meshAssetId).get(), nullptr);
     ASSERT_TRUE(assetManager.isAssetLoaded(meshAssetId));
+    ASSERT_TRUE(assetManager.isAssetLoaded(GE::BUILT_IN_WHITE_TEXTURE_ID));
     ASSERT_TRUE(assetManager.isAssetLoaded(textureAssetId));
+    ASSERT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_WHITE_TEXTURE_ID), 1u);
     ASSERT_EQ(assetManager.assetLoadCount(textureAssetId), 1u);
 
     assetManager.unloadAsset(meshAssetId);
 
     EXPECT_FALSE(assetManager.isAssetLoaded(meshAssetId));
+    EXPECT_FALSE(assetManager.isAssetLoaded(GE::BUILT_IN_WHITE_TEXTURE_ID));
     EXPECT_FALSE(assetManager.isAssetLoaded(textureAssetId));
     EXPECT_EQ(assetManager.assetLoadCount(meshAssetId), 0u);
+    EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_WHITE_TEXTURE_ID), 0u);
     EXPECT_EQ(assetManager.assetLoadCount(textureAssetId), 0u);
 }
 
@@ -940,7 +1016,7 @@ TEST_F(AssetManagerMockDeviceTest, meshAssetLoadsFromFileAndPreservesPathMetadat
     EXPECT_FALSE(assetManager.isAssetLoaded(meshAssetId));
 }
 
-TEST_F(AssetManagerMockDeviceTest, transformedMeshAssetComposesParentAndChildTranslations)
+TEST_F(AssetManagerMockDeviceTest, transformedMeshAssetLoadsMeshGeometryWithoutNodeTransforms)
 {
     const std::filesystem::path meshPath = transformedDummyMeshPath();
     ASSERT_TRUE(std::filesystem::is_regular_file(meshPath));
@@ -951,10 +1027,6 @@ TEST_F(AssetManagerMockDeviceTest, transformedMeshAssetComposesParentAndChildTra
 
     ASSERT_NE(mesh, nullptr);
     ASSERT_EQ(mesh->subMeshes.size(), 1u);
-    const glm::mat4& transform = mesh->subMeshes.front().transform;
-    EXPECT_FLOAT_EQ(transform[3][0], 5.0f);
-    EXPECT_FLOAT_EQ(transform[3][1], 7.0f);
-    EXPECT_FLOAT_EQ(transform[3][2], 9.0f);
     ASSERT_NE(mesh->subMeshes.front().material, nullptr);
     EXPECT_EQ(mesh->subMeshes.front().material->diffuseTexture, GE::BUILT_IN_WHITE_TEXTURE_ID);
     EXPECT_FLOAT_EQ(mesh->subMeshes.front().material->diffuseColor.r, 1.0f);
@@ -963,14 +1035,17 @@ TEST_F(AssetManagerMockDeviceTest, transformedMeshAssetComposesParentAndChildTra
     EXPECT_FLOAT_EQ(mesh->subMeshes.front().material->diffuseColor.a, 1.0f);
 }
 
-TEST_F(AssetManagerMockDeviceTest, meshLoaderThrowsForFilesWithoutScenes)
+TEST_F(AssetManagerMockDeviceTest, meshLoaderLoadsMeshIdWithoutScenes)
 {
     const std::filesystem::path meshPath = noSceneDummyMeshPath();
     ASSERT_TRUE(std::filesystem::is_regular_file(meshPath));
 
     GE::AssetManager assetManager(&m_device, &m_threadPool);
     GE::AssetLoader<GE::Mesh> loader(&m_device, &assetManager, GE::AssetLocation<GE::Mesh>{meshPath, 0});
-    EXPECT_THROW(loader.load(*m_commandBuffer), std::runtime_error);
+    const std::shared_ptr<GE::Mesh> mesh = loader.load(*m_commandBuffer);
+
+    ASSERT_NE(mesh, nullptr);
+    ASSERT_EQ(mesh->subMeshes.size(), 1u);
 }
 
 TEST_F(AssetManagerMockDeviceTest, meshLoaderThrowsWhenPositionAccessorIsMissing)

@@ -29,13 +29,24 @@ registeredAssets:
     id: 4
     dependentAssets:
       []
+  - name: Cube.004
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 0
+    id: 5
+    dependentAssets:
+      - 2
+      - 3
+      - 4
   - name: chess_set_pieces_black_diff_1k
     location:
       type: Texture
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 4
-    id: 5
+    id: 6
     dependentAssets:
       []
   - name: chess_set_pieces_black_arm_1k
@@ -44,7 +55,7 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 5
-    id: 6
+    id: 7
     dependentAssets:
       []
   - name: chess_set_pieces_black_nor_gl_1k
@@ -53,16 +64,38 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 3
-    id: 7
+    id: 8
     dependentAssets:
       []
+  - name: Cylinder.022
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 1
+    id: 9
+    dependentAssets:
+      - 6
+      - 7
+      - 8
+  - name: Cylinder.025
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 2
+    id: 10
+    dependentAssets:
+      - 6
+      - 7
+      - 8
   - name: chess_set_pieces_white_diff_1k
     location:
       type: Texture
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 7
-    id: 8
+    id: 11
     dependentAssets:
       []
   - name: chess_set_pieces_white_arm_1k
@@ -71,7 +104,7 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 8
-    id: 9
+    id: 12
     dependentAssets:
       []
   - name: chess_set_pieces_white_nor_gl_1k
@@ -80,26 +113,339 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 6
-    id: 10
+    id: 13
     dependentAssets:
       []
-  - name: chess_set
+  - name: Cylinder.003
     location:
       type: Mesh
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
-        index: 0
-    id: 11
+        index: 3
+    id: 14
     dependentAssets:
-      - 2
-      - 3
-      - 4
-      - 5
+      - 11
+      - 12
+      - 13
+  - name: Cylinder.001
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 4
+    id: 15
+    dependentAssets:
+      - 11
+      - 12
+      - 13
+  - name: Cylinder.024
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 5
+    id: 16
+    dependentAssets:
       - 6
       - 7
       - 8
-      - 9
-      - 10
+  - name: Cylinder.006
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 6
+    id: 17
+    dependentAssets:
+      - 11
+      - 12
+      - 13
+  - name: mesh.007
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 7
+    id: 18
+    dependentAssets:
+      - 6
+      - 7
+      - 8
+  - name: mesh.008
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 8
+    id: 19
+    dependentAssets:
+      - 6
+      - 7
+      - 8
+  - name: mesh.025
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 9
+    id: 20
+    dependentAssets:
+      - 11
+      - 12
+      - 13
+  - name: mesh.006
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 10
+    id: 21
+    dependentAssets:
+      - 11
+      - 12
+      - 13
+  - name: Cylinder.021
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 11
+    id: 22
+    dependentAssets:
+      - 6
+      - 7
+      - 8
+  - name: Cylinder.026
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 12
+    id: 23
+    dependentAssets:
+      - 6
+      - 7
+      - 8
+  - name: Cylinder.027
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 13
+    id: 24
+    dependentAssets:
+      - 6
+      - 7
+      - 8
+  - name: Cylinder.028
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 14
+    id: 25
+    dependentAssets:
+      - 6
+      - 7
+      - 8
+  - name: Cylinder.029
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 15
+    id: 26
+    dependentAssets:
+      - 6
+      - 7
+      - 8
+  - name: Cylinder.030
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 16
+    id: 27
+    dependentAssets:
+      - 6
+      - 7
+      - 8
+  - name: Cylinder.031
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 17
+    id: 28
+    dependentAssets:
+      - 6
+      - 7
+      - 8
+  - name: Cylinder.032
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 18
+    id: 29
+    dependentAssets:
+      - 6
+      - 7
+      - 8
+  - name: Cylinder.002
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 19
+    id: 30
+    dependentAssets:
+      - 11
+      - 12
+      - 13
+  - name: Cylinder.014
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 20
+    id: 31
+    dependentAssets:
+      - 11
+      - 12
+      - 13
+  - name: Cylinder.015
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 21
+    id: 32
+    dependentAssets:
+      - 11
+      - 12
+      - 13
+  - name: Cylinder.016
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 22
+    id: 33
+    dependentAssets:
+      - 11
+      - 12
+      - 13
+  - name: Cylinder.017
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 23
+    id: 34
+    dependentAssets:
+      - 11
+      - 12
+      - 13
+  - name: Cylinder.018
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 24
+    id: 35
+    dependentAssets:
+      - 11
+      - 12
+      - 13
+  - name: Cylinder.019
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 25
+    id: 36
+    dependentAssets:
+      - 11
+      - 12
+      - 13
+  - name: Cylinder.020
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 26
+    id: 37
+    dependentAssets:
+      - 11
+      - 12
+      - 13
+  - name: Cylinder.023
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 27
+    id: 38
+    dependentAssets:
+      - 6
+      - 7
+      - 8
+  - name: Cylinder.005
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 28
+    id: 39
+    dependentAssets:
+      - 11
+      - 12
+      - 13
+  - name: ChessRook.007
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 29
+    id: 40
+    dependentAssets:
+      - 6
+      - 7
+      - 8
+  - name: ChessRook.008
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 30
+    id: 41
+    dependentAssets:
+      - 6
+      - 7
+      - 8
+  - name: ChessRook.003
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 31
+    id: 42
+    dependentAssets:
+      - 11
+      - 12
+      - 13
+  - name: ChessRook.002
+    location:
+      type: Mesh
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 32
+    id: 43
+    dependentAssets:
+      - 11
+      - 12
+      - 13
 inputs:
   - name: player_jump
     input:
@@ -143,6 +489,11 @@ scenes:
           - type: NameComponent
             data:
               name: chess
+          - type: HierarchyComponent
+            data:
+              parent: 18446744073709551615
+              firstChild: 5
+              nextChild: 18446744073709551615
           - type: TransformComponent
             data:
               position:
@@ -158,9 +509,6 @@ scenes:
                 x: 10
                 y: 10
                 z: 10
-          - type: MeshComponent
-            data:
-              id: 11
       - entityId: 1
         components:
           - type: NameComponent
@@ -297,20 +645,1119 @@ scenes:
                 rotate_speed:
                   type: float
                   data: 0.05
+      - entityId: 5
+        components:
+          - type: NameComponent
+            data:
+              name: board
+          - type: HierarchyComponent
+            data:
+              parent: 0
+              firstChild: 18446744073709551615
+              nextChild: 6
+          - type: TransformComponent
+            data:
+              position:
+                x: 0
+                y: 0
+                z: 0
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 5
+      - entityId: 6
+        components:
+          - type: NameComponent
+            data:
+              name: pieces
+          - type: HierarchyComponent
+            data:
+              parent: 0
+              firstChild: 7
+              nextChild: 18446744073709551615
+          - type: TransformComponent
+            data:
+              position:
+                x: 0
+                y: 0
+                z: 0
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+      - entityId: 7
+        components:
+          - type: NameComponent
+            data:
+              name: bishop
+          - type: HierarchyComponent
+            data:
+              parent: 6
+              firstChild: 8
+              nextChild: 12
+          - type: TransformComponent
+            data:
+              position:
+                x: 0
+                y: 0
+                z: 0
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+      - entityId: 8
+        components:
+          - type: NameComponent
+            data:
+              name: piece_bishop_black_01
+          - type: HierarchyComponent
+            data:
+              parent: 7
+              firstChild: 18446744073709551615
+              nextChild: 9
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.08683212
+                y: 0.017392656
+                z: 0.20189995
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 9
+      - entityId: 9
+        components:
+          - type: NameComponent
+            data:
+              name: piece_bishop_black_02
+          - type: HierarchyComponent
+            data:
+              parent: 7
+              firstChild: 18446744073709551615
+              nextChild: 10
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.08683212
+                y: 0.017392656
+                z: 0.20189995
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 10
+      - entityId: 10
+        components:
+          - type: NameComponent
+            data:
+              name: piece_bishop_white_01
+          - type: HierarchyComponent
+            data:
+              parent: 7
+              firstChild: 18446744073709551615
+              nextChild: 11
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.08683212
+                y: 0.017392656
+                z: -0.20260829
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 14
+      - entityId: 11
+        components:
+          - type: NameComponent
+            data:
+              name: piece_bishop_white_02
+          - type: HierarchyComponent
+            data:
+              parent: 7
+              firstChild: 18446744073709551615
+              nextChild: 18446744073709551615
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.08683212
+                y: 0.017392656
+                z: -0.20260829
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 15
+      - entityId: 12
+        components:
+          - type: NameComponent
+            data:
+              name: king
+          - type: HierarchyComponent
+            data:
+              parent: 6
+              firstChild: 13
+              nextChild: 15
+          - type: TransformComponent
+            data:
+              position:
+                x: 0
+                y: 0
+                z: 0
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+      - entityId: 13
+        components:
+          - type: NameComponent
+            data:
+              name: piece_king_black
+          - type: HierarchyComponent
+            data:
+              parent: 12
+              firstChild: 18446744073709551615
+              nextChild: 14
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.028944021
+                y: 0.017392585
+                z: 0.20260814
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 16
+      - entityId: 14
+        components:
+          - type: NameComponent
+            data:
+              name: piece_king_white
+          - type: HierarchyComponent
+            data:
+              parent: 12
+              firstChild: 18446744073709551615
+              nextChild: 18446744073709551615
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.02894404
+                y: 0.017392656
+                z: -0.20260829
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 17
+      - entityId: 15
+        components:
+          - type: NameComponent
+            data:
+              name: knight
+          - type: HierarchyComponent
+            data:
+              parent: 6
+              firstChild: 16
+              nextChild: 20
+          - type: TransformComponent
+            data:
+              position:
+                x: 0
+                y: 0
+                z: 0
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+      - entityId: 16
+        components:
+          - type: NameComponent
+            data:
+              name: piece_knight_black_01
+          - type: HierarchyComponent
+            data:
+              parent: 15
+              firstChild: 18446744073709551615
+              nextChild: 17
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.1447202
+                y: 0.017392656
+                z: 0.20189995
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 18
+      - entityId: 17
+        components:
+          - type: NameComponent
+            data:
+              name: piece_knight_black_02
+          - type: HierarchyComponent
+            data:
+              parent: 15
+              firstChild: 18446744073709551615
+              nextChild: 18
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.1447202
+                y: 0.017392656
+                z: 0.20189995
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 19
+      - entityId: 18
+        components:
+          - type: NameComponent
+            data:
+              name: piece_knight_white_01
+          - type: HierarchyComponent
+            data:
+              parent: 15
+              firstChild: 18446744073709551615
+              nextChild: 19
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.1447202
+                y: 0.017392656
+                z: -0.20260829
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 20
+      - entityId: 19
+        components:
+          - type: NameComponent
+            data:
+              name: piece_knight_white_02
+          - type: HierarchyComponent
+            data:
+              parent: 15
+              firstChild: 18446744073709551615
+              nextChild: 18446744073709551615
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.1447202
+                y: 0.017392656
+                z: -0.20260829
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 21
+      - entityId: 20
+        components:
+          - type: NameComponent
+            data:
+              name: pawn
+          - type: HierarchyComponent
+            data:
+              parent: 6
+              firstChild: 21
+              nextChild: 37
+          - type: TransformComponent
+            data:
+              position:
+                x: 0
+                y: 0
+                z: 0
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+      - entityId: 21
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_black_01
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 22
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.20260829
+                y: 0.017392656
+                z: 0.14401186
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 22
+      - entityId: 22
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_black_02
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 23
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.1447202
+                y: 0.017392656
+                z: 0.14401186
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 23
+      - entityId: 23
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_black_03
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 24
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.08683212
+                y: 0.017392656
+                z: 0.14401186
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 24
+      - entityId: 24
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_black_04
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 25
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.02894404
+                y: 0.017392656
+                z: 0.14401186
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 25
+      - entityId: 25
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_black_05
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 26
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.02894404
+                y: 0.017392656
+                z: 0.14401186
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 26
+      - entityId: 26
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_black_06
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 27
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.08683212
+                y: 0.017392656
+                z: 0.14401186
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 27
+      - entityId: 27
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_black_07
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 28
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.1447202
+                y: 0.017392656
+                z: 0.14401186
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 28
+      - entityId: 28
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_black_08
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 29
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.20260829
+                y: 0.017392656
+                z: 0.14401186
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 29
+      - entityId: 29
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_white_01
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 30
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.20260829
+                y: 0.017392656
+                z: -0.1447202
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 30
+      - entityId: 30
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_white_02
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 31
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.1447202
+                y: 0.017392656
+                z: -0.1447202
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 31
+      - entityId: 31
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_white_03
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 32
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.08683212
+                y: 0.017392656
+                z: -0.1447202
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 32
+      - entityId: 32
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_white_04
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 33
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.02894404
+                y: 0.017392656
+                z: -0.1447202
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 33
+      - entityId: 33
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_white_05
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 34
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.02894404
+                y: 0.017392656
+                z: -0.1447202
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 34
+      - entityId: 34
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_white_06
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 35
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.08683212
+                y: 0.017392656
+                z: -0.1447202
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 35
+      - entityId: 35
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_white_07
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 36
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.1447202
+                y: 0.017392656
+                z: -0.1447202
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 36
+      - entityId: 36
+        components:
+          - type: NameComponent
+            data:
+              name: piece_pawn_white_08
+          - type: HierarchyComponent
+            data:
+              parent: 20
+              firstChild: 18446744073709551615
+              nextChild: 18446744073709551615
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.20260829
+                y: 0.017392656
+                z: -0.1447202
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 37
+      - entityId: 37
+        components:
+          - type: NameComponent
+            data:
+              name: queen
+          - type: HierarchyComponent
+            data:
+              parent: 6
+              firstChild: 38
+              nextChild: 40
+          - type: TransformComponent
+            data:
+              position:
+                x: 0
+                y: 0
+                z: 0
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+      - entityId: 38
+        components:
+          - type: NameComponent
+            data:
+              name: piece_queen_black
+          - type: HierarchyComponent
+            data:
+              parent: 37
+              firstChild: 18446744073709551615
+              nextChild: 39
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.02894404
+                y: 0.017392656
+                z: 0.20189995
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 38
+      - entityId: 39
+        components:
+          - type: NameComponent
+            data:
+              name: piece_queen_white
+          - type: HierarchyComponent
+            data:
+              parent: 37
+              firstChild: 18446744073709551615
+              nextChild: 18446744073709551615
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.02894404
+                y: 0.017392656
+                z: -0.20260829
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 39
+      - entityId: 40
+        components:
+          - type: NameComponent
+            data:
+              name: rook
+          - type: HierarchyComponent
+            data:
+              parent: 6
+              firstChild: 41
+              nextChild: 18446744073709551615
+          - type: TransformComponent
+            data:
+              position:
+                x: 0
+                y: 0
+                z: 0
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+      - entityId: 41
+        components:
+          - type: NameComponent
+            data:
+              name: piece_rook_black_01
+          - type: HierarchyComponent
+            data:
+              parent: 40
+              firstChild: 18446744073709551615
+              nextChild: 42
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.20260829
+                y: 0.017392656
+                z: 0.20189995
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 40
+      - entityId: 42
+        components:
+          - type: NameComponent
+            data:
+              name: piece_rook_black_02
+          - type: HierarchyComponent
+            data:
+              parent: 40
+              firstChild: 18446744073709551615
+              nextChild: 43
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.20260829
+                y: 0.017392656
+                z: 0.20189995
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 41
+      - entityId: 43
+        components:
+          - type: NameComponent
+            data:
+              name: piece_rook_white_01
+          - type: HierarchyComponent
+            data:
+              parent: 40
+              firstChild: 18446744073709551615
+              nextChild: 44
+          - type: TransformComponent
+            data:
+              position:
+                x: 0.20260829
+                y: 0.017392656
+                z: -0.20260829
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 42
+      - entityId: 44
+        components:
+          - type: NameComponent
+            data:
+              name: piece_rook_white_02
+          - type: HierarchyComponent
+            data:
+              parent: 40
+              firstChild: 18446744073709551615
+              nextChild: 18446744073709551615
+          - type: TransformComponent
+            data:
+              position:
+                x: -0.20260829
+                y: 0.017392656
+                z: -0.20260829
+              rotation:
+                x: 0
+                y: 0
+                z: 0
+                w: 1
+              scale:
+                x: 1
+                y: 1
+                z: 1
+          - type: MeshComponent
+            data:
+              id: 43
 startScene: default_scene
 editorCamera:
   position:
-    x: 4.1089644
-    y: 4.78517
-    z: 4.74551
+    x: 3.0470977
+    y: 2.7203357
+    z: 4.390935
   rotation:
-    x: -0.27493444
-    y: 0.36696053
-    z: 0.11448206
-    w: 0.8812746
+    x: -0.23971277
+    y: 0.23971277
+    z: 0.061208718
+    w: 0.9387913
   fov: 1.0471976
   zFar: 1000
   zNear: 0.1
 editedScene: default_scene
 selectedEntity: 0
-imguiSettings: "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1280,701\nCollapsed=0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][viewport]\nPos=0,19\nSize=1004,525\nCollapsed=0\nDockId=0x00000001,0\n\n[Window][Scene graph]\nPos=1006,19\nSize=274,273\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][Entity inspector]\nPos=1006,294\nSize=274,426\nCollapsed=0\nDockId=0x00000006,0\n\n[Window][Scenes]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,0\n\n[Window][Project properties]\nPos=371,108\nSize=537,504\nCollapsed=0\n\n[Window][Resources]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Window][Asset manager]\nPos=60,60\nSize=806,398\nCollapsed=0\n\n[Window][##MainMenuBar]\nPos=0,0\nSize=1280,19\nCollapsed=0\n\n[Table][0x816C4F30,5]\nRefScale=13\n\n[Table][0xEE864C8F,5]\nRefScale=13\n\n[Table][0x69E08589,5]\nRefScale=13\n\n[Docking][Data]\nDockSpace     ID=0x08BD597D Window=0x1BBC0F80 Pos=0,19 Size=1280,701 Split=X\n  DockNode    ID=0x00000003 Parent=0x08BD597D SizeRef=1004,701 Split=Y\n    DockNode  ID=0x00000001 Parent=0x00000003 SizeRef=1280,525 CentralNode=1 Selected=0xF6034841\n    DockNode  ID=0x00000002 Parent=0x00000003 SizeRef=1280,174 Selected=0x30401527\n  DockNode    ID=0x00000004 Parent=0x08BD597D SizeRef=274,701 Split=Y Selected=0x848E2614\n    DockNode  ID=0x00000005 Parent=0x00000004 SizeRef=142,273 Selected=0x2C1AB1E4\n    DockNode  ID=0x00000006 Parent=0x00000004 SizeRef=142,426 Selected=0x848E2614\n\n"
+imguiSettings: "[Window][WindowOverViewport_11111111]\nPos=0,19\nSize=1280,701\nCollapsed=0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][viewport]\nPos=0,19\nSize=1004,525\nCollapsed=0\nDockId=0x00000001,0\n\n[Window][Scene graph]\nPos=1006,19\nSize=274,273\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][Entity inspector]\nPos=1006,294\nSize=274,426\nCollapsed=0\nDockId=0x00000006,0\n\n[Window][Scenes]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,0\n\n[Window][Project properties]\nPos=371,108\nSize=537,504\nCollapsed=0\n\n[Window][Resources]\nPos=0,546\nSize=1004,174\nCollapsed=0\nDockId=0x00000002,1\n\n[Window][Asset manager]\nPos=60,60\nSize=806,398\nCollapsed=0\n\n[Window][##MainMenuBar]\nPos=0,0\nSize=1280,19\nCollapsed=0\n\n[Window][Import glTF]\nPos=371,151\nSize=537,417\nCollapsed=0\n\n[Table][0x816C4F30,5]\nRefScale=13\n\n[Table][0xEE864C8F,5]\nRefScale=13\n\n[Table][0x69E08589,5]\nRefScale=13\n\n[Docking][Data]\nDockSpace     ID=0x08BD597D Window=0x1BBC0F80 Pos=0,19 Size=1280,701 Split=X\n  DockNode    ID=0x00000003 Parent=0x08BD597D SizeRef=1004,701 Split=Y\n    DockNode  ID=0x00000001 Parent=0x00000003 SizeRef=1280,525 CentralNode=1 Selected=0xF6034841\n    DockNode  ID=0x00000002 Parent=0x00000003 SizeRef=1280,174 Selected=0x30401527\n  DockNode    ID=0x00000004 Parent=0x08BD597D SizeRef=274,701 Split=Y Selected=0x848E2614\n    DockNode  ID=0x00000005 Parent=0x00000004 SizeRef=142,273 Selected=0x2C1AB1E4\n    DockNode  ID=0x00000006 Parent=0x00000004 SizeRef=142,426 Selected=0x848E2614\n\n"

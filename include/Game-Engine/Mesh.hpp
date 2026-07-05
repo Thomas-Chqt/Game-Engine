@@ -34,11 +34,9 @@ struct Vertex
 struct SubMesh
 {
     std::string name;
-    glm::mat4x4 transform;
     std::shared_ptr<gfx::Buffer> vertexBuffer;
     std::shared_ptr<gfx::Buffer> indexBuffer;
     std::shared_ptr<Material> material;
-    std::vector<SubMesh> subMeshes;
 };
 
 struct Mesh

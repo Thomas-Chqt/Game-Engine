@@ -74,6 +74,8 @@ namespace
 
 std::expected<Project, std::string> loadProjectFile(const std::filesystem::path& path)
 {
+    ZoneScoped;
+
     Project project;
 
     std::ifstream file(path);
@@ -151,6 +153,8 @@ void Editor::onEvent(GE::Event& event)
 
 void Editor::loadProject(Project&& project)
 {
+    ZoneScoped;
+
     if (m_game.has_value())
         stopGame();
     m_editedScene.reset();
@@ -192,16 +196,15 @@ void Editor::saveProject()
     if (m_editedScene)
         syncEditedScene();
 
-    std::vector<std::tuple<std::string, GE::VAssetLocation, GE::AssetID, std::vector<GE::AssetID>>> registeredAssets;
+    std::map<GE::AssetID, std::tuple<std::string, GE::VAssetLocation, std::vector<GE::AssetID>>> registeredAssets;
 
     auto addRegisteredAsset = [&](this auto&& self, GE::AssetID id) -> void {
         for (GE::AssetID childId : assetManager().assetDependencies(id))
             self(childId);
             if (assetManager().assetLocation(id).has_value()) {
-                registeredAssets.emplace_back(
+                registeredAssets.try_emplace(id,
                     std::string(assetManager().assetName(id)),
                     assetManager().assetLocation(id).value(),
-                    id,
                     assetManager().assetDependencies(id) | std::ranges::to<std::vector>()
                 );
             }
@@ -223,7 +226,14 @@ void Editor::saveProject()
         .resourceDir = m_resourceDir,
         .scriptLibPath = m_scriptLibPath,
 
-        .registeredAssets = std::move(registeredAssets),
+        .registeredAssets = registeredAssets | std::views::transform([](const auto& pair) -> std::tuple<std::string, GE::VAssetLocation, GE::AssetID, std::vector<GE::AssetID>> {
+            return std::make_tuple(
+                std::get<0>(pair.second),
+                std::get<1>(pair.second),
+                pair.first,
+                std::get<2>(pair.second)
+            );
+        }) | std::ranges::to<std::vector>(),
 
         .inputs = m_gameInputs,
 
