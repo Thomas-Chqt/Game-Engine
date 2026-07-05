@@ -155,12 +155,8 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
 
         std::shared_ptr<Mesh> loadedMesh = assetManager.getAsset<Mesh>(mesh);
 
-        auto addSubmesh = [&](this auto&& self, const SubMesh& submesh, const glm::mat4& transform) -> void {
-            glm::mat4 modelMatrix = transform * submesh.transform;
-
-            for (auto& childSubmesh : submesh.subMeshes)
-                self(childSubmesh, modelMatrix);
-
+        for (const SubMesh& submesh : loadedMesh->subMeshes)
+        {
             assert(submesh.material != nullptr);
 
             TracyCZoneN(TracyCZoneN_add_material, "add_material", true);
@@ -178,11 +174,9 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
             TracyCZoneEnd(TracyCZoneN_add_material);
 
             TracyCZoneN(TracyCZoneN_add_renderable, "add_renderable", true);
-            renderables[std::make_pair(submesh.vertexBuffer, submesh.indexBuffer)].emplace_back(modelMatrix, it->second);
+            renderables[std::make_pair(submesh.vertexBuffer, submesh.indexBuffer)].emplace_back(transform.worldTransform, it->second);
             TracyCZoneEnd(TracyCZoneN_add_renderable);
-        };
-        for (auto& submesh : loadedMesh->subMeshes)
-            addSubmesh(submesh, transform.worldTransform);
+        }
     }
     TracyCZoneEnd(TracyCZoneN_loop_renderableEntities);
 

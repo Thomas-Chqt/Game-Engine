@@ -95,56 +95,55 @@ void AssetManager::importGltf(const std::filesystem::path& path)
     assert(gltfContainer);
 
     const fastgltf::Asset& asset = gltfContainer->asset();
-    if (asset.scenes.empty())
-        throw std::runtime_error(std::format("{}: failed to load glTF: no scene", path.string()));
-    const fastgltf::Scene& scene = asset.defaultScene ? asset.scenes[*asset.defaultScene] : asset.scenes.front();
+    for (std::size_t meshIndex = 0; const fastgltf::Mesh& mesh : asset.meshes)
+    {
+        const std::string name = mesh.name.empty() == false
+            ? std::string(mesh.name)
+            : std::format("{}#mesh{}", path.stem().string(), meshIndex);
 
-    std::set<AssetID> dependentAssets;
+        std::set<AssetID> dependentAssets;
+        auto registerDependentTexture = [&](const fastgltf::TextureInfo& textureInfo) {
+            fastgltf::Texture texure = asset.textures.at(textureInfo.textureIndex);
+            assert(texure.imageIndex.has_value());
+            std::string name = texure.name.empty() == false
+                ? std::string(texure.name)
+                : asset.images[*texure.imageIndex].name.empty() == false
+                ? std::string(asset.images[*texure.imageIndex].name)
+                : std::string(std::format("{}#texture{}", path.stem().string(), textureInfo.textureIndex));
+            dependentAssets.insert(registerAsset<gfx::Texture>(name, path, textureInfo.textureIndex));
+        };
 
-    auto registerDependentTexture = [&](const fastgltf::TextureInfo& textureInfo) {
-        fastgltf::Texture texure = asset.textures.at(textureInfo.textureIndex);
-        assert(texure.imageIndex.has_value());
-        std::string name = texure.name.empty() == false
-            ? std::string(texure.name)
-            : asset.images[*texure.imageIndex].name.empty() == false
-            ? std::string(asset.images[*texure.imageIndex].name)
-            : std::string(std::format("{}#texture{}", path.stem().string(), textureInfo.textureIndex));
-        dependentAssets.insert(registerAsset<gfx::Texture>(name, path, textureInfo.textureIndex));
-    };
-
-    auto processNode = [&](this auto&& self, const fastgltf::Node& node) -> void {
-        if (fastgltf::Optional<std::size_t> meshIndex = node.meshIndex) {
-            for (const fastgltf::Primitive& primitive : asset.meshes[*meshIndex].primitives) {
-                if (primitive.materialIndex.has_value() == false) {
-                    dependentAssets.insert(BUILT_IN_WHITE_TEXTURE_ID);
-                    continue;
-                }
-                const fastgltf::Material& material = asset.materials[*primitive.materialIndex];
-                if(material.pbrData.baseColorTexture.has_value())
-                    registerDependentTexture(material.pbrData.baseColorTexture.value());
-                else
-                    dependentAssets.insert(BUILT_IN_WHITE_TEXTURE_ID);
-                if(material.pbrData.metallicRoughnessTexture.has_value())
-                    registerDependentTexture(material.pbrData.metallicRoughnessTexture.value());
-                if(material.normalTexture.has_value())
-                    registerDependentTexture(material.normalTexture.value());
-                if(material.emissiveTexture.has_value())
-                    registerDependentTexture(material.emissiveTexture.value());
+        for (const fastgltf::Primitive& primitive : mesh.primitives)
+        {
+            if (primitive.materialIndex.has_value() == false) {
+                dependentAssets.insert(BUILT_IN_WHITE_TEXTURE_ID);
+                continue;
             }
+            const fastgltf::Material& material = asset.materials.at(*primitive.materialIndex);
+
+            if(material.pbrData.baseColorTexture.has_value())
+                registerDependentTexture(material.pbrData.baseColorTexture.value());
+            else
+                dependentAssets.insert(BUILT_IN_WHITE_TEXTURE_ID);
+
+            if(material.emissiveTexture.has_value())
+                registerDependentTexture(material.emissiveTexture.value());
+            else
+                dependentAssets.insert(BUILT_IN_WHITE_TEXTURE_ID);
         }
-        for (const fastgltf::Node& childNode : node.children | std::views::transform([&](std::size_t i) -> fastgltf::Node { return asset.nodes[i]; }))
-            self(childNode);
-    };
 
-    for (const fastgltf::Node& node : scene.nodeIndices | std::views::transform([&](std::size_t i) -> fastgltf::Node { return asset.nodes[i]; }))
-        processNode(node);
+        registerAsset(
+            std::nullopt,
+            name,
+            VAssetLocation(AssetLocation<Mesh>{
+                .containerPath = path,
+                .index = meshIndex
+            }),
+            dependentAssets | std::ranges::to<std::vector>()
+        );
 
-    registerAsset(
-        std::nullopt,
-        path.stem().string(),
-        VAssetLocation(AssetLocation<Mesh>{path, 0}),
-        dependentAssets | std::ranges::to<std::vector>()
-    );
+        meshIndex++;
+    }
 }
 
 std::shared_future<void> AssetManager::loadAsset(AssetID assetId)
