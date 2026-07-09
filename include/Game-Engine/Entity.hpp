@@ -130,9 +130,9 @@ struct basic_entity
     std::optional<basic_entity<ECSWorldT>> parent(this auto&& self)
     {
         ZoneScoped;
-        if (self.template has<HierarchyComponent>())
+        if (self.template has<ParentComponent>())
         {
-            auto& component = self.template get<HierarchyComponent>();
+            auto& component = self.template get<ParentComponent>();
             if (component.parent != INVALID_ENTITY_ID)
             {
                 assert(self.world->isValidEntityID(component.parent));
@@ -148,9 +148,9 @@ struct basic_entity
     std::optional<basic_entity<ECSWorldT>> firstChild(this auto&& self)
     {
         ZoneScoped;
-        if (self.template has<HierarchyComponent>())
+        if (self.template has<ChildrenComponent>())
         {
-            auto& component = self.template get<HierarchyComponent>();
+            auto& component = self.template get<ChildrenComponent>();
             if (component.firstChild != INVALID_ENTITY_ID)
             {
                 assert(self.world->isValidEntityID(component.firstChild));
@@ -166,9 +166,9 @@ struct basic_entity
     std::optional<basic_entity<ECSWorldT>> nextChild(this auto&& self)
     {
         ZoneScoped;
-        if (self.template has<HierarchyComponent>())
+        if (self.template has<ParentComponent>())
         {
-            auto& component = self.template get<HierarchyComponent>();
+            auto& component = self.template get<ParentComponent>();
             if (component.nextChild != INVALID_ENTITY_ID)
             {
                 assert(self.world->isValidEntityID(component.nextChild));
@@ -222,14 +222,14 @@ struct basic_entity
         assert(child.isParentOf(self) == false);
         assert(child.parent() == std::nullopt);
         assert(std::ranges::contains(self.children(), after)); // the `after` entity need to be a direct child
-        assert(self.template has<HierarchyComponent>()); // if it has `after` as a direct child it should have the hierarchy component
-        assert(after.template has<HierarchyComponent>()); // if `after` is a direct child it should have the hierarchy component
+        assert(self.template has<ChildrenComponent>()); // if it has `after` as a direct child it should have the children component
+        assert(after.template has<ParentComponent>()); // if `after` is a direct child it should have the parent component
 
-        if (child.template has<HierarchyComponent>() == false)
-            child.template emplace<HierarchyComponent>();
+        if (child.template has<ParentComponent>() == false)
+            child.template emplace<ParentComponent>();
 
-        HierarchyComponent& childComp = child.template get<HierarchyComponent>();
-        HierarchyComponent& afterComp = after.template get<HierarchyComponent>();
+        ParentComponent& childComp = child.template get<ParentComponent>();
+        ParentComponent& afterComp = after.template get<ParentComponent>();
 
         if (after.nextChild()) {
             childComp.nextChild = after.nextChild()->entityId;
@@ -244,16 +244,20 @@ struct basic_entity
         assert(child.isParentOf(self) == false);
         assert(child.parent() == std::nullopt);
 
-        if (self.template has<HierarchyComponent>() == false)
-            self.template emplace<HierarchyComponent>();
-        if (child.template has<HierarchyComponent>() == false)
-            child.template emplace<HierarchyComponent>();
-
-        HierarchyComponent& selfComp = self.template get<HierarchyComponent>(); // need to be done after any emplace as `emplace` can invalidate references
-        HierarchyComponent& childComp = child.template get<HierarchyComponent>();
-
         if (self.firstChild())
-            return self.addChild(child, self.children().back());
+        {
+            auto children = self.children();
+            return self.addChild(child, children.back());
+        }
+
+        if (self.template has<ChildrenComponent>() == false)
+            self.template emplace<ChildrenComponent>();
+        if (child.template has<ParentComponent>() == false)
+            child.template emplace<ParentComponent>();
+
+        ChildrenComponent& selfComp = self.template get<ChildrenComponent>(); // need to be done after any emplace as `emplace` can invalidate references
+        ParentComponent& childComp = child.template get<ParentComponent>();
+
         selfComp.firstChild = child.entityId;
         childComp.parent = self.entityId;
     }
@@ -263,14 +267,13 @@ struct basic_entity
         assert(self.world == child.world);
         assert(std::ranges::contains(self.children(), child));
 
-        HierarchyComponent& selfComp = self.template get<HierarchyComponent>();
-        HierarchyComponent& childComp = child.template get<HierarchyComponent>();
+        ChildrenComponent& selfComp = self.template get<ChildrenComponent>();
+        ParentComponent& childComp = child.template get<ParentComponent>();
 
         assert(self.firstChild().has_value());
         if (*self.firstChild() == child)
         {
-            std::optional<basic_entity<ECSWorldT>> next = self.firstChild()->nextChild();
-            selfComp.firstChild = next ? next->entityId : INVALID_ENTITY_ID;
+            selfComp.firstChild = childComp.nextChild;
         }
         else
         {
@@ -283,11 +286,13 @@ struct basic_entity
             }
 
             assert(curr.nextChild().has_value());
-            curr.get<HierarchyComponent>().nextChild = curr.nextChild()->nextChild() ? curr.nextChild()->nextChild()->entityId : INVALID_ENTITY_ID;
+            curr.template get<ParentComponent>().nextChild = childComp.nextChild;
         }
 
-        childComp.parent = INVALID_ENTITY_ID;
-        childComp.nextChild = INVALID_ENTITY_ID;
+        const bool noChildrenLeft = self.template get<ChildrenComponent>().firstChild == INVALID_ENTITY_ID;
+        child.template remove<ParentComponent>();
+        if (noChildrenLeft)
+            self.template remove<ChildrenComponent>();
     }
 
     inline bool operator==(this ConstEntityLike auto&& lhs, ConstEntityLike auto& rhs) { return lhs.world == rhs.world && lhs.entityId == rhs.entityId; }

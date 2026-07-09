@@ -25,9 +25,10 @@ public:
     ~Iterator() = default;
 
 private:
-    Iterator(ECSWorldT* world, const Predicate& predicate, const ArchetypeMapIterator& archetypeIt, const typename ECSWorldT::Archetype::Iterator& entityIt)
+    Iterator(ECSWorldT* world, const Predicate& predicate, const Predicate& excludedPredicate, const ArchetypeMapIterator& archetypeIt, const typename ECSWorldT::Archetype::Iterator& entityIt)
         : m_world(world)
         , m_predicate(predicate)
+        , m_excludedPredicate(excludedPredicate)
         , m_archetypeIt(archetypeIt)
         , m_entityIt(entityIt)
     {
@@ -35,6 +36,7 @@ private:
 
     ECSWorldT* m_world = nullptr;
     Predicate m_predicate;
+    Predicate m_excludedPredicate;
     ArchetypeMapIterator m_archetypeIt;
     typename ECSWorldT::Archetype::Iterator m_entityIt;
 
@@ -58,7 +60,10 @@ public:
         if (m_entityIt == m_archetypeIt->second.end())
         {
             do ++m_archetypeIt;
-            while (m_archetypeIt != m_world->m_archetypes.end() && (((m_archetypeIt->first & m_predicate) == m_predicate) == false || m_archetypeIt->second.size() == 0));
+            while (m_archetypeIt != m_world->m_archetypes.end() && (
+                (m_archetypeIt->first & m_predicate) != m_predicate
+                || (m_archetypeIt->first & m_excludedPredicate).any()
+                || m_archetypeIt->second.size() == 0));
 
             if (m_archetypeIt != m_world->m_archetypes.end())
                 m_entityIt = m_archetypeIt->second.begin();

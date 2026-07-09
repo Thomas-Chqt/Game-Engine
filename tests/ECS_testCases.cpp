@@ -45,6 +45,17 @@ struct Component2
     ~Component2() { delete value; }
 };
 
+struct Component3
+{
+    int value = 0;
+
+    int& val() { return value; }
+    const int& val() const { return value; }
+
+    Component3() = default;
+    Component3(int v) : value(v) {}
+};
+
 template<typename T>
 class ECSTest : public testing::Test {};
 
@@ -389,6 +400,89 @@ TEST(ECSTest, view)
     }
 }
 
+TEST(ECSTest, viewWithoutComponent)
+{
+    GE::ECSWorld world;
+
+    EntityID noComponent = world.newEntityID();
+
+    EntityID component1Only = world.newEntityID();
+    world.emplace<Component1>(component1Only, 1);
+
+    EntityID component2Only = world.newEntityID();
+    world.emplace<Component2>(component2Only, 2);
+
+    EntityID component1And2 = world.newEntityID();
+    world.emplace<Component1>(component1And2, 12);
+    world.emplace<Component2>(component1And2, 12);
+
+    EntityID component1And3 = world.newEntityID();
+    world.emplace<Component1>(component1And3, 13);
+    world.emplace<Component3>(component1And3, 13);
+
+    EntityID component1And2And3 = world.newEntityID();
+    world.emplace<Component1>(component1And2And3, 123);
+    world.emplace<Component2>(component1And2And3, 123);
+    world.emplace<Component3>(component1And2And3, 123);
+
+    {
+        GE::ECSView<Component1> view = world | GE::ECSView<Component1>().without<Component2>();
+        EXPECT_EQ(view.count(), 2);
+
+        std::set<EntityID> entityIds;
+        std::set<int> values;
+
+        for (auto row : view)
+            entityIds.insert(static_cast<EntityID>(row));
+
+        for (auto [component1] : view)
+            values.insert(component1.val());
+
+        EXPECT_TRUE(entityIds.contains(component1Only));
+        EXPECT_TRUE(entityIds.contains(component1And3));
+        EXPECT_FALSE(entityIds.contains(noComponent));
+        EXPECT_FALSE(entityIds.contains(component2Only));
+        EXPECT_FALSE(entityIds.contains(component1And2));
+        EXPECT_FALSE(entityIds.contains(component1And2And3));
+        EXPECT_EQ(values, std::set<int>({1, 13}));
+    }
+    {
+        GE::ECSView<Component1, Component2> view = world | GE::ECSView<Component1, Component2>().without<Component3>();
+        EXPECT_EQ(view.count(), 1);
+
+        std::set<EntityID> entityIds;
+        std::set<int> values1;
+        std::set<int> values2;
+
+        for (auto row : view)
+            entityIds.insert(static_cast<EntityID>(row));
+
+        for (auto [component1, component2] : view)
+        {
+            values1.insert(component1.val());
+            values2.insert(component2.val());
+        }
+
+        EXPECT_TRUE(entityIds.contains(component1And2));
+        EXPECT_FALSE(entityIds.contains(component1And2And3));
+        EXPECT_EQ(values1, std::set<int>({12}));
+        EXPECT_EQ(values2, std::set<int>({12}));
+    }
+    {
+        GE::ECSView<Component1> view = world | GE::ECSView<Component1>().without<Component2, Component3>();
+        EXPECT_EQ(view.count(), 1);
+
+        std::set<EntityID> entityIds;
+        for (auto row : view)
+            entityIds.insert(static_cast<EntityID>(row));
+
+        EXPECT_TRUE(entityIds.contains(component1Only));
+        EXPECT_FALSE(entityIds.contains(component1And2));
+        EXPECT_FALSE(entityIds.contains(component1And3));
+        EXPECT_FALSE(entityIds.contains(component1And2And3));
+    }
+}
+
 TEST(ECSTest, constView)
 {
     GE::ECSWorld world;
@@ -483,6 +577,35 @@ TEST(ECSTest, constView)
             EXPECT_EQ(structuredValues2.size(), 1);
         });
     }
+}
+
+TEST(ECSTest, constViewWithoutComponent)
+{
+    GE::ECSWorld world;
+
+    EntityID component1Only = world.newEntityID();
+    world.emplace<Component1>(component1Only, 1);
+
+    EntityID component1And2 = world.newEntityID();
+    world.emplace<Component1>(component1And2, 12);
+    world.emplace<Component2>(component1And2, 12);
+
+    const GE::ECSWorld& constWorld = world;
+    GE::const_ECSView<Component1> view = constWorld | GE::const_ECSView<Component1>().without<Component2>();
+    EXPECT_EQ(view.count(), 1);
+
+    std::set<EntityID> entityIds;
+    std::set<int> values;
+
+    for (auto row : view)
+        entityIds.insert(static_cast<EntityID>(row));
+
+    for (auto [component1] : view)
+        values.insert(component1.val());
+
+    EXPECT_TRUE(entityIds.contains(component1Only));
+    EXPECT_FALSE(entityIds.contains(component1And2));
+    EXPECT_EQ(values, std::set<int>({1}));
 }
 
 }

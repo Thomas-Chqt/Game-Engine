@@ -13,6 +13,8 @@
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Components.hpp"
 
+#include <set>
+
 namespace GE_tests
 {
 
@@ -51,18 +53,27 @@ TEST(EntityTest, emplaceAndGetCameraComponent)
     ASSERT_FLOAT_EQ(entity.get<GE::CameraComponent>().fov, 90.0f);
 }
 
-TEST(EntityTest, emplaceAndGetHierarchyComponent)
+TEST(EntityTest, emplaceAndGetParentComponent)
 {
     GE::ECSWorld ecsWorld;
     GE::Entity entity = makeEntity(ecsWorld);
 
-    entity.emplace<GE::HierarchyComponent>().parent = 123;
-    ASSERT_FLOAT_EQ(entity.get<GE::HierarchyComponent>().parent, 123);
+    entity.emplace<GE::ParentComponent>().parent = 123;
+    ASSERT_EQ(entity.get<GE::ParentComponent>().parent, 123);
+}
+
+TEST(EntityTest, emplaceAndGetChildrenComponent)
+{
+    GE::ECSWorld ecsWorld;
+    GE::Entity entity = makeEntity(ecsWorld);
+
+    entity.emplace<GE::ChildrenComponent>().firstChild = 123;
+    ASSERT_EQ(entity.get<GE::ChildrenComponent>().firstChild, 123);
 }
 
 template<typename T>
 class EntityEmplaceRemoveHasTest : public testing::Test {};
-using EntityEmplaceRemoveHasTestedComponents = ::testing::Types<GE::TransformComponent, GE::HierarchyComponent>;
+using EntityEmplaceRemoveHasTestedComponents = ::testing::Types<GE::TransformComponent, GE::ParentComponent, GE::ChildrenComponent>;
 TYPED_TEST_SUITE(EntityEmplaceRemoveHasTest, EntityEmplaceRemoveHasTestedComponents);
 
 TYPED_TEST(EntityEmplaceRemoveHasTest, _)
@@ -101,6 +112,13 @@ TEST(EntityTest, parentChildQueries)
 
     root.addChild(child1);
     root.addChild(child2);
+
+    EXPECT_FALSE(root.has<GE::ParentComponent>());
+    EXPECT_TRUE(root.has<GE::ChildrenComponent>());
+    EXPECT_TRUE(child1.has<GE::ParentComponent>());
+    EXPECT_FALSE(child1.has<GE::ChildrenComponent>());
+    EXPECT_TRUE(child2.has<GE::ParentComponent>());
+    EXPECT_FALSE(child2.has<GE::ChildrenComponent>());
 
     ASSERT_TRUE(root.firstChild().has_value());
     EXPECT_EQ(*root.firstChild(), child1);
@@ -167,11 +185,16 @@ TEST(EntityTest, removeChild)
 
     EXPECT_FALSE(child2.parent().has_value());
     EXPECT_FALSE(child2.nextChild().has_value());
+    EXPECT_FALSE(child2.has<GE::ParentComponent>());
 
     auto children = root.children();
     ASSERT_EQ(children.size(), 2u);
     EXPECT_EQ(children[0], child1);
     EXPECT_EQ(children[1], child3);
+
+    root.removeChild(child1);
+    root.removeChild(child3);
+    EXPECT_FALSE(root.has<GE::ChildrenComponent>());
 }
 
 TEST(EntityTest, destroyEntity)
@@ -193,8 +216,10 @@ TEST(EntityTest, destroyEntity)
 
     EXPECT_FALSE(child1.parent().has_value());
     EXPECT_FALSE(child1.nextChild().has_value());
+    EXPECT_FALSE(child1.has<GE::ParentComponent>());
     EXPECT_FALSE(child2.parent().has_value());
     EXPECT_FALSE(child2.nextChild().has_value());
+    EXPECT_FALSE(child2.has<GE::ParentComponent>());
 }
 
 TEST(EntityTest, destroyChildUnlinksFromParent)
@@ -210,6 +235,29 @@ TEST(EntityTest, destroyChildUnlinksFromParent)
 
     EXPECT_FALSE(ecsWorld.isValidEntityID(childId));
     EXPECT_FALSE(parent.firstChild().has_value());
+    EXPECT_FALSE(parent.has<GE::ChildrenComponent>());
+}
+
+TEST(EntityTest, rootEntitiesCanBeQueriedByExcludingParentComponent)
+{
+    GE::ECSWorld ecsWorld;
+    GE::Entity root = makeEntity(ecsWorld);
+    GE::Entity otherRoot = makeEntity(ecsWorld);
+    GE::Entity child = makeEntity(ecsWorld);
+
+    root.emplace<GE::NameComponent>("root");
+    otherRoot.emplace<GE::NameComponent>("other root");
+    child.emplace<GE::NameComponent>("child");
+
+    root.addChild(child);
+
+    std::set<GE::EntityID> roots;
+    for (GE::Entity entity : ecsWorld | GE::ECSView<GE::NameComponent>().without<GE::ParentComponent>() | GE::MakeEntity{})
+        roots.insert(entity.entityId);
+
+    EXPECT_TRUE(roots.contains(root.entityId));
+    EXPECT_TRUE(roots.contains(otherRoot.entityId));
+    EXPECT_FALSE(roots.contains(child.entityId));
 }
 
 TEST(EntityTest, equalityOperators)
