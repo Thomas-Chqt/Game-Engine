@@ -35,11 +35,15 @@ struct NameComponent
     inline operator const std::string& () const { return name; }
 };
 
-struct HierarchyComponent
+struct ParentComponent
 {
     EntityID parent = INVALID_ENTITY_ID;
-    EntityID firstChild = INVALID_ENTITY_ID;
     EntityID nextChild = INVALID_ENTITY_ID;
+};
+
+struct ChildrenComponent
+{
+    EntityID firstChild = INVALID_ENTITY_ID;
 };
 
 struct TransformComponent
@@ -100,7 +104,7 @@ struct ScriptComponent
     std::shared_ptr<Script> instance;
 };
 
-using ECSComponentTypes = TypeList<NameComponent, HierarchyComponent, TransformComponent, CameraComponent, LightComponent, MeshComponent, ScriptComponent>;
+using ECSComponentTypes = TypeList<NameComponent, ParentComponent, ChildrenComponent, TransformComponent, CameraComponent, LightComponent, MeshComponent, ScriptComponent>;
 using ComponentVariant = ECSComponentTypes::into<std::variant>;
 
 } // namespace GE

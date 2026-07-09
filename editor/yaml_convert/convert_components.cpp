@@ -9,7 +9,8 @@ template<typename T>
 struct ECSComponentYamlTraits;
 
 template<> struct ECSComponentYamlTraits<GE::NameComponent>      { static constexpr std::string_view name = "NameComponent";      };
-template<> struct ECSComponentYamlTraits<GE::HierarchyComponent> { static constexpr std::string_view name = "HierarchyComponent"; };
+template<> struct ECSComponentYamlTraits<GE::ParentComponent>    { static constexpr std::string_view name = "ParentComponent";    };
+template<> struct ECSComponentYamlTraits<GE::ChildrenComponent>  { static constexpr std::string_view name = "ChildrenComponent";  };
 template<> struct ECSComponentYamlTraits<GE::TransformComponent> { static constexpr std::string_view name = "TransformComponent"; };
 template<> struct ECSComponentYamlTraits<GE::CameraComponent>    { static constexpr std::string_view name = "CameraComponent";    };
 template<> struct ECSComponentYamlTraits<GE::LightComponent>     { static constexpr std::string_view name = "LightComponent";     };
@@ -42,25 +43,43 @@ struct convert<GE::NameComponent>
 };
 
 template<>
-struct convert<GE::HierarchyComponent>
+struct convert<GE::ParentComponent>
 {
-    static Node encode(const GE::HierarchyComponent& rhs)
+    static Node encode(const GE::ParentComponent& rhs)
     {
         Node node;
         node["parent"] = rhs.parent;
-        node["firstChild"] = rhs.firstChild;
         node["nextChild"] = rhs.nextChild;
         return node;
     }
 
-    static bool decode(const Node& node, GE::HierarchyComponent& rhs)
+    static bool decode(const Node& node, GE::ParentComponent& rhs)
     {
         if (!node.IsMap())
             return false;
 
         rhs.parent = node["parent"] ? node["parent"].as<GE::EntityID>() : GE::INVALID_ENTITY_ID;
-        rhs.firstChild = node["firstChild"] ? node["firstChild"].as<GE::EntityID>() : GE::INVALID_ENTITY_ID;
         rhs.nextChild = node["nextChild"] ? node["nextChild"].as<GE::EntityID>() : GE::INVALID_ENTITY_ID;
+        return true;
+    }
+};
+
+template<>
+struct convert<GE::ChildrenComponent>
+{
+    static Node encode(const GE::ChildrenComponent& rhs)
+    {
+        Node node;
+        node["firstChild"] = rhs.firstChild;
+        return node;
+    }
+
+    static bool decode(const Node& node, GE::ChildrenComponent& rhs)
+    {
+        if (!node.IsMap())
+            return false;
+
+        rhs.firstChild = node["firstChild"] ? node["firstChild"].as<GE::EntityID>() : GE::INVALID_ENTITY_ID;
         return true;
     }
 };
@@ -299,7 +318,34 @@ bool convert<std::pair<GE::EntityID, std::vector<GE::ComponentVariant>>>::decode
 
     auto& [id, components] = rhs;
     id = node["entityId"].as<GE::EntityID>();
-    components = node["components"].as<std::vector<GE::ComponentVariant>>();
+    components.clear();
+    if (!node["components"].IsSequence())
+        return false;
+    for (const Node& componentNode : node["components"])
+    {
+        if (!componentNode.IsMap() || !componentNode["type"] || !componentNode["data"])
+            return false;
+
+        const std::string type = componentNode["type"].as<std::string>();
+        if (type == "HierarchyComponent")
+        {
+            const Node data = componentNode["data"];
+            if (!data.IsMap())
+                return false;
+
+            const GE::EntityID parent = data["parent"] ? data["parent"].as<GE::EntityID>() : GE::INVALID_ENTITY_ID;
+            const GE::EntityID firstChild = data["firstChild"] ? data["firstChild"].as<GE::EntityID>() : GE::INVALID_ENTITY_ID;
+            const GE::EntityID nextChild = data["nextChild"] ? data["nextChild"].as<GE::EntityID>() : GE::INVALID_ENTITY_ID;
+
+            if (parent != GE::INVALID_ENTITY_ID || nextChild != GE::INVALID_ENTITY_ID)
+                components.emplace_back(GE::ParentComponent{.parent = parent, .nextChild = nextChild});
+            if (firstChild != GE::INVALID_ENTITY_ID)
+                components.emplace_back(GE::ChildrenComponent{.firstChild = firstChild});
+            continue;
+        }
+
+        components.emplace_back(componentNode.as<GE::ComponentVariant>());
+    }
     return true;
 }
 

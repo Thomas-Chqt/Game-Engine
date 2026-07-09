@@ -56,12 +56,20 @@ public:
     inline Iterator begin() const;
     inline std::default_sentinel_t end() const { return std::default_sentinel; }
 
+    template<Component... Ts> requires(sizeof...(Ts) > 0)
+    basic_ecsView without() const
+    {
+        basic_ecsView view(*this);
+        view.m_excludedPredicate |= makePredicate<Ts...>();
+        return view;
+    }
+
     uint32_t count() const
     {
         uint32_t output = 0;
         for (const auto& [archetypeId, archetype] : m_world->m_archetypes)
         {
-            if ((archetypeId & m_predicate) == m_predicate)
+            if (matches(archetypeId))
                 output += archetype.size();
         }
         return output;
@@ -72,8 +80,15 @@ public:
 private:
     ECSWorldT* m_world = nullptr;
     Predicate m_predicate;
+    Predicate m_excludedPredicate;
 
     inline void setWorld(ECSWorldT* world) { m_world = world; }
+
+    inline bool matches(const Predicate& archetypeId) const
+    {
+        return (archetypeId & m_predicate) == m_predicate
+            && (archetypeId & m_excludedPredicate).none();
+    }
 
     template<typename T>
     static Predicate makePredicate()
@@ -115,16 +130,16 @@ inline typename basic_ecsView<ECSWorldT, Cs...>::Iterator basic_ecsView<ECSWorld
     auto archetypeIt = m_world->m_archetypes.begin();
     while (archetypeIt != m_world->m_archetypes.end())
     {
-        if ((archetypeIt->first & m_predicate) == m_predicate)
+        if (matches(archetypeIt->first))
         {
             auto entityIt = archetypeIt->second.begin();
             if (entityIt != archetypeIt->second.end())
-                return Iterator(m_world, m_predicate, archetypeIt, entityIt);
+                return Iterator(m_world, m_predicate, m_excludedPredicate, archetypeIt, entityIt);
         }
         ++archetypeIt;
     }
 
-    return Iterator(m_world, m_predicate, m_world->m_archetypes.end(), {});
+    return Iterator(m_world, m_predicate, m_excludedPredicate, m_world->m_archetypes.end(), {});
 }
 
 template<Component... Cs>
