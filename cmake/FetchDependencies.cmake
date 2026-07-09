@@ -129,7 +129,7 @@ function(fetch_dependencies)
     # -----------------------------
     FetchContent_Declare(assimp
         GIT_REPOSITORY    https://github.com/assimp/assimp.git
-        GIT_TAG           v5.4.1
+        GIT_TAG           v6.0.5
         GIT_SHALLOW       1
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
