@@ -19,7 +19,6 @@ function(fetch_dependencies)
     FetchContent_Declare(Graphics
         GIT_REPOSITORY    https://github.com/Thomas-Chqt/Graphics.git
         GIT_TAG           9813ed1009c651b324e58be09697417910444ee2
-        GIT_SHALLOW       1
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
     )
@@ -86,7 +85,6 @@ function(fetch_dependencies)
     FetchContent_Declare(imgui
         GIT_REPOSITORY    https://github.com/Thomas-Chqt/imgui.git
         GIT_TAG           4d8f55183c2e974916daf6336ee2c4b9c8e72891
-        GIT_SHALLOW       1
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
     )
@@ -104,7 +102,6 @@ function(fetch_dependencies)
     FetchContent_Declare(stb_image
         GIT_REPOSITORY    https://github.com/Thomas-Chqt/stb_image.git
         GIT_TAG           a09b799a2ba95c14f511493db4ea59811b2fcc97
-        GIT_SHALLOW       1
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
     )
@@ -119,7 +116,6 @@ function(fetch_dependencies)
     FetchContent_Declare(dlLoad
         GIT_REPOSITORY    https://github.com/Thomas-Chqt/dlLoad.git
         GIT_TAG           fd860b8200983b89d3ca58b371f6ec25b9972bd3
-        GIT_SHALLOW       1
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
     )
@@ -133,7 +129,7 @@ function(fetch_dependencies)
     # -----------------------------
     FetchContent_Declare(assimp
         GIT_REPOSITORY    https://github.com/assimp/assimp.git
-        GIT_TAG           v5.4.1
+        GIT_TAG           v6.0.5
         GIT_SHALLOW       1
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
