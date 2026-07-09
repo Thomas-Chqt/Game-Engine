@@ -34,6 +34,7 @@ ParameterBlock<StructuredBuffer<Material>> materials;
 PUSH_CONSTANT
 {
     uint32_t materialIdx;
+    uint2 entityId;
     float4x4 modelMatrix;
 }
 
@@ -67,8 +68,14 @@ VSOutput vertexMain(Vertex input)
 
 /* -------------------------Fragment Shader------------------------------- */
 
+struct FSOutput
+{
+    float4 color : SV_Target0;
+    uint2 entityId : SV_Target1;
+};
+
 [shader("fragment")]
-float4 fragmentMain(VSOutput input) : SV_TARGET
+FSOutput fragmentMain(VSOutput input)
 {
     let sampler: SamplerState = textureArray.sampler;
 
@@ -102,7 +109,10 @@ float4 fragmentMain(VSOutput input) : SV_TARGET
         finalColor += phong::evalPointLight(fragCtx, frameData.pointLights[i]);
     finalColor += emissiveColor * emissiveTexture.Sample(sampler, input.uv).rgb;
 
-    return float4(saturate(finalColor), diffuseColor.a);
+    FSOutput output;
+    output.color = float4(saturate(finalColor), diffuseColor.a);
+    output.entityId = entityId;
+    return output;
 }
 
 #endif // ifndef _cplusplus

@@ -36,3 +36,4 @@ Checks:
 
 CheckOptions:
   cppcoreguidelines-rvalue-reference-param-not-moved.AllowPartialMove: true
+  cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true

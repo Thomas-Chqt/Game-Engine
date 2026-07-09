@@ -11,6 +11,7 @@
 #include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Components.hpp"
 #include "Game-Engine/ECSView.hpp"
+#include "Game-Engine/ECSWorld.hpp"
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Material.hpp"
 #include "Game-Engine/Mesh.hpp"
@@ -21,6 +22,14 @@
 
 #include <Graphics/Buffer.hpp>
 #include <Graphics/ParameterBlock.hpp>
+#include <Graphics/Framebuffer.hpp>
+
+#include <glm/glm.hpp>
+
+#include <imgui.h>
+
+#include <tracy/Tracy.hpp>
+#include <tracy/TracyC.h>
 
 #include <algorithm>
 #include <bit>
@@ -37,11 +46,6 @@
 #include <variant>
 #include <vector>
 
-#include <glm/glm.hpp>
-#include <imgui.h>
-#include <tracy/Tracy.hpp>
-#include <tracy/TracyC.h>
-
 namespace GE
 {
 
@@ -51,10 +55,20 @@ namespace
 struct PushConstant
 {
     uint32_t materialIndex;
+    alignas(8) glm::uvec2 entityId;
     alignas(16) glm::mat4x4 modelMatrix;
 };
 
 static_assert(sizeof(PushConstant) == 80);
+static_assert(offsetof(PushConstant, entityId) == 8);
+static_assert(offsetof(PushConstant, modelMatrix) == 16);
+
+struct Renderable
+{
+    glm::mat4x4 modelMatrix;
+    uint32_t materialIndex;
+    glm::uvec2 entityId;
+};
 
 struct BufferPairHash
 {
@@ -137,7 +151,7 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
     TracyCZoneN(TexturedGeometryPassRecordRenderables, "TexturedGeometryPass::record renderables", true);
 
     TracyCZoneN(TracyCZoneN_setup, "TexturedGeometryPass::setup_renderable_record", true);
-    std::unordered_map<std::pair<std::shared_ptr<gfx::Buffer>, std::shared_ptr<gfx::Buffer>>, std::vector<std::pair<glm::mat4x4, uint32_t>>, BufferPairHash> renderables;
+    std::unordered_map<std::pair<std::shared_ptr<gfx::Buffer>, std::shared_ptr<gfx::Buffer>>, std::vector<Renderable>, BufferPairHash> renderables;
     std::vector<shader::textured::Material> materials;
     std::unordered_map<std::shared_ptr<Material>, uint32_t> materialIndices;
     auto renderableEntities = scene.ecsWorld() | const_ECSView<TransformComponent, MeshComponent>();
@@ -148,8 +162,9 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
     TracyCZoneEnd(TracyCZoneN_setup);
 
     TracyCZoneN(TracyCZoneN_loop_renderableEntities, "loop_renderableEntities", true);
-    for (auto [transform, mesh] : renderableEntities)
+    for (const auto& entity : renderableEntities)
     {
+        const auto& [transform, mesh] = entity;
         if (!assetManager.isAssetLoaded(mesh))
             continue;
 
@@ -174,7 +189,14 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
             TracyCZoneEnd(TracyCZoneN_add_material);
 
             TracyCZoneN(TracyCZoneN_add_renderable, "add_renderable", true);
-            renderables[std::make_pair(submesh.vertexBuffer, submesh.indexBuffer)].emplace_back(transform.worldTransform, it->second);
+            renderables[std::make_pair(submesh.vertexBuffer, submesh.indexBuffer)].push_back(Renderable{
+                .modelMatrix = transform.worldTransform,
+                .materialIndex = it->second,
+                .entityId = {
+                    static_cast<uint32_t>(entity.entityId),
+                    static_cast<uint32_t>(entity.entityId >> 32)
+                }
+            });
             TracyCZoneEnd(TracyCZoneN_add_renderable);
         }
     }
@@ -188,6 +210,7 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
     TracyCZoneEnd(TexturedGeometryPassRecordRenderables);
 
     const FrameGraph::TextureRef colorTexture = builder.texture("backBuffer");
+    const FrameGraph::TextureRef entityIdsTexture = builder.texture("viewportEntityIds");
     const FrameGraph::TextureRef depthTexture = builder.texture("depthBuffer");
 
     FramePass texturedGeometryPass = {
@@ -195,13 +218,18 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
             FrameGraph::Attachment{
                 .texture = colorTexture,
                 .loadAction = gfx::LoadAction::clear,
-                .clearColor = { 0.0f, 0.0f, 0.0f, 1.0f }
+                .clearValue = gfx::ClearValue::color({ 0.0f, 0.0f, 0.0f, 1.0f })
+            },
+            FrameGraph::Attachment{
+                .texture = entityIdsTexture,
+                .loadAction = gfx::LoadAction::clear,
+                .clearValue = gfx::ClearValue::uint64(INVALID_ENTITY_ID)
             }
         },
         .depthAttachment = FrameGraph::Attachment{
             .texture = depthTexture,
             .loadAction = gfx::LoadAction::clear,
-            .clearDepth = 1.0f
+            .clearValue = gfx::ClearValue::depth(1.0f)
         },
         .execute = [frameDataBuffer, directionalLightsBuffer, pointLightsBuffer, materialsBuffer, renderables=std::move(renderables)](FramePass::ExecuteContext& ctx){
             ZoneScopedN("TexturedGeometryPass::execute");
@@ -226,10 +254,11 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
                 auto& [vertexBuffer, indexBuffer] = key;
 
                 ctx.commandBuffer.useVertexBuffer(vertexBuffer);
-                for (auto& [modelMatrix, materialIdx] : value) {
+                for (const Renderable& renderable : value) {
                     PushConstant pc {
-                        .materialIndex = materialIdx,
-                        .modelMatrix = modelMatrix,
+                        .materialIndex = renderable.materialIndex,
+                        .entityId = renderable.entityId,
+                        .modelMatrix = renderable.modelMatrix,
                     };
 
                     ctx.commandBuffer.setPushConstants(&pc);
@@ -278,7 +307,7 @@ void ImGuiPass::record(FrameGraphBuilder& builder) const
             FrameGraph::Attachment{
                 .texture = targetTexture,
                 .loadAction = gfx::LoadAction::clear,
-                .clearColor = { 0.0f, 0.0f, 0.0f, 1.0f }
+                .clearValue = gfx::ClearValue::color({ 0.0f, 0.0f, 0.0f, 1.0f })
             }
         },
         .sampledTextures = std::move(sampledTextures),

@@ -20,8 +20,6 @@
 #include <Graphics/Enums.hpp>
 #include <Graphics/Buffer.hpp>
 
-#include <algorithm>
-#include <cstdint>
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyC.h>
 
@@ -31,10 +29,13 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
 #include <ranges>
+#include <algorithm>
+#include <cstdint>
 
 namespace GE
 {
@@ -113,7 +114,7 @@ Renderer::Renderer(gfx::Device* device, AssetManager* assetManager, gfx::Surface
         },
         .vertexShader = &texturedShaderLib->getFunction("vertexMain"),
         .fragmentShader = &texturedShaderLib->getFunction("fragmentMain"),
-        .colorAttachmentPxFormats = {gfx::PixelFormat::BGRA8Unorm},
+        .colorAttachmentPxFormats = {gfx::PixelFormat::BGRA8Unorm, gfx::PixelFormat::RG32Uint},
         .depthAttachmentPxFormat = gfx::PixelFormat::Depth32Float,
         .blendOperation = gfx::BlendOperation::blendingOff,
         .cullMode = gfx::CullMode::back,
@@ -144,7 +145,7 @@ FrameGraphBuilder Renderer::newFrameGraphBuilder()
     return {m_textureTable.get(), m_assetManager};
 }
 
-void Renderer::renderFrame(const FrameGraph& frameGraph)
+void Renderer::renderFrame(FrameGraph frameGraph)
 {
     ZoneScoped;
 
@@ -153,6 +154,15 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         ZoneScopedN("Renderer::wait_in-flight_frame");
         m_device->waitCommandBuffer(*cfd.waitedCmdBuffer);
         cfd.waitedCmdBuffer = nullptr;
+
+        for (PendingReadback& readback : cfd.pendingReadbacks)
+        {
+            assert(readback.buffer);
+            assert(readback.request);
+            assert(readback.buffer->storageMode() == gfx::ResourceStorageMode::hostVisible);
+            readback.request->resolve(std::span<std::byte>(readback.buffer->content<std::byte>(), readback.buffer->size()));
+        }
+
         cfd.commandBufferPool->reset();
         cfd.parameterBlockPool->reset();
     }
@@ -206,19 +216,67 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         else
             gfxBuffer = it->second.extract(it->second.begin()).value();
 
-        const std::span<const std::byte> bufferContent(frameGraph.buffersContent.data() + buffer.offset, buffer.descriptor.size);
-        std::memcpy(gfxBuffer->content<std::byte>(), bufferContent.data(), bufferContent.size());
+        if (buffer.offset.has_value())
+        {
+            assert(*buffer.offset + buffer.descriptor.size <= frameGraph.buffersContent.size());
+            assert(gfxBuffer->storageMode() == gfx::ResourceStorageMode::hostVisible);
+            const std::span<const std::byte> bufferContent(frameGraph.buffersContent.data() + *buffer.offset, buffer.descriptor.size);
+            std::memcpy(gfxBuffer->content<std::byte>(), bufferContent.data(), bufferContent.size());
+        }
 
         bufferMap.at(bufferIdx) = gfxBuffer;
         newBufferCache[buffer.descriptor].insert(gfxBuffer);
     }
     TracyCZoneEnd(rendererPrepareBuffers);
 
+    TracyCZoneN(rendererPrepareReadbacks, "Renderer::prepare_readbacks", true);
+    cfd.pendingReadbacks.clear();
+    cfd.pendingReadbacks.reserve(frameGraph.readbacks.size());
+    for (std::unique_ptr<FrameGraph::ReadbackBase>& readback : frameGraph.readbacks)
+    {
+        assert(readback->buffer < bufferMap.size());
+        assert(bufferMap.at(readback->buffer));
+        assert(bufferMap.at(readback->buffer)->storageMode() == gfx::ResourceStorageMode::hostVisible);
+        cfd.pendingReadbacks.push_back(PendingReadback{
+            .buffer = bufferMap.at(readback->buffer),
+            .request = std::move(readback)
+        });
+    }
+    TracyCZoneEnd(rendererPrepareReadbacks);
+
     std::shared_ptr<gfx::CommandBuffer> commandBuffer = cfd.commandBufferPool->get();
     std::shared_ptr<gfx::Drawable> drawable;
     for (auto& framePass : frameGraph.passes)
     {
         ZoneScopedN("Renderer::frame_pass");
+
+        FramePass::ExecuteContext framePassContext = {
+            .assetManager = *m_assetManager,
+            .commandBuffer = *commandBuffer,
+            .parameterBlockPool = *cfd.parameterBlockPool,
+            .textureTableBlock = m_textureTableBlock,
+            .frameDataBlockLayout = m_frameDataBlockLayout,
+            .texture = [&](FrameGraph::TextureRef ref){ return textureMap.at(ref); },
+            .buffer = [&](FrameGraph::BufferRef ref){ return bufferMap.at(ref); },
+            .texturedMaterialPBlockLayout = m_texturedMaterialPBlockLayout,
+            .texturedPipeline = m_texturedPipeline
+        };
+
+        if (framePass.kind == FramePass::Kind::blit)
+        {
+            assert(framePass.colorAttachments.empty());
+            assert(framePass.depthAttachment.has_value() == false);
+            assert(framePass.sampledTextures.empty());
+            assert(std::ranges::all_of(framePass.copySourceBuffers, [&](auto bufferRef) { return bufferRef < bufferMap.size(); }));
+            assert(std::ranges::all_of(framePass.copyDestinationBuffers, [&](auto bufferRef) { return bufferRef < bufferMap.size(); }));
+            assert(std::ranges::all_of(framePass.copySourceTextures, [&](auto textureRef) { return textureRef < textureMap.size(); }));
+            assert(std::ranges::all_of(framePass.copyDestinationTextures, [&](auto textureRef) { return textureRef < textureMap.size(); }));
+
+            commandBuffer->beginBlitPass();
+            framePass.execute(framePassContext);
+            commandBuffer->endBlitPass();
+            continue;
+        }
 
         if (drawable == nullptr && std::ranges::any_of(framePass.colorAttachments, [&](auto& attachment){return attachment.texture == frameGraph.backBuffer ;}))
         {
@@ -236,7 +294,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         auto colorAttachments = framePass.colorAttachments | std::views::transform([&](const FrameGraph::Attachment& attachment) {
             return gfx::Framebuffer::Attachment{
                 .loadAction = attachment.loadAction,
-                .clearColor = attachment.clearColor,
+                .clearValue = attachment.clearValue,
                 .texture = textureMap.at(attachment.texture)
             };
         });
@@ -244,7 +302,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         auto depthAttachment = framePass.depthAttachment.transform([&](const FrameGraph::Attachment& attachment) {
             return gfx::Framebuffer::Attachment{
                 .loadAction = attachment.loadAction,
-                .clearDepth = attachment.clearDepth,
+                .clearValue = attachment.clearValue,
                 .texture = textureMap.at(attachment.texture)
             };
         });
@@ -255,20 +313,7 @@ void Renderer::renderFrame(const FrameGraph& frameGraph)
         };
 
         commandBuffer->beginRenderPass(framebuffer);
-        {
-            FramePass::ExecuteContext framePassContext = {
-                .assetManager = *m_assetManager,
-                .commandBuffer = *commandBuffer,
-                .parameterBlockPool = *cfd.parameterBlockPool,
-                .textureTableBlock = m_textureTableBlock,
-                .frameDataBlockLayout = m_frameDataBlockLayout,
-                .texture = [&](FrameGraph::TextureRef ref){ return textureMap.at(ref); },
-                .buffer = [&](FrameGraph::BufferRef ref){ return bufferMap.at(ref); },
-                .texturedMaterialPBlockLayout = m_texturedMaterialPBlockLayout,
-                .texturedPipeline = m_texturedPipeline
-            };
-            framePass.execute(framePassContext);
-        }
+        framePass.execute(framePassContext);
         commandBuffer->endRenderPass();
     }
 

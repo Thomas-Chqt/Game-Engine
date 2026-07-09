@@ -10,6 +10,7 @@
 #define FRAMEGRAPH_HPP
 
 #include "Game-Engine/AssetManager.hpp"
+#include "Graphics/Framebuffer.hpp"
 
 #include <Graphics/Buffer.hpp>
 #include <Graphics/CommandBuffer.hpp>
@@ -20,12 +21,13 @@
 #include <Graphics/ParameterBlockPool.hpp>
 #include <Graphics/Texture.hpp>
 
-#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <exception>
 #include <functional>
+#include <future>
 #include <limits>
 #include <map>
 #include <memory>
@@ -34,6 +36,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace GE
@@ -51,7 +54,7 @@ struct FrameGraph
     struct Buffer
     {
         gfx::Buffer::Descriptor descriptor;
-        size_t offset = 0; // offset into buffersContent where the data starts
+        std::optional<size_t> offset; // offset into buffersContent where the upload data starts
     };
 
     using TextureRef = size_t;
@@ -61,10 +64,28 @@ struct FrameGraph
     {
         TextureRef texture;
         gfx::LoadAction loadAction;
-        union {
-            std::array<float, 4> clearColor;
-            float clearDepth;
-        };
+        gfx::ClearValue clearValue;
+    };
+
+    struct ReadbackBase
+    {
+        BufferRef buffer;
+
+        virtual void resolve(std::span<std::byte>) = 0;
+
+        ReadbackBase(BufferRef);
+        virtual ~ReadbackBase() = default;
+    };
+
+    template<typename Result, typename Decoder>
+    struct Readback : public ReadbackBase
+    {
+        std::promise<Result> promise{};
+        Decoder decoder;
+
+        void resolve(std::span<std::byte>) override;
+
+        Readback(BufferRef, Decoder&&);
     };
 
     std::vector<std::byte> buffersContent;
@@ -73,10 +94,17 @@ struct FrameGraph
     std::vector<Buffer> buffers;
     TextureRef backBuffer = std::numeric_limits<TextureRef>::max();
     std::vector<FramePass> passes;
+    std::vector<std::unique_ptr<ReadbackBase>> readbacks;
 };
 
 struct FramePass
 {
+    enum class Kind : uint8_t
+    {
+        render,
+        blit
+    };
+
     struct ExecuteContext
     {
         AssetManager& assetManager;
@@ -91,10 +119,17 @@ struct FramePass
         std::shared_ptr<gfx::GraphicsPipeline> texturedPipeline;
     };
 
+    Kind kind = Kind::render;
+
     std::vector<FrameGraph::Attachment> colorAttachments;
     std::optional<FrameGraph::Attachment> depthAttachment;
 
     std::vector<FrameGraph::TextureRef> sampledTextures;
+
+    std::vector<FrameGraph::BufferRef> copySourceBuffers;
+    std::vector<FrameGraph::BufferRef> copyDestinationBuffers;
+    std::vector<FrameGraph::TextureRef> copySourceTextures;
+    std::vector<FrameGraph::TextureRef> copyDestinationTextures;
 
     std::function<void(ExecuteContext&)> execute;
 };
@@ -124,6 +159,8 @@ public:
     template<typename T>
     FrameGraph::BufferRef newStructuredBuffer(size_t count) requires std::is_trivially_copyable_v<T>;
 
+    FrameGraph::BufferRef newBuffer(gfx::Buffer::Descriptor);
+
     void setBackBuffer(FrameGraph::TextureRef);
 
     template<typename T>
@@ -133,6 +170,10 @@ public:
     std::span<T> structuredBufferContent(FrameGraph::BufferRef) requires std::is_trivially_copyable_v<T>;
 
     void addPass(FramePass);
+
+    template<typename F>
+    auto readback(FrameGraph::BufferRef, F&&)
+        -> std::future<std::invoke_result_t<F, std::span<std::byte>>>;
 
     AssetManager& assetManager() const;
     uint32_t textureIndex(AssetID) const;
@@ -154,6 +195,30 @@ public:
 
 };
 
+
+template<typename Result, typename Decoder>
+void FrameGraph::Readback<Result, Decoder>::resolve(std::span<std::byte> bytes)
+{
+    try {
+        if constexpr (std::is_void_v<Result>) {
+            std::invoke(decoder, bytes);
+            promise.set_value();
+        }
+        else
+            promise.set_value(std::invoke(decoder, bytes));
+    }
+    catch (...) {
+        promise.set_exception(std::current_exception());
+    }
+}
+
+template<typename Result, typename Decoder>
+FrameGraph::Readback<Result, Decoder>::Readback(BufferRef bufferRef, Decoder&& dec)
+    : ReadbackBase{bufferRef}
+    , decoder{std::move(dec)}
+{
+}
+
 template<typename T>
 FrameGraph::BufferRef FrameGraphBuilder::newConstantBuffer() requires std::is_trivially_copyable_v<T>
 {
@@ -162,11 +227,14 @@ FrameGraph::BufferRef FrameGraphBuilder::newConstantBuffer() requires std::is_tr
     m_frameGraph.buffersContent.resize(offset + sizeof(T));
 
     FrameGraph::BufferRef buffer = m_frameGraph.buffers.size();
-    m_frameGraph.buffers.emplace_back(gfx::Buffer::Descriptor{
-        .size = sizeof(T),
-        .usages = gfx::BufferUsage::constantBuffer,
-        .storageMode = gfx::ResourceStorageMode::hostVisible
-    }, offset);
+    m_frameGraph.buffers.emplace_back(FrameGraph::Buffer{
+        .descriptor = gfx::Buffer::Descriptor{
+            .size = sizeof(T),
+            .usages = gfx::BufferUsage::constantBuffer,
+            .storageMode = gfx::ResourceStorageMode::hostVisible
+        },
+        .offset = offset
+    });
     m_nextOffset = offset + sizeof(T);
 
     return buffer;
@@ -182,11 +250,14 @@ FrameGraph::BufferRef FrameGraphBuilder::newStructuredBuffer(size_t count) requi
     m_frameGraph.buffersContent.resize(offset + size);
 
     FrameGraph::BufferRef buffer = m_frameGraph.buffers.size();
-    m_frameGraph.buffers.emplace_back(gfx::Buffer::Descriptor{
-        .size = size,
-        .usages = gfx::BufferUsage::structuredBuffer,
-        .storageMode = gfx::ResourceStorageMode::hostVisible
-    }, offset);
+    m_frameGraph.buffers.emplace_back(FrameGraph::Buffer{
+        .descriptor = gfx::Buffer::Descriptor{
+            .size = size,
+            .usages = gfx::BufferUsage::structuredBuffer,
+            .storageMode = gfx::ResourceStorageMode::hostVisible
+        },
+        .offset = offset
+    });
     m_nextOffset = offset + size;
 
     return buffer;
@@ -198,9 +269,10 @@ T& FrameGraphBuilder::constantBufferContent(FrameGraph::BufferRef buffRef) requi
     assert(buffRef < m_frameGraph.buffers.size());
     const FrameGraph::Buffer& buffer = m_frameGraph.buffers[buffRef];
     assert(buffer.descriptor.size >= sizeof(T));
-    assert(buffer.offset + sizeof(T) <= m_frameGraph.buffersContent.size());
+    assert(buffer.offset.has_value());
+    assert(*buffer.offset + sizeof(T) <= m_frameGraph.buffersContent.size());
 
-    std::byte* ptr = m_frameGraph.buffersContent.data() + buffer.offset;
+    std::byte* ptr = m_frameGraph.buffersContent.data() + *buffer.offset;
     assert(reinterpret_cast<std::uintptr_t>(ptr) % alignof(T) == 0); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
     return *reinterpret_cast<T*>(ptr); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
 }
@@ -211,14 +283,32 @@ std::span<T> FrameGraphBuilder::structuredBufferContent(FrameGraph::BufferRef bu
     assert(buffRef < m_frameGraph.buffers.size());
     const FrameGraph::Buffer& buffer = m_frameGraph.buffers[buffRef];
     assert(buffer.descriptor.size % sizeof(T) == 0);
-    assert(buffer.offset + buffer.descriptor.size <= m_frameGraph.buffersContent.size());
+    assert(buffer.offset.has_value());
+    assert(*buffer.offset + buffer.descriptor.size <= m_frameGraph.buffersContent.size());
 
-    std::byte* ptr = m_frameGraph.buffersContent.data() + buffer.offset;
+    std::byte* ptr = m_frameGraph.buffersContent.data() + *buffer.offset;
     assert(reinterpret_cast<std::uintptr_t>(ptr) % alignof(T) == 0); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
     return std::span<T>(
         reinterpret_cast<T*>(ptr), // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
         buffer.descriptor.size / sizeof(T)
     );
+}
+
+template<typename F>
+auto FrameGraphBuilder::readback(FrameGraph::BufferRef buffRef, F&& decode) -> std::future<std::invoke_result_t<F, std::span<std::byte>>>
+{
+    using Result = std::invoke_result_t<F, std::span<std::byte>>;
+    using Decode = std::decay_t<F>;
+
+    assert(buffRef < m_frameGraph.buffers.size());
+    assert(m_frameGraph.buffers[buffRef].descriptor.storageMode == gfx::ResourceStorageMode::hostVisible);
+
+    auto request = std::make_unique<FrameGraph::Readback<Result, Decode>>(buffRef, std::forward<F>(decode));
+    std::future<Result> future = request->promise.get_future();
+
+    m_frameGraph.readbacks.push_back(std::move(request));
+
+    return future;
 }
 
 } // namespace GE

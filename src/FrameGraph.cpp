@@ -23,6 +23,11 @@
 namespace GE
 {
 
+FrameGraph::ReadbackBase::ReadbackBase(BufferRef bufferRef)
+    : buffer(bufferRef)
+{
+}
+
 FrameGraphBuilder::FrameGraphBuilder(TextureTable* textureTable, AssetManager* assetManager)
     : m_textureTable(textureTable)
     , m_assetManager(assetManager)
@@ -88,6 +93,16 @@ const std::map<std::string, FrameGraph::TextureRef, std::less<>>& FrameGraphBuil
     return m_textureNames;
 }
 
+FrameGraph::BufferRef FrameGraphBuilder::newBuffer(gfx::Buffer::Descriptor descriptor)
+{
+    FrameGraph::BufferRef buffer = m_frameGraph.buffers.size();
+    m_frameGraph.buffers.emplace_back(FrameGraph::Buffer{
+        .descriptor = descriptor,
+        .offset = std::nullopt
+    });
+    return buffer;
+}
+
 void FrameGraphBuilder::setBackBuffer(FrameGraph::TextureRef textureRef)
 {
     assert(m_frameGraph.textures.size() > textureRef);
@@ -96,9 +111,27 @@ void FrameGraphBuilder::setBackBuffer(FrameGraph::TextureRef textureRef)
 
 void FrameGraphBuilder::addPass(FramePass pass)
 {
-    assert(std::ranges::all_of(pass.colorAttachments, [&](auto& attachment){ return m_frameGraph.textures.size() > attachment.texture; }));
-    assert(pass.depthAttachment.has_value() == false || m_frameGraph.textures.size() > pass.depthAttachment->texture);
-    assert(std::ranges::all_of(pass.sampledTextures, [&](auto& textureRef){ return m_frameGraph.textures.size() > textureRef; }));
+    if (pass.kind == FramePass::Kind::blit)
+    {
+        assert(pass.colorAttachments.empty());
+        assert(pass.depthAttachment.has_value() == false);
+        assert(pass.sampledTextures.empty());
+    }
+    else
+    {
+        assert(pass.copySourceBuffers.empty());
+        assert(pass.copyDestinationBuffers.empty());
+        assert(pass.copySourceTextures.empty());
+        assert(pass.copyDestinationTextures.empty());
+    }
+
+    assert(std::ranges::all_of(pass.colorAttachments, [&](auto& attachment) { return attachment.texture < m_frameGraph.textures.size(); }));
+    assert(pass.depthAttachment.has_value() == false || pass.depthAttachment->texture < m_frameGraph.textures.size());
+    assert(std::ranges::all_of(pass.sampledTextures, [&](auto& textureRef) { return textureRef < m_frameGraph.textures.size(); }));
+    assert(std::ranges::all_of(pass.copySourceBuffers, [&](auto& bufferRef) { return bufferRef < m_frameGraph.buffers.size(); }));
+    assert(std::ranges::all_of(pass.copyDestinationBuffers, [&](auto& bufferRef) { return bufferRef < m_frameGraph.buffers.size(); }));
+    assert(std::ranges::all_of(pass.copySourceTextures, [&](auto& textureRef) { return textureRef < m_frameGraph.textures.size(); }));
+    assert(std::ranges::all_of(pass.copyDestinationTextures, [&](auto& textureRef) { return textureRef < m_frameGraph.textures.size(); }));
 
     for (FrameGraph::Texture& texture : pass.colorAttachments | std::views::transform([&](auto& attachement) -> FrameGraph::Texture& { return m_frameGraph.textures.at(attachement.texture); }))
         texture.descriptor.usages |= gfx::TextureUsage::colorAttachment;
@@ -108,6 +141,18 @@ void FrameGraphBuilder::addPass(FramePass pass)
 
     for (FrameGraph::Texture& texture : pass.sampledTextures | std::views::transform([&](auto& textureRef) -> FrameGraph::Texture& { return m_frameGraph.textures.at(textureRef); }))
         texture.descriptor.usages |= gfx::TextureUsage::shaderRead;
+
+    for (FrameGraph::Buffer& buffer : pass.copySourceBuffers | std::views::transform([&](auto& bufferRef) -> FrameGraph::Buffer& { return m_frameGraph.buffers.at(bufferRef); }))
+        buffer.descriptor.usages |= gfx::BufferUsage::copySource;
+
+    for (FrameGraph::Buffer& buffer : pass.copyDestinationBuffers | std::views::transform([&](auto& bufferRef) -> FrameGraph::Buffer& { return m_frameGraph.buffers.at(bufferRef); }))
+        buffer.descriptor.usages |= gfx::BufferUsage::copyDestination;
+
+    for (FrameGraph::Texture& texture : pass.copySourceTextures | std::views::transform([&](auto& textureRef) -> FrameGraph::Texture& { return m_frameGraph.textures.at(textureRef); }))
+        texture.descriptor.usages |= gfx::TextureUsage::copySource;
+
+    for (FrameGraph::Texture& texture : pass.copyDestinationTextures | std::views::transform([&](auto& textureRef) -> FrameGraph::Texture& { return m_frameGraph.textures.at(textureRef); }))
+        texture.descriptor.usages |= gfx::TextureUsage::copyDestination;
 
     m_frameGraph.passes.push_back(std::move(pass));
 }
