@@ -22,11 +22,13 @@
 #include <Graphics/Buffer.hpp>
 #include <Graphics/GraphicsPipeline.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <array>
 #include <map>
 #include <memory>
 #include <set>
+#include <vector>
 
 #define cfd m_inFlightDatas.at(m_frameIdx)
 
@@ -47,11 +49,17 @@ public:
     Renderer(gfx::Device*, AssetManager*, gfx::Surface*);
 
     FrameGraphBuilder newFrameGraphBuilder();
-    void renderFrame(const FrameGraph&);
+    void renderFrame(FrameGraph);
 
     ~Renderer();
 
 private:
+    struct PendingReadback
+    {
+        std::shared_ptr<gfx::Buffer> buffer;
+        std::unique_ptr<FrameGraph::ReadbackBase> request;
+    };
+
     struct InFlightData
     {
         std::unique_ptr<gfx::CommandBufferPool> commandBufferPool;
@@ -60,6 +68,7 @@ private:
 
         std::map<gfx::Texture::Descriptor, std::set<std::shared_ptr<gfx::Texture>>> textureCache;
         std::map<gfx::Buffer::Descriptor, std::set<std::shared_ptr<gfx::Buffer>>> bufferCache;
+        std::vector<PendingReadback> pendingReadbacks;
     };
 
     gfx::Device* m_device;

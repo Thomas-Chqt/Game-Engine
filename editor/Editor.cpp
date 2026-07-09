@@ -8,6 +8,7 @@
  */
 
 #include "Editor.hpp"
+#include "Graphics/Buffer.hpp"
 #include "Project.hpp"
 #include "yaml_convert/convert_project.hpp"
 
@@ -49,6 +50,7 @@
 #include <cstddef>
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 #include <expected>
 #include <imgui.h>
 #include <ranges>
@@ -60,6 +62,9 @@
 #include <cassert>
 #include <span>
 #include <vector>
+#include <chrono>
+#include <optional>
+#include <cstddef>
 
 extern std::unique_ptr<GE::Application> createApplication(int argc, const char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays)
 {
@@ -141,6 +146,14 @@ void Editor::onUpdate()
             if (scriptComponent.instance)
                 scriptComponent.instance->onUpdate();
         }
+    }
+
+    if (m_viewportReadbackFuture.valid() && m_viewportReadbackFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        auto value = m_viewportReadbackFuture.get();
+        if (value == GE::INVALID_ENTITY_ID)
+            m_selectedEntity.reset();
+        else
+            m_selectedEntity = GE::Entity{.world=&m_editedScene->ecsWorld(), .entityId=value};
     }
 
     renderImgui();
@@ -351,11 +364,23 @@ void Editor::recordFrameGraph(GE::FrameGraphBuilder& builder)
         return *m_editedScene;
     }();
 
-    GE::FrameGraph::TextureRef viewportBackBuffer = builder.newTexture("backBuffer", m_viewportSize, gfx::PixelFormat::BGRA8Unorm);
-    builder.aliasTexture("viewportBackBuffer", viewportBackBuffer);
+    auto viewportBackBuffer = builder.newTexture("viewportBackBuffer", m_viewportSize, gfx::PixelFormat::BGRA8Unorm);
+    builder.aliasTexture("backBuffer", viewportBackBuffer);
+
+    auto viewportEntityIds = builder.newTexture("viewportEntityIds", m_viewportSize, gfx::PixelFormat::RG32Uint);
+
     builder.newTexture("depthBuffer", m_viewportSize, gfx::PixelFormat::Depth32Float);
+
     auto windowBackBuffer = builder.newTexture("windowBackBuffer", window().frameBufferSize(), gfx::PixelFormat::BGRA8Unorm);
     builder.setBackBuffer(windowBackBuffer);
+
+    std::optional<GE::FrameGraph::BufferRef> readBackBuffer;
+    if (m_viewportReadbackFuture.valid() == false && m_viewportReadbackRequest) {
+        readBackBuffer = builder.newBuffer(gfx::Buffer::Descriptor{
+            .size = static_cast<size_t>(m_viewportSize.first * m_viewportSize.second) * gfx::pixelFormatSize(gfx::PixelFormat::RG32Uint),
+            .storageMode = gfx::ResourceStorageMode::hostVisible
+        });
+    }
 
     assert(m_viewportSize.second != 0);
     const float aspectRatio = static_cast<float>(m_viewportSize.first) / static_cast<float>(m_viewportSize.second);
@@ -396,6 +421,32 @@ void Editor::recordFrameGraph(GE::FrameGraphBuilder& builder)
 
     GE::ImGuiPass{}
         .record(builder);
+
+    if (readBackBuffer && m_viewportReadbackRequest) {
+        builder.addPass(GE::FramePass{
+            .kind = GE::FramePass::Kind::blit,
+            .copyDestinationBuffers = {*readBackBuffer},
+            .copySourceTextures = {viewportEntityIds},
+            .execute = [viewportEntityIds, readBackBuffer](GE::FramePass::ExecuteContext& ctx) {
+                ctx.commandBuffer.copyTextureToBuffer(ctx.texture(viewportEntityIds), ctx.buffer(*readBackBuffer));
+            }
+        });
+
+        m_viewportReadbackFuture = builder.readback(*readBackBuffer, [
+            mousePos=*m_viewportReadbackRequest,
+            pixelSize=gfx::pixelFormatSize(gfx::PixelFormat::RG32Uint),
+            viewportWidth = m_viewportSize.first
+        ](std::span<std::byte> bytes) -> GE::EntityID {
+            const auto x = static_cast<size_t>(mousePos.first);
+            const auto y = static_cast<size_t>(mousePos.second);
+            const size_t offset = (y * viewportWidth + x) * pixelSize;
+            GE::EntityID value = 0;
+            std::memcpy(&value, bytes.data() + offset, sizeof(value));
+            return value;
+        });
+
+        m_viewportReadbackRequest.reset();
+    }
 }
 
 void Editor::syncEditedScene()

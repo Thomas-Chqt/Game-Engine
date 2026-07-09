@@ -21,6 +21,7 @@
 #include <Game-Engine/Scene.hpp>
 #include <Game-Engine/Entity.hpp>
 
+#include <future>
 #include <imgui.h>
 
 #include <cassert>
@@ -89,6 +90,8 @@ private:
     std::optional<GE::Game> m_game;
 
     std::pair<uint32_t, uint32_t> m_viewportSize = {0, 0};
+    std::optional<std::pair<uint32_t, uint32_t>> m_viewportReadbackRequest;
+    std::future<GE::EntityID> m_viewportReadbackFuture;
 
     std::optional<GE::ScriptLibrary> m_scriptLibrary;
 

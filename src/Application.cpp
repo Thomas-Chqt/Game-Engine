@@ -130,7 +130,7 @@ void Application::run()
         FrameGraphBuilder frameGraphBuilder = m_renderer->newFrameGraphBuilder();
         recordFrameGraph(frameGraphBuilder);
         FrameGraph frameGraph = std::move(frameGraphBuilder).build();
-        m_renderer->renderFrame(frameGraph);
+        m_renderer->renderFrame(std::move(frameGraph));
 
         FrameMark;
     }

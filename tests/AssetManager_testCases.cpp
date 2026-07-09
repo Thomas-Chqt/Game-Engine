@@ -10,9 +10,11 @@
 #include <gtest/gtest.h>
 
 #include "Game-Engine/AssetManager.hpp"
+#include "Game-Engine/FrameGraph.hpp"
 #include "Game-Engine/Game.hpp"
 #include "Game-Engine/Material.hpp"
 #include "Game-Engine/MeshAssetLoader.hpp"
+#include "Game-Engine/Renderer.hpp"
 #include "Game-Engine/Scene.hpp"
 #include "Game-Engine/ScriptLibrary.hpp"
 #include "Game-Engine/TextureAssetLoader.hpp"
@@ -22,13 +24,18 @@
 #include <Graphics/CommandBuffer.hpp>
 #include <Graphics/CommandBufferPool.hpp>
 #include <Graphics/Device.hpp>
+#include <Graphics/Drawable.hpp>
 #include <Graphics/ParameterBlock.hpp>
 #include <Graphics/ParameterBlockLayout.hpp>
 #include <Graphics/ParameterBlockPool.hpp>
 #include <Graphics/Sampler.hpp>
+#include <Graphics/ShaderLib.hpp>
+#include <Graphics/Surface.hpp>
+#include <Graphics/Swapchain.hpp>
 #include <Graphics/Texture.hpp>
 
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -53,6 +60,18 @@ namespace
 {
 
 constexpr uint32_t TEXTURE_TABLE_CAPACITY = 4096;
+
+gfx::Texture::Descriptor testBackBufferDescriptor()
+{
+    return gfx::Texture::Descriptor{
+        .type = gfx::TextureType::texture2d,
+        .width = 64,
+        .height = 64,
+        .pixelFormat = gfx::PixelFormat::BGRA8Unorm,
+        .usages = gfx::TextureUsage::colorAttachment,
+        .storageMode = gfx::ResourceStorageMode::deviceLocal
+    };
+}
 
 class MockBuffer final : public gfx::Buffer
 {
@@ -106,6 +125,58 @@ private:
     Descriptor m_desc;
 };
 
+class TestDrawable final : public gfx::Drawable
+{
+public:
+    explicit TestDrawable(std::shared_ptr<gfx::Texture> texture)
+        : m_texture(std::move(texture))
+    {
+    }
+
+    std::shared_ptr<gfx::Texture> texture() const override { return m_texture; }
+
+private:
+    std::shared_ptr<gfx::Texture> m_texture;
+};
+
+class TestSwapchain final : public gfx::Swapchain
+{
+public:
+    explicit TestSwapchain(const Descriptor& desc)
+        : m_textureDescriptor{
+            .type = gfx::TextureType::texture2d,
+            .width = desc.width,
+            .height = desc.height,
+            .pixelFormat = desc.pixelFormat,
+            .usages = gfx::TextureUsage::colorAttachment,
+            .storageMode = gfx::ResourceStorageMode::deviceLocal
+        }
+        , m_drawable(std::make_shared<TestDrawable>(std::make_shared<TestTexture>(m_textureDescriptor)))
+    {
+    }
+
+    const gfx::Texture::Descriptor& drawablesTextureDescriptor() const override { return m_textureDescriptor; }
+    std::shared_ptr<gfx::Drawable> nextDrawable() override { return m_drawable; }
+
+private:
+    gfx::Texture::Descriptor m_textureDescriptor;
+    std::shared_ptr<gfx::Drawable> m_drawable;
+};
+
+class TestSurface final : public gfx::Surface
+{
+public:
+    const std::set<gfx::PixelFormat> supportedPixelFormats(const gfx::Device&) const override
+    {
+        return {gfx::PixelFormat::BGRA8Unorm};
+    }
+
+    const std::set<gfx::PresentMode> supportedPresentModes(const gfx::Device&) const override
+    {
+        return {gfx::PresentMode::fifo};
+    }
+};
+
 class TestSampler final : public gfx::Sampler
 {
 };
@@ -140,16 +211,52 @@ public:
 class TestParameterBlockPool final : public gfx::ParameterBlockPool
 {
 public:
-    explicit TestParameterBlockPool(std::shared_ptr<gfx::ParameterBlock> parameterBlock)
+    explicit TestParameterBlockPool(std::shared_ptr<testing::NiceMock<MockParameterBlock>> parameterBlock)
         : m_parameterBlock(std::move(parameterBlock))
     {
     }
 
-    std::shared_ptr<gfx::ParameterBlock> get(const std::shared_ptr<gfx::ParameterBlockLayout>&) override { return m_parameterBlock; }
+    std::shared_ptr<gfx::ParameterBlock> get(const std::shared_ptr<gfx::ParameterBlockLayout>& layout) override
+    {
+        ON_CALL(*m_parameterBlock, layout()).WillByDefault(testing::Return(layout));
+        return m_parameterBlock;
+    }
     void reset() override {}
 
 private:
-    std::shared_ptr<gfx::ParameterBlock> m_parameterBlock;
+    std::shared_ptr<testing::NiceMock<MockParameterBlock>> m_parameterBlock;
+};
+
+class TestShaderFunction final : public gfx::ShaderFunction
+{
+};
+
+class TestShaderLib final : public gfx::ShaderLib
+{
+public:
+    TestShaderLib()
+        : gfx::ShaderLib(emptyShaderPackagePath())
+    {
+    }
+
+    gfx::ShaderFunction& getFunction(const std::string&) override { return m_function; }
+
+private:
+    static std::filesystem::path emptyShaderPackagePath()
+    {
+        const std::filesystem::path path = std::filesystem::temp_directory_path() / "ge_test_empty_shader_package.slib";
+        std::ofstream file(path, std::ios::binary | std::ios::trunc);
+        file.write("GFX_SHADER_PACKAGE", 18);
+        const uint32_t shaderCount = 0;
+        file.write(reinterpret_cast<const char*>(&shaderCount), sizeof(shaderCount)); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+        return path;
+    }
+
+    TestShaderFunction m_function;
+};
+
+class TestGraphicsPipeline final : public gfx::GraphicsPipeline
+{
 };
 
 class MockCommandBuffer : public gfx::CommandBuffer
@@ -170,6 +277,7 @@ public:
     MOCK_METHOD(void, beginBlitPass, (), (override));
     MOCK_METHOD(void, copyBufferToBuffer, ((const std::shared_ptr<gfx::Buffer>&), (const std::shared_ptr<gfx::Buffer>&), size_t), (override));
     MOCK_METHOD(void, copyBufferToTexture, ((const std::shared_ptr<gfx::Buffer>&), size_t, (const std::shared_ptr<gfx::Texture>&), uint32_t), (override));
+    MOCK_METHOD(void, copyTextureToBuffer, ((const std::shared_ptr<gfx::Texture>&), uint32_t, (const std::shared_ptr<gfx::Buffer>&), size_t), (override));
     MOCK_METHOD(void, endBlitPass, (), (override));
     MOCK_METHOD(void, presentDrawable, ((const std::shared_ptr<gfx::Drawable>&)), (override));
     MOCK_METHOD(void, addSampledTexture, ((const std::shared_ptr<gfx::Texture>&)), (override));
@@ -226,14 +334,24 @@ protected:
         ON_CALL(m_device, newSampler(testing::_)).WillByDefault([](const gfx::Sampler::Descriptor&) {
             return std::make_unique<TestSampler>();
         });
+        ON_CALL(m_device, newShaderLib(testing::_)).WillByDefault([](const std::filesystem::path&) {
+            return std::make_unique<TestShaderLib>();
+        });
+        ON_CALL(m_device, newGraphicsPipeline(testing::_)).WillByDefault([](const gfx::GraphicsPipeline::Descriptor&) {
+            return std::make_unique<TestGraphicsPipeline>();
+        });
         ON_CALL(m_device, newBuffer(testing::_)).WillByDefault([](const gfx::Buffer::Descriptor& desc) {
             return std::make_unique<MockBuffer>(desc);
         });
         ON_CALL(m_device, newTexture(testing::_)).WillByDefault([](const gfx::Texture::Descriptor& desc) {
             return std::make_unique<TestTexture>(desc);
         });
+        ON_CALL(m_device, newSwapchain(testing::_)).WillByDefault([](const gfx::Swapchain::Descriptor& desc) {
+            return std::make_unique<TestSwapchain>(desc);
+        });
         ON_CALL(m_device, newCommandBufferPool()).WillByDefault([this]() {
             auto pool = std::make_unique<testing::NiceMock<MockCommandBufferPool>>();
+            m_commandBufferPools.push_back(pool.get());
             ON_CALL(*pool, get()).WillByDefault(testing::Return(m_commandBuffer));
             return pool;
         });
@@ -247,6 +365,7 @@ protected:
     std::shared_ptr<gfx::ParameterBlockLayout> m_textureParameterBlockLayout;
     std::vector<gfx::ParameterBlockPool::Descriptor> m_parameterBlockPoolDescriptors;
     std::shared_ptr<testing::NiceMock<MockCommandBuffer>> m_commandBuffer;
+    std::vector<testing::NiceMock<MockCommandBufferPool>*> m_commandBufferPools;
     GE::ThreadPool m_threadPool{1};
 
     std::shared_ptr<GE::TextureTable> makeTextureTable()
@@ -279,6 +398,228 @@ protected:
         return textureTable;
     }
 };
+
+GE::FrameGraph makeEmptyFrameGraph(GE::Renderer& renderer)
+{
+    GE::FrameGraphBuilder builder = renderer.newFrameGraphBuilder();
+    const GE::FrameGraph::TextureRef backBuffer = builder.newTexture(testBackBufferDescriptor());
+    builder.setBackBuffer(backBuffer);
+    return std::move(builder).build();
+}
+
+TEST_F(AssetManagerMockDeviceTest, frameGraphGenericBuffersHaveNoUploadContentAndCanCreateReadbackFutures)
+{
+    GE::AssetManager assetManager(&m_device, &m_threadPool);
+    std::shared_ptr<GE::TextureTable> textureTable = attachTextureTable(assetManager);
+
+    GE::FrameGraphBuilder builder(textureTable.get(), &assetManager);
+    const GE::FrameGraph::TextureRef backBuffer = builder.newTexture(testBackBufferDescriptor());
+    builder.setBackBuffer(backBuffer);
+
+    const GE::FrameGraph::BufferRef uploadBuffer = builder.newConstantBuffer<uint32_t>();
+    builder.constantBufferContent<uint32_t>(uploadBuffer) = 42;
+    const GE::FrameGraph::BufferRef readbackBuffer = builder.newBuffer({
+        .size = sizeof(uint32_t),
+        .usages = gfx::BufferUsage::copyDestination,
+        .storageMode = gfx::ResourceStorageMode::hostVisible
+    });
+
+    std::future<size_t> future = builder.readback(readbackBuffer, [](std::span<std::byte> bytes) {
+        return bytes.size();
+    });
+
+    GE::FrameGraph frameGraph = std::move(builder).build();
+
+    ASSERT_EQ(frameGraph.buffers.size(), 2u);
+    ASSERT_TRUE(frameGraph.buffers.at(uploadBuffer).offset.has_value());
+    EXPECT_FALSE(frameGraph.buffers.at(readbackBuffer).offset.has_value());
+    ASSERT_EQ(frameGraph.readbacks.size(), 1u);
+    ASSERT_NE(frameGraph.readbacks.front(), nullptr);
+    EXPECT_EQ(frameGraph.readbacks.front()->buffer, readbackBuffer);
+    EXPECT_EQ(future.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+}
+
+TEST_F(AssetManagerMockDeviceTest, frameGraphBlitPassAddsDeclaredCopyUsages)
+{
+    GE::AssetManager assetManager(&m_device, &m_threadPool);
+    std::shared_ptr<GE::TextureTable> textureTable = attachTextureTable(assetManager);
+
+    GE::FrameGraphBuilder builder(textureTable.get(), &assetManager);
+    const GE::FrameGraph::TextureRef backBuffer = builder.newTexture(testBackBufferDescriptor());
+    builder.setBackBuffer(backBuffer);
+
+    const GE::FrameGraph::BufferRef sourceBuffer = builder.newConstantBuffer<uint32_t>();
+    const GE::FrameGraph::BufferRef destinationBuffer = builder.newBuffer({
+        .size = sizeof(uint32_t),
+        .usages = gfx::BufferUsage{0},
+        .storageMode = gfx::ResourceStorageMode::hostVisible
+    });
+    const GE::FrameGraph::TextureRef sourceTexture = builder.newTexture({
+        .type = gfx::TextureType::texture2d,
+        .width = 16,
+        .height = 16,
+        .pixelFormat = gfx::PixelFormat::RGBA8Unorm,
+        .usages = gfx::TextureUsage{0},
+        .storageMode = gfx::ResourceStorageMode::deviceLocal
+    });
+    const GE::FrameGraph::TextureRef destinationTexture = builder.newTexture({
+        .type = gfx::TextureType::texture2d,
+        .width = 16,
+        .height = 16,
+        .pixelFormat = gfx::PixelFormat::RGBA8Unorm,
+        .usages = gfx::TextureUsage{0},
+        .storageMode = gfx::ResourceStorageMode::deviceLocal
+    });
+
+    builder.addPass(GE::FramePass{
+        .kind = GE::FramePass::Kind::blit,
+        .copySourceBuffers = {sourceBuffer},
+        .copyDestinationBuffers = {destinationBuffer},
+        .copySourceTextures = {sourceTexture},
+        .copyDestinationTextures = {destinationTexture},
+        .execute = [](GE::FramePass::ExecuteContext&) {}
+    });
+
+    GE::FrameGraph frameGraph = std::move(builder).build();
+
+    EXPECT_TRUE(frameGraph.buffers.at(sourceBuffer).descriptor.usages & gfx::BufferUsage::copySource);
+    EXPECT_TRUE(frameGraph.buffers.at(destinationBuffer).descriptor.usages & gfx::BufferUsage::copyDestination);
+    EXPECT_TRUE(frameGraph.textures.at(sourceTexture).descriptor.usages & gfx::TextureUsage::copySource);
+    EXPECT_TRUE(frameGraph.textures.at(destinationTexture).descriptor.usages & gfx::TextureUsage::copyDestination);
+}
+
+TEST_F(AssetManagerMockDeviceTest, rendererRunsBlitPassOutsideRenderPassAndResolvesReadbackAfterSlotWait)
+{
+    GE::AssetManager assetManager(&m_device, &m_threadPool);
+    TestSurface surface;
+    GE::Renderer renderer(&m_device, &assetManager, &surface);
+    ASSERT_GE(m_commandBufferPools.size(), GE::maxFrameInFlight);
+
+    GE::FrameGraphBuilder builder = renderer.newFrameGraphBuilder();
+    const GE::FrameGraph::TextureRef backBuffer = builder.newTexture(testBackBufferDescriptor());
+    builder.setBackBuffer(backBuffer);
+
+    const GE::FrameGraph::BufferRef sourceBuffer = builder.newConstantBuffer<uint32_t>();
+    builder.constantBufferContent<uint32_t>(sourceBuffer) = 0x12345678u;
+    const GE::FrameGraph::BufferRef readbackBuffer = builder.newBuffer({
+        .size = sizeof(uint32_t),
+        .usages = gfx::BufferUsage{0},
+        .storageMode = gfx::ResourceStorageMode::hostVisible
+    });
+
+    builder.addPass(GE::FramePass{
+        .kind = GE::FramePass::Kind::blit,
+        .copySourceBuffers = {sourceBuffer},
+        .copyDestinationBuffers = {readbackBuffer},
+        .execute = [sourceBuffer, readbackBuffer](GE::FramePass::ExecuteContext& ctx) {
+            ctx.commandBuffer.copyBufferToBuffer(ctx.buffer(sourceBuffer), ctx.buffer(readbackBuffer), sizeof(uint32_t));
+        }
+    });
+    auto decodeOffset = std::make_unique<uint32_t>(1);
+    std::future<uint32_t> future = builder.readback(readbackBuffer, [decodeOffset = std::move(decodeOffset)](std::span<std::byte> bytes) {
+        uint32_t value = 0;
+        std::memcpy(&value, bytes.data(), sizeof(value));
+        return value + *decodeOffset;
+    });
+
+    GE::FrameGraph frameGraph = std::move(builder).build();
+
+    EXPECT_CALL(*m_commandBuffer, beginRenderPass(testing::_)).Times(0);
+    {
+        testing::InSequence sequence;
+        EXPECT_CALL(*m_commandBuffer, beginBlitPass()).Times(1);
+        EXPECT_CALL(*m_commandBuffer, copyBufferToBuffer(testing::_, testing::_, sizeof(uint32_t)))
+            .WillOnce([](const std::shared_ptr<gfx::Buffer>& src, const std::shared_ptr<gfx::Buffer>& dst, size_t size) {
+                dst->setContent(src->content<std::byte>(), size);
+            });
+        EXPECT_CALL(*m_commandBuffer, endBlitPass()).Times(1);
+    }
+
+    renderer.renderFrame(std::move(frameGraph));
+    EXPECT_EQ(future.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+
+    bool waited = false;
+    EXPECT_CALL(m_device, waitCommandBuffer(testing::_))
+        .WillOnce([&](const gfx::CommandBuffer&) {
+            waited = true;
+            EXPECT_EQ(future.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+        });
+    EXPECT_CALL(*m_commandBufferPools.at(0), reset())
+        .WillOnce([&] {
+            EXPECT_TRUE(waited);
+            EXPECT_EQ(future.wait_for(std::chrono::seconds(0)), std::future_status::ready);
+        });
+
+    GE::FrameGraph frame1 = makeEmptyFrameGraph(renderer);
+    renderer.renderFrame(std::move(frame1));
+    GE::FrameGraph frame2 = makeEmptyFrameGraph(renderer);
+    renderer.renderFrame(std::move(frame2));
+    GE::FrameGraph frame3 = makeEmptyFrameGraph(renderer);
+    renderer.renderFrame(std::move(frame3));
+
+    EXPECT_EQ(future.get(), 0x12345679u);
+}
+
+TEST_F(AssetManagerMockDeviceTest, rendererLeavesReadbacksPendingOnSubmitFailureUntilShutdown)
+{
+    GE::AssetManager assetManager(&m_device, &m_threadPool);
+    TestSurface surface;
+    std::future<uint32_t> future;
+
+    {
+        GE::Renderer renderer(&m_device, &assetManager, &surface);
+        GE::FrameGraphBuilder builder = renderer.newFrameGraphBuilder();
+        const GE::FrameGraph::TextureRef backBuffer = builder.newTexture(testBackBufferDescriptor());
+        builder.setBackBuffer(backBuffer);
+        const GE::FrameGraph::BufferRef readbackBuffer = builder.newBuffer({
+            .size = sizeof(uint32_t),
+            .usages = gfx::BufferUsage::copyDestination,
+            .storageMode = gfx::ResourceStorageMode::hostVisible
+        });
+        future = builder.readback(readbackBuffer, [](std::span<std::byte>) {
+            return 0u;
+        });
+        GE::FrameGraph frameGraph = std::move(builder).build();
+
+        EXPECT_CALL(m_device, submitCommandBuffers(testing::An<const std::shared_ptr<gfx::CommandBuffer>&>()))
+            .WillOnce(testing::Throw(std::runtime_error("submit failed")));
+
+        EXPECT_THROW(renderer.renderFrame(std::move(frameGraph)), std::runtime_error);
+        EXPECT_EQ(future.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+    }
+
+    ASSERT_EQ(future.wait_for(std::chrono::seconds(0)), std::future_status::ready);
+    EXPECT_THROW(static_cast<void>(future.get()), std::future_error);
+}
+
+TEST_F(AssetManagerMockDeviceTest, rendererDestroysUnresolvedReadbacksOnShutdown)
+{
+    GE::AssetManager assetManager(&m_device, &m_threadPool);
+    TestSurface surface;
+    std::future<uint32_t> future;
+
+    {
+        GE::Renderer renderer(&m_device, &assetManager, &surface);
+        GE::FrameGraphBuilder builder = renderer.newFrameGraphBuilder();
+        const GE::FrameGraph::TextureRef backBuffer = builder.newTexture(testBackBufferDescriptor());
+        builder.setBackBuffer(backBuffer);
+        const GE::FrameGraph::BufferRef readbackBuffer = builder.newBuffer({
+            .size = sizeof(uint32_t),
+            .usages = gfx::BufferUsage::copyDestination,
+            .storageMode = gfx::ResourceStorageMode::hostVisible
+        });
+        future = builder.readback(readbackBuffer, [](std::span<std::byte>) {
+            return 0u;
+        });
+        GE::FrameGraph frameGraph = std::move(builder).build();
+
+        renderer.renderFrame(std::move(frameGraph));
+        EXPECT_EQ(future.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+    }
+
+    ASSERT_EQ(future.wait_for(std::chrono::seconds(0)), std::future_status::ready);
+    EXPECT_THROW(static_cast<void>(future.get()), std::future_error);
+}
 
 GE::Scene::Descriptor makeSceneDescriptor(
     std::string name,

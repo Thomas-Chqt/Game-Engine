@@ -197,6 +197,19 @@ void Editor::renderImgui()
         uint32_t newHeight = contentRegionAvai.y <= 0 ? 1 : static_cast<uint32_t>(contentRegionAvai.y);
 
         ImGui::Image(&textureIdPlaceholder, contentRegionAvai);
+        const bool viewportImageClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+
+        std::optional<std::pair<uint32_t, uint32_t>> viewportMousePosition;
+        ImVec2 mousePos = ImGui::GetMousePos();
+        if (mousePos.x >= cursorPos.x && mousePos.x < cursorPos.x + contentRegionAvai.x
+            && mousePos.y >= cursorPos.y && mousePos.y < cursorPos.y + contentRegionAvai.y)
+        {
+            const float localX = mousePos.x - cursorPos.x;
+            const float localY = mousePos.y - cursorPos.y;
+            const uint32_t pixelX = std::min(static_cast<uint32_t>(localX / contentRegionAvai.x * static_cast<float>(newWidth)), newWidth - 1);
+            const uint32_t pixelY = std::min(static_cast<uint32_t>(localY / contentRegionAvai.y * static_cast<float>(newHeight)), newHeight - 1);
+            viewportMousePosition = {pixelX, pixelY};
+        }
 
         if (newWidth != m_viewportSize.first || newHeight != m_viewportSize.second) {
             m_viewportSize = {newWidth, newHeight};
@@ -215,6 +228,7 @@ void Editor::renderImgui()
             ImGui::EndDragDropTarget();
         }
 
+        bool transformGizmoRendered = false;
         if (m_game.has_value() == false) {
             float aspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
             glm::mat4x4 viewMatrix = m_editorCamera.viewMatrix();
@@ -234,9 +248,9 @@ void Editor::renderImgui()
                     glm::decompose(localTransform, transformComponent.scale, transformComponent.rotation, transformComponent.position, skew, perspective);
                     m_selectedEntity->updateTransformHierarchy();
                 }
+                transformGizmoRendered = true;
             }
 
-            glm::mat4x4 identityMatrix(1.0f);
             const ImVec2 viewManipulatePosition(
                 cursorPos.x + std::max(0.0f, contentRegionAvai.x - VIEW_MANIPULATE_SIZE - VIEW_MANIPULATE_PADDING),
                 cursorPos.y + VIEW_MANIPULATE_PADDING
@@ -244,10 +258,6 @@ void Editor::renderImgui()
             const ImVec2 viewManipulateSize(VIEW_MANIPULATE_SIZE, VIEW_MANIPULATE_SIZE);
             ImGuizmo::ViewManipulate(
                 (float*)&viewMatrix,
-                (float*)&projectionMatrix,
-                ImGuizmo::OPERATION::ROTATE,
-                ImGuizmo::MODE::LOCAL,
-                (float*)&identityMatrix,
                 VIEW_MANIPULATE_ORBIT_DISTANCE,
                 viewManipulatePosition,
                 viewManipulateSize,
@@ -256,6 +266,15 @@ void Editor::renderImgui()
             if (ImGuizmo::IsUsingViewManipulate()) {
                 m_editorCamera.setViewMatrix(viewMatrix);
             }
+        }
+
+        if (viewportMousePosition && viewportImageClicked && m_game.has_value() == false
+            && (transformGizmoRendered == false || ImGuizmo::IsOver() == false)
+            && ImGuizmo::IsUsingAny() == false
+            && ImGuizmo::IsUsingViewManipulate() == false
+            && ImGuizmo::IsViewManipulateHovered() == false)
+        {
+            m_viewportReadbackRequest = viewportMousePosition;
         }
     }
     ImGui::End();
