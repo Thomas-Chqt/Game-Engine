@@ -84,7 +84,7 @@ bool renderPropertiesWindow(EditableProjectProperties& properties)
         });
 
         propertyRow("Project file", [&] {
-            strBuff<512>(properties.projectPath ? properties.projectPath->c_str() : "", [&](char* buff) {
+            strBuff<512>(properties.projectPath ? properties.projectPath->generic_string() : std::string{}, [&](char* buff) {
                 if (ImGui::InputText("##project_file", buff, 512)) {
                     if (std::strlen(buff) == 0)
                         properties.projectPath = std::nullopt;
@@ -95,7 +95,7 @@ bool renderPropertiesWindow(EditableProjectProperties& properties)
         });
 
         propertyRow("Script library", [&] {
-            strBuff<512>(properties.scriptLibPath ? properties.scriptLibPath->c_str() : "", [&](char* buff) {
+            strBuff<512>(properties.scriptLibPath ? properties.scriptLibPath->generic_string() : std::string{}, [&](char* buff) {
                 if (ImGui::InputText("##script_lib", buff, 512)) {
                     if (std::strlen(buff) == 0)
                         properties.scriptLibPath = std::nullopt;

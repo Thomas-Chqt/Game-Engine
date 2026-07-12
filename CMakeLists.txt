@@ -39,7 +39,7 @@ target_compile_definitions(Game-Engine PRIVATE GE_DLL_EXPORT)
 target_compile_definitions(Game-Engine PUBLIC "GE_SHARED_LIBRARY_EXTENSION=\"${CMAKE_SHARED_LIBRARY_SUFFIX}\"")
 
 if(MSVC)
-    target_compile_options(Game-Engine PRIVATE /W4 /wd4251)
+    target_compile_options(Game-Engine PUBLIC /EHsc PRIVATE /W4 /wd4251)
 else()
     target_compile_options(Game-Engine PRIVATE -Wall -Wextra -Wpedantic)
     target_compile_options(Game-Engine PRIVATE $<$<CXX_COMPILER_ID:GNU>:-Wno-missing-field-initializers>)

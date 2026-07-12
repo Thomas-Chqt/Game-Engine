@@ -14,6 +14,9 @@ set_target_properties(GE_test PROPERTIES ENABLE_EXPORTS ON)
 
 target_compile_features(GE_test PUBLIC cxx_std_23)
 set_target_properties(GE_test PROPERTIES FOLDER "tests")
+if(MSVC)
+    target_compile_options(GE_test PRIVATE /bigobj)
+endif()
 
 file(GLOB SRC "*.cpp")
 target_sources(GE_test PRIVATE ${SRC})

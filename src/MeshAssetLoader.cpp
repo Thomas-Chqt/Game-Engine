@@ -248,6 +248,8 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const BuiltInMesh& builtInMesh, gf
         return mesh;
         break;
     }
+
+    std::unreachable();
 }
 
 } // namespace GE
