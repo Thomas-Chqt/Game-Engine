@@ -233,9 +233,17 @@ std::shared_future<std::shared_ptr<T>> AssetManager::loadAsset(AssetID assetId)
 
     AssetHandle<T>& handle = std::get<AssetHandle<T>>(m_assetHandles.at(assetId));
 
+#if defined(_MSC_VER)
+    std::shared_future<void> dependentAssetsFuture;
+#else
     std::future<void> dependentAssetsFuture;
+#endif
     if (handle.dependentAssets.empty() == false)
+#if defined(_MSC_VER)
+        dependentAssetsFuture = loadAssets(handle.dependentAssets).share();
+#else
         dependentAssetsFuture = loadAssets(handle.dependentAssets);
+#endif
 
     handle.loadCount++;
     auto expected = LoadStatus::unloaded;
@@ -245,9 +253,14 @@ std::shared_future<std::shared_ptr<T>> AssetManager::loadAsset(AssetID assetId)
         assert(handle.future.valid() == false);
         assert(handle.voidFuture.valid() == false);
 
+#if defined(_MSC_VER)
+        auto promise = std::make_shared<std::promise<void>>();
+        handle.voidFuture = promise->get_future().share();
+#else
         std::promise<void> promise;
         handle.voidFuture = promise.get_future().share();
-        handle.future = m_threadPool->submit([this, assetId, &handle, promise=std::move(promise), dependentAssetsFuture=std::move(dependentAssetsFuture)] mutable -> std::shared_ptr<T> {
+#endif
+        handle.future = m_threadPool->submit([this, assetId, &handle, promise=std::move(promise), dependentAssetsFuture=std::move(dependentAssetsFuture)]() mutable -> std::shared_ptr<T> {
             ZoneScopedN("AssetManager::load_task");
             ZoneText(handle.name.data(), handle.name.size());
             try {
@@ -266,12 +279,20 @@ std::shared_future<std::shared_ptr<T>> AssetManager::loadAsset(AssetID assetId)
                     ZoneScopedN("wait_dependent_assets");
                     dependentAssetsFuture.get();
                 }
+#if defined(_MSC_VER)
+                promise->set_value();
+#else
                 promise.set_value();
+#endif
                 handle.loadStatus.store(LoadStatus::loaded);
                 return asset;
             } catch (...) {
                 handle.loadStatus.store(LoadStatus::error);
+#if defined(_MSC_VER)
+                promise->set_exception(std::current_exception());
+#else
                 promise.set_exception(std::current_exception());
+#endif
                 throw;
             }
         }).share();
@@ -286,7 +307,7 @@ std::future<void> AssetManager::loadAssets(const AssetIdRange auto& assetIds)
 
     auto futures = assetIds | std::views::transform([&](AssetID id) -> std::shared_future<void> { return loadAsset(id); });
 
-    return m_threadPool->submit([futures=futures|std::ranges::to<std::vector>()] mutable {
+    return m_threadPool->submit([futures=futures|std::ranges::to<std::vector>()]() mutable {
         ZoneScopedN("AssetManager::wait_asset_range");
         for (auto& future : futures)
             future.get();
