@@ -23,6 +23,8 @@ option(GE_BUILD_TESTS    "Build test executable"      OFF)
 option(GE_BUILD_EXAMPLES "Build examples"             OFF)
 option(GE_INSTALL        "Enable the install command" ON)
 
+option(GE_TRACY_ENABLE "Enable tracy" ON)
+
 enable_language(CXX)
 
 fetch_dependencies()
@@ -46,7 +48,7 @@ else()
 endif()
 
 file(GLOB_RECURSE GE_SRC "include/*.hpp" "include/*.inl" "src/*.cpp" "src/*.hpp")
-target_sources(Game-Engine PRIVATE ${GE_SRC} ${GFX_INC})
+target_sources(Game-Engine PRIVATE ${GE_SRC})
 
 target_include_directories(Game-Engine
     PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -54,7 +56,7 @@ target_include_directories(Game-Engine
 
 # target_precompile_headers(Graphics PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp")
 
-target_link_libraries(Game-Engine PUBLIC Graphics glfw glm::glm imgui stb_image dlLoad fastgltf::fastgltf imguizmo)
+target_link_libraries(Game-Engine PUBLIC Graphics glfw GraphicsGLFW glm::glm stb_image dlLoad fastgltf::fastgltf TracyClient GraphicsTracy)
 
 add_subdirectory("shaders")
 

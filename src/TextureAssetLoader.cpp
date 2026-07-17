@@ -21,6 +21,7 @@
 
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyC.h>
+#include <gfx_tracy/gfx_tracy.hpp>
 
 #include <array>
 #include <concepts>
@@ -204,7 +205,8 @@ std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(const std::byte* b
 
     std::memcpy(stagingBuffer->content<uint32_t>(), bytes, stagingBuffer->size());
 
-    commandBuffer.beginBlitPass();
+    auto blitPassDescritor = m_device->newBlitPassDescriptor();
+    commandBuffer.beginBlitPass(*blitPassDescritor);
     commandBuffer.copyBufferToTexture(stagingBuffer, texture);
     commandBuffer.endBlitPass();
 

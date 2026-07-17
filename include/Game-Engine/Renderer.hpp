@@ -22,6 +22,9 @@
 #include <Graphics/Buffer.hpp>
 #include <Graphics/GraphicsPipeline.hpp>
 
+#include <tracy/Tracy.hpp>
+#include <gfx_tracy/gfx_tracy.hpp>
+
 #include <cstddef>
 #include <cstdint>
 #include <array>
@@ -74,6 +77,7 @@ private:
     gfx::Device* m_device;
     AssetManager* m_assetManager;
     gfx::Surface* m_surface;
+    gfx::tracy::TracyGfxCtx* m_tracyGfxCtx;
 
     std::shared_ptr<gfx::ParameterBlock> m_textureTableBlock;
     std::shared_ptr<TextureTable> m_textureTable;

@@ -18,9 +18,9 @@
 #include <Graphics/Device.hpp>
 
 #include <GLFW/glfw3.h>
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
+#include <gfx_glfw/gfx_glfw.hpp>
 
+#include <ranges>
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyC.h>
 
@@ -36,12 +36,13 @@ namespace GE
 Application::Application()
     : m_threadPool(std::max<std::size_t>(1, std::thread::hardware_concurrency()))
 {
-    auto res = ::glfwInit();
+    [[maybe_unused]] auto res = ::glfwInit();
     assert(res == GLFW_TRUE);
-    (void)res;
-    m_glfwGuard = { (void*)(1), [](void*){ ::glfwTerminate(); } };
+    m_glfwGuard = { std::bit_cast<void*>(1zu), [](void*){ ::glfwTerminate(); } };
 
-    m_instance = gfx::Instance::newInstance(gfx::Instance::Descriptor{});
+    m_instance = gfx::Instance::newInstance(gfx::Instance::Descriptor{
+        .instanceExtension = gfx::glfw::getInstanceExtension()
+    });
     assert(m_instance);
 
     m_window = std::make_unique<Window>(Window::Descriptor{
@@ -54,8 +55,8 @@ Application::Application()
     {
         event.dispatch<InputEvent>([this](InputEvent& inputEvent)
         {
-            for (auto it = m_inputContextStack.rbegin(); it != m_inputContextStack.rend(); it++)
-                (*it)->onInputEvent(inputEvent);
+            for (auto & it : std::ranges::reverse_view(m_inputContextStack))
+                it->onInputEvent(inputEvent);
         });
         if (event.processed() == false)
             onEvent(event);
@@ -75,29 +76,6 @@ Application::Application()
 
     if (m_window->surface()->supportedPresentModes(*m_device).contains(gfx::PresentMode::fifo) == false)
         throw std::runtime_error("surface does not support the fifo present mode");
-
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    io.IniFilename = nullptr;
-    switch (m_device->backend())
-    {
-        case gfx::Backend::vulkan:
-            ImGui_ImplGlfw_InitForVulkan(m_window->glfwWindow(), false);
-            break;
-        default:
-            ImGui_ImplGlfw_InitForOther(m_window->glfwWindow(), false);
-            break;
-    }
-    m_device->imguiInit({gfx::PixelFormat::BGRA8Unorm});
-    m_imguiGuard = {
-        (void*)(1),
-        [device=m_device.get()](void*){
-            device->imguiShutdown();
-            ImGui_ImplGlfw_Shutdown();
-            ImGui::DestroyContext();
-        }
-    };
 
     m_assetManager = std::make_unique<AssetManager>(m_device.get(), &m_threadPool);
     m_renderer = std::make_unique<Renderer>(m_device.get(), m_assetManager.get(), m_window->surface());
@@ -119,11 +97,6 @@ void Application::run()
 
         if (m_running == false)
             break;
-
-        TracyCZoneN(imguiNewFrameCtx, "Application::imgui new frame", true);
-        m_device->imguiNewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        TracyCZoneEnd(imguiNewFrameCtx);
 
         onUpdate();
 

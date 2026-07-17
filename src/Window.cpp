@@ -10,6 +10,7 @@
 #include "Game-Engine/Event.hpp"
 
 #include <GLFW/glfw3.h>
+#include <gfx_glfw/gfx_glfw.hpp>
 
 #include <cassert>
 #include <cstdint>
@@ -25,7 +26,7 @@ Window::Window(const Descriptor& desc)
     ::glfwDefaultWindowHints();
     ::glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-    m_glfwWindow = ::glfwCreateWindow(desc.width, desc.height, desc.title, nullptr, nullptr);
+    m_glfwWindow = ::glfwCreateWindow(static_cast<int>(desc.width), static_cast<int>(desc.height), desc.title, nullptr, nullptr); // NOLINT(cppcoreguidelines-prefer-member-initializer)
     assert(m_glfwWindow);
 
     using CallbackMap = std::unordered_map<void*, std::deque<std::function<void(Event&)>>>;
@@ -169,21 +170,21 @@ Window::Window(const Descriptor& desc)
 
 std::pair<uint32_t, uint32_t> Window::size() const
 {
-    int w, h;
+    int w = 0, h = 0;
     ::glfwGetWindowSize(m_glfwWindow, &w, &h);
     return std::make_pair(static_cast<uint32_t>(w), static_cast<uint32_t>(h));
 }
 
 std::pair<uint32_t, uint32_t> Window::frameBufferSize() const
 {
-    int w, h;
+    int w = 0, h = 0;
     ::glfwGetFramebufferSize(m_glfwWindow, &w, &h);
     return std::make_pair(static_cast<uint32_t>(w), static_cast<uint32_t>(h));
 }
 
 std::pair<float, float> Window::contentScale() const
 {
-    float x, y;
+    float x = 0.0f, y = 0.0f;
     ::glfwGetWindowContentScale(m_glfwWindow, &x, &y);
     return std::make_pair(x, y);
 }
@@ -200,7 +201,7 @@ bool Window::isPressed(MouseButton key)
 
 std::pair<double, double> Window::cursorPos() const
 {
-    double x, y;
+    double x = 0, y = 0;
     ::glfwGetCursorPos(m_glfwWindow, &x, &y);
     return std::make_pair(x, y);
 }
@@ -212,7 +213,42 @@ void Window::setCursorPos(double x, double y)
 
 void Window::setCursorVisibility(bool value)
 {
+    if (m_cursorVisible == value)
+        return;
     ::glfwSetInputMode(m_glfwWindow, GLFW_CURSOR, value ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN);
+    m_cursorVisible = value;
+}
+
+void Window::setCursorShape(CursorShape shape)
+{
+    if (m_cursorShape == shape)
+        return;
+
+    int glfwShape = GLFW_ARROW_CURSOR;
+    switch (shape)
+    {
+        case CursorShape::arrow:      glfwShape = GLFW_ARROW_CURSOR; break;
+        case CursorShape::textInput:  glfwShape = GLFW_IBEAM_CURSOR; break;
+        case CursorShape::resizeNS:   glfwShape = GLFW_VRESIZE_CURSOR; break;
+        case CursorShape::resizeEW:   glfwShape = GLFW_HRESIZE_CURSOR; break;
+        case CursorShape::hand:       glfwShape = GLFW_HAND_CURSOR; break;
+#if defined(GLFW_RESIZE_ALL_CURSOR)
+        case CursorShape::resizeAll:  glfwShape = GLFW_RESIZE_ALL_CURSOR; break;
+        case CursorShape::resizeNESW: glfwShape = GLFW_RESIZE_NESW_CURSOR; break;
+        case CursorShape::resizeNWSE: glfwShape = GLFW_RESIZE_NWSE_CURSOR; break;
+        case CursorShape::notAllowed: glfwShape = GLFW_NOT_ALLOWED_CURSOR; break;
+#else
+        case CursorShape::resizeAll:
+        case CursorShape::resizeNESW:
+        case CursorShape::resizeNWSE:
+        case CursorShape::notAllowed: glfwShape = GLFW_ARROW_CURSOR; break;
+#endif
+    }
+
+    ::glfwDestroyCursor(m_cursor);
+    m_cursor = ::glfwCreateStandardCursor(glfwShape);
+    ::glfwSetCursor(m_glfwWindow, m_cursor);
+    m_cursorShape = shape;
 }
 
 std::optional<std::filesystem::path> Window::popDroppedFile()
@@ -235,12 +271,13 @@ void Window::setClipboardString(const std::string& str) const
 
 void Window::createSurface(gfx::Instance* instance)
 {
-    m_surface = instance->createSurface(m_glfwWindow);
+    m_surface = gfx::glfw::createSurface(*instance, m_glfwWindow);
     assert(m_surface);
 }
 
 Window::~Window()
 {
+    ::glfwDestroyCursor(m_cursor);
     ::glfwDestroyWindow(m_glfwWindow);
 }
 

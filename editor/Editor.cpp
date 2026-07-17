@@ -11,6 +11,7 @@
 #include "Graphics/Buffer.hpp"
 #include "Project.hpp"
 #include "yaml_convert/convert_project.hpp"
+#include "ImGuiRenderPass.hpp"
 
 #include <Game-Engine/BuiltInPasses.hpp>
 #include <Game-Engine/Event.hpp>
@@ -36,6 +37,9 @@
 
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyC.h>
+
+#include <imgui.h>
+#include <gfx_imgui/gfx_imgui.hpp>
 
 #include <format>
 #include <fstream>
@@ -65,11 +69,7 @@
 #include <chrono>
 #include <optional>
 #include <cstddef>
-
-extern std::unique_ptr<GE::Application> createApplication(int argc, const char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays)
-{
-    return std::make_unique<GE_Editor::Editor>(std::span<const char*>{argv, static_cast<size_t>(argc)});
-}
+#include <bit>
 
 namespace GE_Editor
 {
@@ -98,6 +98,44 @@ std::expected<Project, std::string> loadProjectFile(const std::filesystem::path&
 
 Editor::Editor(std::span<const char*> args)
 {
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.IniFilename = nullptr;
+    io.BackendPlatformUserData = &window();
+    io.BackendPlatformName = "Game-Engine Editor";
+    io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasSetMousePos;
+
+    ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
+    platformIO.Platform_GetClipboardTextFn = [](ImGuiContext*) {
+        static std::string clipboardText;
+        auto& window = *static_cast<GE::Window*>(ImGui::GetIO().BackendPlatformUserData);
+        clipboardText = window.clipboardString();
+        return clipboardText.c_str();
+    };
+    platformIO.Platform_SetClipboardTextFn = [](ImGuiContext*, const char* text) {
+        auto& window = *static_cast<GE::Window*>(ImGui::GetIO().BackendPlatformUserData);
+        window.setClipboardString(text);
+    };
+
+    gfx::imgui::init(device(), gfx::imgui::InitInfo{
+        .colorAttachmentPixelFormats = {gfx::PixelFormat::BGRA8Unorm}
+    });
+    m_imguiGuard = {
+        std::bit_cast<void*>(1zu),
+        [&device=device()](void*){
+            ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
+            platformIO.Platform_GetClipboardTextFn = nullptr;
+            platformIO.Platform_SetClipboardTextFn = nullptr;
+            ImGuiIO& io = ImGui::GetIO();
+            io.BackendFlags &= ~(ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasSetMousePos);
+            io.BackendPlatformName = nullptr;
+            io.BackendPlatformUserData = nullptr;
+            gfx::imgui::shutdown(device);
+            ImGui::DestroyContext();
+        }
+    };
+
     loadProject(makeDefaultProject());
 
     if (args.size() == 2) {
@@ -374,14 +412,6 @@ void Editor::recordFrameGraph(GE::FrameGraphBuilder& builder)
     auto windowBackBuffer = builder.newTexture("windowBackBuffer", window().frameBufferSize(), gfx::PixelFormat::BGRA8Unorm);
     builder.setBackBuffer(windowBackBuffer);
 
-    std::optional<GE::FrameGraph::BufferRef> readBackBuffer;
-    if (m_viewportReadbackFuture.valid() == false && m_viewportReadbackRequest) {
-        readBackBuffer = builder.newBuffer(gfx::Buffer::Descriptor{
-            .size = static_cast<size_t>(m_viewportSize.first * m_viewportSize.second) * gfx::pixelFormatSize(gfx::PixelFormat::RG32Uint),
-            .storageMode = gfx::ResourceStorageMode::hostVisible
-        });
-    }
-
     assert(m_viewportSize.second != 0);
     const float aspectRatio = static_cast<float>(m_viewportSize.first) / static_cast<float>(m_viewportSize.second);
 
@@ -419,20 +449,25 @@ void Editor::recordFrameGraph(GE::FrameGraphBuilder& builder)
     GE::TexturedGeometryPass{scene, viewProjectionMatrix, cameraPosition}
         .record(builder);
 
-    GE::ImGuiPass{}
+    ImGuiRenderPass{}
         .record(builder);
 
-    if (readBackBuffer && m_viewportReadbackRequest) {
+    if (m_viewportReadbackFuture.valid() == false && m_viewportReadbackRequest) {
+        auto readBackBuffer = builder.newBuffer(gfx::Buffer::Descriptor{
+            .size = static_cast<size_t>(m_viewportSize.first * m_viewportSize.second) * gfx::pixelFormatSize(gfx::PixelFormat::RG32Uint),
+            .storageMode = gfx::ResourceStorageMode::hostVisible
+        });
+
         builder.addPass(GE::FramePass{
             .kind = GE::FramePass::Kind::blit,
-            .copyDestinationBuffers = {*readBackBuffer},
+            .copyDestinationBuffers = {readBackBuffer},
             .copySourceTextures = {viewportEntityIds},
             .execute = [viewportEntityIds, readBackBuffer](GE::FramePass::ExecuteContext& ctx) {
-                ctx.commandBuffer.copyTextureToBuffer(ctx.texture(viewportEntityIds), ctx.buffer(*readBackBuffer));
+                ctx.commandBuffer.copyTextureToBuffer(ctx.texture(viewportEntityIds), ctx.buffer(readBackBuffer));
             }
         });
 
-        m_viewportReadbackFuture = builder.readback(*readBackBuffer, [
+        m_viewportReadbackFuture = builder.readback(readBackBuffer, [
             mousePos=*m_viewportReadbackRequest,
             pixelSize=gfx::pixelFormatSize(gfx::PixelFormat::RG32Uint),
             viewportWidth = m_viewportSize.first

@@ -27,6 +27,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <imgui.h>
+#include <gfx_imgui/gfx_imgui.hpp>
 
 #include <tracy/Tracy.hpp>
 
@@ -37,6 +38,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cctype>
+#include <chrono>
 #include <filesystem>
 #include <format>
 #include <functional>
@@ -157,6 +159,58 @@ namespace GE_Editor
 void Editor::renderImgui()
 {
     ZoneScopedN("Editor::renderImgui");
+
+    ImGuiIO& io = ImGui::GetIO();
+    const auto [width, height] = window().size();
+    const auto [framebufferWidth, framebufferHeight] = window().frameBufferSize();
+    io.DisplaySize = ImVec2(static_cast<float>(width), static_cast<float>(height));
+    io.DisplayFramebufferScale = ImVec2(
+        width > 0 ? static_cast<float>(framebufferWidth) / static_cast<float>(width) : 1.0f,
+        height > 0 ? static_cast<float>(framebufferHeight) / static_cast<float>(height) : 1.0f
+    );
+
+    static std::chrono::steady_clock::time_point previousFrameTime;
+    const auto currentTime = std::chrono::steady_clock::now();
+    const float elapsedTime = previousFrameTime == std::chrono::steady_clock::time_point{}
+        ? 1.0f / 60.0f
+        : std::chrono::duration<float>(currentTime - previousFrameTime).count();
+    io.DeltaTime = std::max(elapsedTime, 0.00001f);
+    previousFrameTime = currentTime;
+
+    if (io.WantSetMousePos)
+        window().setCursorPos(io.MousePos.x, io.MousePos.y);
+
+    if ((io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) == 0)
+    {
+        const ImGuiMouseCursor imguiCursor = ImGui::GetMouseCursor();
+        const bool cursorVisible = imguiCursor != ImGuiMouseCursor_None && io.MouseDrawCursor == false;
+        window().setCursorVisibility(cursorVisible);
+        if (cursorVisible)
+        {
+            GE::Window::CursorShape cursorShape = GE::Window::CursorShape::arrow;
+            switch (imguiCursor)
+            {
+                case ImGuiMouseCursor_Arrow:      cursorShape = GE::Window::CursorShape::arrow; break;
+                case ImGuiMouseCursor_TextInput:  cursorShape = GE::Window::CursorShape::textInput; break;
+                case ImGuiMouseCursor_ResizeAll:  cursorShape = GE::Window::CursorShape::resizeAll; break;
+                case ImGuiMouseCursor_ResizeNS:   cursorShape = GE::Window::CursorShape::resizeNS; break;
+                case ImGuiMouseCursor_ResizeEW:   cursorShape = GE::Window::CursorShape::resizeEW; break;
+                case ImGuiMouseCursor_ResizeNESW: cursorShape = GE::Window::CursorShape::resizeNESW; break;
+                case ImGuiMouseCursor_ResizeNWSE: cursorShape = GE::Window::CursorShape::resizeNWSE; break;
+                case ImGuiMouseCursor_Hand:       cursorShape = GE::Window::CursorShape::hand; break;
+                case ImGuiMouseCursor_NotAllowed: cursorShape = GE::Window::CursorShape::notAllowed; break;
+                case ImGuiMouseCursor_None:
+                case ImGuiMouseCursor_COUNT:
+                default:
+                    std::unreachable();
+            }
+            window().setCursorShape(cursorShape);
+        }
+    }
+
+    TracyCZoneN(imguiNewFrameCtx, "Application::imgui new frame", true);
+    gfx::imgui::newFrame(device());
+    TracyCZoneEnd(imguiNewFrameCtx);
 
     static bool projectPropertiesOpen = false;
     static bool assetManagerWindowOpen = false;

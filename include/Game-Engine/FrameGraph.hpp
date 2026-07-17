@@ -10,7 +10,6 @@
 #define FRAMEGRAPH_HPP
 
 #include "Game-Engine/AssetManager.hpp"
-#include "Graphics/Framebuffer.hpp"
 
 #include <Graphics/Buffer.hpp>
 #include <Graphics/CommandBuffer.hpp>
@@ -20,6 +19,7 @@
 #include <Graphics/ParameterBlockLayout.hpp>
 #include <Graphics/ParameterBlockPool.hpp>
 #include <Graphics/Texture.hpp>
+#include <Graphics/PassDescriptor.hpp>
 
 #include <cassert>
 #include <cstddef>
