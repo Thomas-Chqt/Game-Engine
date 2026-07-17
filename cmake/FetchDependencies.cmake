@@ -18,21 +18,28 @@ function(fetch_dependencies)
     # -----------------------------
     FetchContent_Declare(Graphics
         GIT_REPOSITORY    https://github.com/Thomas-Chqt/Graphics.git
-        GIT_TAG           44fcf7fb49bf9368e702563799faf592405734a5
+        GIT_TAG           25d9aaa1c46b0f23aa34978b76fb76b7543d0d86
         GIT_SHALLOW       0
         GIT_PROGRESS      TRUE
         FIND_PACKAGE_ARGS
     )
-    set(GFX_BUILD_METAL      ${GE_BUILD_METAL})
-    set(GFX_BUILD_VULKAN     ${GE_BUILD_VULKAN})
-    set(GFX_ENABLE_IMGUI     ON)
-    set(GFX_ENABLE_GLFW      ON)
-    set(GFX_BUILD_EXAMPLES   OFF)
-    set(GFX_BUILD_TESTS      OFF)
-    set(GFX_BUILD_TRACY      ON)
-    set(GFX_INSTALL          ${GE_INSTALL})
+
+    set(GFX_BUILD_METAL    ${GE_BUILD_METAL})
+    set(GFX_BUILD_VULKAN   ${GE_BUILD_VULKAN})
+    set(GFX_BUILD_EXAMPLES OFF)
+    set(GFX_BUILD_TESTS    OFF)
+    set(GFX_INSTALL        ${GE_INSTALL})
+
+    set(GFX_BUILD_IMGUI_INTEGRATION ON)
+    set(GFX_BUILD_GLFW_INTEGRATION  ON)
+    set(GFX_BUILD_TRACY_INTEGRATION ON)
+
     FetchContent_MakeAvailable(Graphics)
+
     set_target_properties(Graphics PROPERTIES FOLDER "dependencies/Graphics")
+    set_target_properties(GraphicsGLFW PROPERTIES FOLDER "dependencies/Graphics")
+    set_target_properties(GraphicsImGui PROPERTIES FOLDER "dependencies/Graphics")
+    set_target_properties(GraphicsTracy PROPERTIES FOLDER "dependencies/Graphics")
     set_target_properties(gfxsc PROPERTIES FOLDER "dependencies/Graphics")
 
     # -----------------------------
@@ -78,24 +85,6 @@ function(fetch_dependencies)
     FetchContent_MakeAvailable(glm)
     if (glm_SOURCE_DIR)
         set_target_properties(glm PROPERTIES FOLDER "dependencies")
-    endif()
-
-    # -----------------------------
-    # ImGui
-    # -----------------------------
-    FetchContent_Declare(imgui
-        GIT_REPOSITORY    https://github.com/Thomas-Chqt/imgui.git
-        GIT_TAG           4d8f55183c2e974916daf6336ee2c4b9c8e72891
-        GIT_SHALLOW       0
-        GIT_PROGRESS      TRUE
-        FIND_PACKAGE_ARGS
-    )
-    set(IM_BUILD_GLFW ON)
-    FetchContent_MakeAvailable(imgui)
-    target_compile_definitions(imgui PRIVATE "GLFW_INCLUDE_NONE")
-    target_link_libraries(imgui PUBLIC glfw)
-    if (imgui_SOURCE_DIR)
-        set_target_properties(imgui PROPERTIES FOLDER "dependencies")
     endif()
 
     # -----------------------------
@@ -148,17 +137,22 @@ function(fetch_dependencies)
     endif()
 
     # -----------------------------
-    # ImGuizmo
+    # tracy
     # -----------------------------
-    FetchContent_Declare(imguizmo
-        GIT_REPOSITORY    https://github.com/CedricGuillemet/ImGuizmo.git
-        GIT_TAG           1.10
-        GIT_SHALLOW       1
-        GIT_PROGRESS      TRUE
-        FIND_PACKAGE_ARGS
+    FetchContent_Declare(tracy
+        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+        GIT_TAG        v0.13.0
+        GIT_SHALLOW    1
+        GIT_PROGRESS   TRUE
     )
-    set(IMGUIZMO_BUILD_EXAMPLE OFF)
-    FetchContent_MakeAvailable(imguizmo)
-    set_target_properties(imguizmo PROPERTIES FOLDER "dependencies")
-    target_link_libraries(imguizmo PRIVATE imgui)
+    set(TRACY_ENABLE OFF)
+    set(TRACY_LTO     ON)
+    FetchContent_MakeAvailable(tracy)
+    if(GE_TRACY_ENABLE)
+        target_compile_definitions(TracyClient PUBLIC "$<$<NOT:$<CONFIG:Release>>:TRACY_ENABLE>")
+    endif()
+    if(NOT MSVC)
+        target_compile_options(TracyClient PRIVATE -Wno-deprecated-declarations)
+    endif()
+    set_target_properties(TracyClient PROPERTIES FOLDER "dependencies")
 endfunction()

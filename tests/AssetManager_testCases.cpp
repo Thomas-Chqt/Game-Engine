@@ -259,10 +259,28 @@ class TestGraphicsPipeline final : public gfx::GraphicsPipeline
 {
 };
 
+class TestRenderPassDescriptor final : public gfx::RenderPassDescriptor
+{
+public:
+    const std::vector<Attachment>& colorAttachments() const override { return m_colorAttachments; }
+    void setColorAttachments(std::vector<Attachment> attachments) override { m_colorAttachments = std::move(attachments); }
+
+    const std::optional<Attachment>& depthAttachment() const override { return m_depthAttachment; }
+    void setDepthAttachment(std::optional<Attachment> attachment) override { m_depthAttachment = std::move(attachment); }
+
+private:
+    std::vector<Attachment> m_colorAttachments;
+    std::optional<Attachment> m_depthAttachment;
+};
+
+class TestBlitPassDescriptor final : public gfx::BlitPassDescriptor
+{
+};
+
 class MockCommandBuffer : public gfx::CommandBuffer
 {
 public:
-    MOCK_METHOD(void, beginRenderPass, (const gfx::Framebuffer&), (override));
+    MOCK_METHOD(void, beginRenderPass, (gfx::RenderPassDescriptor&), (override));
     MOCK_METHOD(void, usePipeline, ((const std::shared_ptr<const gfx::GraphicsPipeline>&)), (override));
     MOCK_METHOD(void, useVertexBuffer, ((const std::shared_ptr<gfx::Buffer>&)), (override));
     MOCK_METHOD(void, setParameterBlock, ((const std::shared_ptr<const gfx::ParameterBlock>&), uint32_t), (override));
@@ -274,7 +292,7 @@ public:
 #endif
     MOCK_METHOD(void, endRenderPass, (), (override));
 
-    MOCK_METHOD(void, beginBlitPass, (), (override));
+    MOCK_METHOD(void, beginBlitPass, (gfx::BlitPassDescriptor&), (override));
     MOCK_METHOD(void, copyBufferToBuffer, ((const std::shared_ptr<gfx::Buffer>&), (const std::shared_ptr<gfx::Buffer>&), size_t), (override));
     MOCK_METHOD(void, copyBufferToTexture, ((const std::shared_ptr<gfx::Buffer>&), size_t, (const std::shared_ptr<gfx::Texture>&), uint32_t), (override));
     MOCK_METHOD(void, copyTextureToBuffer, ((const std::shared_ptr<gfx::Texture>&), uint32_t, (const std::shared_ptr<gfx::Buffer>&), size_t), (override));
@@ -300,6 +318,8 @@ public:
     MOCK_METHOD(std::unique_ptr<gfx::GraphicsPipeline>, newGraphicsPipeline, (const gfx::GraphicsPipeline::Descriptor&), (const, override));
     MOCK_METHOD(std::unique_ptr<gfx::Buffer>, newBuffer, (const gfx::Buffer::Descriptor&), (const, override));
     MOCK_METHOD(std::unique_ptr<gfx::Texture>, newTexture, (const gfx::Texture::Descriptor&), (const, override));
+    MOCK_METHOD(std::unique_ptr<gfx::RenderPassDescriptor>, newRenderPassDescriptor, (), (const, override));
+    MOCK_METHOD(std::unique_ptr<gfx::BlitPassDescriptor>, newBlitPassDescriptor, (), (const, override));
     MOCK_METHOD(std::unique_ptr<gfx::CommandBufferPool>, newCommandBufferPool, (), (const, override));
     MOCK_METHOD(std::unique_ptr<gfx::ParameterBlockPool>, newParameterBlockPool, (const gfx::ParameterBlockPool::Descriptor&), (const, override));
     MOCK_METHOD(std::unique_ptr<gfx::Sampler>, newSampler, (const gfx::Sampler::Descriptor&), (const, override));
@@ -345,6 +365,12 @@ protected:
         });
         ON_CALL(m_device, newTexture(testing::_)).WillByDefault([](const gfx::Texture::Descriptor& desc) {
             return std::make_unique<TestTexture>(desc);
+        });
+        ON_CALL(m_device, newRenderPassDescriptor()).WillByDefault([] {
+            return std::make_unique<TestRenderPassDescriptor>();
+        });
+        ON_CALL(m_device, newBlitPassDescriptor()).WillByDefault([] {
+            return std::make_unique<TestBlitPassDescriptor>();
         });
         ON_CALL(m_device, newSwapchain(testing::_)).WillByDefault([](const gfx::Swapchain::Descriptor& desc) {
             return std::make_unique<TestSwapchain>(desc);
@@ -527,7 +553,7 @@ TEST_F(AssetManagerMockDeviceTest, rendererRunsBlitPassOutsideRenderPassAndResol
     EXPECT_CALL(*m_commandBuffer, beginRenderPass(testing::_)).Times(0);
     {
         testing::InSequence sequence;
-        EXPECT_CALL(*m_commandBuffer, beginBlitPass()).Times(1);
+        EXPECT_CALL(*m_commandBuffer, beginBlitPass(testing::_)).Times(1);
         EXPECT_CALL(*m_commandBuffer, copyBufferToBuffer(testing::_, testing::_, sizeof(uint32_t)))
             .WillOnce([](const std::shared_ptr<gfx::Buffer>& src, const std::shared_ptr<gfx::Buffer>& dst, size_t size) {
                 dst->setContent(src->content<std::byte>(), size);

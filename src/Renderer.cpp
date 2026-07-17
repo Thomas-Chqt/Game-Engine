@@ -14,7 +14,7 @@
 
 #include <Graphics/CommandBuffer.hpp>
 #include <Graphics/Drawable.hpp>
-#include <Graphics/Framebuffer.hpp>
+#include <Graphics/PassDescriptor.hpp>
 #include <Graphics/Texture.hpp>
 #include <Graphics/GraphicsPipeline.hpp>
 #include <Graphics/Enums.hpp>
@@ -22,6 +22,7 @@
 
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyC.h>
+#include <gfx_tracy/gfx_tracy.hpp>
 
 #include <cassert>
 #include <cstddef>
@@ -51,6 +52,7 @@ Renderer::Renderer(gfx::Device* device, AssetManager* assetManager, gfx::Surface
     : m_device(device)
     , m_assetManager(assetManager)
     , m_surface(surface)
+    , m_tracyGfxCtx(TracyGFXContext(*m_device))
 {
     assert(m_device);
     assert(m_assetManager);
@@ -153,6 +155,7 @@ void Renderer::renderFrame(FrameGraph frameGraph)
     {
         ZoneScopedN("Renderer::wait_in-flight_frame");
         m_device->waitCommandBuffer(*cfd.waitedCmdBuffer);
+        TracyGFXCollect(*m_device, m_tracyGfxCtx);
         cfd.waitedCmdBuffer = nullptr;
 
         for (PendingReadback& readback : cfd.pendingReadbacks)
@@ -272,7 +275,9 @@ void Renderer::renderFrame(FrameGraph frameGraph)
             assert(std::ranges::all_of(framePass.copySourceTextures, [&](auto textureRef) { return textureRef < textureMap.size(); }));
             assert(std::ranges::all_of(framePass.copyDestinationTextures, [&](auto textureRef) { return textureRef < textureMap.size(); }));
 
-            commandBuffer->beginBlitPass();
+            auto blitPassDescriptor = m_device->newBlitPassDescriptor();
+            TracyGFXZone(m_tracyGfxCtx, *blitPassDescriptor, "blitPass");
+            commandBuffer->beginBlitPass(*blitPassDescriptor);
             framePass.execute(framePassContext);
             commandBuffer->endBlitPass();
             continue;
@@ -292,7 +297,7 @@ void Renderer::renderFrame(FrameGraph frameGraph)
             commandBuffer->addSampledTexture(textureMap.at(texture));
 
         auto colorAttachments = framePass.colorAttachments | std::views::transform([&](const FrameGraph::Attachment& attachment) {
-            return gfx::Framebuffer::Attachment{
+            return gfx::RenderPassDescriptor::Attachment{
                 .loadAction = attachment.loadAction,
                 .clearValue = attachment.clearValue,
                 .texture = textureMap.at(attachment.texture)
@@ -300,19 +305,19 @@ void Renderer::renderFrame(FrameGraph frameGraph)
         });
 
         auto depthAttachment = framePass.depthAttachment.transform([&](const FrameGraph::Attachment& attachment) {
-            return gfx::Framebuffer::Attachment{
+            return gfx::RenderPassDescriptor::Attachment{
                 .loadAction = attachment.loadAction,
                 .clearValue = attachment.clearValue,
                 .texture = textureMap.at(attachment.texture)
             };
         });
 
-        gfx::Framebuffer framebuffer = gfx::Framebuffer{
-            .colorAttachments = std::move(colorAttachments) | std::ranges::to<std::vector>(),
-            .depthAttachment = std::move(depthAttachment)
-        };
+        auto renderPassDescriptror = m_device->newRenderPassDescriptor();
+        renderPassDescriptror->setColorAttachments(std::move(colorAttachments) | std::ranges::to<std::vector>());
+        renderPassDescriptror->setDepthAttachment(std::move(depthAttachment));
 
-        commandBuffer->beginRenderPass(framebuffer);
+        TracyGFXZone(m_tracyGfxCtx, *renderPassDescriptror, "renderPass");
+        commandBuffer->beginRenderPass(*renderPassDescriptror);
         framePass.execute(framePassContext);
         commandBuffer->endRenderPass();
     }

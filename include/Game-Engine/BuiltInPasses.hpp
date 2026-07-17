@@ -31,12 +31,6 @@ private:
     glm::vec3 m_cameraPosition;
 };
 
-class GE_API ImGuiPass
-{
-public:
-    void record(FrameGraphBuilder&) const;
-};
-
 } // namespace GE
 
 #endif

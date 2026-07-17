@@ -28,6 +28,7 @@
 #include <deque>
 
 struct GLFWwindow; // glfw is not accessible outside the engine
+struct GLFWcursor;
 
 namespace GE
 {
@@ -37,6 +38,19 @@ class Event;
 class GE_API Window
 {
 public:
+    enum class CursorShape : uint8_t
+{
+        arrow,
+        textInput,
+        resizeAll,
+        resizeNS,
+        resizeEW,
+        resizeNESW,
+        resizeNWSE,
+        hand,
+        notAllowed
+    };
+
     struct Descriptor
     {
         uint32_t width = 1280;
@@ -70,6 +84,7 @@ public:
     void setCursorPos(double x, double y);
 
     void setCursorVisibility(bool);
+    void setCursorShape(CursorShape);
 
     std::optional<std::filesystem::path> popDroppedFile();
 
@@ -79,12 +94,13 @@ public:
     void createSurface(gfx::Instance*);
     inline gfx::Surface* surface() const { return m_surface.get(); }
 
-    GLFWwindow* glfwWindow() const { return m_glfwWindow; }
-
     ~Window();
 
 private:
     ::GLFWwindow* m_glfwWindow = nullptr;
+    ::GLFWcursor* m_cursor = nullptr;
+    std::optional<CursorShape> m_cursorShape;
+    std::optional<bool> m_cursorVisible;
     std::unordered_map<void*, std::deque<std::function<void(Event&)>>> m_eventCallbacks;
     std::set<std::filesystem::path> m_droppedFilePool;
 

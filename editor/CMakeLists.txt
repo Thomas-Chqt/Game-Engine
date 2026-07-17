@@ -16,10 +16,46 @@ set(YAML_CPP_BUILD_TOOLS OFF)
 FetchContent_MakeAvailable(yaml-cpp)
 set_target_properties(yaml-cpp PROPERTIES FOLDER "dependencies")
 
+############# IMGUI #############
+
+FetchContent_Declare(imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        v1.92.8-docking
+    GIT_SHALLOW    1
+    GIT_PROGRESS   TRUE
+)
+FetchContent_MakeAvailable(imgui)
+
+add_library(imgui STATIC)
+set_target_properties(imgui PROPERTIES FOLDER "dependencies")
+target_compile_features(imgui PUBLIC cxx_std_11)
+file(GLOB IMGUI_SRC "${imgui_SOURCE_DIR}/imgui*.cpp" "${imgui_SOURCE_DIR}/imgui*.h")
+target_sources(imgui PRIVATE ${IMGUI_SRC})
+target_include_directories(imgui PUBLIC "${imgui_SOURCE_DIR}")
+
+############# IMGUIZMO #############
+
+FetchContent_Declare(imguizmo
+    GIT_REPOSITORY https://github.com/CedricGuillemet/ImGuizmo.git
+    GIT_TAG        1.10
+    GIT_SHALLOW    1
+    GIT_PROGRESS   TRUE
+    SOURCE_SUBDIR  _fetch_only_
+)
+FetchContent_MakeAvailable(imguizmo)
+
+add_library(imguizmo STATIC)
+set_target_properties(imguizmo PROPERTIES FOLDER "dependencies")
+target_compile_features(imguizmo PUBLIC cxx_std_11)
+target_sources(imguizmo PRIVATE "${imguizmo_SOURCE_DIR}/src/ImGuizmo.cpp")
+target_include_directories(imguizmo PUBLIC "${imguizmo_SOURCE_DIR}/src" PRIVATE "${imgui_SOURCE_DIR}")
+
+############# GE-EDITOR #############
+
 add_executable(GE-Editor)
 set_target_properties(GE-Editor PROPERTIES
-    ENABLE_EXPORTS ON
-    CXX_VISIBILITY_PRESET hidden
+    ENABLE_EXPORTS            ON
+    CXX_VISIBILITY_PRESET     hidden
     VISIBILITY_INLINES_HIDDEN YES
 )
 
@@ -33,7 +69,7 @@ target_include_directories(GE-Editor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_definitions(GE-Editor PRIVATE "RESOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/resources\"")
 
-target_link_libraries(GE-Editor PRIVATE Game-Engine yaml-cpp)
+target_link_libraries(GE-Editor PRIVATE Game-Engine yaml-cpp imgui imguizmo GraphicsImGui)
 target_include_directories(GE-Editor INTERFACE $<TARGET_PROPERTY:Game-Engine,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(APPLE)

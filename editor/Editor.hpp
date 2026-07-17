@@ -68,6 +68,8 @@ private:
     void renderImgui();
     void syncEditedScene();
 
+    std::unique_ptr<void, std::function<void(void*)>> m_imguiGuard;
+
     GE::InputContext m_editorInputContext;
     ImGuiInputContext m_imguiInputContext;
 

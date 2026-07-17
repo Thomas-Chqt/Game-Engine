@@ -184,7 +184,8 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const AssetLocation<Mesh>& locatio
         return it->second;
     };
 
-    commandBuffer.beginBlitPass();
+    auto blitPassDescriptor = m_device->newBlitPassDescriptor();
+    commandBuffer.beginBlitPass(*blitPassDescriptor);
     for (uint32_t i = 0; const gltf::Primitive& primitive : gltfMesh.primitives)
     {
         if (primitive.type != gltf::PrimitiveType::Triangles)
@@ -235,7 +236,8 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const BuiltInMesh& builtInMesh, gf
     switch (builtInMesh)
     {
     case BuiltInMesh::cube:
-        commandBuffer.beginBlitPass();
+        auto blitPassDescriptor = m_device->newBlitPassDescriptor();
+        commandBuffer.beginBlitPass(*blitPassDescriptor);
         auto mesh = std::make_shared<Mesh>(Mesh{
             .subMeshes = std::vector<SubMesh>{{
                 .name = "built_in_cube_submesh",
