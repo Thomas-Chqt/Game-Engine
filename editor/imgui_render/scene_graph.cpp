@@ -5,6 +5,9 @@
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Scene.hpp"
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/matrix_decompose.hpp>
+
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyC.h>
 
@@ -17,6 +20,38 @@ namespace GE_Editor
 
 namespace
 {
+
+void reparentKeepingWorldTransform(GE::Entity& entity, std::optional<GE::Entity> newParent)
+{
+    assert(entity.has<GE::TransformComponent>());
+
+    const glm::mat4 worldTransform = entity.worldTransform();
+
+    if (auto currentParent = entity.parent())
+        currentParent->removeChild(entity);
+    if (newParent)
+        newParent->addChild(entity);
+
+    const glm::mat4 parentWorldTransform = newParent && newParent->has<GE::TransformComponent>()
+        ? newParent->worldTransform()
+        : glm::mat4(1.0f);
+    const glm::mat4 localTransform = glm::inverse(parentWorldTransform) * worldTransform;
+
+    GE::TransformComponent& transform = entity.get<GE::TransformComponent>();
+    [[maybe_unused]] glm::vec3 skew;
+    [[maybe_unused]] glm::vec4 perspective;
+    [[maybe_unused]] const bool decomposed = glm::decompose(
+        localTransform,
+        transform.scale,
+        transform.rotation,
+        transform.position,
+        skew,
+        perspective
+    );
+    assert(decomposed);
+
+    entity.updateTransformHierarchy();
+}
 
 bool sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager)
 {
@@ -49,12 +84,7 @@ bool sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity,
             assert(payload->DataSize == sizeof(GE::Entity));
             GE::Entity& droped = *reinterpret_cast<GE::Entity*>(payload->Data); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
             if (droped.isParentOf(entity) == false)
-            {
-                if (auto parent = droped.parent())
-                    parent->removeChild(droped);
-                entity.addChild(droped);
-                droped.updateTransformHierarchy();
-            }
+                reparentKeepingWorldTransform(droped, entity);
         }
         ImGui::EndDragDropTarget();
     }
@@ -163,8 +193,8 @@ void renderSceneGraph(GE::Scene& editedScene, std::optional<GE::Entity>& selecte
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("dnd_entity"); payload && payload->IsDelivery()) {
             assert(payload->DataSize == sizeof(GE::Entity));
             GE::Entity& droped = *reinterpret_cast<GE::Entity*>(payload->Data); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
-            if(auto parent = droped.parent())
-                parent->removeChild(droped);
+            if (droped.parent())
+                reparentKeepingWorldTransform(droped, std::nullopt);
         }
         ImGui::EndDragDropTarget();
     }
