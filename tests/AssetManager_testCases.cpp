@@ -67,7 +67,7 @@ gfx::Texture::Descriptor testBackBufferDescriptor()
         .type = gfx::TextureType::texture2d,
         .width = 64,
         .height = 64,
-        .pixelFormat = gfx::PixelFormat::BGRA8Unorm,
+        .pixelFormat = gfx::PixelFormat::BGRA8_unorm,
         .usages = gfx::TextureUsage::colorAttachment,
         .storageMode = gfx::ResourceStorageMode::deviceLocal
     };
@@ -112,6 +112,10 @@ public:
     gfx::TextureType type() const override { return m_desc.type; }
     uint32_t width() const override { return m_desc.width; }
     uint32_t height() const override { return m_desc.height; }
+    uint32_t baseMipLevel() const override { return 0; }
+    uint32_t mipLevelCount() const override { return m_desc.mipLevelCount; }
+    uint32_t baseArrayLayer() const override { return 0; }
+    uint32_t arrayLayerCount() const override { return m_desc.arrayLayerCount; }
     gfx::PixelFormat pixelFormat() const override { return m_desc.pixelFormat; }
     gfx::TextureUsages usages() const override { return m_desc.usages; }
     gfx::ResourceStorageMode storageMode() const override { return m_desc.storageMode; }
@@ -166,12 +170,12 @@ private:
 class TestSurface final : public gfx::Surface
 {
 public:
-    const std::set<gfx::PixelFormat> supportedPixelFormats(const gfx::Device&) const override
+    std::set<gfx::SurfaceFormat> supportedSurfaceFormat(const gfx::Device&) const override
     {
-        return {gfx::PixelFormat::BGRA8Unorm};
+        return {{gfx::PixelFormat::BGRA8_unorm, gfx::ColorSpace::sRGB_nonLinear}};
     }
 
-    const std::set<gfx::PresentMode> supportedPresentModes(const gfx::Device&) const override
+    std::set<gfx::PresentMode> supportedPresentModes(const gfx::Device&) const override
     {
         return {gfx::PresentMode::fifo};
     }
@@ -281,7 +285,7 @@ class MockCommandBuffer : public gfx::CommandBuffer
 {
 public:
     MOCK_METHOD(void, beginRenderPass, (gfx::RenderPassDescriptor&), (override));
-    MOCK_METHOD(void, usePipeline, ((const std::shared_ptr<const gfx::GraphicsPipeline>&)), (override));
+    MOCK_METHOD(void, usePipeline, ((const std::shared_ptr<const gfx::Pipeline>&)), (override));
     MOCK_METHOD(void, useVertexBuffer, ((const std::shared_ptr<gfx::Buffer>&)), (override));
     MOCK_METHOD(void, setParameterBlock, ((const std::shared_ptr<const gfx::ParameterBlock>&), uint32_t), (override));
     MOCK_METHOD(void, setPushConstants, (const void*, size_t), (override));
@@ -292,10 +296,15 @@ public:
 #endif
     MOCK_METHOD(void, endRenderPass, (), (override));
 
+    MOCK_METHOD(void, beginComputePass, (gfx::ComputePassDescriptor&), (override));
+    MOCK_METHOD(void, dispatchThreadgroups, (uint32_t, uint32_t, uint32_t), (override));
+    MOCK_METHOD(void, endComputePass, (), (override));
+
     MOCK_METHOD(void, beginBlitPass, (gfx::BlitPassDescriptor&), (override));
     MOCK_METHOD(void, copyBufferToBuffer, ((const std::shared_ptr<gfx::Buffer>&), (const std::shared_ptr<gfx::Buffer>&), size_t), (override));
     MOCK_METHOD(void, copyBufferToTexture, ((const std::shared_ptr<gfx::Buffer>&), size_t, (const std::shared_ptr<gfx::Texture>&), uint32_t), (override));
     MOCK_METHOD(void, copyTextureToBuffer, ((const std::shared_ptr<gfx::Texture>&), uint32_t, (const std::shared_ptr<gfx::Buffer>&), size_t), (override));
+    MOCK_METHOD(void, generateMipmaps, ((const std::shared_ptr<gfx::Texture>&)), (override));
     MOCK_METHOD(void, endBlitPass, (), (override));
     MOCK_METHOD(void, presentDrawable, ((const std::shared_ptr<gfx::Drawable>&)), (override));
     MOCK_METHOD(void, addSampledTexture, ((const std::shared_ptr<gfx::Texture>&)), (override));
@@ -316,10 +325,13 @@ public:
     MOCK_METHOD(std::unique_ptr<gfx::ShaderLib>, newShaderLib, (const std::filesystem::path&), (const, override));
     MOCK_METHOD(std::unique_ptr<gfx::ParameterBlockLayout>, newParameterBlockLayout, (const gfx::ParameterBlockLayout::Descriptor&), (const, override));
     MOCK_METHOD(std::unique_ptr<gfx::GraphicsPipeline>, newGraphicsPipeline, (const gfx::GraphicsPipeline::Descriptor&), (const, override));
+    MOCK_METHOD(std::unique_ptr<gfx::ComputePipeline>, newComputePipeline, (const gfx::ComputePipeline::Descriptor&), (const, override));
     MOCK_METHOD(std::unique_ptr<gfx::Buffer>, newBuffer, (const gfx::Buffer::Descriptor&), (const, override));
     MOCK_METHOD(std::unique_ptr<gfx::Texture>, newTexture, (const gfx::Texture::Descriptor&), (const, override));
+    MOCK_METHOD(std::unique_ptr<gfx::Texture>, newTextureView, ((const std::shared_ptr<gfx::Texture>&), (const gfx::Texture::ViewDescriptor&)), (const, override));
     MOCK_METHOD(std::unique_ptr<gfx::RenderPassDescriptor>, newRenderPassDescriptor, (), (const, override));
     MOCK_METHOD(std::unique_ptr<gfx::BlitPassDescriptor>, newBlitPassDescriptor, (), (const, override));
+    MOCK_METHOD(std::unique_ptr<gfx::ComputePassDescriptor>, newComputePassDescriptor, (), (const, override));
     MOCK_METHOD(std::unique_ptr<gfx::CommandBufferPool>, newCommandBufferPool, (), (const, override));
     MOCK_METHOD(std::unique_ptr<gfx::ParameterBlockPool>, newParameterBlockPool, (const gfx::ParameterBlockPool::Descriptor&), (const, override));
     MOCK_METHOD(std::unique_ptr<gfx::Sampler>, newSampler, (const gfx::Sampler::Descriptor&), (const, override));
@@ -484,7 +496,7 @@ TEST_F(AssetManagerMockDeviceTest, frameGraphBlitPassAddsDeclaredCopyUsages)
         .type = gfx::TextureType::texture2d,
         .width = 16,
         .height = 16,
-        .pixelFormat = gfx::PixelFormat::RGBA8Unorm,
+        .pixelFormat = gfx::PixelFormat::RGBA8_unorm,
         .usages = gfx::TextureUsage{0},
         .storageMode = gfx::ResourceStorageMode::deviceLocal
     });
@@ -492,7 +504,7 @@ TEST_F(AssetManagerMockDeviceTest, frameGraphBlitPassAddsDeclaredCopyUsages)
         .type = gfx::TextureType::texture2d,
         .width = 16,
         .height = 16,
-        .pixelFormat = gfx::PixelFormat::RGBA8Unorm,
+        .pixelFormat = gfx::PixelFormat::RGBA8_unorm,
         .usages = gfx::TextureUsage{0},
         .storageMode = gfx::ResourceStorageMode::deviceLocal
     });
@@ -1482,7 +1494,7 @@ TEST_F(AssetManagerMockDeviceTest, textureLoaderSupportsRawPixelBytes)
     ASSERT_NE(texture, nullptr);
     EXPECT_EQ(texture->width(), 2u);
     EXPECT_EQ(texture->height(), 1u);
-    EXPECT_EQ(texture->pixelFormat(), gfx::PixelFormat::RGBA8Unorm);
+    EXPECT_EQ(texture->pixelFormat(), gfx::PixelFormat::RGBA8_unorm);
 }
 
 TEST_F(AssetManagerMockDeviceTest, textureLoaderSupportsFlatColorTexture)
@@ -1493,7 +1505,7 @@ TEST_F(AssetManagerMockDeviceTest, textureLoaderSupportsFlatColorTexture)
     ASSERT_NE(texture, nullptr);
     EXPECT_EQ(texture->width(), 2u);
     EXPECT_EQ(texture->height(), 2u);
-    EXPECT_EQ(texture->pixelFormat(), gfx::PixelFormat::RGBA8Unorm);
+    EXPECT_EQ(texture->pixelFormat(), gfx::PixelFormat::RGBA8_unorm);
 }
 
 TEST_F(AssetManagerMockDeviceTest, sceneConstructionLoadsMeshAssetsReferencedByTheEcsWorld)

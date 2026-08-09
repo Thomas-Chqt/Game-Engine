@@ -63,7 +63,7 @@ void ImGuiRenderPass::record(GE::FrameGraphBuilder& builder) const
                             assert(it != textureRefs.end());
                             std::shared_ptr<gfx::Texture> texture = ctx.texture(it->second);
                             if (gfx::imgui::textureId(*texture).has_value() == false)
-                                gfx::imgui::initTextureId(*texture);
+                                gfx::imgui::initTextureId(ctx.device, *texture);
                             cmd.TexRef._TexID = *gfx::imgui::textureId(*texture);
                         }
                         else if constexpr (std::is_same_v<std::remove_cvref_t<decltype(v)>, uint64_t>)

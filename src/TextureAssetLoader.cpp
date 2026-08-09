@@ -190,14 +190,15 @@ std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(const std::byte* b
         .type = gfx::TextureType::texture2d,
         .width = width,
         .height = height,
-        .pixelFormat = gfx::PixelFormat::RGBA8Unorm,
-        .usages = gfx::TextureUsage::copyDestination | gfx::TextureUsage::shaderRead,
+        .mipLevelCount = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1,
+        .pixelFormat = gfx::PixelFormat::RGBA8_sRGB,
+        .usages = gfx::TextureUsage::copySource | gfx::TextureUsage::copyDestination | gfx::TextureUsage::shaderRead,
         .storageMode = gfx::ResourceStorageMode::deviceLocal
     });
     assert(texture);
 
     std::shared_ptr<gfx::Buffer> stagingBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
-        .size = static_cast<size_t>(width) * static_cast<size_t>(height) * pixelFormatSize(gfx::PixelFormat::RGBA8Unorm),
+        .size = static_cast<size_t>(width) * static_cast<size_t>(height) * pixelFormatSize(gfx::PixelFormat::RGBA8_sRGB),
         .usages = gfx::BufferUsage::copySource,
         .storageMode = gfx::ResourceStorageMode::hostVisible
     });
@@ -208,6 +209,8 @@ std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(const std::byte* b
     auto blitPassDescritor = m_device->newBlitPassDescriptor();
     commandBuffer.beginBlitPass(*blitPassDescritor);
     commandBuffer.copyBufferToTexture(stagingBuffer, texture);
+    if (texture->mipLevelCount() > 1)
+        commandBuffer.generateMipmaps(texture);
     commandBuffer.endBlitPass();
 
     return texture;

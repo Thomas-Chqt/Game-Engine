@@ -119,7 +119,7 @@ Editor::Editor(std::span<const char*> args)
     };
 
     gfx::imgui::init(device(), gfx::imgui::InitInfo{
-        .colorAttachmentPixelFormats = {gfx::PixelFormat::BGRA8Unorm}
+        .colorAttachmentPixelFormats = {gfx::PixelFormat::BGRA8_sRGB}
     });
     m_imguiGuard = {
         std::bit_cast<void*>(1zu),
@@ -402,14 +402,14 @@ void Editor::recordFrameGraph(GE::FrameGraphBuilder& builder)
         return *m_editedScene;
     }();
 
-    auto viewportBackBuffer = builder.newTexture("viewportBackBuffer", m_viewportSize, gfx::PixelFormat::BGRA8Unorm);
+    auto viewportBackBuffer = builder.newTexture("viewportBackBuffer", m_viewportSize, gfx::PixelFormat::BGRA8_sRGB);
     builder.aliasTexture("backBuffer", viewportBackBuffer);
 
     auto viewportEntityIds = builder.newTexture("viewportEntityIds", m_viewportSize, gfx::PixelFormat::RG32Uint);
 
     builder.newTexture("depthBuffer", m_viewportSize, gfx::PixelFormat::Depth32Float);
 
-    auto windowBackBuffer = builder.newTexture("windowBackBuffer", window().frameBufferSize(), gfx::PixelFormat::BGRA8Unorm);
+    auto windowBackBuffer = builder.newTexture("windowBackBuffer", window().frameBufferSize(), gfx::PixelFormat::BGRA8_sRGB);
     builder.setBackBuffer(windowBackBuffer);
 
     assert(m_viewportSize.second != 0);

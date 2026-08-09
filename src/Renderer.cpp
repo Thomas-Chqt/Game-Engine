@@ -78,7 +78,8 @@ Renderer::Renderer(gfx::Device* device, AssetManager* assetManager, gfx::Surface
         .tAddressMode = gfx::SamplerAddressMode::Repeat,
         .rAddressMode = gfx::SamplerAddressMode::Repeat,
         .minFilter = gfx::SamplerMinMagFilter::Linear,
-        .magFilter = gfx::SamplerMinMagFilter::Linear
+        .magFilter = gfx::SamplerMinMagFilter::Linear,
+        .mipFilter = gfx::SamplerMipFilter::Linear
     })));
     m_textureTable = std::make_shared<TextureTable>(m_textureTableBlock.get(), 1);
     m_assetManager->attachTextureTable(m_textureTable);
@@ -116,7 +117,7 @@ Renderer::Renderer(gfx::Device* device, AssetManager* assetManager, gfx::Surface
         },
         .vertexShader = &texturedShaderLib->getFunction("vertexMain"),
         .fragmentShader = &texturedShaderLib->getFunction("fragmentMain"),
-        .colorAttachmentPxFormats = {gfx::PixelFormat::BGRA8Unorm, gfx::PixelFormat::RG32Uint},
+        .colorAttachmentPxFormats = {gfx::PixelFormat::BGRA8_sRGB, gfx::PixelFormat::RG32Uint},
         .depthAttachmentPxFormat = gfx::PixelFormat::Depth32Float,
         .blendOperation = gfx::BlendOperation::blendingOff,
         .cullMode = gfx::CullMode::back,
@@ -254,6 +255,7 @@ void Renderer::renderFrame(FrameGraph frameGraph)
         ZoneScopedN("Renderer::frame_pass");
 
         FramePass::ExecuteContext framePassContext = {
+            .device = *m_device,
             .assetManager = *m_assetManager,
             .commandBuffer = *commandBuffer,
             .parameterBlockPool = *cfd.parameterBlockPool,
