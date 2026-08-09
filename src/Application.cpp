@@ -71,8 +71,8 @@ Application::Application()
             .present = {m_window->surface()}}});
     assert(m_device);
 
-    if (m_window->surface()->supportedPixelFormats(*m_device).contains(gfx::PixelFormat::BGRA8Unorm) == false)
-        throw std::runtime_error("surface does not support the BGRA8Unorm pixel format");
+    if (std::ranges::contains(m_window->surface()->supportedSurfaceFormat(*m_device), gfx::PixelFormat::BGRA8_sRGB, &gfx::SurfaceFormat::pixelFormat) == false)
+        throw std::runtime_error("surface does not support the BGRA8_sRGB pixel format");
 
     if (m_window->surface()->supportedPresentModes(*m_device).contains(gfx::PresentMode::fifo) == false)
         throw std::runtime_error("surface does not support the fifo present mode");

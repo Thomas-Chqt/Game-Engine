@@ -10,6 +10,7 @@
 #define FRAMEGRAPH_HPP
 
 #include "Game-Engine/AssetManager.hpp"
+#include "Graphics/Device.hpp"
 
 #include <Graphics/Buffer.hpp>
 #include <Graphics/CommandBuffer.hpp>
@@ -107,6 +108,7 @@ struct FramePass
 
     struct ExecuteContext
     {
+        gfx::Device& device;
         AssetManager& assetManager;
         gfx::CommandBuffer& commandBuffer;
         gfx::ParameterBlockPool& parameterBlockPool;
