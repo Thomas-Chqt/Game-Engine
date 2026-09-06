@@ -52,11 +52,22 @@ target_sources(Game-Engine PRIVATE ${GE_SRC})
 
 target_include_directories(Game-Engine
     PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}/include"
-    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}")
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
 # target_precompile_headers(Graphics PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/pch.hpp")
 
-target_link_libraries(Game-Engine PUBLIC Graphics glfw GraphicsGLFW glm::glm-header-only stb_image dlLoad fastgltf::fastgltf TracyClient GraphicsTracy)
+target_link_libraries(Game-Engine PUBLIC
+    Graphics
+    glfw
+    GraphicsGLFW
+    glm::glm-header-only
+    stb_image
+    dlLoad
+    fastgltf::fastgltf
+    TracyClient
+    GraphicsTracy
+)
 
 add_subdirectory("shaders")
 
