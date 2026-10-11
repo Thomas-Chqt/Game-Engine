@@ -16156,7 +16156,7 @@ inputs:
           triggerValue: 0.5
 scenes:
   - name: default_scene
-    activeCamera: 3
+    activeCamera: 2
     entities:
       - entityId: 0
         components:
