@@ -1070,7 +1070,7 @@ TEST_F(AssetManagerMockDeviceTest, failedTextureLoadCanUnloadWithoutClearingText
         GE::AssetLoader<gfx::Texture>(&m_device, &assetManager, std::span<const std::byte>(invalidBytes))
     );
 
-    EXPECT_ANY_THROW(assetManager.loadAsset<gfx::Texture>(assetId).get());
+    EXPECT_ANY_THROW(static_cast<void>(assetManager.loadAsset<gfx::Texture>(assetId).get()));
     EXPECT_CALL(*m_textureParameterBlock, clearBinding(testing::_, testing::_)).Times(0);
     assetManager.unloadAsset(assetId);
 }
@@ -1494,7 +1494,7 @@ TEST_F(AssetManagerMockDeviceTest, textureLoaderSupportsRawPixelBytes)
     ASSERT_NE(texture, nullptr);
     EXPECT_EQ(texture->width(), 2u);
     EXPECT_EQ(texture->height(), 1u);
-    EXPECT_EQ(texture->pixelFormat(), gfx::PixelFormat::RGBA8_unorm);
+    EXPECT_EQ(texture->pixelFormat(), gfx::PixelFormat::RGBA8_sRGB);
 }
 
 TEST_F(AssetManagerMockDeviceTest, textureLoaderSupportsFlatColorTexture)
@@ -1505,7 +1505,7 @@ TEST_F(AssetManagerMockDeviceTest, textureLoaderSupportsFlatColorTexture)
     ASSERT_NE(texture, nullptr);
     EXPECT_EQ(texture->width(), 2u);
     EXPECT_EQ(texture->height(), 2u);
-    EXPECT_EQ(texture->pixelFormat(), gfx::PixelFormat::RGBA8_unorm);
+    EXPECT_EQ(texture->pixelFormat(), gfx::PixelFormat::RGBA8_sRGB);
 }
 
 TEST_F(AssetManagerMockDeviceTest, sceneConstructionLoadsMeshAssetsReferencedByTheEcsWorld)
