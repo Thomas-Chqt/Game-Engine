@@ -19,6 +19,8 @@
 #include "shaders/FrameData.slang"
 #include "shaders/Light.slang"
 #include "shaders/textured.slang"
+#include "shaders/skybox.slang"
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <Graphics/Buffer.hpp>
 #include <Graphics/ParameterBlock.hpp>
@@ -56,6 +58,10 @@ struct PushConstant
     alignas(8) glm::uvec2 entityId;
     alignas(16) glm::mat4x4 modelMatrix;
 };
+
+static_assert(sizeof(shader::textured::Material) == 64);
+static_assert(offsetof(shader::textured::Material, baseColorTextureIdx) == 44);
+static_assert(offsetof(shader::textured::Material, normalTextureIdx) == 56);
 
 static_assert(sizeof(PushConstant) == 80);
 static_assert(offsetof(PushConstant, entityId) == 8);
@@ -114,7 +120,6 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
     auto& frameData = builder.constantBufferContent<shader::FrameData>(frameDataBuffer);
     frameData.vpMatrix = m_viewProjectionMatrix;
     frameData.cameraPosition = m_cameraPosition;
-    frameData.ambientLightColor = glm::vec3(1.0f, 1.0f, 1.0f) * 0.1f;
     frameData.directionalLightCount = static_cast<int>(directionalLightCount);
     frameData.pointLightCount = static_cast<int>(pointLightCount);
 
@@ -176,12 +181,15 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
             auto [it, inserted] = materialIndices.try_emplace(submesh.material, static_cast<uint32_t>(materials.size()));
             if (inserted) {
                 materials.push_back(shader::textured::Material{
-                    .diffuseColor = submesh.material->diffuseColor,
-                    .diffuseTextureIdx = builder.textureIndex(submesh.material->diffuseTexture),
-                    .specularColor = submesh.material->specularColor,
+                    .baseColor = submesh.material->baseColor,
                     .emissiveColor = submesh.material->emissiveColor,
+                    .metallic = submesh.material->metallic,
+                    .roughness = submesh.material->roughness,
+                    .normalScale = submesh.material->normalScale,
+                    .baseColorTextureIdx = builder.textureIndex(submesh.material->baseColorTexture),
                     .emissiveTextureIdx = builder.textureIndex(submesh.material->emissiveTexture),
-                    .shininess = submesh.material->shininess
+                    .metallicRoughnessTextureIdx = builder.textureIndex(submesh.material->metallicRoughnessTexture),
+                    .normalTextureIdx = builder.textureIndex(submesh.material->normalTexture)
                 });
             }
             TracyCZoneEnd(TracyCZoneN_add_material);
@@ -229,40 +237,49 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
             .loadAction = gfx::LoadAction::clear,
             .clearValue = gfx::ClearValue::depth(1.0f)
         },
-        .execute = [frameDataBuffer, directionalLightsBuffer, pointLightsBuffer, materialsBuffer, renderables=std::move(renderables)](FramePass::ExecuteContext& ctx){
+        .execute = [frameDataBuffer, directionalLightsBuffer, pointLightsBuffer, materialsBuffer, skyboxViewProjection=m_viewProjectionMatrix * glm::translate(glm::mat4(1.0f), m_cameraPosition), renderables=std::move(renderables)](FramePass::ExecuteContext& ctx){
             ZoneScopedN("TexturedGeometryPass::execute");
 
-            if (renderables.empty())
-                return;
+            if (!renderables.empty())
+            {
+                std::shared_ptr<gfx::ParameterBlock> frameDataPBlock = ctx.parameterBlockPool.get(ctx.frameDataBlockLayout);
+                frameDataPBlock->setBinding(0, ctx.buffer(frameDataBuffer));
+                frameDataPBlock->setBinding(1, ctx.buffer(directionalLightsBuffer));
+                frameDataPBlock->setBinding(2, ctx.buffer(pointLightsBuffer));
 
-            std::shared_ptr<gfx::ParameterBlock> frameDataPBlock = ctx.parameterBlockPool.get(ctx.frameDataBlockLayout);
-            frameDataPBlock->setBinding(0, ctx.buffer(frameDataBuffer));
-            frameDataPBlock->setBinding(1, ctx.buffer(directionalLightsBuffer));
-            frameDataPBlock->setBinding(2, ctx.buffer(pointLightsBuffer));
+                std::shared_ptr<gfx::ParameterBlock> materialPBlock = ctx.parameterBlockPool.get(ctx.texturedMaterialPBlockLayout);
+                materialPBlock->setBinding(0, ctx.buffer(materialsBuffer));
 
-            std::shared_ptr<gfx::ParameterBlock> materialPBlock = ctx.parameterBlockPool.get(ctx.texturedMaterialPBlockLayout);
-            materialPBlock->setBinding(0, ctx.buffer(materialsBuffer));
+                ctx.commandBuffer.usePipeline(ctx.texturedPipeline);
+                ctx.commandBuffer.setParameterBlock(ctx.textureTableBlock, 0);
+                ctx.commandBuffer.setParameterBlock(frameDataPBlock, 1);
+                ctx.commandBuffer.setParameterBlock(materialPBlock, 2);
+                ctx.commandBuffer.setParameterBlock(ctx.environmentBlock, 3);
 
-            ctx.commandBuffer.usePipeline(ctx.texturedPipeline);
-            ctx.commandBuffer.setParameterBlock(ctx.textureTableBlock, 0);
-            ctx.commandBuffer.setParameterBlock(frameDataPBlock, 1);
-            ctx.commandBuffer.setParameterBlock(materialPBlock, 2);
+                for (auto& [key, value] : renderables) {
+                    auto& [vertexBuffer, indexBuffer] = key;
 
-            for (auto& [key, value] : renderables) {
-                auto& [vertexBuffer, indexBuffer] = key;
+                    ctx.commandBuffer.useVertexBuffer(vertexBuffer);
+                    for (const Renderable& renderable : value) {
+                        PushConstant pc {
+                            .materialIndex = renderable.materialIndex,
+                            .entityId = renderable.entityId,
+                            .modelMatrix = renderable.modelMatrix,
+                        };
 
-                ctx.commandBuffer.useVertexBuffer(vertexBuffer);
-                for (const Renderable& renderable : value) {
-                    PushConstant pc {
-                        .materialIndex = renderable.materialIndex,
-                        .entityId = renderable.entityId,
-                        .modelMatrix = renderable.modelMatrix,
-                    };
-
-                    ctx.commandBuffer.setPushConstants(&pc);
-                    ctx.commandBuffer.drawIndexedVertices(indexBuffer);
+                        ctx.commandBuffer.setPushConstants(&pc);
+                        ctx.commandBuffer.drawIndexedVertices(indexBuffer);
+                    }
                 }
             }
+
+            shader::skybox::PushConstants skyboxPushConstants{};
+            skyboxPushConstants.viewProjection = skyboxViewProjection;
+            skyboxPushConstants.exposure = 1.0f;
+            ctx.commandBuffer.usePipeline(ctx.skyboxPipeline);
+            ctx.commandBuffer.setParameterBlock(ctx.skyboxBlock, 0);
+            ctx.commandBuffer.setPushConstants(&skyboxPushConstants);
+            ctx.commandBuffer.drawVertices(0, 36);
         }
     };
 

@@ -100,12 +100,15 @@ std::shared_ptr<Material> defaultMaterial()
     std::shared_ptr<Material> material = weakMaterial.lock();
     if (material == nullptr) {
         material = std::make_shared<Material>(Material{
-            .diffuseColor = glm::vec4(1.0f),
-            .diffuseTexture = BUILT_IN_WHITE_TEXTURE_ID,
-            .specularColor = glm::vec3(0.0f),
+            .baseColor = glm::vec4(1.0f),
+            .baseColorTexture = BUILT_IN_WHITE_TEXTURE_ID,
+            .metallic = 0.0f,
+            .roughness = 1.0f,
+            .metallicRoughnessTexture = BUILT_IN_WHITE_TEXTURE_ID,
+            .normalTexture = BUILT_IN_NORMAL_TEXTURE_ID,
+            .normalScale = 1.0f,
             .emissiveColor = glm::vec3(0.0f),
-            .emissiveTexture = BUILT_IN_WHITE_TEXTURE_ID,
-            .shininess = 0.0f
+            .emissiveTexture = BUILT_IN_WHITE_TEXTURE_ID
         });
         weakMaterial = material;
     }
@@ -150,13 +153,13 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const AssetLocation<Mesh>& locatio
         auto [it, inserted] = materialCache.try_emplace(materialIndex);
         if (inserted) {
             const gltf::Material& gltfMaterial = asset.materials.at(materialIndex);
-            AssetID diffuseTexture = BUILT_IN_WHITE_TEXTURE_ID;
+            AssetID baseColorTexture = BUILT_IN_WHITE_TEXTURE_ID;
             if (gltfMaterial.pbrData.baseColorTexture.has_value()) {
-                const AssetLocation<gfx::Texture> diffuseTextureLocation{
+                const AssetLocation<gfx::Texture> baseColorTextureLocation{
                     .containerPath = location.containerPath,
                     .index = gltfMaterial.pbrData.baseColorTexture->textureIndex
                 };
-                diffuseTexture = m_assetManager->assetId(VAssetLocation(diffuseTextureLocation));
+                baseColorTexture = m_assetManager->assetId(VAssetLocation(baseColorTextureLocation));
             }
 
             AssetID emissiveTexture = BUILT_IN_WHITE_TEXTURE_ID;
@@ -168,17 +171,30 @@ std::shared_ptr<Mesh> AssetLoader<Mesh>::load(const AssetLocation<Mesh>& locatio
                 emissiveTexture = m_assetManager->assetId(VAssetLocation(emissiveTextureLocation));
             }
 
+            auto linearTexture = [&](const auto& textureInfo, AssetID fallback) {
+                if (!textureInfo.has_value())
+                    return fallback;
+                return m_assetManager->assetId(VAssetLocation(AssetLocation<gfx::Texture>{
+                    .containerPath = location.containerPath,
+                    .index = textureInfo->textureIndex,
+                    .pixelFormat = gfx::PixelFormat::RGBA8_unorm
+                }));
+            };
+
             it->second = std::make_shared<Material>(Material{
-                .diffuseColor = glm::vec4(
+                .baseColor = glm::vec4(
                     glm::make_vec3(gltfMaterial.pbrData.baseColorFactor.data()),
                     gltfMaterial.alphaMode == gltf::AlphaMode::Opaque
                         ? 1.0f
                         : gltfMaterial.pbrData.baseColorFactor.w()),
-                .diffuseTexture = diffuseTexture,
-                .specularColor = glm::vec3(0.0f),
+                .baseColorTexture = baseColorTexture,
+                .metallic = gltfMaterial.pbrData.metallicFactor,
+                .roughness = gltfMaterial.pbrData.roughnessFactor,
+                .metallicRoughnessTexture = linearTexture(gltfMaterial.pbrData.metallicRoughnessTexture, BUILT_IN_WHITE_TEXTURE_ID),
+                .normalTexture = linearTexture(gltfMaterial.normalTexture, BUILT_IN_NORMAL_TEXTURE_ID),
+                .normalScale = gltfMaterial.normalTexture.has_value() ? gltfMaterial.normalTexture->scale : 1.0f,
                 .emissiveColor = glm::make_vec3(gltfMaterial.emissiveFactor.data()),
-                .emissiveTexture = emissiveTexture,
-                .shininess = 0.0f
+                .emissiveTexture = emissiveTexture
             });
         }
         return it->second;

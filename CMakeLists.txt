@@ -71,7 +71,8 @@ target_link_libraries(Game-Engine PUBLIC
 
 add_subdirectory("shaders")
 
-add_dependencies(Game-Engine textured_shader)
+add_dependencies(Game-Engine textured_shader pbr_precompute_shaders skybox_shader)
+target_compile_definitions(Game-Engine PRIVATE "RESOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/resources\"")
 target_compile_definitions(Game-Engine PRIVATE "SHADER_DIR=\"${SHADER_DIR}\"")
 
 add_subdirectory("editor")

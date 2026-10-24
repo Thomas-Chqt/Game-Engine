@@ -8,25 +8,8 @@ registeredAssets:
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 1
+        pixelFormat: 1
     id: 2
-    dependentAssets:
-      []
-  - name: chess_set_board_arm_1k
-    location:
-      type: Texture
-      data:
-        containerPath: examples/project1/resources/chess_set/chess_set.gltf
-        index: 2
-    id: 3
-    dependentAssets:
-      []
-  - name: chess_set_board_nor_gl_1k
-    location:
-      type: Texture
-      data:
-        containerPath: examples/project1/resources/chess_set/chess_set.gltf
-        index: 0
-    id: 4
     dependentAssets:
       []
   - name: Cube.004
@@ -37,34 +20,18 @@ registeredAssets:
         index: 0
     id: 5
     dependentAssets:
+      - 1
       - 2
-      - 3
-      - 4
+      - 44
+      - 45
   - name: chess_set_pieces_black_diff_1k
     location:
       type: Texture
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 4
+        pixelFormat: 1
     id: 6
-    dependentAssets:
-      []
-  - name: chess_set_pieces_black_arm_1k
-    location:
-      type: Texture
-      data:
-        containerPath: examples/project1/resources/chess_set/chess_set.gltf
-        index: 5
-    id: 7
-    dependentAssets:
-      []
-  - name: chess_set_pieces_black_nor_gl_1k
-    location:
-      type: Texture
-      data:
-        containerPath: examples/project1/resources/chess_set/chess_set.gltf
-        index: 3
-    id: 8
     dependentAssets:
       []
   - name: Cylinder.022
@@ -75,9 +42,10 @@ registeredAssets:
         index: 1
     id: 9
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: Cylinder.025
     location:
       type: Mesh
@@ -86,34 +54,18 @@ registeredAssets:
         index: 2
     id: 10
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: chess_set_pieces_white_diff_1k
     location:
       type: Texture
       data:
         containerPath: examples/project1/resources/chess_set/chess_set.gltf
         index: 7
+        pixelFormat: 1
     id: 11
-    dependentAssets:
-      []
-  - name: chess_set_pieces_white_arm_1k
-    location:
-      type: Texture
-      data:
-        containerPath: examples/project1/resources/chess_set/chess_set.gltf
-        index: 8
-    id: 12
-    dependentAssets:
-      []
-  - name: chess_set_pieces_white_nor_gl_1k
-    location:
-      type: Texture
-      data:
-        containerPath: examples/project1/resources/chess_set/chess_set.gltf
-        index: 6
-    id: 13
     dependentAssets:
       []
   - name: Cylinder.003
@@ -124,9 +76,10 @@ registeredAssets:
         index: 3
     id: 14
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: Cylinder.001
     location:
       type: Mesh
@@ -135,9 +88,10 @@ registeredAssets:
         index: 4
     id: 15
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: Cylinder.024
     location:
       type: Mesh
@@ -146,9 +100,10 @@ registeredAssets:
         index: 5
     id: 16
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: Cylinder.006
     location:
       type: Mesh
@@ -157,9 +112,10 @@ registeredAssets:
         index: 6
     id: 17
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: mesh.007
     location:
       type: Mesh
@@ -168,9 +124,10 @@ registeredAssets:
         index: 7
     id: 18
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: mesh.008
     location:
       type: Mesh
@@ -179,9 +136,10 @@ registeredAssets:
         index: 8
     id: 19
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: mesh.025
     location:
       type: Mesh
@@ -190,9 +148,10 @@ registeredAssets:
         index: 9
     id: 20
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: mesh.006
     location:
       type: Mesh
@@ -201,9 +160,10 @@ registeredAssets:
         index: 10
     id: 21
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: Cylinder.021
     location:
       type: Mesh
@@ -212,9 +172,10 @@ registeredAssets:
         index: 11
     id: 22
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: Cylinder.026
     location:
       type: Mesh
@@ -223,9 +184,10 @@ registeredAssets:
         index: 12
     id: 23
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: Cylinder.027
     location:
       type: Mesh
@@ -234,9 +196,10 @@ registeredAssets:
         index: 13
     id: 24
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: Cylinder.028
     location:
       type: Mesh
@@ -245,9 +208,10 @@ registeredAssets:
         index: 14
     id: 25
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: Cylinder.029
     location:
       type: Mesh
@@ -256,9 +220,10 @@ registeredAssets:
         index: 15
     id: 26
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: Cylinder.030
     location:
       type: Mesh
@@ -267,9 +232,10 @@ registeredAssets:
         index: 16
     id: 27
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: Cylinder.031
     location:
       type: Mesh
@@ -278,9 +244,10 @@ registeredAssets:
         index: 17
     id: 28
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: Cylinder.032
     location:
       type: Mesh
@@ -289,9 +256,10 @@ registeredAssets:
         index: 18
     id: 29
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: Cylinder.002
     location:
       type: Mesh
@@ -300,9 +268,10 @@ registeredAssets:
         index: 19
     id: 30
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: Cylinder.014
     location:
       type: Mesh
@@ -311,9 +280,10 @@ registeredAssets:
         index: 20
     id: 31
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: Cylinder.015
     location:
       type: Mesh
@@ -322,9 +292,10 @@ registeredAssets:
         index: 21
     id: 32
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: Cylinder.016
     location:
       type: Mesh
@@ -333,9 +304,10 @@ registeredAssets:
         index: 22
     id: 33
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: Cylinder.017
     location:
       type: Mesh
@@ -344,9 +316,10 @@ registeredAssets:
         index: 23
     id: 34
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: Cylinder.018
     location:
       type: Mesh
@@ -355,9 +328,10 @@ registeredAssets:
         index: 24
     id: 35
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: Cylinder.019
     location:
       type: Mesh
@@ -366,9 +340,10 @@ registeredAssets:
         index: 25
     id: 36
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: Cylinder.020
     location:
       type: Mesh
@@ -377,9 +352,10 @@ registeredAssets:
         index: 26
     id: 37
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: Cylinder.023
     location:
       type: Mesh
@@ -388,9 +364,10 @@ registeredAssets:
         index: 27
     id: 38
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: Cylinder.005
     location:
       type: Mesh
@@ -399,9 +376,10 @@ registeredAssets:
         index: 28
     id: 39
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: ChessRook.007
     location:
       type: Mesh
@@ -410,9 +388,10 @@ registeredAssets:
         index: 29
     id: 40
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: ChessRook.008
     location:
       type: Mesh
@@ -421,9 +400,10 @@ registeredAssets:
         index: 30
     id: 41
     dependentAssets:
+      - 1
       - 6
-      - 7
-      - 8
+      - 46
+      - 47
   - name: ChessRook.003
     location:
       type: Mesh
@@ -432,9 +412,10 @@ registeredAssets:
         index: 31
     id: 42
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
   - name: ChessRook.002
     location:
       type: Mesh
@@ -443,9 +424,70 @@ registeredAssets:
         index: 32
     id: 43
     dependentAssets:
+      - 1
       - 11
-      - 12
-      - 13
+      - 48
+      - 49
+  - name: chess_set_board_arm_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 2
+        pixelFormat: 0
+    id: 44
+    dependentAssets:
+      []
+  - name: chess_set_board_nor_gl_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 0
+        pixelFormat: 0
+    id: 45
+    dependentAssets:
+      []
+  - name: chess_set_pieces_black_arm_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 5
+        pixelFormat: 0
+    id: 46
+    dependentAssets:
+      []
+  - name: chess_set_pieces_black_nor_gl_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 3
+        pixelFormat: 0
+    id: 47
+    dependentAssets:
+      []
+  - name: chess_set_pieces_white_arm_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 8
+        pixelFormat: 0
+    id: 48
+    dependentAssets:
+      []
+  - name: chess_set_pieces_white_nor_gl_1k
+    location:
+      type: Texture
+      data:
+        containerPath: examples/project1/resources/chess_set/chess_set.gltf
+        index: 6
+        pixelFormat: 0
+    id: 49
+    dependentAssets:
+      []
 inputs:
   - name: player_jump
     input:
@@ -489,11 +531,9 @@ scenes:
           - type: NameComponent
             data:
               name: chess
-          - type: HierarchyComponent
+          - type: ChildrenComponent
             data:
-              parent: 18446744073709551615
               firstChild: 5
-              nextChild: 18446744073709551615
           - type: TransformComponent
             data:
               position:
@@ -514,10 +554,9 @@ scenes:
           - type: NameComponent
             data:
               name: camera
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 4
-              firstChild: 18446744073709551615
               nextChild: 18446744073709551615
           - type: TransformComponent
             data:
@@ -547,11 +586,6 @@ scenes:
           - type: NameComponent
             data:
               name: light
-          - type: HierarchyComponent
-            data:
-              parent: 18446744073709551615
-              firstChild: 18446744073709551615
-              nextChild: 18446744073709551615
           - type: TransformComponent
             data:
               position:
@@ -581,10 +615,9 @@ scenes:
           - type: NameComponent
             data:
               name: player_mesh
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 4
-              firstChild: 18446744073709551615
               nextChild: 1
           - type: TransformComponent
             data:
@@ -609,11 +642,9 @@ scenes:
           - type: NameComponent
             data:
               name: player
-          - type: HierarchyComponent
+          - type: ChildrenComponent
             data:
-              parent: 18446744073709551615
               firstChild: 3
-              nextChild: 18446744073709551615
           - type: TransformComponent
             data:
               position:
@@ -650,10 +681,9 @@ scenes:
           - type: NameComponent
             data:
               name: board
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 0
-              firstChild: 18446744073709551615
               nextChild: 6
           - type: TransformComponent
             data:
@@ -678,11 +708,13 @@ scenes:
           - type: NameComponent
             data:
               name: pieces
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 0
-              firstChild: 7
               nextChild: 18446744073709551615
+          - type: ChildrenComponent
+            data:
+              firstChild: 7
           - type: TransformComponent
             data:
               position:
@@ -703,11 +735,13 @@ scenes:
           - type: NameComponent
             data:
               name: bishop
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 6
-              firstChild: 8
               nextChild: 12
+          - type: ChildrenComponent
+            data:
+              firstChild: 8
           - type: TransformComponent
             data:
               position:
@@ -728,10 +762,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_bishop_black_01
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 7
-              firstChild: 18446744073709551615
               nextChild: 9
           - type: TransformComponent
             data:
@@ -756,10 +789,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_bishop_black_02
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 7
-              firstChild: 18446744073709551615
               nextChild: 10
           - type: TransformComponent
             data:
@@ -784,10 +816,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_bishop_white_01
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 7
-              firstChild: 18446744073709551615
               nextChild: 11
           - type: TransformComponent
             data:
@@ -812,10 +843,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_bishop_white_02
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 7
-              firstChild: 18446744073709551615
               nextChild: 18446744073709551615
           - type: TransformComponent
             data:
@@ -840,11 +870,13 @@ scenes:
           - type: NameComponent
             data:
               name: king
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 6
-              firstChild: 13
               nextChild: 15
+          - type: ChildrenComponent
+            data:
+              firstChild: 13
           - type: TransformComponent
             data:
               position:
@@ -865,10 +897,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_king_black
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 12
-              firstChild: 18446744073709551615
               nextChild: 14
           - type: TransformComponent
             data:
@@ -893,10 +924,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_king_white
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 12
-              firstChild: 18446744073709551615
               nextChild: 18446744073709551615
           - type: TransformComponent
             data:
@@ -921,11 +951,13 @@ scenes:
           - type: NameComponent
             data:
               name: knight
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 6
-              firstChild: 16
               nextChild: 20
+          - type: ChildrenComponent
+            data:
+              firstChild: 16
           - type: TransformComponent
             data:
               position:
@@ -946,10 +978,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_knight_black_01
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 15
-              firstChild: 18446744073709551615
               nextChild: 17
           - type: TransformComponent
             data:
@@ -974,10 +1005,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_knight_black_02
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 15
-              firstChild: 18446744073709551615
               nextChild: 18
           - type: TransformComponent
             data:
@@ -1002,10 +1032,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_knight_white_01
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 15
-              firstChild: 18446744073709551615
               nextChild: 19
           - type: TransformComponent
             data:
@@ -1030,10 +1059,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_knight_white_02
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 15
-              firstChild: 18446744073709551615
               nextChild: 18446744073709551615
           - type: TransformComponent
             data:
@@ -1058,11 +1086,13 @@ scenes:
           - type: NameComponent
             data:
               name: pawn
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 6
-              firstChild: 21
               nextChild: 37
+          - type: ChildrenComponent
+            data:
+              firstChild: 21
           - type: TransformComponent
             data:
               position:
@@ -1083,10 +1113,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_black_01
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 22
           - type: TransformComponent
             data:
@@ -1111,10 +1140,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_black_02
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 23
           - type: TransformComponent
             data:
@@ -1139,10 +1167,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_black_03
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 24
           - type: TransformComponent
             data:
@@ -1167,10 +1194,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_black_04
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 25
           - type: TransformComponent
             data:
@@ -1195,10 +1221,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_black_05
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 26
           - type: TransformComponent
             data:
@@ -1223,10 +1248,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_black_06
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 27
           - type: TransformComponent
             data:
@@ -1251,10 +1275,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_black_07
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 28
           - type: TransformComponent
             data:
@@ -1279,10 +1302,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_black_08
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 29
           - type: TransformComponent
             data:
@@ -1307,10 +1329,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_white_01
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 30
           - type: TransformComponent
             data:
@@ -1335,10 +1356,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_white_02
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 31
           - type: TransformComponent
             data:
@@ -1363,10 +1383,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_white_03
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 32
           - type: TransformComponent
             data:
@@ -1391,10 +1410,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_white_04
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 33
           - type: TransformComponent
             data:
@@ -1419,10 +1437,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_white_05
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 34
           - type: TransformComponent
             data:
@@ -1447,10 +1464,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_white_06
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 35
           - type: TransformComponent
             data:
@@ -1475,10 +1491,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_white_07
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 36
           - type: TransformComponent
             data:
@@ -1503,10 +1518,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_pawn_white_08
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 20
-              firstChild: 18446744073709551615
               nextChild: 18446744073709551615
           - type: TransformComponent
             data:
@@ -1531,11 +1545,13 @@ scenes:
           - type: NameComponent
             data:
               name: queen
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 6
-              firstChild: 38
               nextChild: 40
+          - type: ChildrenComponent
+            data:
+              firstChild: 38
           - type: TransformComponent
             data:
               position:
@@ -1556,10 +1572,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_queen_black
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 37
-              firstChild: 18446744073709551615
               nextChild: 39
           - type: TransformComponent
             data:
@@ -1584,10 +1599,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_queen_white
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 37
-              firstChild: 18446744073709551615
               nextChild: 18446744073709551615
           - type: TransformComponent
             data:
@@ -1612,11 +1626,13 @@ scenes:
           - type: NameComponent
             data:
               name: rook
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 6
-              firstChild: 41
               nextChild: 18446744073709551615
+          - type: ChildrenComponent
+            data:
+              firstChild: 41
           - type: TransformComponent
             data:
               position:
@@ -1637,10 +1653,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_rook_black_01
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 40
-              firstChild: 18446744073709551615
               nextChild: 42
           - type: TransformComponent
             data:
@@ -1665,10 +1680,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_rook_black_02
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 40
-              firstChild: 18446744073709551615
               nextChild: 43
           - type: TransformComponent
             data:
@@ -1693,10 +1707,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_rook_white_01
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 40
-              firstChild: 18446744073709551615
               nextChild: 44
           - type: TransformComponent
             data:
@@ -1721,10 +1734,9 @@ scenes:
           - type: NameComponent
             data:
               name: piece_rook_white_02
-          - type: HierarchyComponent
+          - type: ParentComponent
             data:
               parent: 40
-              firstChild: 18446744073709551615
               nextChild: 18446744073709551615
           - type: TransformComponent
             data:

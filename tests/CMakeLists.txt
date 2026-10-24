@@ -19,7 +19,7 @@ if(MSVC)
 endif()
 
 file(GLOB SRC "*.cpp")
-target_sources(GE_test PRIVATE ${SRC})
+target_sources(GE_test PRIVATE ${SRC} "${CMAKE_CURRENT_SOURCE_DIR}/../editor/yaml_convert/convert_asset.cpp")
 
 target_include_directories(GE_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(GE_test PRIVATE GE_TEST_RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources")
@@ -37,7 +37,7 @@ set_target_properties(gtest_main PROPERTIES FOLDER "dependencies")
 set_target_properties(gmock PROPERTIES FOLDER "dependencies")
 set_target_properties(gmock_main PROPERTIES FOLDER "dependencies")
 
-target_link_libraries(GE_test PRIVATE GTest::gmock GTest::gtest_main Game-Engine)
+target_link_libraries(GE_test PRIVATE GTest::gmock GTest::gtest_main Game-Engine yaml-cpp)
 target_include_directories(GE_test INTERFACE $<TARGET_PROPERTY:Game-Engine,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_subdirectory(scriptLib)

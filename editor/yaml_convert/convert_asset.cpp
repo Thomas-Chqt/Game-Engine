@@ -16,6 +16,8 @@ struct convert<GE::AssetLocation<T>>
         Node node;
         node["containerPath"] = rhs.containerPath.string();
         node["index"] = rhs.index;
+        if constexpr (std::same_as<T, gfx::Texture>)
+            node["pixelFormat"] = static_cast<int>(rhs.pixelFormat);
         return node;
     }
 
@@ -26,6 +28,8 @@ struct convert<GE::AssetLocation<T>>
 
         rhs.containerPath = std::filesystem::path(node["containerPath"].as<std::string>());
         rhs.index = node["index"] ? node["index"].as<uint32_t>() : 0;
+        if constexpr (std::same_as<T, gfx::Texture>)
+            rhs.pixelFormat = node["pixelFormat"] ? static_cast<gfx::PixelFormat>(node["pixelFormat"].as<int>()) : gfx::PixelFormat::RGBA8_sRGB;
         return true;
     }
 };

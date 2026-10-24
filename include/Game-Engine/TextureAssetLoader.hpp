@@ -37,7 +37,7 @@ public:
     AssetLoader(gfx::Device*, AssetManager*, const AssetLocation<gfx::Texture>& location);
     AssetLoader(gfx::Device*, AssetManager*, std::span<const std::byte> encodedBytes);
     AssetLoader(gfx::Device*, AssetManager*, const std::byte* bytes, uint32_t width, uint32_t height);
-    AssetLoader(gfx::Device*, AssetManager*, const glm::vec4& color);
+    AssetLoader(gfx::Device*, AssetManager*, const glm::vec4& color, gfx::PixelFormat = gfx::PixelFormat::RGBA8_sRGB);
 
     std::shared_ptr<gfx::Texture> load(gfx::CommandBuffer&);
 
@@ -58,6 +58,7 @@ private:
     >;
 
     ImageDataSource m_source;
+    gfx::PixelFormat m_pixelFormat = gfx::PixelFormat::RGBA8_sRGB;
 
 public:
     AssetLoader& operator=(const AssetLoader&) = delete;

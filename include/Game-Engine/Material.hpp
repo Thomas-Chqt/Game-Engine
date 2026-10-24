@@ -8,15 +8,18 @@ namespace GE
 
 struct Material
 {
-    glm::vec4 diffuseColor;
-    AssetID diffuseTexture;
+    glm::vec4 baseColor;
+    AssetID baseColorTexture;
 
-    glm::vec3 specularColor;
+    float metallic;
+    float roughness;
+    AssetID metallicRoughnessTexture;
+    AssetID normalTexture;
+    float normalScale;
 
     glm::vec3 emissiveColor;
     AssetID emissiveTexture;
 
-    float shininess;
 };
 
 }

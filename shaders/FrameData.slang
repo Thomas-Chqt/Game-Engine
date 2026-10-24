@@ -22,7 +22,6 @@ SLANG_PUBLIC struct FrameData
     SLANG_PUBLIC CBUFFER_BEGIN(_)
         SLANG_PUBLIC float4x4 vpMatrix;
         SLANG_PUBLIC float3 cameraPosition;    FLOAT3_PADDING(0);
-        SLANG_PUBLIC float3 ambientLightColor; FLOAT3_PADDING(1);
         SLANG_PUBLIC int directionalLightCount;
         SLANG_PUBLIC int pointLightCount;
     CBUFFER_END

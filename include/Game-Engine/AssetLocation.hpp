@@ -12,6 +12,8 @@
 #include "Game-Engine/ManagableAsset.hpp"
 #include "Game-Engine/TypeList.hpp"
 
+#include <Graphics/Enums.hpp>
+
 #include <cstddef>
 #include <filesystem>
 #include <variant>
@@ -25,6 +27,17 @@ struct AssetLocation
     using AssetType = T;
     std::filesystem::path containerPath;
     std::size_t index = 0;
+
+    auto operator<=>(const AssetLocation&) const = default;
+};
+
+template<>
+struct AssetLocation<gfx::Texture>
+{
+    using AssetType = gfx::Texture;
+    std::filesystem::path containerPath;
+    std::size_t index = 0;
+    gfx::PixelFormat pixelFormat = gfx::PixelFormat::RGBA8_sRGB;
 
     auto operator<=>(const AssetLocation&) const = default;
 };
