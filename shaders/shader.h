@@ -24,6 +24,7 @@ namespace shader
     using float3 = glm::vec3;
     using float4 = glm::vec4;
     using float4x4 = glm::mat4;
+    #define PUSH_CONSTANT struct PushConstants
     #define SLANG_PUBLIC
     #define SLANG_MODULE_DEF(name)
     #define SLANG_MODULE_IMP(name)

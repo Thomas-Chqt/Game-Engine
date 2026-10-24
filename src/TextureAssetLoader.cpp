@@ -42,6 +42,7 @@ namespace GE
 AssetLoader<gfx::Texture>::AssetLoader(gfx::Device* device, AssetManager* assetManager, const AssetLocation<gfx::Texture>& location)
     : AssetLoaderBase<gfx::Texture>(device, assetManager)
     , m_source(location)
+    , m_pixelFormat(location.pixelFormat)
 {
 }
 
@@ -57,9 +58,10 @@ AssetLoader<gfx::Texture>::AssetLoader(gfx::Device* device, AssetManager* assetM
 {
 }
 
-AssetLoader<gfx::Texture>::AssetLoader(gfx::Device* device, AssetManager* assetManager, const glm::vec4& color)
+AssetLoader<gfx::Texture>::AssetLoader(gfx::Device* device, AssetManager* assetManager, const glm::vec4& color, gfx::PixelFormat pixelFormat)
     : AssetLoaderBase<gfx::Texture>(device, assetManager)
     , m_source(color)
+    , m_pixelFormat(pixelFormat)
 {
     assert(color.r >= 0.0f && color.r <= 1.0f);
     assert(color.g >= 0.0f && color.g <= 1.0f);
@@ -183,6 +185,7 @@ std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(const std::byte* b
     ZoneScopedN("AssetLoader<gfx::Texture>::upload_bytes_to_gpu");
 
     assert(bytes);
+    assert(m_pixelFormat == gfx::PixelFormat::RGBA8_sRGB || m_pixelFormat == gfx::PixelFormat::RGBA8_unorm);
     assert(width > 0);
     assert(height > 0);
 
@@ -191,14 +194,14 @@ std::shared_ptr<gfx::Texture> AssetLoader<gfx::Texture>::load(const std::byte* b
         .width = width,
         .height = height,
         .mipLevelCount = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1,
-        .pixelFormat = gfx::PixelFormat::RGBA8_sRGB,
+        .pixelFormat = m_pixelFormat,
         .usages = gfx::TextureUsage::copySource | gfx::TextureUsage::copyDestination | gfx::TextureUsage::shaderRead,
         .storageMode = gfx::ResourceStorageMode::deviceLocal
     });
     assert(texture);
 
     std::shared_ptr<gfx::Buffer> stagingBuffer = m_device->newBuffer(gfx::Buffer::Descriptor{
-        .size = static_cast<size_t>(width) * static_cast<size_t>(height) * pixelFormatSize(gfx::PixelFormat::RGBA8_sRGB),
+        .size = static_cast<size_t>(width) * static_cast<size_t>(height) * pixelFormatSize(m_pixelFormat),
         .usages = gfx::BufferUsage::copySource,
         .storageMode = gfx::ResourceStorageMode::hostVisible
     });

@@ -35,6 +35,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <future>
+#include <limits>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -58,6 +59,7 @@ concept AssetIdRange = std::ranges::range<T> && std::convertible_to<std::ranges:
 
 constexpr AssetID BUILT_IN_CUBE_ID = 0;
 constexpr AssetID BUILT_IN_WHITE_TEXTURE_ID = 1;
+constexpr AssetID BUILT_IN_NORMAL_TEXTURE_ID = std::numeric_limits<AssetID>::max() - 1;
 
 class TextureTable;
 

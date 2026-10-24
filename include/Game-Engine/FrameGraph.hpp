@@ -119,6 +119,9 @@ struct FramePass
         std::function<std::shared_ptr<gfx::Buffer>(FrameGraph::BufferRef)> buffer;
         std::shared_ptr<gfx::ParameterBlockLayout> texturedMaterialPBlockLayout;
         std::shared_ptr<gfx::GraphicsPipeline> texturedPipeline;
+        std::shared_ptr<gfx::ParameterBlock> environmentBlock;
+        std::shared_ptr<gfx::ParameterBlock> skyboxBlock;
+        std::shared_ptr<gfx::GraphicsPipeline> skyboxPipeline;
     };
 
     Kind kind = Kind::render;

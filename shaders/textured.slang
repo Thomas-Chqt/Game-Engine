@@ -2,19 +2,24 @@
 
 SLANG_MODULE_IMP(Light);
 SLANG_MODULE_IMP(FrameData);
-SLANG_MODULE_IMP(phong_shading);
+SLANG_MODULE_IMP(pbr);
+SLANG_MODULE_IMP(ibl);
+SLANG_MODULE_IMP(utils);
 
 namespace shader::textured
 {
 
 struct alignas(16) Material
 {
-    float4 diffuseColor;
-    uint32_t diffuseTextureIdx;  UINT32_PADDING(0);
-    float3 specularColor;        FLOAT3_PADDING(0);
-    float3 emissiveColor;        FLOAT3_PADDING(1);
+    float4 baseColor;
+    float3 emissiveColor;        FLOAT3_PADDING(0);
+    float metallic;
+    float roughness;
+    float normalScale;
+    uint32_t baseColorTextureIdx;
     uint32_t emissiveTextureIdx;
-    float shininess;
+    uint32_t metallicRoughnessTextureIdx;
+    uint32_t normalTextureIdx;
 };
 
 /* -------------------------Vertex Shader------------------------------- */
@@ -31,6 +36,15 @@ ParameterBlock<TextureArray> textureArray;
 ParameterBlock<FrameData> frameData;
 ParameterBlock<StructuredBuffer<Material>> materials;
 
+struct Environment
+{
+    TextureCube<float4> irradianceCubeMap;
+    TextureCube<float4> prefilteredEnvironmentCubeMap;
+    Texture2D<float2> brdfLut;
+    SamplerState sampler;
+};
+ParameterBlock<Environment> environment;
+
 PUSH_CONSTANT
 {
     uint32_t materialIdx;
@@ -43,6 +57,7 @@ struct Vertex
     float3 pos;
     float2 uv;
     float3 normal;
+    float4 tangent;
 };
 
 struct VSOutput
@@ -51,6 +66,8 @@ struct VSOutput
     float4 clipPos : SV_Position;
     float2 uv;
     float3 normal;
+    float3 tangent;
+    float3 bitangent;
 };
 
 [shader("vertex")]
@@ -63,6 +80,8 @@ VSOutput vertexMain(Vertex input)
     output.clipPos = mul(worldPos, frameData.vpMatrix);
     output.uv      = input.uv;
     output.normal  = mul(input.normal, (float3x3)modelMatrix);
+    output.tangent = mul(input.tangent.xyz, (float3x3)modelMatrix);
+    output.bitangent = mul(cross(input.normal, input.tangent.xyz) * input.tangent.w, (float3x3)modelMatrix);
     return output;
 }
 
@@ -77,40 +96,60 @@ struct FSOutput
 [shader("fragment")]
 FSOutput fragmentMain(VSOutput input)
 {
-    let sampler: SamplerState = textureArray.sampler;
-
-    let diffuseColor: float4 = materials[materialIdx].diffuseColor;
-    let diffuseTexture: Texture2D<float4> = textureArray.textures[materials[materialIdx].diffuseTextureIdx];
-
-    let specularColor: float3 = materials[materialIdx].specularColor;
-
-    let emissiveColor: float3 = materials[materialIdx].emissiveColor;
-    let emissiveTexture: Texture2D<float4> = textureArray.textures[materials[materialIdx].emissiveTextureIdx];
-
-    let shininess: float = materials[materialIdx].shininess;
-
-
-    float4 texColor = diffuseColor * diffuseTexture.Sample(sampler, input.uv);
-    if (texColor.a < 0.5)
+    const Material material = materials[materialIdx];
+    const float4 baseColor = material.baseColor * textureArray.textures[material.baseColorTextureIdx].Sample(textureArray.sampler, input.uv);
+    if (baseColor.a < 0.5)
         discard;
 
-    phong::FragmentContext fragCtx;
-    fragCtx.position      = input.pos;
-    fragCtx.normal        = normalize(input.normal);
-    fragCtx.cameraDir     = normalize(frameData.cameraPosition - input.pos);
-    fragCtx.diffuseColor  = texColor.rgb;
-    fragCtx.specularColor = specularColor;
-    fragCtx.shininess     = shininess;
+    const float3 emissive = material.emissiveColor * textureArray.textures[material.emissiveTextureIdx].Sample(textureArray.sampler, input.uv).rgb;
+    const float4 metallicRoughness = textureArray.textures[material.metallicRoughnessTextureIdx].Sample(textureArray.sampler, input.uv);
+    const float metallic = saturate(material.metallic * metallicRoughness.b);
+    const float roughness = max(material.roughness * metallicRoughness.g, 0.01);
 
-    float3 finalColor = frameData.ambientLightColor * fragCtx.diffuseColor;
+    float3 N = normalize(input.normal);
+    if (dot(input.tangent, input.tangent) > 0.0 && dot(input.bitangent, input.bitangent) > 0.0)
+    {
+        float3 normalMap = textureArray.textures[material.normalTextureIdx].Sample(textureArray.sampler, input.uv).rgb * 2.0 - 1.0;
+        normalMap.xy *= material.normalScale;
+        const float3 T = normalize(input.tangent);
+        const float3 B = normalize(input.bitangent);
+        N = normalize(mul(normalMap, float3x3(T, B, N)));
+    }
+    const float3 V = normalize(frameData.cameraPosition - input.pos);
+    const float NdotV = max(dot(N, V), 0.0);
+
+    pbr::FragmentContext fragCtx;
+    fragCtx.position = input.pos;
+    fragCtx.normal = N;
+    fragCtx.cameraDir = V;
+    fragCtx.baseColor = baseColor.rgb;
+    fragCtx.metallic = metallic;
+    fragCtx.roughness = roughness;
+
+    float3 Lo = float3(0.0);
     for (int i = 0; i < frameData.directionalLightCount; ++i)
-        finalColor += phong::evalDirectionalLight(fragCtx, frameData.directionalLights[i]);
+        Lo += pbr::evalDirectionalLight(fragCtx, frameData.directionalLights[i]);
     for (int i = 0; i < frameData.pointLightCount; ++i)
-        finalColor += phong::evalPointLight(fragCtx, frameData.pointLights[i]);
-    finalColor += emissiveColor * emissiveTexture.Sample(sampler, input.uv).rgb;
+        Lo += pbr::evalPointLight(fragCtx, frameData.pointLights[i]);
+
+    uint prefilteredWidth;
+    uint prefilteredHeight;
+    uint prefilteredMipCount;
+    environment.prefilteredEnvironmentCubeMap.GetDimensions(0, prefilteredWidth, prefilteredHeight, prefilteredMipCount);
+
+    const float3 irradiance = environment.irradianceCubeMap.Sample(environment.sampler, N).rgb;
+    const float3 R = reflect(-V, N);
+    const float mipLevel = roughness * float(prefilteredMipCount - 1);
+    const float3 prefilteredColor = environment.prefilteredEnvironmentCubeMap.SampleLevel(environment.sampler, R, mipLevel).rgb;
+    const float2 environmentBrdf = environment.brdfLut.SampleLevel(environment.sampler, float2(NdotV, roughness), 0.0).rg;
+    const float3 F0 = lerp(float3(0.04), baseColor.rgb, metallic);
+    const float3 ambient = ibl::evaluateIBL(
+        baseColor.rgb, metallic, roughness, NdotV, F0,
+        irradiance, prefilteredColor, environmentBrdf
+    );
 
     FSOutput output;
-    output.color = float4(saturate(finalColor), diffuseColor.a);
+    output.color = float4(acesToneMapping((Lo + ambient + emissive) * 0.5), baseColor.a);
     output.entityId = entityId;
     return output;
 }

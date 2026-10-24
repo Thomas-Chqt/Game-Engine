@@ -77,7 +77,7 @@ private:
     gfx::Device* m_device;
     AssetManager* m_assetManager;
     gfx::Surface* m_surface;
-    gfx::tracy::TracyGfxCtx* m_tracyGfxCtx;
+    [[maybe_unused]] gfx::tracy::TracyGfxCtx* m_tracyGfxCtx;
 
     std::shared_ptr<gfx::ParameterBlock> m_textureTableBlock;
     std::shared_ptr<TextureTable> m_textureTable;
@@ -85,6 +85,14 @@ private:
 
     std::shared_ptr<gfx::ParameterBlockLayout> m_texturedMaterialPBlockLayout;
     std::shared_ptr<gfx::GraphicsPipeline> m_texturedPipeline;
+
+    std::shared_ptr<gfx::Texture> m_environmentCubemap;
+    std::shared_ptr<gfx::Texture> m_irradianceCubemap;
+    std::shared_ptr<gfx::Texture> m_prefilteredEnvironmentCubemap;
+    std::shared_ptr<gfx::Texture> m_brdfLut;
+    std::shared_ptr<gfx::ParameterBlock> m_environmentBlock;
+    std::shared_ptr<gfx::ParameterBlock> m_skyboxBlock;
+    std::shared_ptr<gfx::GraphicsPipeline> m_skyboxPipeline;
 
     std::unique_ptr<gfx::Swapchain> m_swapchain;
 

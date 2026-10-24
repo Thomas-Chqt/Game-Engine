@@ -76,11 +76,20 @@ AssetManager::AssetManager(gfx::Device* device, ThreadPool* threadPool)
     );
     assert(builtInWhiteTextureId == BUILT_IN_WHITE_TEXTURE_ID);
 
+    [[maybe_unused]] const AssetID builtInNormalTextureId = registerAsset<gfx::Texture>(
+        BUILT_IN_NORMAL_TEXTURE_ID,
+        "built_in_normal_texture",
+        std::nullopt,
+        std::array<AssetID, 0>(),
+        AssetLoader<gfx::Texture>(m_device, this, glm::vec4(0.5f, 0.5f, 1.0f, 1.0f), gfx::PixelFormat::RGBA8_unorm)
+    );
+    assert(builtInNormalTextureId == BUILT_IN_NORMAL_TEXTURE_ID);
+
     [[maybe_unused]] const AssetID builtInCubeId = registerAsset<Mesh>(
         BUILT_IN_CUBE_ID,
         "build_in_cube",
         std::nullopt,
-        std::array<AssetID, 1>{ BUILT_IN_WHITE_TEXTURE_ID },
+        std::array<AssetID, 2>{ BUILT_IN_WHITE_TEXTURE_ID, BUILT_IN_NORMAL_TEXTURE_ID },
         AssetLoader<Mesh>(m_device, this, BuiltInMesh::cube)
     );
     assert(builtInCubeId == BUILT_IN_CUBE_ID);
@@ -102,7 +111,7 @@ void AssetManager::importGltf(const std::filesystem::path& path)
             : std::format("{}#mesh{}", path.stem().string(), meshIndex);
 
         std::set<AssetID> dependentAssets;
-        auto registerDependentTexture = [&](const fastgltf::TextureInfo& textureInfo) {
+        auto registerDependentTexture = [&](const fastgltf::TextureInfo& textureInfo, gfx::PixelFormat pixelFormat = gfx::PixelFormat::RGBA8_sRGB) {
             fastgltf::Texture texure = asset.textures.at(textureInfo.textureIndex);
             assert(texure.imageIndex.has_value());
             std::string name = texure.name.empty() == false
@@ -110,13 +119,14 @@ void AssetManager::importGltf(const std::filesystem::path& path)
                 : asset.images[*texure.imageIndex].name.empty() == false
                 ? std::string(asset.images[*texure.imageIndex].name)
                 : std::string(std::format("{}#texture{}", path.stem().string(), textureInfo.textureIndex));
-            dependentAssets.insert(registerAsset<gfx::Texture>(name, path, textureInfo.textureIndex));
+            dependentAssets.insert(registerAsset(std::nullopt, name, VAssetLocation(AssetLocation<gfx::Texture>{path, textureInfo.textureIndex, pixelFormat}), std::array<AssetID, 0>{}));
         };
 
         for (const fastgltf::Primitive& primitive : mesh.primitives)
         {
             if (primitive.materialIndex.has_value() == false) {
                 dependentAssets.insert(BUILT_IN_WHITE_TEXTURE_ID);
+                dependentAssets.insert(BUILT_IN_NORMAL_TEXTURE_ID);
                 continue;
             }
             const fastgltf::Material& material = asset.materials.at(*primitive.materialIndex);
@@ -125,6 +135,16 @@ void AssetManager::importGltf(const std::filesystem::path& path)
                 registerDependentTexture(material.pbrData.baseColorTexture.value());
             else
                 dependentAssets.insert(BUILT_IN_WHITE_TEXTURE_ID);
+
+            if (material.pbrData.metallicRoughnessTexture.has_value())
+                registerDependentTexture(*material.pbrData.metallicRoughnessTexture, gfx::PixelFormat::RGBA8_unorm);
+            else
+                dependentAssets.insert(BUILT_IN_WHITE_TEXTURE_ID);
+
+            if (material.normalTexture.has_value())
+                registerDependentTexture(*material.normalTexture, gfx::PixelFormat::RGBA8_unorm);
+            else
+                dependentAssets.insert(BUILT_IN_NORMAL_TEXTURE_ID);
 
             if(material.emissiveTexture.has_value())
                 registerDependentTexture(material.emissiveTexture.value());
