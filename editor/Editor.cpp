@@ -249,26 +249,26 @@ void Editor::saveProject()
 
     std::map<GE::AssetID, std::tuple<std::string, GE::VAssetLocation, std::vector<GE::AssetID>>> registeredAssets;
 
-    auto addRegisteredAsset = [&](this auto&& self, GE::AssetID id) -> void {
-        for (GE::AssetID childId : assetManager().assetDependencies(id))
+    auto addRegisteredAsset = [&assets = assetManager(), &registeredAssets](this auto&& self, GE::AssetID id) -> void {
+        for (GE::AssetID childId : assets.assetDependencies(id))
             self(childId);
-            if (assetManager().assetLocation(id).has_value()) {
-                registeredAssets.try_emplace(id,
-                    std::string(assetManager().assetName(id)),
-                    assetManager().assetLocation(id).value(),
-                    assetManager().assetDependencies(id) | std::ranges::to<std::vector>()
-                );
-            }
+        if (assets.assetLocation(id).has_value()) {
+            registeredAssets.try_emplace(id,
+                std::string(assets.assetName(id)),
+                assets.assetLocation(id).value(),
+                assets.assetDependencies(id) | std::ranges::to<std::vector>()
+            );
+        }
     };
 
-    auto topAssetIds = m_sceneDescriptors
+    std::set<GE::AssetID> topAssetIds;
+    for (GE::AssetID id : m_sceneDescriptors
         | std::views::transform([](const GE::Scene::Descriptor& desc) { return desc.ecsWorld | GE::const_ECSView<GE::MeshComponent>(); })
         | std::views::join
-        | std::views::transform([](const auto& e){ return static_cast<GE::AssetID>(e.template get<0>()); })
-        | std::ranges::to<std::set>()
-        | std::views::filter([&](GE::AssetID id) -> bool { return assetManager().assetLocation(id).has_value(); });
+        | std::views::transform([](const auto& e){ return static_cast<GE::AssetID>(e.template get<0>()); }))
+        topAssetIds.insert(id);
 
-    for (GE::AssetID id : topAssetIds)
+    for (GE::AssetID id : topAssetIds | std::views::filter([&](GE::AssetID id) { return assetManager().assetLocation(id).has_value(); }))
         addRegisteredAsset(id);
 
     Project project{
