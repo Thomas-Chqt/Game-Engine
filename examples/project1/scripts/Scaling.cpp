@@ -9,6 +9,8 @@
 #include <Game-Engine/Game.hpp>
 #include <Game-Engine/Script.hpp>
 
+#include <optional>
+
 class Scaling final : public GE::Script
 {
     GE_SCRIPT(Scaling, "Scaling");
@@ -23,7 +25,8 @@ class Scaling final : public GE::Script
 
     void onUpdate() override
     {
-        auto& transform = m_entity.get<GE::TransformComponent>();
+        assert(m_entity.has_value());
+        auto& transform = m_entity->get<GE::TransformComponent>();
         const float delta = increasing ? speed : -speed;
         transform.scale += glm::vec3(delta);
 
@@ -34,5 +37,5 @@ class Scaling final : public GE::Script
     }
 
 private:
-    GE::Entity m_entity;
+    std::optional<GE::Entity> m_entity;
 };

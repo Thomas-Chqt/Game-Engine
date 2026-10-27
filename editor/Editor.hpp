@@ -93,7 +93,7 @@ private:
 
     std::pair<uint32_t, uint32_t> m_viewportSize = {0, 0};
     std::optional<std::pair<uint32_t, uint32_t>> m_viewportReadbackRequest;
-    std::future<GE::EntityID> m_viewportReadbackFuture;
+    std::future<std::optional<GE::EntityID>> m_viewportReadbackFuture;
 
     std::optional<GE::ScriptLibrary> m_scriptLibrary;
 

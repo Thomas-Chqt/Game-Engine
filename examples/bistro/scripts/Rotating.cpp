@@ -9,6 +9,8 @@
 #include <Game-Engine/Game.hpp>
 #include <Game-Engine/Script.hpp>
 
+#include <optional>
+
 class Rotating final : public GE::Script
 {
     GE_SCRIPT(Rotating, "Rotating");
@@ -22,10 +24,11 @@ class Rotating final : public GE::Script
 
     void onUpdate() override
     {
-        auto& transform = m_entity.get<GE::TransformComponent>();
+        assert(m_entity.has_value());
+        auto& transform = m_entity->get<GE::TransformComponent>();
         transform.rotation.y += speed;
     }
 
 private:
-    GE::Entity m_entity;
+    std::optional<GE::Entity> m_entity;
 };

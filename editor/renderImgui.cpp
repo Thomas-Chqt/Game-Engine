@@ -14,7 +14,7 @@
 #include <Game-Engine/AssetLocation.hpp>
 #include <Game-Engine/AssetManager.hpp>
 #include <Game-Engine/Components.hpp>
-#include <Game-Engine/ECSWorld.hpp>
+#include <Game-Engine/ECSRegistry.hpp>
 #include <Game-Engine/Entity.hpp>
 #include <Game-Engine/Scene.hpp>
 
@@ -420,7 +420,7 @@ void Editor::renderImgui()
     {
         ZoneScopedN("EntityInspectorWindow");
         ImGui::PushItemWidth(-80);
-        if (!m_selectedEntity || m_selectedEntity->world == nullptr || m_selectedEntity->entityId == GE::INVALID_ENTITY_ID)
+        if (!m_selectedEntity)
             ImGui::TextUnformatted("No entity selected");
         else
         {

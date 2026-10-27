@@ -9,7 +9,7 @@
 
 #include <gtest/gtest.h>
 
-#include "Game-Engine/ECSWorld.hpp"
+#include "Game-Engine/ECSRegistry.hpp"
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Components.hpp"
 
@@ -21,18 +21,18 @@ namespace GE_tests
 namespace
 {
 
-GE::Entity makeEntity(GE::ECSWorld& world)
+GE::Entity makeEntity(GE::ECSRegistry& registry)
 {
-    return GE::Entity{
-        .world = &world,
-        .entityId = world.newEntityID()
-    };
+    return GE::Entity{&registry, registry.newEntityID()};
 }
 
 }
 
 TEST(EntityTest, staticAssert)
 {
+    static_assert(!std::is_default_constructible_v<GE::Entity>);
+    static_assert(!std::is_default_constructible_v<GE::const_Entity>);
+    static_assert(std::is_same_v<decltype(GE::Entity::entityId), GE::EntityID>);
     static_assert(GE::EntityLike<GE::Entity>, "Entity is not EntityLike");
     static_assert(!GE::EntityLike<const GE::Entity>, "const Entity is EntityLike");
     static_assert(GE::ConstEntityLike<GE::Entity>, "Entity is not ConstEntityLike");
@@ -46,8 +46,8 @@ TEST(EntityTest, staticAssert)
 
 TEST(EntityTest, emplaceAndGetCameraComponent)
 {
-    GE::ECSWorld ecsWorld;
-    GE::Entity entity = makeEntity(ecsWorld);
+    GE::ECSRegistry ecsRegistry;
+    GE::Entity entity = makeEntity(ecsRegistry);
 
     entity.emplace<GE::CameraComponent>().fov = 90.0f;
     ASSERT_FLOAT_EQ(entity.get<GE::CameraComponent>().fov, 90.0f);
@@ -55,20 +55,22 @@ TEST(EntityTest, emplaceAndGetCameraComponent)
 
 TEST(EntityTest, emplaceAndGetParentComponent)
 {
-    GE::ECSWorld ecsWorld;
-    GE::Entity entity = makeEntity(ecsWorld);
+    GE::ECSRegistry ecsRegistry;
+    GE::Entity entity = makeEntity(ecsRegistry);
 
-    entity.emplace<GE::ParentComponent>().parent = 123;
-    ASSERT_EQ(entity.get<GE::ParentComponent>().parent, 123);
+    const auto referencedId = ecsRegistry.newEntityID();
+    entity.emplace<GE::ParentComponent>().parent = referencedId;
+    ASSERT_EQ(entity.get<GE::ParentComponent>().parent, referencedId);
 }
 
 TEST(EntityTest, emplaceAndGetChildrenComponent)
 {
-    GE::ECSWorld ecsWorld;
-    GE::Entity entity = makeEntity(ecsWorld);
+    GE::ECSRegistry ecsRegistry;
+    GE::Entity entity = makeEntity(ecsRegistry);
 
-    entity.emplace<GE::ChildrenComponent>().firstChild = 123;
-    ASSERT_EQ(entity.get<GE::ChildrenComponent>().firstChild, 123);
+    const auto referencedId = ecsRegistry.newEntityID();
+    entity.emplace<GE::ChildrenComponent>().firstChild = referencedId;
+    ASSERT_EQ(entity.get<GE::ChildrenComponent>().firstChild, referencedId);
 }
 
 template<typename T>
@@ -78,8 +80,8 @@ TYPED_TEST_SUITE(EntityEmplaceRemoveHasTest, EntityEmplaceRemoveHasTestedCompone
 
 TYPED_TEST(EntityEmplaceRemoveHasTest, _)
 {
-    GE::ECSWorld ecsWorld;
-    GE::Entity entity = makeEntity(ecsWorld);
+    GE::ECSRegistry ecsRegistry;
+    GE::Entity entity = makeEntity(ecsRegistry);
 
     EXPECT_FALSE(entity.has<TypeParam>());
 
@@ -92,8 +94,8 @@ TYPED_TEST(EntityEmplaceRemoveHasTest, _)
 
 TEST(EntityTest, nameAccess)
 {
-    GE::ECSWorld ecsWorld;
-    GE::Entity entity = makeEntity(ecsWorld);
+    GE::ECSRegistry ecsRegistry;
+    GE::Entity entity = makeEntity(ecsRegistry);
 
     EXPECT_FALSE(entity.has<GE::NameComponent>());
     EXPECT_EQ(entity.name(), GE::NameComponent().name);
@@ -105,10 +107,10 @@ TEST(EntityTest, nameAccess)
 
 TEST(EntityTest, parentChildQueries)
 {
-    GE::ECSWorld ecsWorld;
-    GE::Entity root = makeEntity(ecsWorld);
-    GE::Entity child1 = makeEntity(ecsWorld);
-    GE::Entity child2 = makeEntity(ecsWorld);
+    GE::ECSRegistry ecsRegistry;
+    GE::Entity root = makeEntity(ecsRegistry);
+    GE::Entity child1 = makeEntity(ecsRegistry);
+    GE::Entity child2 = makeEntity(ecsRegistry);
 
     root.addChild(child1);
     root.addChild(child2);
@@ -135,10 +137,10 @@ TEST(EntityTest, parentChildQueries)
 
 TEST(EntityTest, isParentOf)
 {
-    GE::ECSWorld ecsWorld;
-    GE::Entity root = makeEntity(ecsWorld);
-    GE::Entity child = makeEntity(ecsWorld);
-    GE::Entity grandChild = makeEntity(ecsWorld);
+    GE::ECSRegistry ecsRegistry;
+    GE::Entity root = makeEntity(ecsRegistry);
+    GE::Entity child = makeEntity(ecsRegistry);
+    GE::Entity grandChild = makeEntity(ecsRegistry);
 
     root.addChild(child);
     child.addChild(grandChild);
@@ -151,11 +153,11 @@ TEST(EntityTest, isParentOf)
 
 TEST(EntityTest, addChildWithAfter)
 {
-    GE::ECSWorld ecsWorld;
-    GE::Entity root = makeEntity(ecsWorld);
-    GE::Entity child1 = makeEntity(ecsWorld);
-    GE::Entity child2 = makeEntity(ecsWorld);
-    GE::Entity child3 = makeEntity(ecsWorld);
+    GE::ECSRegistry ecsRegistry;
+    GE::Entity root = makeEntity(ecsRegistry);
+    GE::Entity child1 = makeEntity(ecsRegistry);
+    GE::Entity child2 = makeEntity(ecsRegistry);
+    GE::Entity child3 = makeEntity(ecsRegistry);
 
     root.addChild(child1);
     root.addChild(child2);
@@ -171,11 +173,11 @@ TEST(EntityTest, addChildWithAfter)
 
 TEST(EntityTest, removeChild)
 {
-    GE::ECSWorld ecsWorld;
-    GE::Entity root = makeEntity(ecsWorld);
-    GE::Entity child1 = makeEntity(ecsWorld);
-    GE::Entity child2 = makeEntity(ecsWorld);
-    GE::Entity child3 = makeEntity(ecsWorld);
+    GE::ECSRegistry ecsRegistry;
+    GE::Entity root = makeEntity(ecsRegistry);
+    GE::Entity child1 = makeEntity(ecsRegistry);
+    GE::Entity child2 = makeEntity(ecsRegistry);
+    GE::Entity child3 = makeEntity(ecsRegistry);
 
     root.addChild(child1);
     root.addChild(child2);
@@ -199,10 +201,10 @@ TEST(EntityTest, removeChild)
 
 TEST(EntityTest, destroyEntity)
 {
-    GE::ECSWorld ecsWorld;
-    GE::Entity parent = makeEntity(ecsWorld);
-    GE::Entity child1 = makeEntity(ecsWorld);
-    GE::Entity child2 = makeEntity(ecsWorld);
+    GE::ECSRegistry ecsRegistry;
+    GE::Entity parent = makeEntity(ecsRegistry);
+    GE::Entity child1 = makeEntity(ecsRegistry);
+    GE::Entity child2 = makeEntity(ecsRegistry);
 
     parent.addChild(child1);
     parent.addChild(child2);
@@ -210,9 +212,9 @@ TEST(EntityTest, destroyEntity)
     GE::EntityID parentId = parent.entityId;
     parent.destroy();
 
-    EXPECT_FALSE(ecsWorld.isValidEntityID(parentId));
-    EXPECT_EQ(parent.world, nullptr);
-    EXPECT_EQ(parent.entityId, GE::INVALID_ENTITY_ID);
+    EXPECT_FALSE(ecsRegistry.isValidEntityID(parentId));
+    EXPECT_EQ(parent.registry, &ecsRegistry);
+    EXPECT_EQ(parent.entityId, parentId);
 
     EXPECT_FALSE(child1.parent().has_value());
     EXPECT_FALSE(child1.nextChild().has_value());
@@ -224,26 +226,26 @@ TEST(EntityTest, destroyEntity)
 
 TEST(EntityTest, destroyChildUnlinksFromParent)
 {
-    GE::ECSWorld ecsWorld;
-    GE::Entity parent = makeEntity(ecsWorld);
-    GE::Entity child = makeEntity(ecsWorld);
+    GE::ECSRegistry ecsRegistry;
+    GE::Entity parent = makeEntity(ecsRegistry);
+    GE::Entity child = makeEntity(ecsRegistry);
 
     parent.addChild(child);
 
     GE::EntityID childId = child.entityId;
     child.destroy();
 
-    EXPECT_FALSE(ecsWorld.isValidEntityID(childId));
+    EXPECT_FALSE(ecsRegistry.isValidEntityID(childId));
     EXPECT_FALSE(parent.firstChild().has_value());
     EXPECT_FALSE(parent.has<GE::ChildrenComponent>());
 }
 
 TEST(EntityTest, rootEntitiesCanBeQueriedByExcludingParentComponent)
 {
-    GE::ECSWorld ecsWorld;
-    GE::Entity root = makeEntity(ecsWorld);
-    GE::Entity otherRoot = makeEntity(ecsWorld);
-    GE::Entity child = makeEntity(ecsWorld);
+    GE::ECSRegistry ecsRegistry;
+    GE::Entity root = makeEntity(ecsRegistry);
+    GE::Entity otherRoot = makeEntity(ecsRegistry);
+    GE::Entity child = makeEntity(ecsRegistry);
 
     root.emplace<GE::NameComponent>("root");
     otherRoot.emplace<GE::NameComponent>("other root");
@@ -252,7 +254,7 @@ TEST(EntityTest, rootEntitiesCanBeQueriedByExcludingParentComponent)
     root.addChild(child);
 
     std::set<GE::EntityID> roots;
-    for (GE::Entity entity : ecsWorld | GE::ECSView<GE::NameComponent>().without<GE::ParentComponent>() | GE::MakeEntity{})
+    for (GE::Entity entity : ecsRegistry | GE::ECSView<GE::NameComponent>().without<GE::ParentComponent>() | GE::MakeEntity{})
         roots.insert(entity.entityId);
 
     EXPECT_TRUE(roots.contains(root.entityId));
@@ -262,9 +264,9 @@ TEST(EntityTest, rootEntitiesCanBeQueriedByExcludingParentComponent)
 
 TEST(EntityTest, equalityOperators)
 {
-    GE::ECSWorld ecsWorld;
-    GE::Entity entity1 = makeEntity(ecsWorld);
-    GE::Entity entity2 = makeEntity(ecsWorld);
+    GE::ECSRegistry ecsRegistry;
+    GE::Entity entity1 = makeEntity(ecsRegistry);
+    GE::Entity entity2 = makeEntity(ecsRegistry);
     GE::Entity entity3 = entity1;
 
     EXPECT_TRUE(entity1 == entity3);
@@ -274,15 +276,15 @@ TEST(EntityTest, equalityOperators)
 
 TEST(EntityTest, conversionToConstEntity)
 {
-    GE::ECSWorld ecsWorld;
-    GE::Entity entity = makeEntity(ecsWorld);
+    GE::ECSRegistry ecsRegistry;
+    GE::Entity entity = makeEntity(ecsRegistry);
 
     GE::const_Entity constEntity = entity;
-    EXPECT_EQ(constEntity.world, entity.world);
+    EXPECT_EQ(constEntity.registry, entity.registry);
     EXPECT_EQ(constEntity.entityId, entity.entityId);
 
     const GE::const_Entity constEntity2 = entity;
-    EXPECT_EQ(constEntity2.world, entity.world);
+    EXPECT_EQ(constEntity2.registry, entity.registry);
     EXPECT_EQ(constEntity2.entityId, entity.entityId);
 }
 

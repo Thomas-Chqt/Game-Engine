@@ -9,19 +9,17 @@
 #ifndef SCRIPT_HPP
 #define SCRIPT_HPP
 
-#include "Game-Engine/ECSWorld.hpp"
 #include "Game-Engine/Export.hpp"
-#include "Game-Engine/TypeList.hpp"
+#include "Game-Engine/ECSRegistry.hpp"
+#include "Game-Engine/ScriptValues.hpp"
 
 #include <glm/glm.hpp>
 
 #include <cassert>
 #include <cstddef>
 #include <concepts>
-#include <cstdint>
 #include <functional>
 #include <map>
-#include <string>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -31,27 +29,7 @@
 namespace GE
 {
 
-class Script;
 class Game;
-template<ECSWorldLike ECSWorldT>
-struct basic_entity;
-using Entity = basic_entity<ECSWorld>;
-
-using ScriptValueTypes = TypeList<bool, int64_t, float, glm::vec2, glm::vec3, std::string>;
-using VScriptValue = ScriptValueTypes::into<std::variant>;
-
-template<typename T>
-concept ScriptValueType = IsTypeInList<std::remove_cvref_t<T>, ScriptValueTypes>;
-
-template<typename T>
-struct ScriptValueTraits;
-
-template<> struct ScriptValueTraits<bool>        { static constexpr std::string_view name = "bool"; };
-template<> struct ScriptValueTraits<int64_t>     { static constexpr std::string_view name = "int"; };
-template<> struct ScriptValueTraits<float>       { static constexpr std::string_view name = "float"; };
-template<> struct ScriptValueTraits<glm::vec2>   { static constexpr std::string_view name = "vec2"; };
-template<> struct ScriptValueTraits<glm::vec3>   { static constexpr std::string_view name = "vec3"; };
-template<> struct ScriptValueTraits<std::string> { static constexpr std::string_view name = "string"; };
 
 class GE_API Script
 {

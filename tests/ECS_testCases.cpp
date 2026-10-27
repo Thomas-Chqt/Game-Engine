@@ -9,7 +9,7 @@
 
 #include <gtest/gtest.h>
 
-#include "Game-Engine/ECSWorld.hpp"
+#include "Game-Engine/ECSRegistry.hpp"
 #include "Game-Engine/ECSView.hpp"
 
 #include <set>
@@ -65,263 +65,262 @@ TYPED_TEST_SUITE(ECSTest, TestedComponents);
 
 TEST(ECSTest, newEntity)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID entity1 = world.newEntityID();
-    EXPECT_TRUE(world.isValidEntityID(entity1));
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 1);
-    EXPECT_EQ(world.componentCount(), 0);
+    EntityID entity1 = registry.newEntityID();
+    EXPECT_TRUE(registry.isValidEntityID(entity1));
+    EXPECT_EQ(registry.entityCount(), 1);
+    EXPECT_EQ(registry.archetypeCount(), 1);
+    EXPECT_EQ(registry.componentCount(), 0);
 
-    EntityID entity2 = world.newEntityID();
-    EXPECT_TRUE(world.isValidEntityID(entity2));
+    EntityID entity2 = registry.newEntityID();
+    EXPECT_TRUE(registry.isValidEntityID(entity2));
     EXPECT_NE(entity1, entity2);
-    EXPECT_EQ(world.entityCount(), 2);
-    EXPECT_EQ(world.archetypeCount(), 1);
-    EXPECT_EQ(world.componentCount(), 0);
+    EXPECT_EQ(registry.entityCount(), 2);
+    EXPECT_EQ(registry.archetypeCount(), 1);
+    EXPECT_EQ(registry.componentCount(), 0);
 
-    world.deleteEntityID(entity1);
-    EXPECT_FALSE(world.isValidEntityID(entity1));
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 1);
-    EXPECT_EQ(world.componentCount(), 0);
+    registry.deleteEntityID(entity1);
+    EXPECT_FALSE(registry.isValidEntityID(entity1));
+    EXPECT_EQ(registry.entityCount(), 1);
+    EXPECT_EQ(registry.archetypeCount(), 1);
+    EXPECT_EQ(registry.componentCount(), 0);
 
-    EntityID entity3 = world.newEntityID();
-    EXPECT_TRUE(world.isValidEntityID(entity3));
-    EXPECT_EQ(entity3, entity1);
-    EXPECT_EQ(world.entityCount(), 2);
-    EXPECT_EQ(world.archetypeCount(), 1);
-    EXPECT_EQ(world.componentCount(), 0);
+    EntityID entity3 = registry.newEntityID();
+    EXPECT_TRUE(registry.isValidEntityID(entity3));
+    EXPECT_NE(entity3, entity1);
+    EXPECT_EQ(registry.entityCount(), 2);
+    EXPECT_EQ(registry.archetypeCount(), 1);
+    EXPECT_EQ(registry.componentCount(), 0);
 }
 
 TYPED_TEST(ECSTest, oneComponent)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID entity = world.newEntityID();
+    EntityID entity = registry.newEntityID();
 
-    EXPECT_EQ(world.emplace<TypeParam>(entity).val(), 0);
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 2);
-    EXPECT_EQ(world.componentCount(), 1);
+    EXPECT_EQ(registry.emplace<TypeParam>(entity).val(), 0);
+    EXPECT_EQ(registry.entityCount(), 1);
+    EXPECT_EQ(registry.archetypeCount(), 2);
+    EXPECT_EQ(registry.componentCount(), 1);
 
-    EXPECT_EQ(world.get<TypeParam>(entity).val(), 0);
+    EXPECT_EQ(registry.get<TypeParam>(entity).val(), 0);
 }
 
 TEST(ECSTest, twoComponent)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID entity = world.newEntityID();
+    EntityID entity = registry.newEntityID();
 
-    EXPECT_EQ(world.emplace<Component1>(entity, 1).val(), 1);
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 2);
-    EXPECT_EQ(world.componentCount(), 1);
-
-#ifndef NDEBUG
-    EXPECT_DEATH({
-        world.emplace<Component1>(entity, 1);
-    }, "");
-#endif
-
-    EXPECT_EQ(world.emplace<Component2>(entity, 2).val(), 2);
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 3);
-    EXPECT_EQ(world.componentCount(), 2);
+    EXPECT_EQ(registry.emplace<Component1>(entity, 1).val(), 1);
+    EXPECT_EQ(registry.entityCount(), 1);
+    EXPECT_EQ(registry.archetypeCount(), 2);
+    EXPECT_EQ(registry.componentCount(), 1);
 
 #ifndef NDEBUG
     EXPECT_DEATH({
-        world.emplace<Component2>(entity, 2);
+        registry.emplace<Component1>(entity, 1);
     }, "");
 #endif
 
-    EXPECT_EQ(world.get<Component1>(entity).val(), 1);
-    EXPECT_EQ(world.get<Component2>(entity).val(), 2);
+    EXPECT_EQ(registry.emplace<Component2>(entity, 2).val(), 2);
+    EXPECT_EQ(registry.entityCount(), 1);
+    EXPECT_EQ(registry.archetypeCount(), 3);
+    EXPECT_EQ(registry.componentCount(), 2);
+
+#ifndef NDEBUG
+    EXPECT_DEATH({
+        registry.emplace<Component2>(entity, 2);
+    }, "");
+#endif
+
+    EXPECT_EQ(registry.get<Component1>(entity).val(), 1);
+    EXPECT_EQ(registry.get<Component2>(entity).val(), 2);
 }
 
 TYPED_TEST(ECSTest, deleteEntityOneComp)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID entity = world.newEntityID();
-    world.emplace<TypeParam>(entity, 1);
+    EntityID entity = registry.newEntityID();
+    registry.emplace<TypeParam>(entity, 1);
 
-    world.deleteEntityID(entity);
+    registry.deleteEntityID(entity);
 
-    EXPECT_EQ(world.entityCount(), 0);
-    EXPECT_EQ(world.archetypeCount(), 2);
-    EXPECT_EQ(world.componentCount(), 0);
+    EXPECT_EQ(registry.entityCount(), 0);
+    EXPECT_EQ(registry.archetypeCount(), 2);
+    EXPECT_EQ(registry.componentCount(), 0);
 }
 
 TEST(ECSTest, deleteEntityTwoComp)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID entity = world.newEntityID();
-    world.emplace<Component1>(entity, 1);
-    world.emplace<Component2>(entity, 2);
+    EntityID entity = registry.newEntityID();
+    registry.emplace<Component1>(entity, 1);
+    registry.emplace<Component2>(entity, 2);
 
-    world.deleteEntityID(entity);
+    registry.deleteEntityID(entity);
 
-    EXPECT_EQ(world.entityCount(), 0);
-    EXPECT_EQ(world.archetypeCount(), 3);
-    EXPECT_EQ(world.componentCount(), 0);
+    EXPECT_EQ(registry.entityCount(), 0);
+    EXPECT_EQ(registry.archetypeCount(), 3);
+    EXPECT_EQ(registry.componentCount(), 0);
 }
 
 TYPED_TEST(ECSTest, removeOneComponent)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID entity = world.newEntityID(); // 1 arch ({id})
-    world.emplace<TypeParam>(entity, 1); // 2 arch ({id}, {id, TypeParam})
+    EntityID entity = registry.newEntityID(); // 1 arch ({id})
+    registry.emplace<TypeParam>(entity, 1); // 2 arch ({id}, {id, TypeParam})
 
-    world.remove<TypeParam>(entity);
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 2); // 2 arch ({id}, {id, TypeParam})
-    EXPECT_EQ(world.componentCount(), 0);
+    registry.remove<TypeParam>(entity);
+    EXPECT_EQ(registry.entityCount(), 1);
+    EXPECT_EQ(registry.archetypeCount(), 2); // 2 arch ({id}, {id, TypeParam})
+    EXPECT_EQ(registry.componentCount(), 0);
 }
 
 TEST(ECSTest, removeTwoComponent)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID entity = world.newEntityID(); // 1 arch ({id})
-    world.emplace<Component1>(entity, 1); // 2 arch ({id}, {id, comp1})
-    world.emplace<Component2>(entity, 1); // 3 arch ({id}, {id, comp1}, {id, comp1, comp2})
+    EntityID entity = registry.newEntityID(); // 1 arch ({id})
+    registry.emplace<Component1>(entity, 1); // 2 arch ({id}, {id, comp1})
+    registry.emplace<Component2>(entity, 1); // 3 arch ({id}, {id, comp1}, {id, comp1, comp2})
 
-    world.remove<Component1>(entity);
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 4); // 4 arch ({id}, {id, comp1}, {id, comp1, comp2}, {id, comp2})
-    EXPECT_EQ(world.componentCount(), 1);
+    registry.remove<Component1>(entity);
+    EXPECT_EQ(registry.entityCount(), 1);
+    EXPECT_EQ(registry.archetypeCount(), 4); // 4 arch ({id}, {id, comp1}, {id, comp1, comp2}, {id, comp2})
+    EXPECT_EQ(registry.componentCount(), 1);
 
-    world.remove<Component2>(entity);
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 4); // 4 arch ({id}, {id, comp1}, {id, comp1, comp2}, {id, comp2})
-    EXPECT_EQ(world.componentCount(), 0);
+    registry.remove<Component2>(entity);
+    EXPECT_EQ(registry.entityCount(), 1);
+    EXPECT_EQ(registry.archetypeCount(), 4); // 4 arch ({id}, {id, comp1}, {id, comp1, comp2}, {id, comp2})
+    EXPECT_EQ(registry.componentCount(), 0);
 }
 
 TEST(ECSTest, multipleEntity)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID entity1 = world.newEntityID();
-    world.emplace<Component1>(entity1, 1);
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 2);
-    EXPECT_EQ(world.componentCount(), 1);
+    EntityID entity1 = registry.newEntityID();
+    registry.emplace<Component1>(entity1, 1);
+    EXPECT_EQ(registry.entityCount(), 1);
+    EXPECT_EQ(registry.archetypeCount(), 2);
+    EXPECT_EQ(registry.componentCount(), 1);
 
-    EntityID entity2 = world.newEntityID();
-    world.emplace<Component1>(entity2, 1);
-    EXPECT_EQ(world.entityCount(), 2);
-    EXPECT_EQ(world.archetypeCount(), 2);
-    EXPECT_EQ(world.componentCount(), 2);
+    EntityID entity2 = registry.newEntityID();
+    registry.emplace<Component1>(entity2, 1);
+    EXPECT_EQ(registry.entityCount(), 2);
+    EXPECT_EQ(registry.archetypeCount(), 2);
+    EXPECT_EQ(registry.componentCount(), 2);
 
-    EntityID entity3 = world.newEntityID();
-    world.emplace<Component1>(entity3, 1);
-    EXPECT_EQ(world.entityCount(), 3);
-    EXPECT_EQ(world.archetypeCount(), 2);
-    EXPECT_EQ(world.componentCount(), 3);
+    EntityID entity3 = registry.newEntityID();
+    registry.emplace<Component1>(entity3, 1);
+    EXPECT_EQ(registry.entityCount(), 3);
+    EXPECT_EQ(registry.archetypeCount(), 2);
+    EXPECT_EQ(registry.componentCount(), 3);
 }
 
 TEST(ECSTest, multipleEntityTwoComponent)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID entity1 = world.newEntityID();
-    world.emplace<Component1>(entity1, 1);
-    world.emplace<Component2>(entity1, 2);
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 3);
-    EXPECT_EQ(world.componentCount(), 2);
+    EntityID entity1 = registry.newEntityID();
+    registry.emplace<Component1>(entity1, 1);
+    registry.emplace<Component2>(entity1, 2);
+    EXPECT_EQ(registry.entityCount(), 1);
+    EXPECT_EQ(registry.archetypeCount(), 3);
+    EXPECT_EQ(registry.componentCount(), 2);
 
-    EntityID entity2 = world.newEntityID();
-    world.emplace<Component1>(entity2, 1);
-    world.emplace<Component2>(entity2, 2);
-    EXPECT_EQ(world.entityCount(), 2);
-    EXPECT_EQ(world.archetypeCount(), 3);
-    EXPECT_EQ(world.componentCount(), 4);
+    EntityID entity2 = registry.newEntityID();
+    registry.emplace<Component1>(entity2, 1);
+    registry.emplace<Component2>(entity2, 2);
+    EXPECT_EQ(registry.entityCount(), 2);
+    EXPECT_EQ(registry.archetypeCount(), 3);
+    EXPECT_EQ(registry.componentCount(), 4);
 
-    EntityID entity3 = world.newEntityID();
-    world.emplace<Component1>(entity3, 1);
-    world.emplace<Component2>(entity3, 2);
-    EXPECT_EQ(world.entityCount(), 3);
-    EXPECT_EQ(world.archetypeCount(), 3);
-    EXPECT_EQ(world.componentCount(), 6);
+    EntityID entity3 = registry.newEntityID();
+    registry.emplace<Component1>(entity3, 1);
+    registry.emplace<Component2>(entity3, 2);
+    EXPECT_EQ(registry.entityCount(), 3);
+    EXPECT_EQ(registry.archetypeCount(), 3);
+    EXPECT_EQ(registry.componentCount(), 6);
 }
 
-TEST(ECSTest, worldRange)
+TEST(ECSTest, registryRange)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID entity1 = world.newEntityID();
-    EntityID entity2 = world.newEntityID();
-    EntityID entity3 = world.newEntityID();
+    EntityID entity1 = registry.newEntityID();
+    EntityID entity2 = registry.newEntityID();
+    EntityID entity3 = registry.newEntityID();
 
-    world.deleteEntityID(entity2);
+    registry.deleteEntityID(entity2);
 
-    EXPECT_EQ(std::ranges::distance(world), 2);
+    EXPECT_EQ(std::ranges::distance(registry), 2);
 
     std::vector<EntityID> forward;
-    for (EntityID id : world)
+    for (EntityID id : registry)
         forward.push_back(id);
 
     ASSERT_EQ(forward.size(), 2);
 
-    EXPECT_EQ(forward[0], entity1);
-    EXPECT_EQ(forward[1], entity3);
+    EXPECT_EQ(std::set<EntityID>(forward.begin(), forward.end()), (std::set<EntityID>{entity1, entity3}));
 }
 
 TYPED_TEST(ECSTest, componentEdit)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID entity = world.newEntityID();
-    world.emplace<TypeParam>(entity, 1);
+    EntityID entity = registry.newEntityID();
+    registry.emplace<TypeParam>(entity, 1);
 
-    world.get<TypeParam>(entity).val() = 2;
+    registry.get<TypeParam>(entity).val() = 2;
 
-    EXPECT_EQ(world.entityCount(), 1);
-    EXPECT_EQ(world.archetypeCount(), 2);
-    EXPECT_EQ(world.componentCount(), 1);
-    EXPECT_EQ(world.get<TypeParam>(entity).val(), 2);
+    EXPECT_EQ(registry.entityCount(), 1);
+    EXPECT_EQ(registry.archetypeCount(), 2);
+    EXPECT_EQ(registry.componentCount(), 1);
+    EXPECT_EQ(registry.get<TypeParam>(entity).val(), 2);
 }
 
 TYPED_TEST(ECSTest, copyConstructor)
 {
-    GE::ECSWorld world1;
+    GE::ECSRegistry registry1;
 
-    EntityID entity = world1.newEntityID();
-    world1.emplace<TypeParam>(entity, 1);
+    EntityID entity = registry1.newEntityID();
+    registry1.emplace<TypeParam>(entity, 1);
 
-    GE::ECSWorld world2(world1);
+    GE::ECSRegistry registry2(registry1);
 
-    EXPECT_EQ(world1.entityCount(),                world2.entityCount());
-    EXPECT_EQ(world1.archetypeCount(),             world2.archetypeCount());
-    EXPECT_EQ(world1.componentCount(),             world2.componentCount());
-    EXPECT_EQ(world1.get<TypeParam>(entity).val(), world2.get<TypeParam>(entity).val());
+    EXPECT_EQ(registry1.entityCount(),                registry2.entityCount());
+    EXPECT_EQ(registry1.archetypeCount(),             registry2.archetypeCount());
+    EXPECT_EQ(registry1.componentCount(),             registry2.componentCount());
+    EXPECT_EQ(registry1.get<TypeParam>(entity).val(), registry2.get<TypeParam>(entity).val());
 
-    world2.get<TypeParam>(entity).val() = 2;
+    registry2.get<TypeParam>(entity).val() = 2;
 
-    EXPECT_NE(world1.get<TypeParam>(entity).val(), world2.get<TypeParam>(entity).val());
+    EXPECT_NE(registry1.get<TypeParam>(entity).val(), registry2.get<TypeParam>(entity).val());
 }
 
 TEST(ECSTest, view)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID entity1 = world.newEntityID();
-    world.emplace<Component1>(entity1, 1);
+    EntityID entity1 = registry.newEntityID();
+    registry.emplace<Component1>(entity1, 1);
 
-    EntityID entity2 = world.newEntityID();
-    world.emplace<Component2>(entity2, 2);
+    EntityID entity2 = registry.newEntityID();
+    registry.emplace<Component2>(entity2, 2);
 
-    EntityID entity3 = world.newEntityID();
-    world.emplace<Component1>(entity3, 3);
-    world.emplace<Component2>(entity3, 3);
+    EntityID entity3 = registry.newEntityID();
+    registry.emplace<Component1>(entity3, 3);
+    registry.emplace<Component2>(entity3, 3);
 
     {
-        GE::ECSView<Component1> view = world | GE::ECSView<Component1>();
+        GE::ECSView<Component1> view = registry | GE::ECSView<Component1>();
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
@@ -344,7 +343,7 @@ TEST(ECSTest, view)
         });
     }
     {
-        GE::ECSView<Component2> view = world | GE::ECSView<Component2>();
+        GE::ECSView<Component2> view = registry | GE::ECSView<Component2>();
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
@@ -367,7 +366,7 @@ TEST(ECSTest, view)
         });
     }
     {
-        GE::ECSView<Component1, Component2> view = world | GE::ECSView<Component1, Component2>();
+        GE::ECSView<Component1, Component2> view = registry | GE::ECSView<Component1, Component2>();
         EXPECT_EQ(view.count(), 1);
 
         EXPECT_NO_THROW({
@@ -380,10 +379,10 @@ TEST(ECSTest, view)
             for (auto row : view)
                 entityIds.insert(static_cast<EntityID>(row));
 
-            for (auto row : world | GE::ECSView<Component1, Component2>())
+            for (auto row : registry | GE::ECSView<Component1, Component2>())
                 entityIds.insert(static_cast<EntityID>(row));
 
-            for (auto [component1, component2] : world | GE::ECSView<Component1, Component2>())
+            for (auto [component1, component2] : registry | GE::ECSView<Component1, Component2>())
             {
                 values1.insert(component1.val());
                 values2.insert(component2.val());
@@ -402,31 +401,31 @@ TEST(ECSTest, view)
 
 TEST(ECSTest, viewWithoutComponent)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID noComponent = world.newEntityID();
+    EntityID noComponent = registry.newEntityID();
 
-    EntityID component1Only = world.newEntityID();
-    world.emplace<Component1>(component1Only, 1);
+    EntityID component1Only = registry.newEntityID();
+    registry.emplace<Component1>(component1Only, 1);
 
-    EntityID component2Only = world.newEntityID();
-    world.emplace<Component2>(component2Only, 2);
+    EntityID component2Only = registry.newEntityID();
+    registry.emplace<Component2>(component2Only, 2);
 
-    EntityID component1And2 = world.newEntityID();
-    world.emplace<Component1>(component1And2, 12);
-    world.emplace<Component2>(component1And2, 12);
+    EntityID component1And2 = registry.newEntityID();
+    registry.emplace<Component1>(component1And2, 12);
+    registry.emplace<Component2>(component1And2, 12);
 
-    EntityID component1And3 = world.newEntityID();
-    world.emplace<Component1>(component1And3, 13);
-    world.emplace<Component3>(component1And3, 13);
+    EntityID component1And3 = registry.newEntityID();
+    registry.emplace<Component1>(component1And3, 13);
+    registry.emplace<Component3>(component1And3, 13);
 
-    EntityID component1And2And3 = world.newEntityID();
-    world.emplace<Component1>(component1And2And3, 123);
-    world.emplace<Component2>(component1And2And3, 123);
-    world.emplace<Component3>(component1And2And3, 123);
+    EntityID component1And2And3 = registry.newEntityID();
+    registry.emplace<Component1>(component1And2And3, 123);
+    registry.emplace<Component2>(component1And2And3, 123);
+    registry.emplace<Component3>(component1And2And3, 123);
 
     {
-        GE::ECSView<Component1> view = world | GE::ECSView<Component1>().without<Component2>();
+        GE::ECSView<Component1> view = registry | GE::ECSView<Component1>().without<Component2>();
         EXPECT_EQ(view.count(), 2);
 
         std::set<EntityID> entityIds;
@@ -447,7 +446,7 @@ TEST(ECSTest, viewWithoutComponent)
         EXPECT_EQ(values, std::set<int>({1, 13}));
     }
     {
-        GE::ECSView<Component1, Component2> view = world | GE::ECSView<Component1, Component2>().without<Component3>();
+        GE::ECSView<Component1, Component2> view = registry | GE::ECSView<Component1, Component2>().without<Component3>();
         EXPECT_EQ(view.count(), 1);
 
         std::set<EntityID> entityIds;
@@ -469,7 +468,7 @@ TEST(ECSTest, viewWithoutComponent)
         EXPECT_EQ(values2, std::set<int>({12}));
     }
     {
-        GE::ECSView<Component1> view = world | GE::ECSView<Component1>().without<Component2, Component3>();
+        GE::ECSView<Component1> view = registry | GE::ECSView<Component1>().without<Component2, Component3>();
         EXPECT_EQ(view.count(), 1);
 
         std::set<EntityID> entityIds;
@@ -485,22 +484,22 @@ TEST(ECSTest, viewWithoutComponent)
 
 TEST(ECSTest, constView)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID entity1 = world.newEntityID();
-    world.emplace<Component1>(entity1, 1);
+    EntityID entity1 = registry.newEntityID();
+    registry.emplace<Component1>(entity1, 1);
 
-    EntityID entity2 = world.newEntityID();
-    world.emplace<Component2>(entity2, 2);
+    EntityID entity2 = registry.newEntityID();
+    registry.emplace<Component2>(entity2, 2);
 
-    EntityID entity3 = world.newEntityID();
-    world.emplace<Component1>(entity3, 3);
-    world.emplace<Component2>(entity3, 3);
+    EntityID entity3 = registry.newEntityID();
+    registry.emplace<Component1>(entity3, 3);
+    registry.emplace<Component2>(entity3, 3);
 
-    const GE::ECSWorld& constWorld = world;
+    const GE::ECSRegistry& constRegistry = registry;
 
     {
-        GE::const_ECSView<Component1> view = constWorld | GE::const_ECSView<Component1>();
+        GE::const_ECSView<Component1> view = constRegistry | GE::const_ECSView<Component1>();
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
@@ -523,7 +522,7 @@ TEST(ECSTest, constView)
         });
     }
     {
-        GE::const_ECSView<Component2> view = constWorld | GE::const_ECSView<Component2>();
+        GE::const_ECSView<Component2> view = constRegistry | GE::const_ECSView<Component2>();
         EXPECT_EQ(view.count(), 2);
 
         EXPECT_NO_THROW({
@@ -546,7 +545,7 @@ TEST(ECSTest, constView)
         });
     }
     {
-        GE::const_ECSView<Component1, Component2> view = constWorld | GE::const_ECSView<Component1, Component2>();
+        GE::const_ECSView<Component1, Component2> view = constRegistry | GE::const_ECSView<Component1, Component2>();
         EXPECT_EQ(view.count(), 1);
 
         EXPECT_NO_THROW({
@@ -559,10 +558,10 @@ TEST(ECSTest, constView)
             for (auto row : view)
                 entityIds.insert(static_cast<EntityID>(row));
 
-            for (auto row : constWorld | GE::const_ECSView<Component1, Component2>())
+            for (auto row : constRegistry | GE::const_ECSView<Component1, Component2>())
                 entityIds.insert(static_cast<EntityID>(row));
 
-            for (auto [component1, component2] : constWorld | GE::const_ECSView<Component1, Component2>())
+            for (auto [component1, component2] : constRegistry | GE::const_ECSView<Component1, Component2>())
             {
                 values1.insert(component1.val());
                 values2.insert(component2.val());
@@ -581,17 +580,17 @@ TEST(ECSTest, constView)
 
 TEST(ECSTest, constViewWithoutComponent)
 {
-    GE::ECSWorld world;
+    GE::ECSRegistry registry;
 
-    EntityID component1Only = world.newEntityID();
-    world.emplace<Component1>(component1Only, 1);
+    EntityID component1Only = registry.newEntityID();
+    registry.emplace<Component1>(component1Only, 1);
 
-    EntityID component1And2 = world.newEntityID();
-    world.emplace<Component1>(component1And2, 12);
-    world.emplace<Component2>(component1And2, 12);
+    EntityID component1And2 = registry.newEntityID();
+    registry.emplace<Component1>(component1And2, 12);
+    registry.emplace<Component2>(component1And2, 12);
 
-    const GE::ECSWorld& constWorld = world;
-    GE::const_ECSView<Component1> view = constWorld | GE::const_ECSView<Component1>().without<Component2>();
+    const GE::ECSRegistry& constRegistry = registry;
+    GE::const_ECSView<Component1> view = constRegistry | GE::const_ECSView<Component1>().without<Component2>();
     EXPECT_EQ(view.count(), 1);
 
     std::set<EntityID> entityIds;
@@ -606,6 +605,165 @@ TEST(ECSTest, constViewWithoutComponent)
     EXPECT_TRUE(entityIds.contains(component1Only));
     EXPECT_FALSE(entityIds.contains(component1And2));
     EXPECT_EQ(values, std::set<int>({1}));
+}
+
+TEST(ECSTest, emptyRegistryAndView)
+{
+    GE::ECSRegistry registry;
+    EXPECT_EQ(registry.entityCount(), 0);
+    EXPECT_EQ(registry.componentCount(), 0);
+    EXPECT_EQ(registry.begin(), registry.end());
+    EXPECT_EQ((registry | GE::ECSView<Component1>()).count(), 0);
+    GE::ECSView<Component1> unbound;
+    EXPECT_EQ(unbound.count(), 0);
+    EXPECT_EQ(unbound.begin(), unbound.end());
+}
+
+TYPED_TEST(ECSTest, denseRowsSurviveMovesAndDeletion)
+{
+    GE::ECSRegistry registry;
+    std::vector<EntityID> ids;
+    for (int i = 0; i < 48; ++i) {
+        const auto id = registry.newEntityID();
+        ids.push_back(id);
+        registry.emplace<TypeParam>(id, i);
+    }
+    for (int i = 0; i < 48; i += 2)
+        registry.emplace<Component3>(ids[i], i + 100);
+    for (int i = 0; i < 48; i += 4)
+        registry.remove<TypeParam>(ids[i]);
+    for (int i = 0; i < 48; i += 4)
+        registry.emplace<TypeParam>(ids[i], i);
+    for (int i = 0; i < 48; i += 3)
+        registry.deleteEntityID(ids[i]);
+
+    size_t count = 0;
+    for (int i = 0; i < 48; ++i) {
+        if (i % 3 == 0) {
+            EXPECT_FALSE(registry.isValidEntityID(ids[i]));
+            continue;
+        }
+        ++count;
+        EXPECT_EQ(registry.get<TypeParam>(ids[i]).val(), i);
+        EXPECT_EQ(registry.get<EntityID>(ids[i]), ids[i]);
+        if (i % 2 == 0)
+            EXPECT_EQ(registry.get<Component3>(ids[i]).val(), i + 100);
+    }
+    EXPECT_EQ(registry.entityCount(), count);
+    EXPECT_EQ((registry | GE::ECSView<TypeParam>()).count(), count);
+    for (const auto& row : registry | GE::ECSView<TypeParam>())
+        EXPECT_EQ(row.template get<0>().val(), registry.get<TypeParam>(row.entityId).val());
+}
+
+TYPED_TEST(ECSTest, copyAssignmentAndMovePreserveStorage)
+{
+    GE::ECSRegistry original;
+    const auto id = original.newEntityID();
+    original.emplace<TypeParam>(id, 10);
+    GE::ECSRegistry copy;
+    copy = original;
+    copy.get<TypeParam>(id).val() = 20;
+    EXPECT_EQ(original.get<TypeParam>(id).val(), 10);
+    copy.remove<TypeParam>(id);
+    copy.emplace<TypeParam>(id, 30);
+    GE::ECSRegistry moved(std::move(copy));
+    EXPECT_EQ(moved.get<TypeParam>(id).val(), 30);
+    moved.deleteEntityID(id);
+    moved.registerEntityID(id);
+    EXPECT_EQ(moved.get<EntityID>(id), id);
+    EXPECT_EQ(moved.componentCount(), 0);
+}
+
+TEST(ECSTest, constAccessAndInternalIdentity)
+{
+    GE::ECSRegistry registry;
+    const auto id = registry.newEntityID();
+    registry.emplace<Component1>(id, 4);
+    const auto& constRegistry = registry;
+    static_assert(std::is_same_v<decltype(registry.get<EntityID>(id)), const EntityID&>);
+    static_assert(std::is_same_v<decltype(constRegistry.get<Component1>(id)), const Component1&>);
+    for (auto [component] : constRegistry | GE::const_ECSView<Component1>()) {
+        static_assert(std::is_same_v<decltype(component), const Component1&>);
+        EXPECT_EQ(component.val(), 4);
+    }
+}
+
+TEST(ECSTest, viewIteratesDenseRowsAfterMovesAndDeletion)
+{
+    GE::ECSRegistry registry;
+    std::vector<EntityID> ids;
+    for (int i = 0; i < 9; ++i) {
+        const auto id = registry.newEntityID();
+        ids.push_back(id);
+        registry.emplace<Component1>(id, i);
+        registry.emplace<Component3>(id, i + 100);
+    }
+    registry.deleteEntityID(ids[2]);
+    registry.remove<Component3>(ids[1]);
+    registry.emplace<Component3>(ids[1], 101);
+
+    const std::vector<EntityID> expected{ids[0], ids[7], ids[8], ids[3], ids[4], ids[5], ids[6], ids[1]};
+    const auto view = registry | GE::ECSView<Component1, Component3>();
+    size_t rowIndex = 0;
+    Component1* previous1 = nullptr;
+    Component3* previous3 = nullptr;
+    for (auto row : view) {
+        ASSERT_LT(rowIndex, expected.size());
+        EXPECT_EQ(row.entityId, expected[rowIndex++]);
+        auto& [component1, component3] = row;
+        EXPECT_EQ(component3.val(), component1.val() + 100);
+        EXPECT_EQ(&component1, &registry.get<Component1>(row.entityId));
+        EXPECT_EQ(&component3, &registry.get<Component3>(row.entityId));
+        if (previous1) {
+            EXPECT_EQ(&component1, previous1 + 1);
+            EXPECT_EQ(&component3, previous3 + 1);
+        }
+        previous1 = &component1;
+        previous3 = &component3;
+        component1.val() += 10;
+        EXPECT_EQ(registry.get<Component1>(row.entityId).val(), component3.val() - 90);
+    }
+    EXPECT_EQ(rowIndex, expected.size());
+
+    const auto& constRegistry = registry;
+    for (auto [id, component] : constRegistry | GE::const_ECSView<EntityID, Component1>()) {
+        static_assert(std::is_same_v<decltype(id), const EntityID&>);
+        static_assert(std::is_same_v<decltype(component), const Component1&>);
+        EXPECT_EQ(&component, &constRegistry.get<Component1>(id));
+    }
+}
+
+TEST(ECSTest, viewIteratorCopiesAndPostIncrementCrossArchetypes)
+{
+    GE::ECSRegistry registry;
+    const auto first = registry.newEntityID();
+    registry.emplace<Component1>(first, 1);
+    const auto second = registry.newEntityID();
+    registry.emplace<Component1>(second, 2);
+    registry.emplace<Component3>(second, 3);
+    const auto removed = registry.newEntityID();
+    registry.emplace<Component1>(removed, 4);
+    registry.emplace<Component2>(removed, 4);
+    registry.deleteEntityID(removed); // Leave an empty matching archetype.
+    const auto excluded = registry.newEntityID();
+    registry.emplace<Component2>(excluded, 5);
+
+    using View = GE::ECSView<Component1>;
+    static_assert(std::ranges::common_range<View>);
+    static_assert(std::input_iterator<View::iterator>);
+    const auto view = registry | View();
+    auto it = view.begin();
+    auto copy = it;
+    const auto previous = it++;
+    EXPECT_EQ(previous, copy);
+    EXPECT_EQ((*previous).entityId, (*copy).entityId);
+    ASSERT_NE(it, view.end());
+    EXPECT_NE(it, copy);
+    const auto next = it++;
+    EXPECT_EQ(it, view.end());
+    EXPECT_EQ((std::set<EntityID>{(*previous).entityId, (*next).entityId}), (std::set<EntityID>{first, second}));
+    EXPECT_EQ(std::ranges::distance(view), 2);
+    EXPECT_EQ(copy, view.begin());
 }
 
 }

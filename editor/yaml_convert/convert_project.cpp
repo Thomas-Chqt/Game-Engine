@@ -26,13 +26,13 @@ struct convert<GE::Scene::Descriptor>
         node["name"] = rhs.name;
         node["activeCamera"] = rhs.activeCameraId;
 
-        if (rhs.ecsWorld.entityCount() > 0)
+        if (rhs.ecsRegistry.entityCount() > 0)
         {
-            node["entities"] = rhs.ecsWorld | std::views::transform([&](GE::EntityID id) -> std::pair<GE::EntityID, std::vector<GE::ComponentVariant>> {
+            node["entities"] = rhs.ecsRegistry | std::views::transform([&](GE::EntityID id) -> std::pair<GE::EntityID, std::vector<GE::ComponentVariant>> {
                 std::vector<GE::ComponentVariant> components;
                 GE::forEachType<GE::ECSComponentTypes>([&]<typename ComponentT>() {
-                    if (rhs.ecsWorld.template has<ComponentT>(id))
-                        components.emplace_back(rhs.ecsWorld.template get<ComponentT>(id));
+                    if (rhs.ecsRegistry.template has<ComponentT>(id))
+                        components.emplace_back(rhs.ecsRegistry.template get<ComponentT>(id));
                 });
                 return std::pair{id, std::move(components)};
             }) | std::ranges::to<std::vector>();
@@ -43,12 +43,12 @@ struct convert<GE::Scene::Descriptor>
 
     static bool decode(const Node& node, GE::Scene::Descriptor& rhs)
     {
-        if (!node.IsMap() || !node["name"] || !node["activeCamera"])
+        if (!node.IsMap() || !node["name"])
             return false;
 
         rhs = GE::Scene::Descriptor{};
         rhs.name = node["name"].as<std::string>();
-        rhs.activeCameraId = node["activeCamera"].as<GE::EntityID>();
+        rhs.activeCameraId = node["activeCamera"] ? node["activeCamera"].as<std::optional<GE::EntityID>>() : std::nullopt;
 
         if (!node["entities"])
             return true;
@@ -58,8 +58,8 @@ struct convert<GE::Scene::Descriptor>
         for (const Node& entityNode : node["entities"])
         {
             const auto [entityId, components] = entityNode.as<std::pair<GE::EntityID, std::vector<GE::ComponentVariant>>>();
-            rhs.ecsWorld.registerEntityID(entityId);
-            GE::Entity entity{&rhs.ecsWorld, entityId};
+            rhs.ecsRegistry.registerEntityID(entityId);
+            GE::Entity entity{&rhs.ecsRegistry, entityId};
             for (const GE::ComponentVariant& component : components)
                 std::visit([&]<typename ComponentT>(const ComponentT& value) { entity.emplace<ComponentT>(value); }, component);
         }
@@ -187,7 +187,7 @@ bool convert<GE_Editor::Project>::decode(const Node& node, GE_Editor::Project& r
         return false;
 
     rhs.selectedEntityId = node["selectedEntity"]
-        ? std::make_optional(node["selectedEntity"].as<GE::EntityID>())
+        ? node["selectedEntity"].as<std::optional<GE::EntityID>>()
         : std::nullopt;
 
     rhs.imguiSettings = node["imguiSettings"].as<std::string>();
