@@ -149,7 +149,7 @@ void renderSceneGraph(GE::Scene& editedScene, std::optional<GE::Entity>& selecte
     {
         TracyCZoneN(TracyCZoneN_a, "build_root_entities", true);
         std::vector<GE::Entity> rootEntities = editedScene.ecsRegistry()
-            | GE::ECSView<GE::NameComponent>().without<GE::ParentComponent>()
+            | GE::ECSView<GE::NameComponent, GE::ExcludeComponents<GE::ParentComponent>>()
             | GE::MakeEntity{}
             | std::ranges::to<std::vector>();
         TracyCZoneEnd(TracyCZoneN_a);

@@ -41,7 +41,9 @@ struct Component2
     Component2() : value(new int(0)) {}
     Component2(int v) : value(new int(v)) {}
     Component2(const Component2& cp) : value(new int(*cp.value)) {}
-    Component2(Component2&& mv) : value(mv.value) { mv.value = nullptr; }
+    Component2(Component2&& mv) noexcept : value(mv.value) { mv.value = nullptr; }
+    Component2& operator=(const Component2&) = delete;
+    Component2& operator=(Component2&&) = delete;
     ~Component2() { delete value; }
 };
 
@@ -425,7 +427,7 @@ TEST(ECSTest, viewWithoutComponent)
     registry.emplace<Component3>(component1And2And3, 123);
 
     {
-        GE::ECSView<Component1> view = registry | GE::ECSView<Component1>().without<Component2>();
+        GE::ECSView<Component1, GE::ExcludeComponents<Component2>> view = registry | GE::ECSView<Component1, GE::ExcludeComponents<Component2>>();
         EXPECT_EQ(view.count(), 2);
 
         std::set<EntityID> entityIds;
@@ -446,7 +448,7 @@ TEST(ECSTest, viewWithoutComponent)
         EXPECT_EQ(values, std::set<int>({1, 13}));
     }
     {
-        GE::ECSView<Component1, Component2> view = registry | GE::ECSView<Component1, Component2>().without<Component3>();
+        GE::ECSView<Component1, Component2, GE::ExcludeComponents<Component3>> view = registry | GE::ECSView<Component1, Component2, GE::ExcludeComponents<Component3>>();
         EXPECT_EQ(view.count(), 1);
 
         std::set<EntityID> entityIds;
@@ -468,7 +470,7 @@ TEST(ECSTest, viewWithoutComponent)
         EXPECT_EQ(values2, std::set<int>({12}));
     }
     {
-        GE::ECSView<Component1> view = registry | GE::ECSView<Component1>().without<Component2, Component3>();
+        GE::ECSView<Component1, GE::ExcludeComponents<Component2, Component3>> view = registry | GE::ECSView<Component1, GE::ExcludeComponents<Component2, Component3>>();
         EXPECT_EQ(view.count(), 1);
 
         std::set<EntityID> entityIds;
@@ -590,7 +592,7 @@ TEST(ECSTest, constViewWithoutComponent)
     registry.emplace<Component2>(component1And2, 12);
 
     const GE::ECSRegistry& constRegistry = registry;
-    GE::const_ECSView<Component1> view = constRegistry | GE::const_ECSView<Component1>().without<Component2>();
+    GE::const_ECSView<Component1, GE::ExcludeComponents<Component2>> view = constRegistry | GE::const_ECSView<Component1, GE::ExcludeComponents<Component2>>();
     EXPECT_EQ(view.count(), 1);
 
     std::set<EntityID> entityIds;
@@ -764,6 +766,62 @@ TEST(ECSTest, viewIteratorCopiesAndPostIncrementCrossArchetypes)
     EXPECT_EQ((std::set<EntityID>{(*previous).entityId, (*next).entityId}), (std::set<EntityID>{first, second}));
     EXPECT_EQ(std::ranges::distance(view), 2);
     EXPECT_EQ(copy, view.begin());
+}
+
+TEST(ECSTest, typeBasedExclusionsPreserveComponentOrderAndRegistryBinding)
+{
+    GE::ECSRegistry registry;
+    const auto kept = registry.newEntityID();
+    registry.emplace<Component1>(kept, 11);
+    registry.emplace<Component3>(kept, 33);
+    const auto excluded = registry.newEntityID();
+    registry.emplace<Component1>(excluded, 22);
+    registry.emplace<Component3>(excluded, 44);
+    registry.emplace<Component2>(excluded);
+    const auto named = registry.newEntityID();
+    registry.emplace<Component1>(named);
+    registry.emplace<Component3>(named);
+    registry.emplace<GE::NameComponent>(named);
+
+    using View = GE::ECSView<GE::ExcludeComponents<Component2>, Component3,
+                             GE::ExcludeComponents<GE::NameComponent>, Component1>;
+    static_assert(std::is_same_v<View::iterator::value_type, GE::ecs_view_item<GE::ECSRegistry, Component3, Component1>>);
+    const auto view = registry | View();
+    ASSERT_EQ(view.count(), 1);
+    EXPECT_EQ((*view.begin()).entityId, kept);
+    for (auto [third, first] : view) {
+        EXPECT_EQ(third.val(), 33);
+        EXPECT_EQ(first.val(), 11);
+        first.val() = 12;
+    }
+    EXPECT_EQ(registry.get<Component1>(kept).val(), 12);
+
+    GE::ECSRegistry otherRegistry;
+    const auto other = otherRegistry.newEntityID();
+    otherRegistry.emplace<Component1>(other, 55);
+    otherRegistry.emplace<Component3>(other, 66);
+    const auto otherView = otherRegistry | View();
+    ASSERT_EQ(otherView.count(), 1);
+    EXPECT_EQ((*otherView.begin()).entityId, other);
+    EXPECT_EQ((*otherView.begin()).get<0>().val(), 66);
+    EXPECT_EQ(view.count(), 1);
+
+    const auto& constRegistry = registry;
+    const auto constView = constRegistry | GE::const_ECSView<GE::ExcludeComponents<Component2>, Component3,
+                                                          GE::ExcludeComponents<GE::NameComponent>, Component1>();
+    ASSERT_EQ(constView.count(), 1);
+    for (auto [third, first] : constView) {
+        static_assert(std::is_same_v<decltype(third), const Component3&>);
+        static_assert(std::is_same_v<decltype(first), const Component1&>);
+        EXPECT_EQ(first.val(), 12);
+    }
+
+    const auto contradictory = registry | GE::ECSView<Component1, GE::ExcludeComponents<Component1>>();
+    EXPECT_EQ(contradictory.count(), 0);
+    EXPECT_EQ(contradictory.begin(), contradictory.end());
+    View unbound;
+    EXPECT_EQ(unbound.count(), 0);
+    EXPECT_EQ(unbound.begin(), unbound.end());
 }
 
 }

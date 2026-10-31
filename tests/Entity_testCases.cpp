@@ -254,7 +254,7 @@ TEST(EntityTest, rootEntitiesCanBeQueriedByExcludingParentComponent)
     root.addChild(child);
 
     std::set<GE::EntityID> roots;
-    for (GE::Entity entity : ecsRegistry | GE::ECSView<GE::NameComponent>().without<GE::ParentComponent>() | GE::MakeEntity{})
+    for (GE::Entity entity : ecsRegistry | GE::ECSView<GE::NameComponent, GE::ExcludeComponents<GE::ParentComponent>>() | GE::MakeEntity{})
         roots.insert(entity.entityId);
 
     EXPECT_TRUE(roots.contains(root.entityId));

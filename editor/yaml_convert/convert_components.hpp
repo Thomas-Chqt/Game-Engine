@@ -7,6 +7,7 @@
 #include <array>
 #include <charconv>
 #include <limits>
+#include <span>
 
 namespace YAML
 {
@@ -21,7 +22,7 @@ struct convert<GE::EntityID>
     {
         if (!node.IsScalar())
             return false;
-        const auto text = node.Scalar();
+        const auto& text = node.Scalar();
         if (auto parsed = GE::EntityID::from_string(text)) {
             if (parsed->is_nil())
                 return false;
@@ -30,7 +31,7 @@ struct convert<GE::EntityID>
         }
         // Old projects use uint64 entity IDs. Embed them deterministically so
         // entity declarations, hierarchy links and editor selection still agree.
-        uint64_t legacyId;
+        uint64_t legacyId = 0;
         auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), legacyId);
         if (error != std::errc{} || end != text.data() + text.size())
             return false;
@@ -38,8 +39,10 @@ struct convert<GE::EntityID>
             return false;
         std::array<uint8_t, 16> bytes{};
         bytes[0] = 1; // Keep legacy entity 0 distinct from the nil UUID.
-        for (size_t i = 0; i < sizeof(legacyId); ++i)
-            bytes[8 + i] = static_cast<uint8_t>(legacyId >> (i * 8));
+        for (auto& byte : std::span(bytes).subspan<8>()) {
+            byte = static_cast<uint8_t>(legacyId);
+            legacyId >>= 8;
+        }
         id = GE::EntityID(bytes);
         return true;
     }
@@ -63,7 +66,7 @@ struct convert<std::optional<GE::EntityID>>
         if (node.IsScalar()) {
             const auto& text = node.Scalar();
             const auto uuid = GE::EntityID::from_string(text);
-            uint64_t legacyId;
+            uint64_t legacyId = 0;
             const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), legacyId);
             if ((uuid && uuid->is_nil()) || (error == std::errc{} && end == text.data() + text.size()
                 && legacyId == std::numeric_limits<uint64_t>::max())) {

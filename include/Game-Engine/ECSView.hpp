@@ -12,52 +12,86 @@
 
 #include "Game-Engine/ECSRegistry.hpp"
 #include "Game-Engine/ECSViewIterator.hpp"
+#include "Game-Engine/TypeList.hpp"
 
-#include <bitset>
-#include <cstdint>
-#include <iterator>
 #include <ranges>
-#include <tuple> // IWYU pragma: keep
-#include <type_traits> // IWYU pragma: keep
-#include <utility> // IWYU pragma: keep
+#include <utility>
 
 namespace GE
 {
 
-template<ECSRegistryLike ECSRegistryT, Component... Cs> requires(sizeof...(Cs) > 0)
-class basic_ecsView : public std::ranges::view_interface<basic_ecsView<ECSRegistryT, Cs...>>
+template<Component... Cs>
+struct ExcludeComponents {};
+
+template<typename Included, typename Excluded, typename... Terms>
+struct ECSViewQuery;
+
+template<Component... Included, Component... Excluded>
+struct ECSViewQuery<TypeList<Included...>, TypeList<Excluded...>>
 {
+    static_assert(sizeof...(Included) > 0, "An ECS view requires at least one included component");
+
+    template<ECSRegistryLike RegistryT>
+    using iterator = ECSViewIterator<RegistryT, Included...>;
+
+    static const auto& predicates()
+    {
+        static const auto predicates = std::pair{archetypeId<Included...>(), archetypeId<Excluded...>()};
+        return predicates;
+    }
+};
+
+template<Component... Included, Component... Excluded, Component C, typename... Rest>
+struct ECSViewQuery<TypeList<Included...>, TypeList<Excluded...>, C, Rest...>
+    : ECSViewQuery<TypeList<Included..., C>, TypeList<Excluded...>, Rest...>
+{};
+
+template<Component... Included, Component... Excluded, Component... Cs, typename... Rest>
+struct ECSViewQuery<TypeList<Included...>, TypeList<Excluded...>, ExcludeComponents<Cs...>, Rest...>
+    : ECSViewQuery<TypeList<Included...>, TypeList<Excluded..., Cs...>, Rest...>
+{};
+
+template<ECSRegistryLike ECSRegistryT, typename... Terms> requires(sizeof...(Terms) > 0)
+class basic_ecsView : public std::ranges::view_interface<basic_ecsView<ECSRegistryT, Terms...>>
+{
+private:
+    using Query = ECSViewQuery<TypeList<>, TypeList<>, Terms...>;
+
 public:
-    using iterator = ECSViewIterator<ECSRegistryT, Cs...>;
+    using iterator = typename Query::template iterator<ECSRegistryT>;
     using Iterator = iterator;
     using Predicate = ArchetypeID;
 
-public:
-    basic_ecsView() : m_predicate(makePredicate<Cs...>()) {}
+    basic_ecsView() = default;
     basic_ecsView(const basic_ecsView&) = default;
     basic_ecsView(basic_ecsView&&) = default;
 
     inline ECSRegistryT* registry() const { return m_registry; }
 
-    inline Iterator begin() const;
-    inline Iterator end() const;
-
-    template<Component... Ts> requires(sizeof...(Ts) > 0)
-    basic_ecsView without() const
+    Iterator begin() const
     {
-        basic_ecsView view(*this);
-        view.m_excludedPredicate |= makePredicate<Ts...>();
-        return view;
+        if (m_registry == nullptr)
+            return {};
+        const auto& [required, excluded] = Query::predicates();
+        return {m_registry->m_archetypes.begin(), m_registry->m_archetypes.end(), required, excluded};
+    }
+
+    Iterator end() const
+    {
+        if (m_registry == nullptr)
+            return {};
+        const auto& [required, excluded] = Query::predicates();
+        return {m_registry->m_archetypes.end(), m_registry->m_archetypes.end(), required, excluded};
     }
 
     size_t count() const
     {
         if (m_registry == nullptr)
             return 0;
+        const auto& [required, excluded] = Query::predicates();
         size_t output = 0;
-        for (const auto& [archetypeId, archetype] : m_registry->m_archetypes)
-        {
-            if (matches(archetypeId))
+        for (const auto& [id, archetype] : m_registry->m_archetypes) {
+            if ((id & required) == required && (id & excluded).none())
                 output += archetype.size();
         }
         return output;
@@ -67,81 +101,37 @@ public:
 
 private:
     ECSRegistryT* m_registry = nullptr;
-    Predicate m_predicate;
-    Predicate m_excludedPredicate;
-
-    inline void setRegistry(ECSRegistryT* registry) { m_registry = registry; }
-
-    inline bool matches(const Predicate& archetypeId) const
-    {
-        return (archetypeId & m_predicate) == m_predicate
-            && (archetypeId & m_excludedPredicate).none();
-    }
-
-    template<typename T>
-    static Predicate makePredicate()
-    {
-        Predicate predicate;
-        predicate.set(componentId<T>());
-        return predicate;
-    }
-
-    template<typename T, typename Y, typename... Ys>
-    static Predicate makePredicate()
-    {
-        auto predicate = makePredicate<T>();
-        auto tail = makePredicate<Y, Ys...>();
-        predicate |= tail;
-        return predicate;
-    }
 
 public:
     basic_ecsView& operator=(const basic_ecsView&) = default;
     basic_ecsView& operator=(basic_ecsView&&) = default;
 
-    template<Component... Ts>
+    template<typename... Ts>
     friend basic_ecsView<ECSRegistry, Ts...> operator|(ECSRegistry& registry, basic_ecsView<ECSRegistry, Ts...> view);
 
-    template<Component... Ts>
+    template<typename... Ts>
     friend basic_ecsView<const ECSRegistry, Ts...> operator|(const ECSRegistry& registry, basic_ecsView<const ECSRegistry, Ts...> view);
-
 };
 
-template<ECSRegistryLike ECSRegistryT, Component... Cs> requires(sizeof...(Cs) > 0)
-inline typename basic_ecsView<ECSRegistryT, Cs...>::Iterator basic_ecsView<ECSRegistryT, Cs...>::begin() const
-{
-    if (m_registry == nullptr)
-        return {};
-    return {m_registry->m_archetypes.begin(), m_registry->m_archetypes.end(), m_predicate, m_excludedPredicate};
-}
-
-template<ECSRegistryLike ECSRegistryT, Component... Cs> requires(sizeof...(Cs) > 0)
-inline typename basic_ecsView<ECSRegistryT, Cs...>::Iterator basic_ecsView<ECSRegistryT, Cs...>::end() const
-{
-    if (m_registry == nullptr)
-        return {};
-    return {m_registry->m_archetypes.end(), m_registry->m_archetypes.end(), m_predicate, m_excludedPredicate};
-}
-
-template<Component... Cs>
-basic_ecsView<ECSRegistry, Cs...> operator|(ECSRegistry& registry, basic_ecsView<ECSRegistry, Cs...> view)
+template<typename... Terms>
+basic_ecsView<ECSRegistry, Terms...> operator|(ECSRegistry& registry, basic_ecsView<ECSRegistry, Terms...> view)
 {
     view.m_registry = &registry;
     return view;
 }
 
-template<Component... Cs>
-basic_ecsView<const ECSRegistry, Cs...> operator|(const ECSRegistry& registry, basic_ecsView<const ECSRegistry, Cs...> view)
+template<typename... Terms>
+basic_ecsView<const ECSRegistry, Terms...> operator|(const ECSRegistry& registry, basic_ecsView<const ECSRegistry, Terms...> view)
 {
     view.m_registry = &registry;
     return view;
 }
 
-template<Component... Cs>
-using ECSView = basic_ecsView<ECSRegistry, Cs...>;
+template<typename... Terms>
+using ECSView = basic_ecsView<ECSRegistry, Terms...>;
 
-template<Component... Cs>
-using const_ECSView = basic_ecsView<const ECSRegistry, Cs...>;
+template<typename... Terms>
+using const_ECSView = basic_ecsView<const ECSRegistry, Terms...>;
 
 } // namespace GE
 

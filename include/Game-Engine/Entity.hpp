@@ -301,14 +301,14 @@ using const_Entity = basic_entity<const ECSRegistry>;
 
 struct MakeEntity {};
 
-template<Component... Cs>
-auto operator|(const basic_ecsView<ECSRegistry, Cs...>& view, const MakeEntity)
+template<typename... Terms>
+auto operator|(const basic_ecsView<ECSRegistry, Terms...>& view, const MakeEntity)
 {
     return view | std::views::transform([registry = view.registry()](const auto& e) { return Entity{registry, static_cast<GE::EntityID>(e)}; });
 }
 
-template<Component... Cs>
-auto operator|(const basic_ecsView<const ECSRegistry, Cs...>& view, const MakeEntity)
+template<typename... Terms>
+auto operator|(const basic_ecsView<const ECSRegistry, Terms...>& view, const MakeEntity)
 {
     return view | std::views::transform([registry = view.registry()](const auto& e) { return const_Entity{registry, static_cast<GE::EntityID>(e)}; });
 }

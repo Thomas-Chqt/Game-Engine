@@ -41,6 +41,7 @@
 #include <imgui.h>
 #include <gfx_imgui/gfx_imgui.hpp>
 
+#include <array>
 #include <format>
 #include <fstream>
 #include <memory>
@@ -482,9 +483,9 @@ void Editor::recordFrameGraph(GE::FrameGraphBuilder& builder)
             const auto x = static_cast<size_t>(mousePos.first);
             const auto y = static_cast<size_t>(mousePos.second);
             const size_t offset = (y * viewportWidth + x) * pixelSize;
-            uint32_t words[2];
-            assert(offset + sizeof(words) <= bytes.size());
-            std::memcpy(words, bytes.data() + offset, sizeof(words));
+            std::array<uint32_t, 2> words{};
+            assert(offset + sizeof(uint32_t) * words.size() <= bytes.size());
+            std::memcpy(words.data(), bytes.data() + offset, sizeof(uint32_t) * words.size());
             const uint64_t token = uint64_t(words[0]) | (uint64_t(words[1]) << 32);
             if (token == 0)
                 return std::nullopt;

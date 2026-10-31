@@ -36,7 +36,7 @@ public:
     using iterator = Iterator;
 
 private:
-    template<ECSRegistryLike RegistryT, Component... Cs> requires(sizeof...(Cs) > 0) friend class basic_ecsView;
+    template<ECSRegistryLike RegistryT, typename... Terms> requires(sizeof...(Terms) > 0) friend class basic_ecsView;
 
 public:
     ECSRegistry() = default;
@@ -91,7 +91,7 @@ T& ECSRegistry::emplace(EntityID id, Args&&... args)
     auto it = m_archetypes.find(dstId);
     if (it == m_archetypes.end())
         it = m_archetypes.emplace(dstId, src.template addComponentBuffer<T>()).first;
-    src.template moveEntity<T>(id, it->second, std::forward<Args>(args)...);
+    moveEntity<T>(id, src, it->second, std::forward<Args>(args)...);
     srcId = dstId;
     return it->second.template getEntityComponent<T>(id);
 }
@@ -109,7 +109,7 @@ void ECSRegistry::remove(EntityID id)
     auto it = m_archetypes.find(dstId);
     if (it == m_archetypes.end())
         it = m_archetypes.emplace(dstId, src.template rmvComponentBuffer<T>()).first;
-    src.moveEntity(id, it->second);
+    moveEntity(id, src, it->second);
     srcId = dstId;
 }
 

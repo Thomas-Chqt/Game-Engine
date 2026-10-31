@@ -24,7 +24,7 @@ void Archetype::erase(EntityID id)
     assert(m_entityIndices.contains(id));
     const auto idx = m_entityIndices.at(id);
     const auto last = size() - 1;
-    const auto lastId = static_cast<const ComponentVector<EntityID>&>(*m_componentBuffers.at(componentId<EntityID>())).vector().back();
+    const auto lastId = getComponents<EntityID>().back();
     for (auto& [compId, buffer] : m_componentBuffers) {
         buffer->swapComponents(idx, last);
         buffer->eraseLast();
@@ -34,17 +34,17 @@ void Archetype::erase(EntityID id)
     m_entityIndices.erase(id);
 }
 
-void Archetype::moveEntity(EntityID id, Archetype& dst)
+void moveEntity(EntityID id, Archetype& src, Archetype& dst)
 {
-    assert(&dst != this);
-    assert(m_entityIndices.contains(id));
+    assert(&src != &dst);
+    assert(src.m_entityIndices.contains(id));
     assert(!dst.m_entityIndices.contains(id));
-    assert((m_archetypeId & dst.m_archetypeId) == dst.m_archetypeId);
-    const auto idx = m_entityIndices.at(id);
-    const auto last = size() - 1;
-    const auto lastId = static_cast<const ComponentVector<EntityID>&>(*m_componentBuffers.at(componentId<EntityID>())).vector().back();
+    assert((src.m_archetypeId & dst.m_archetypeId) == dst.m_archetypeId);
+    const auto idx = src.m_entityIndices.at(id);
+    const auto last = src.size() - 1;
+    const auto lastId = src.getComponents<EntityID>().back();
     dst.m_entityIndices.emplace(id, dst.size());
-    for (auto& [compId, buffer] : m_componentBuffers) {
+    for (auto& [compId, buffer] : src.m_componentBuffers) {
         if (auto it = dst.m_componentBuffers.find(compId); it != dst.m_componentBuffers.end())
             buffer->moveComponent(idx, *it->second);
         else {
@@ -53,8 +53,8 @@ void Archetype::moveEntity(EntityID id, Archetype& dst)
         }
     }
     if (idx != last)
-        m_entityIndices.at(lastId) = idx;
-    m_entityIndices.erase(id);
+        src.m_entityIndices.at(lastId) = idx;
+    src.m_entityIndices.erase(id);
 }
 
 Archetype::Archetype(std::unordered_map<ComponentID, std::unique_ptr<AComponentVector>> buffers)

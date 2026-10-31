@@ -29,6 +29,16 @@ ArchetypeID archetypeId()
     return newArchetypeId;
 }
 
+class GE_API Archetype;
+
+// Move an entity to the end of dst and emplace the missing component.
+// dst must have exactly the components of src plus T.
+template<Component T, typename ...Ts>
+void moveEntity(EntityID, Archetype& src, Archetype& dst, Ts&&... args);
+
+// Move an entity to the end of dst, which must have a subset of src's components.
+GE_API void moveEntity(EntityID, Archetype& src, Archetype& dst);
+
 class GE_API Archetype
 {
 public:
@@ -61,18 +71,13 @@ public:
 
     void erase(EntityID);
 
-    // move 1 entity to the end of an other archetype and emplace the missing component
-    // only work when the destination archetype has one more component that the source
-    template<Component T, typename ...Ts>
-    void moveEntity(EntityID, Archetype& dst, Ts&&... args);
-
-    // move 1 entity to the end of an other archetype
-    // only work when the destination archetype has less or the same set of component
-    void moveEntity(EntityID, Archetype& dst);
-
     ~Archetype() = default;
 
 private:
+    template<Component T, typename ...Ts>
+    friend void moveEntity(EntityID, Archetype& src, Archetype& dst, Ts&&... args);
+    friend void moveEntity(EntityID, Archetype& src, Archetype& dst);
+
     Archetype(std::unordered_map<ComponentID, std::unique_ptr<AComponentVector>>);
 
     ArchetypeID m_archetypeId;
@@ -143,26 +148,26 @@ auto& Archetype::getEntityComponent(this auto&& self, EntityID id)
 }
 
 template<Component T, typename ...Ts>
-void Archetype::moveEntity(EntityID id, Archetype& dst, Ts&&... args)
+void moveEntity(EntityID id, Archetype& src, Archetype& dst, Ts&&... args)
 {
-    assert(&dst != this);
-    assert(m_entityIndices.contains(id));
+    assert(&src != &dst);
+    assert(src.m_entityIndices.contains(id));
     assert(!dst.m_entityIndices.contains(id));
-    assert(!m_archetypeId.test(componentId<T>()));
-    assert((m_archetypeId | archetypeId<T>()) == dst.m_archetypeId);
+    assert(!src.m_archetypeId.test(componentId<T>()));
+    assert((src.m_archetypeId | archetypeId<T>()) == dst.m_archetypeId);
     auto& newComponents = static_cast<ComponentVector<T>&>(*dst.m_componentBuffers.at(componentId<T>()));
     newComponents.vector().emplace_back(std::forward<Ts>(args)...);
-    const auto idx = m_entityIndices.at(id);
-    const auto last = size() - 1;
+    const auto idx = src.m_entityIndices.at(id);
+    const auto last = src.size() - 1;
     // The hash-map iteration order is unrelated to the dense component rows.
-    const auto& ids = static_cast<const ComponentVector<EntityID>&>(*m_componentBuffers.at(componentId<EntityID>())).vector();
+    const auto ids = src.getComponents<EntityID>();
     const auto lastId = ids.back();
     dst.m_entityIndices.emplace(id, dst.m_entityIndices.size());
-    for (auto& [compId, buffer] : m_componentBuffers)
+    for (auto& [compId, buffer] : src.m_componentBuffers)
         buffer->moveComponent(idx, *dst.m_componentBuffers.at(compId));
     if (idx != last)
-        m_entityIndices.at(lastId) = idx;
-    m_entityIndices.erase(id);
+        src.m_entityIndices.at(lastId) = idx;
+    src.m_entityIndices.erase(id);
 }
 
 }

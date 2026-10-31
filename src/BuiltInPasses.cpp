@@ -104,9 +104,9 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
 
     uint32_t directionalLightCount = 0;
     uint32_t pointLightCount = 0;
-    for (const_Entity entity : scene.ecsRegistry() | const_ECSView<TransformComponent, LightComponent>() | MakeEntity())
+    for (const auto& item : scene.ecsRegistry() | const_ECSView<TransformComponent, LightComponent>())
     {
-        switch (entity.get<LightComponent>().type)
+        switch (item.get<1>().type)
         {
         case LightComponent::Type::directional:
             ++directionalLightCount;
@@ -131,20 +131,19 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
 
     size_t directionalIdx = 0;
     size_t pointIdx = 0;
-    for (const_Entity entity : scene.ecsRegistry() | const_ECSView<TransformComponent, LightComponent>() | MakeEntity())
+    for (const auto& [transform, light] : scene.ecsRegistry() | const_ECSView<TransformComponent, LightComponent>())
     {
-        const LightComponent& light = entity.get<LightComponent>();
         switch (light.type)
         {
         case LightComponent::Type::directional:
             directionalLights[directionalIdx++] = {
-                .position = entity.worldTransform()[3],
+                .position = transform.worldTransform[3],
                 .color = light.color * light.intentsity,
             };
             break;
         case LightComponent::Type::point:
             pointLights[pointIdx++] = {
-                .position = entity.worldTransform()[3],
+                .position = transform.worldTransform[3],
                 .color = light.color * light.intentsity,
                 .attenuation = light.attenuation
             };
