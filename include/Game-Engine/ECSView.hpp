@@ -32,7 +32,9 @@ struct ECSViewQuery<TypeList<Included...>, TypeList<Excluded...>>
     static_assert(sizeof...(Included) > 0, "An ECS view requires at least one included component");
 
     template<ECSRegistryLike RegistryT>
-    using iterator = ECSViewIterator<RegistryT, Included...>;
+    struct Iterator {
+        using type = ECSViewIterator<RegistryT, Included...>;
+    };
 
     static const auto& predicates()
     {
@@ -58,7 +60,7 @@ private:
     using Query = ECSViewQuery<TypeList<>, TypeList<>, Terms...>;
 
 public:
-    using iterator = typename Query::template iterator<ECSRegistryT>;
+    using iterator = typename Query::template Iterator<ECSRegistryT>::type;
     using Iterator = iterator;
     using Predicate = ArchetypeID;
 
