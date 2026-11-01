@@ -13,6 +13,7 @@
 #include "Game-Engine/ECSView.hpp"
 
 #include <set>
+#include <stdexcept>
 #include <vector>
 
 namespace GE_tests
@@ -57,6 +58,64 @@ struct Component3
     Component3() = default;
     Component3(int v) : value(v) {}
 };
+
+struct ThrowingMoveComponent
+{
+    ThrowingMoveComponent(const ThrowingMoveComponent&) = default;
+    ThrowingMoveComponent(ThrowingMoveComponent&&) noexcept(false) {}
+};
+
+struct ThrowingConstructorComponent
+{
+    int value;
+    explicit ThrowingConstructorComponent(int value, bool fail = false) : value(value)
+    {
+        if (fail)
+            throw std::runtime_error("component construction failed");
+    }
+};
+
+static_assert(!GE::Component<ThrowingMoveComponent>);
+static_assert(GE::Component<ThrowingConstructorComponent>);
+
+TEST(ECSTest, emplaceCanCopyArgumentsFromDestinationArchetype)
+{
+    GE::ECSRegistry registry;
+    const auto existing = registry.newEntityID();
+    registry.emplace<GE::NameComponent>(existing, std::string(256, 'a'));
+    const auto entity = registry.newEntityID();
+    registry.emplace<GE::NameComponent>(entity, registry.get<GE::NameComponent>(existing).name);
+    EXPECT_EQ(registry.get<GE::NameComponent>(entity).name, std::string(256, 'a'));
+    EXPECT_EQ(registry.get<GE::NameComponent>(existing).name, std::string(256, 'a'));
+}
+
+TEST(ECSTest, failedComponentConstructionPreservesArchetypeRows)
+{
+    GE::ECSRegistry registry;
+    const auto existing = registry.newEntityID();
+    registry.emplace<Component1>(existing, 11);
+    registry.emplace<ThrowingConstructorComponent>(existing, 12);
+    const auto entity = registry.newEntityID();
+    registry.emplace<Component1>(entity, 21);
+    const auto peer = registry.newEntityID();
+    registry.emplace<Component1>(peer, 31);
+
+    EXPECT_THROW(registry.emplace<ThrowingConstructorComponent>(entity, 22, true), std::runtime_error);
+    EXPECT_FALSE(registry.has<ThrowingConstructorComponent>(entity));
+    EXPECT_EQ(registry.get<Component1>(entity).val(), 21);
+    EXPECT_EQ(registry.get<Component1>(peer).val(), 31);
+    EXPECT_EQ(registry.get<Component1>(existing).val(), 11);
+    EXPECT_EQ(registry.get<ThrowingConstructorComponent>(existing).value, 12);
+    EXPECT_EQ(registry.componentCount(), 4);
+    EXPECT_EQ((registry | GE::ECSView<Component1>()).count(), 3);
+    EXPECT_EQ((registry | GE::ECSView<ThrowingConstructorComponent>()).count(), 1);
+
+    registry.emplace<ThrowingConstructorComponent>(entity, 22);
+    EXPECT_EQ(registry.get<ThrowingConstructorComponent>(entity).value, 22);
+    EXPECT_EQ(registry.get<Component1>(peer).val(), 31);
+    registry.remove<ThrowingConstructorComponent>(entity);
+    EXPECT_EQ(registry.get<Component1>(entity).val(), 21);
+}
 
 template<typename T>
 class ECSTest : public testing::Test {};

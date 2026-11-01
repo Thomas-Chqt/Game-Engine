@@ -155,14 +155,26 @@ void moveEntity(EntityID id, Archetype& src, Archetype& dst, Ts&&... args)
     assert(!dst.m_entityIndices.contains(id));
     assert(!src.m_archetypeId.test(componentId<T>()));
     assert((src.m_archetypeId | archetypeId<T>()) == dst.m_archetypeId);
-    auto& newComponents = static_cast<ComponentVector<T>&>(*dst.m_componentBuffers.at(componentId<T>()));
-    newComponents.vector().emplace_back(std::forward<Ts>(args)...);
     const auto idx = src.m_entityIndices.at(id);
     const auto last = src.size() - 1;
-    // The hash-map iteration order is unrelated to the dense component rows.
     const auto ids = src.getComponents<EntityID>();
     const auto lastId = ids.back();
-    dst.m_entityIndices.emplace(id, dst.m_entityIndices.size());
+    const auto dstSize = dst.size();
+    // Arguments may refer to destination components invalidated by reservation.
+    T newComponent(std::forward<Ts>(args)...);
+    // Preparation may throw, but must not change source rows or destination sizes.
+    for (auto& [compId, buffer] : dst.m_componentBuffers)
+        buffer->reserveForAppend();
+    auto& newComponents = static_cast<ComponentVector<T>&>(*dst.m_componentBuffers.at(componentId<T>()));
+    newComponents.vector().emplace_back(std::move(newComponent));
+    try {
+        dst.m_entityIndices.emplace(id, dstSize);
+    }
+    catch (...) {
+        newComponents.eraseLast();
+        throw;
+    }
+    // All destination buffers now have capacity; component moves cannot throw.
     for (auto& [compId, buffer] : src.m_componentBuffers)
         buffer->moveComponent(idx, *dst.m_componentBuffers.at(compId));
     if (idx != last)

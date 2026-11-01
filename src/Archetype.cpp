@@ -43,7 +43,11 @@ void moveEntity(EntityID id, Archetype& src, Archetype& dst)
     const auto idx = src.m_entityIndices.at(id);
     const auto last = src.size() - 1;
     const auto lastId = src.getComponents<EntityID>().back();
-    dst.m_entityIndices.emplace(id, dst.size());
+    const auto dstSize = dst.size();
+    for (auto& [compId, buffer] : dst.m_componentBuffers)
+        buffer->reserveForAppend();
+    dst.m_entityIndices.emplace(id, dstSize);
+    // Allocation is complete and component moves cannot throw.
     for (auto& [compId, buffer] : src.m_componentBuffers) {
         if (auto it = dst.m_componentBuffers.find(compId); it != dst.m_componentBuffers.end())
             buffer->moveComponent(idx, *it->second);

@@ -2,6 +2,7 @@
 
 #include "Game-Engine/Components.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
 #include <vector>
@@ -14,6 +15,7 @@ class AComponentVector
 {
 public:
     virtual size_t size() const = 0;
+    virtual void reserveForAppend() = 0;
 
     // same type, copy the elements
     virtual std::unique_ptr<AComponentVector> clone() const = 0;
@@ -40,6 +42,7 @@ public:
     ComponentVector(ComponentVector&&) = default;
 
     size_t size() const override;
+    void reserveForAppend() override;
     std::unique_ptr<AComponentVector> clone() const override;
     std::unique_ptr<AComponentVector> create() const override;
 
@@ -65,6 +68,17 @@ template<Component T>
 size_t ComponentVector<T>::size() const
 {
     return m_vector.size();
+}
+
+template<Component T>
+void ComponentVector<T>::reserveForAppend()
+{
+    if (m_vector.size() == m_vector.capacity()) {
+        // Preserve geometric growth rather than reallocating for every transfer.
+        const auto size = m_vector.size();
+        const auto growth = size == 0 ? 1 : std::min(size, m_vector.max_size() - size);
+        m_vector.reserve(size + (growth == 0 ? 1 : growth));
+    }
 }
 
 template<Component T>

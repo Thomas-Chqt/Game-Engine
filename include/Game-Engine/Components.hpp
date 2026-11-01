@@ -22,6 +22,7 @@
 
 #include <optional>
 #include <typeinfo>
+#include <type_traits>
 #include <string>
 #include <map>
 #include <memory>
@@ -31,7 +32,7 @@ namespace GE
 {
 
 template<typename T>
-concept Component = std::is_copy_constructible_v<T> && std::is_move_constructible_v<T> && std::is_destructible_v<T>;
+concept Component = std::is_copy_constructible_v<T> && std::is_nothrow_move_constructible_v<T> && std::is_nothrow_destructible_v<T>;
 
 using ComponentID = uint32_t;
 
