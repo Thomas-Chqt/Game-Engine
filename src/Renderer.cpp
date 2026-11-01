@@ -784,7 +784,9 @@ void Renderer::renderFrame(FrameGraph frameGraph)
 
         if (drawable == nullptr && std::ranges::any_of(framePass.colorAttachments, [&](auto& attachment){return attachment.texture == frameGraph.backBuffer ;}))
         {
+            TracyCZoneN(nextDrawableZoneCtx, "nextDrawable", true);
             drawable = m_swapchain->nextDrawable();
+            TracyCZoneEnd(nextDrawableZoneCtx);
             if (drawable == nullptr) {
                 m_swapchain = nullptr;
                 return;

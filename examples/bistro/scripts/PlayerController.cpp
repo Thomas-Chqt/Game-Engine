@@ -9,6 +9,8 @@
 #include <Game-Engine/Game.hpp>
 #include <Game-Engine/Script.hpp>
 
+#include <optional>
+
 #include <glm/gtc/quaternion.hpp>
 
 #include <algorithm>
@@ -83,10 +85,11 @@ class PlayerController final : public GE::Script
 
     void onUpdate() override
     {
+        assert(m_entity.has_value());
         if (m_grounded)
             return;
 
-        auto& transform = m_entity.get<GE::TransformComponent>();
+        auto& transform = m_entity->get<GE::TransformComponent>();
         transform.position.y += m_verticalVelocity;
         m_verticalVelocity -= gravity;
 
@@ -99,7 +102,7 @@ class PlayerController final : public GE::Script
     }
 
 private:
-    GE::Entity m_entity;
+    std::optional<GE::Entity> m_entity;
     float m_groundHeight = 0.0f;
     float m_verticalVelocity = 0.0f;
     float m_cameraPitch = 0.0f;

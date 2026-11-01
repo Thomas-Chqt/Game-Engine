@@ -9,6 +9,8 @@
 #include <Game-Engine/Game.hpp>
 #include <Game-Engine/Script.hpp>
 
+#include <optional>
+
 #include <glm/gtc/quaternion.hpp>
 
 class Rotating final : public GE::Script
@@ -24,10 +26,11 @@ class Rotating final : public GE::Script
 
     void onUpdate() override
     {
-        auto& transform = m_entity.get<GE::TransformComponent>();
+        assert(m_entity.has_value());
+        auto& transform = m_entity->get<GE::TransformComponent>();
         transform.rotation = glm::normalize(transform.rotation * glm::angleAxis(speed, glm::vec3(0.0f, 1.0f, 0.0f)));
     }
 
 private:
-    GE::Entity m_entity;
+    std::optional<GE::Entity> m_entity;
 };

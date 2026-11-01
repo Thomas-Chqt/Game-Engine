@@ -11,7 +11,7 @@
 #include "Game-Engine/AssetManager.hpp"
 #include "Game-Engine/Components.hpp"
 #include "Game-Engine/ECSView.hpp"
-#include "Game-Engine/ECSWorld.hpp"
+#include "Game-Engine/ECSRegistry.hpp"
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Material.hpp"
 #include "Game-Engine/Mesh.hpp"
@@ -86,8 +86,9 @@ struct BufferPairHash
 
 }
 
-TexturedGeometryPass::TexturedGeometryPass(const Scene& scene, glm::mat4 viewProjectionMatrix, glm::vec3 cameraPosition)
+TexturedGeometryPass::TexturedGeometryPass(const Scene& scene, glm::mat4 viewProjectionMatrix, glm::vec3 cameraPosition, std::vector<EntityID>* pickingEntities)
     : m_scene(&scene)
+    , m_pickingEntities(pickingEntities)
     , m_viewProjectionMatrix(viewProjectionMatrix)
     , m_cameraPosition(cameraPosition)
 {
@@ -103,9 +104,9 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
 
     uint32_t directionalLightCount = 0;
     uint32_t pointLightCount = 0;
-    for (const_Entity entity : scene.ecsWorld() | const_ECSView<TransformComponent, LightComponent>() | MakeEntity())
+    for (const auto& item : scene.ecsRegistry() | const_ECSView<TransformComponent, LightComponent>())
     {
-        switch (entity.get<LightComponent>().type)
+        switch (item.get<1>().type)
         {
         case LightComponent::Type::directional:
             ++directionalLightCount;
@@ -130,20 +131,19 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
 
     size_t directionalIdx = 0;
     size_t pointIdx = 0;
-    for (const_Entity entity : scene.ecsWorld() | const_ECSView<TransformComponent, LightComponent>() | MakeEntity())
+    for (const auto& [transform, light] : scene.ecsRegistry() | const_ECSView<TransformComponent, LightComponent>())
     {
-        const LightComponent& light = entity.get<LightComponent>();
         switch (light.type)
         {
         case LightComponent::Type::directional:
             directionalLights[directionalIdx++] = {
-                .position = entity.worldTransform()[3],
+                .position = transform.worldTransform[3],
                 .color = light.color * light.intentsity,
             };
             break;
         case LightComponent::Type::point:
             pointLights[pointIdx++] = {
-                .position = entity.worldTransform()[3],
+                .position = transform.worldTransform[3],
                 .color = light.color * light.intentsity,
                 .attenuation = light.attenuation
             };
@@ -157,7 +157,7 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
     std::unordered_map<std::pair<std::shared_ptr<gfx::Buffer>, std::shared_ptr<gfx::Buffer>>, std::vector<Renderable>, BufferPairHash> renderables;
     std::vector<shader::textured::Material> materials;
     std::unordered_map<std::shared_ptr<Material>, uint32_t> materialIndices;
-    auto renderableEntities = scene.ecsWorld() | const_ECSView<TransformComponent, MeshComponent>();
+    auto renderableEntities = scene.ecsRegistry() | const_ECSView<TransformComponent, MeshComponent>();
     auto renderableEntitiesSize = renderables.size();
     renderables.reserve(renderableEntitiesSize);
     materials.reserve(renderableEntitiesSize);
@@ -165,12 +165,18 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
     TracyCZoneEnd(TracyCZoneN_setup);
 
     TracyCZoneN(TracyCZoneN_loop_renderableEntities, "loop_renderableEntities", true);
+    uint64_t nextPickingId = 1; // Zero is the background.
+    if (m_pickingEntities)
+        m_pickingEntities->clear();
     for (const auto& entity : renderableEntities)
     {
         const auto& [transform, mesh] = entity;
         if (!assetManager.isAssetLoaded(mesh))
             continue;
 
+        const uint64_t pickingId = nextPickingId++;
+        if (m_pickingEntities)
+            m_pickingEntities->push_back(entity.entityId);
         std::shared_ptr<Mesh> loadedMesh = assetManager.getAsset<Mesh>(mesh);
 
         for (const SubMesh& submesh : loadedMesh->subMeshes)
@@ -199,8 +205,8 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
                 .modelMatrix = transform.worldTransform,
                 .materialIndex = it->second,
                 .entityId = {
-                    static_cast<uint32_t>(entity.entityId),
-                    static_cast<uint32_t>(entity.entityId >> 32)
+                    static_cast<uint32_t>(pickingId),
+                    static_cast<uint32_t>(pickingId >> 32)
                 }
             });
             TracyCZoneEnd(TracyCZoneN_add_renderable);
@@ -229,7 +235,7 @@ void TexturedGeometryPass::record(FrameGraphBuilder& builder) const
             FrameGraph::Attachment{
                 .texture = entityIdsTexture,
                 .loadAction = gfx::LoadAction::clear,
-                .clearValue = gfx::ClearValue::uint64(INVALID_ENTITY_ID)
+                .clearValue = gfx::ClearValue::uint64(0)
             }
         },
         .depthAttachment = FrameGraph::Attachment{

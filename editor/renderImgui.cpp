@@ -14,7 +14,7 @@
 #include <Game-Engine/AssetLocation.hpp>
 #include <Game-Engine/AssetManager.hpp>
 #include <Game-Engine/Components.hpp>
-#include <Game-Engine/ECSWorld.hpp>
+#include <Game-Engine/ECSRegistry.hpp>
 #include <Game-Engine/Entity.hpp>
 #include <Game-Engine/Scene.hpp>
 
@@ -292,7 +292,7 @@ void Editor::renderImgui()
             if (m_selectedEntity.has_value() && m_selectedEntity->has<GE::TransformComponent>()) {
                 GE::TransformComponent& transformComponent = m_selectedEntity->get<GE::TransformComponent>();
                 ImGuizmo::OPERATION operations = ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::ROTATE;
-                if (ImGuizmo::Manipulate((float*)&viewMatrix, (float*)&projectionMatrix, operations, ImGuizmo::MODE::LOCAL, (float*)&transformComponent.worldTransform)) {
+                if (ImGuizmo::Manipulate(glm::value_ptr(viewMatrix), glm::value_ptr(projectionMatrix), operations, ImGuizmo::MODE::LOCAL, glm::value_ptr(transformComponent.worldTransform))) {
                     glm::mat4x4 localTransform = transformComponent.worldTransform;
                     auto parent = m_selectedEntity->parent();
                     if (parent.has_value() && parent->has<GE::TransformComponent>())
@@ -311,7 +311,7 @@ void Editor::renderImgui()
             );
             const ImVec2 viewManipulateSize(VIEW_MANIPULATE_SIZE, VIEW_MANIPULATE_SIZE);
             ImGuizmo::ViewManipulate(
-                (float*)&viewMatrix,
+                glm::value_ptr(viewMatrix),
                 VIEW_MANIPULATE_ORBIT_DISTANCE,
                 viewManipulatePosition,
                 viewManipulateSize,
@@ -420,7 +420,7 @@ void Editor::renderImgui()
     {
         ZoneScopedN("EntityInspectorWindow");
         ImGui::PushItemWidth(-80);
-        if (!m_selectedEntity || m_selectedEntity->world == nullptr || m_selectedEntity->entityId == GE::INVALID_ENTITY_ID)
+        if (!m_selectedEntity)
             ImGui::TextUnformatted("No entity selected");
         else
         {

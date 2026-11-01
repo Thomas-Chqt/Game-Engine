@@ -19,7 +19,11 @@ if(MSVC)
 endif()
 
 file(GLOB SRC "*.cpp")
-target_sources(GE_test PRIVATE ${SRC} "${CMAKE_CURRENT_SOURCE_DIR}/../editor/yaml_convert/convert_asset.cpp")
+target_sources(GE_test PRIVATE ${SRC}
+    "${CMAKE_CURRENT_SOURCE_DIR}/../editor/yaml_convert/convert_asset.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../editor/yaml_convert/convert_components.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../editor/yaml_convert/convert_vector.cpp"
+)
 
 target_include_directories(GE_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(GE_test PRIVATE GE_TEST_RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources")

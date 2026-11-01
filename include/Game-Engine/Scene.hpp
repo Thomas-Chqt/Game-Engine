@@ -1,10 +1,11 @@
 #pragma once
 
-#include "Game-Engine/ECSWorld.hpp"
+#include "Game-Engine/ECSRegistry.hpp"
 #include "Game-Engine/Entity.hpp"
 
 #include <cassert>
 #include <future>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -19,8 +20,8 @@ public:
     struct Descriptor
     {
         std::string name;
-        ECSWorld ecsWorld;
-        EntityID activeCameraId;
+        ECSRegistry ecsRegistry;
+        std::optional<EntityID> activeCameraId;
     };
 
 public:
@@ -33,10 +34,10 @@ public:
     const std::string& name() const;
     void setName(const std::string&);
 
-    auto& ecsWorld(this auto&&);
+    auto& ecsRegistry(this auto&&);
 
     auto activeCamera(this auto&& self);
-    void setActiveCamera(EntityID);
+    void setActiveCamera(std::optional<EntityID>);
 
     std::shared_future<void> loadFuture() const;
 
@@ -47,8 +48,8 @@ public:
 private:
     AssetManager* m_assetManager;
     std::string m_name;
-    ECSWorld m_ecsWorld;
-    EntityID m_activeCameraId;
+    ECSRegistry m_ecsRegistry;
+    std::optional<EntityID> m_activeCameraId;
 
     std::shared_future<void> m_loadFuture; // the load in the constructor, do not include asset that are added after
 
@@ -57,15 +58,16 @@ public:
     Scene& operator=(Scene&&) = delete;
 };
 
-auto& Scene::ecsWorld(this auto&& self)
+auto& Scene::ecsRegistry(this auto&& self)
 {
-    return self.m_ecsWorld;
+    return self.m_ecsRegistry;
 }
 
 auto Scene::activeCamera(this auto&& self)
 {
-    assert(self.m_ecsWorld.isValidEntityID(self.m_activeCameraId));
-    return basic_entity{&self.m_ecsWorld, self.m_activeCameraId};
+    return self.m_activeCameraId.transform([&](EntityID id) {
+        return basic_entity{&self.m_ecsRegistry, id};
+    });
 }
 
 }

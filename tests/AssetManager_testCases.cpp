@@ -694,7 +694,7 @@ TEST_F(AssetManagerMockDeviceTest, rendererDestroysUnresolvedReadbacksOnShutdown
 GE::Scene::Descriptor makeSceneDescriptor(
     std::string name,
     std::initializer_list<std::pair<GE::EntityID, std::vector<GE::ComponentVariant>>> entities = {},
-    GE::EntityID activeCameraId = GE::INVALID_ENTITY_ID)
+    std::optional<GE::EntityID> activeCameraId = std::nullopt)
 {
     GE::Scene::Descriptor descriptor{
         .name = std::move(name),
@@ -703,8 +703,8 @@ GE::Scene::Descriptor makeSceneDescriptor(
 
     for (const auto& [entityId, components] : entities)
     {
-        descriptor.ecsWorld.registerEntityID(entityId);
-        GE::Entity entity{&descriptor.ecsWorld, entityId};
+        descriptor.ecsRegistry.registerEntityID(entityId);
+        GE::Entity entity{&descriptor.ecsRegistry, entityId};
         for (const GE::ComponentVariant& component : components)
         {
             std::visit([&]<typename ComponentT>(const ComponentT& value) {
@@ -1588,11 +1588,33 @@ TEST_F(AssetManagerMockDeviceTest, textureLoaderSupportsFlatColorTexture)
     EXPECT_EQ(texture->pixelFormat(), gfx::PixelFormat::RGBA8_sRGB);
 }
 
-TEST_F(AssetManagerMockDeviceTest, sceneConstructionLoadsMeshAssetsReferencedByTheEcsWorld)
+const auto sceneEntity1 = *GE::EntityID::from_string("00000000-0000-4000-8000-000000000001");
+const auto sceneEntity2 = *GE::EntityID::from_string("00000000-0000-4000-8000-000000000002");
+
+TEST_F(AssetManagerMockDeviceTest, activeCameraCanBeAbsentSetAndCleared)
+{
+    GE::AssetManager assetManager(&m_device, &m_threadPool);
+    GE::Scene scene(&assetManager, makeSceneDescriptor("scene"));
+    EXPECT_FALSE(scene.activeCamera().has_value());
+
+    const auto camera = scene.newEntity("camera");
+    scene.setActiveCamera(camera.entityId);
+    ASSERT_TRUE(scene.activeCamera().has_value());
+    EXPECT_EQ(scene.activeCamera()->entityId, camera.entityId);
+    EXPECT_EQ(scene.activeCamera()->registry, &scene.ecsRegistry());
+
+    const auto& constScene = scene;
+    static_assert(std::is_same_v<decltype(constScene.activeCamera()), std::optional<GE::const_Entity>>);
+    EXPECT_EQ(constScene.activeCamera()->entityId, camera.entityId);
+    scene.setActiveCamera(std::nullopt);
+    EXPECT_FALSE(scene.activeCamera().has_value());
+}
+
+TEST_F(AssetManagerMockDeviceTest, sceneConstructionLoadsMeshAssetsReferencedByTheEcsRegistry)
 {
     GE::AssetManager assetManager(&m_device, &m_threadPool);
     GE::Scene scene(&assetManager, makeSceneDescriptor("test_scene", {
-        { 1, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
+        { sceneEntity1, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
     }));
 
     ASSERT_NE(assetManager.getAsset<GE::Mesh>(GE::BUILT_IN_CUBE_ID), nullptr);
@@ -1600,12 +1622,12 @@ TEST_F(AssetManagerMockDeviceTest, sceneConstructionLoadsMeshAssetsReferencedByT
     EXPECT_EQ(assetManager.assetLoadCount(GE::BUILT_IN_CUBE_ID), 1u);
 }
 
-TEST_F(AssetManagerMockDeviceTest, sceneDestructionUnloadsMeshAssetsReferencedByTheEcsWorld)
+TEST_F(AssetManagerMockDeviceTest, sceneDestructionUnloadsMeshAssetsReferencedByTheEcsRegistry)
 {
     GE::AssetManager assetManager(&m_device, &m_threadPool);
     {
         GE::Scene scene(&assetManager, makeSceneDescriptor("test_scene", {
-            { 1, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
+            { sceneEntity1, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
         }));
 
         ASSERT_NE(assetManager.getAsset<GE::Mesh>(GE::BUILT_IN_CUBE_ID), nullptr);
@@ -1621,8 +1643,8 @@ TEST_F(AssetManagerMockDeviceTest, sceneConstructionCountsDuplicateMeshReference
 {
     GE::AssetManager assetManager(&m_device, &m_threadPool);
     GE::Scene scene(&assetManager, makeSceneDescriptor("test_scene", {
-        { 1, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } },
-        { 2, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
+        { sceneEntity1, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } },
+        { sceneEntity2, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
     }));
 
     ASSERT_NE(assetManager.getAsset<GE::Mesh>(GE::BUILT_IN_CUBE_ID), nullptr);
@@ -1643,7 +1665,7 @@ TEST_F(AssetManagerMockDeviceTest, sceneLoadsPreRegisteredMeshAssetsByExplicitId
         std::to_array<GE::AssetID>({ textureAssetId })
     );
     GE::Scene scene(&assetManager, makeSceneDescriptor("scene", {
-        { 5, { GE::MeshComponent{meshAssetId} } }
+        { sceneEntity1, { GE::MeshComponent{meshAssetId} } }
     }));
 
     EXPECT_EQ(meshAssetId, 77u);
@@ -1666,7 +1688,7 @@ TEST_F(AssetManagerMockDeviceTest, gameLoadSceneConstructsARuntimeSceneWithoutMa
         .scenes = {
             makeSceneDescriptor("first"),
             makeSceneDescriptor("second", {
-                { 2, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
+                { sceneEntity2, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
             })
         },
         .startSceneName = "first",
@@ -1692,7 +1714,7 @@ TEST_F(AssetManagerMockDeviceTest, gameSwitchingActiveScenesKeepsLoadedAssetsRes
         .inputContext = {},
         .scenes = {
             makeSceneDescriptor("first", {
-                { 1, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
+                { sceneEntity1, { GE::MeshComponent{GE::BUILT_IN_CUBE_ID} } }
             }),
             makeSceneDescriptor("second")
         },
@@ -1726,7 +1748,7 @@ TEST_F(AssetManagerMockDeviceTest, gameSceneActivationRunsScriptSetupAndTeardown
         .inputContext = {},
         .scenes = {
             makeSceneDescriptor("first", {
-                { 1, {
+                { sceneEntity1, {
                     GE::TransformComponent{},
                     GE::ScriptComponent{ .name = "TestScript" }
                 }}
@@ -1737,7 +1759,7 @@ TEST_F(AssetManagerMockDeviceTest, gameSceneActivationRunsScriptSetupAndTeardown
         .scriptLibrary = &scriptLibrary
     });
 
-    ASSERT_EQ(game.activeScene().ecsWorld().get<GE::ScriptComponent>(1).instance != nullptr, true);
+    ASSERT_EQ(game.activeScene().ecsRegistry().get<GE::ScriptComponent>(sceneEntity1).instance != nullptr, true);
 
     game.loadScene("second");
     game.setActiveScene("second");

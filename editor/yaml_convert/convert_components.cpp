@@ -2,6 +2,8 @@
 
 #include "convert_vector.hpp" // IWYU pragma: keep
 
+#include <map>
+
 namespace
 {
 
@@ -58,8 +60,8 @@ struct convert<GE::ParentComponent>
         if (!node.IsMap())
             return false;
 
-        rhs.parent = node["parent"] ? node["parent"].as<GE::EntityID>() : GE::INVALID_ENTITY_ID;
-        rhs.nextChild = node["nextChild"] ? node["nextChild"].as<GE::EntityID>() : GE::INVALID_ENTITY_ID;
+        rhs.parent = node["parent"] ? node["parent"].as<std::optional<GE::EntityID>>() : std::nullopt;
+        rhs.nextChild = node["nextChild"] ? node["nextChild"].as<std::optional<GE::EntityID>>() : std::nullopt;
         return true;
     }
 };
@@ -79,7 +81,7 @@ struct convert<GE::ChildrenComponent>
         if (!node.IsMap())
             return false;
 
-        rhs.firstChild = node["firstChild"] ? node["firstChild"].as<GE::EntityID>() : GE::INVALID_ENTITY_ID;
+        rhs.firstChild = node["firstChild"] ? node["firstChild"].as<std::optional<GE::EntityID>>() : std::nullopt;
         return true;
     }
 };
@@ -256,7 +258,7 @@ struct convert<GE::ScriptComponent>
     {
         Node node;
         node["name"] = rhs.name;
-        node["parameters"] = rhs.parameters;
+        node["parameters"] = std::map<std::string, GE::VScriptValue>(rhs.parameters.begin(), rhs.parameters.end());
         return node;
     }
 
@@ -266,7 +268,8 @@ struct convert<GE::ScriptComponent>
             return false;
 
         rhs.name = node["name"].as<std::string>();
-        rhs.parameters = node["parameters"] ? node["parameters"].as<std::map<std::string, GE::VScriptValue>>() : std::map<std::string, GE::VScriptValue>();
+        const auto parameters = node["parameters"] ? node["parameters"].as<std::map<std::string, GE::VScriptValue>>() : std::map<std::string, GE::VScriptValue>();
+        rhs.parameters.assign(parameters.begin(), parameters.end());
         rhs.instance.reset();
         return true;
     }
@@ -333,13 +336,13 @@ bool convert<std::pair<GE::EntityID, std::vector<GE::ComponentVariant>>>::decode
             if (!data.IsMap())
                 return false;
 
-            const GE::EntityID parent = data["parent"] ? data["parent"].as<GE::EntityID>() : GE::INVALID_ENTITY_ID;
-            const GE::EntityID firstChild = data["firstChild"] ? data["firstChild"].as<GE::EntityID>() : GE::INVALID_ENTITY_ID;
-            const GE::EntityID nextChild = data["nextChild"] ? data["nextChild"].as<GE::EntityID>() : GE::INVALID_ENTITY_ID;
+            const auto parent = data["parent"] ? data["parent"].as<std::optional<GE::EntityID>>() : std::nullopt;
+            const auto firstChild = data["firstChild"] ? data["firstChild"].as<std::optional<GE::EntityID>>() : std::nullopt;
+            const auto nextChild = data["nextChild"] ? data["nextChild"].as<std::optional<GE::EntityID>>() : std::nullopt;
 
-            if (parent != GE::INVALID_ENTITY_ID || nextChild != GE::INVALID_ENTITY_ID)
+            if (parent.has_value() || nextChild.has_value())
                 components.emplace_back(GE::ParentComponent{.parent = parent, .nextChild = nextChild});
-            if (firstChild != GE::INVALID_ENTITY_ID)
+            if (firstChild.has_value())
                 components.emplace_back(GE::ChildrenComponent{.firstChild = firstChild});
             continue;
         }

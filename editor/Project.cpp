@@ -51,12 +51,12 @@ GE::Scene::Descriptor makeDefaultCubeScene(std::string_view name)
     GE::Scene::Descriptor scene;
     scene.name = std::string(name);
 
-    GE::Entity cube{&scene.ecsWorld, scene.ecsWorld.newEntityID()};
+    GE::Entity cube{&scene.ecsRegistry, scene.ecsRegistry.newEntityID()};
     cube.emplace<GE::NameComponent>("cube");
     cube.emplace<GE::TransformComponent>();
     cube.emplace<GE::MeshComponent>(GE::BUILT_IN_CUBE_ID);
 
-    GE::Entity camera{&scene.ecsWorld, scene.ecsWorld.newEntityID()};
+    GE::Entity camera{&scene.ecsRegistry, scene.ecsRegistry.newEntityID()};
     camera.emplace<GE::NameComponent>("camera");
     auto& transformComponent = camera.emplace<GE::TransformComponent>();
     transformComponent.position = {  3.0f, 3.0f, 5.0f };
@@ -64,7 +64,7 @@ GE::Scene::Descriptor makeDefaultCubeScene(std::string_view name)
     transformComponent.scale    = {  1.0f, 1.0f, 1.0f };
     camera.emplace<GE::CameraComponent>();
 
-    GE::Entity light{&scene.ecsWorld, scene.ecsWorld.newEntityID()};
+    GE::Entity light{&scene.ecsRegistry, scene.ecsRegistry.newEntityID()};
     light.emplace<GE::NameComponent>("light");
     light.emplace<GE::TransformComponent>();
     light.emplace<GE::LightComponent>();

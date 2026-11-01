@@ -25,14 +25,16 @@ namespace
 
 void setupSceneScripts(Game& game, Scene& scene, const ScriptLibrary& scriptLibrary)
 {
-    for (Entity entity : scene.ecsWorld() | ECSView<ScriptComponent>() | std::views::transform([&](auto id) { return Entity{ &scene.ecsWorld(), id }; }))
+    for (Entity entity : scene.ecsRegistry() | ECSView<ScriptComponent>() | std::views::transform([&](auto id) { return Entity{ &scene.ecsRegistry(), id }; }))
     {
         ScriptComponent& scriptComponent = entity.get<ScriptComponent>();
         scriptComponent.instance = scriptLibrary.makeScriptInstance(scriptComponent.name);
         assert(scriptComponent.instance);
         for (const std::string& parameterName : scriptLibrary.listScriptParameterNames(scriptComponent.name))
         {
-            auto it = scriptComponent.parameters.find(parameterName);
+            auto it = std::ranges::find_if(scriptComponent.parameters, [&](const auto& parameter) {
+                return parameter.first == parameterName;
+            });
             scriptLibrary.setScriptParameter(
                 scriptComponent.name,
                 parameterName,
@@ -46,7 +48,7 @@ void setupSceneScripts(Game& game, Scene& scene, const ScriptLibrary& scriptLibr
 
 void tearDownSceneScripts(Game& game, Scene& scene)
 {
-    for (Entity entity : scene.ecsWorld() | ECSView<ScriptComponent>() | std::views::transform([&](auto id) { return Entity{ &scene.ecsWorld(), id }; }))
+    for (Entity entity : scene.ecsRegistry() | ECSView<ScriptComponent>() | std::views::transform([&](auto id) { return Entity{ &scene.ecsRegistry(), id }; }))
     {
         ScriptComponent& scriptComponent = entity.get<ScriptComponent>();
         assert(scriptComponent.instance);

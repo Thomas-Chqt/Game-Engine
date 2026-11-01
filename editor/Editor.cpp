@@ -25,7 +25,7 @@
 #include <Game-Engine/Scene.hpp>
 #include <Game-Engine/InputFwd.hpp>
 #include <Game-Engine/InputContext.hpp>
-#include <Game-Engine/ECSWorld.hpp>
+#include <Game-Engine/ECSRegistry.hpp>
 #include <Game-Engine/Input.hpp>
 
 #include <Graphics/Enums.hpp>
@@ -41,6 +41,7 @@
 #include <imgui.h>
 #include <gfx_imgui/gfx_imgui.hpp>
 
+#include <array>
 #include <format>
 #include <fstream>
 #include <memory>
@@ -179,7 +180,7 @@ void Editor::onUpdate()
         ZoneScopedN("Editor::game update");
         // game update
         // TODO ? maybe move into game class
-        for (auto [scriptComponent] : m_game->activeScene().ecsWorld() | GE::ECSView<GE::ScriptComponent>())
+        for (auto [scriptComponent] : m_game->activeScene().ecsRegistry() | GE::ECSView<GE::ScriptComponent>())
         {
             if (scriptComponent.instance)
                 scriptComponent.instance->onUpdate();
@@ -188,10 +189,10 @@ void Editor::onUpdate()
 
     if (m_viewportReadbackFuture.valid() && m_viewportReadbackFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
         auto value = m_viewportReadbackFuture.get();
-        if (value == GE::INVALID_ENTITY_ID)
+        if (!value || !m_editedScene || !m_editedScene->ecsRegistry().isValidEntityID(*value))
             m_selectedEntity.reset();
         else
-            m_selectedEntity = GE::Entity{.world=&m_editedScene->ecsWorld(), .entityId=value};
+            m_selectedEntity = GE::Entity{&m_editedScene->ecsRegistry(), *value};
     }
 
     renderImgui();
@@ -222,14 +223,14 @@ void Editor::loadProject(Project&& project)
     m_sceneDescriptors = std::move(project.scenes);
     for(auto& scene : m_sceneDescriptors)
     {
-        for (GE::Entity rootEntity : scene.ecsWorld | GE::ECSView<GE::NameComponent>() | GE::MakeEntity{} | std::views::filter([](GE::Entity entity){ return entity.hasParent() == false; }))
+        for (GE::Entity rootEntity : scene.ecsRegistry | GE::ECSView<GE::NameComponent>() | GE::MakeEntity{} | std::views::filter([](GE::Entity entity){ return entity.hasParent() == false; }))
             rootEntity.updateTransformHierarchy();
     }
     m_startSceneName = std::move(project.startSceneName);
 
     m_editorCamera = project.editorCamera;
     editScene(project.editedSceneName);
-    m_selectedEntity = project.selectedEntityId.transform([&](GE::EntityID id){ return GE::Entity{&m_editedScene->ecsWorld(), id}; });
+    m_selectedEntity = project.selectedEntityId.transform([&](GE::EntityID id){ return GE::Entity{&m_editedScene->ecsRegistry(), id}; });
 
 
     ImGui::LoadIniSettingsFromMemory(project.imguiSettings.c_str());
@@ -263,7 +264,7 @@ void Editor::saveProject()
 
     std::set<GE::AssetID> topAssetIds;
     for (GE::AssetID id : m_sceneDescriptors
-        | std::views::transform([](const GE::Scene::Descriptor& desc) { return desc.ecsWorld | GE::const_ECSView<GE::MeshComponent>(); })
+        | std::views::transform([](const GE::Scene::Descriptor& desc) { return desc.ecsRegistry | GE::const_ECSView<GE::MeshComponent>(); })
         | std::views::join
         | std::views::transform([](const auto& e){ return static_cast<GE::AssetID>(e.template get<0>()); }))
         topAssetIds.insert(id);
@@ -321,6 +322,9 @@ void Editor::editScene(std::optional<std::string_view> name)
     if (m_editedScene)
         syncEditedScene();
 
+    m_viewportReadbackFuture = {};
+    m_viewportReadbackRequest.reset();
+    m_selectedEntity.reset();
     m_editedScene.reset();
 
     if (name.has_value()) {
@@ -337,7 +341,7 @@ void Editor::reloadScriptLib()
     assert(std::filesystem::exists(*m_scriptLibPath));
     assert(m_game.has_value() == false);
     assert(m_editedScene.has_value() == false || std::ranges::all_of(
-        m_editedScene->ecsWorld() | GE::ECSView<GE::ScriptComponent>(),
+        m_editedScene->ecsRegistry() | GE::ECSView<GE::ScriptComponent>(),
         [](const auto& e) -> bool { return e.template get<0>().instance == nullptr; }
     ));
     m_scriptLibrary.emplace(*m_scriptLibPath);
@@ -419,9 +423,11 @@ void Editor::recordFrameGraph(GE::FrameGraphBuilder& builder)
     glm::vec3 cameraPosition;
     if (m_game.has_value())
     {
-        GE::const_Entity activeCamera = scene.activeCamera();
-        assert(activeCamera.world != nullptr);
-        assert(activeCamera.world->isValidEntityID(activeCamera.entityId));
+        const auto camera = scene.activeCamera();
+        assert(camera.has_value());
+        GE::const_Entity activeCamera = *camera;
+        assert(activeCamera.registry != nullptr);
+        assert(activeCamera.registry->isValidEntityID(activeCamera.entityId));
         assert(activeCamera.has<GE::TransformComponent>());
         assert(activeCamera.has<GE::CameraComponent>());
 
@@ -446,7 +452,8 @@ void Editor::recordFrameGraph(GE::FrameGraphBuilder& builder)
         cameraPosition = m_editorCamera.position();
     }
 
-    GE::TexturedGeometryPass{scene, viewProjectionMatrix, cameraPosition}
+    std::vector<GE::EntityID> pickingEntities;
+    GE::TexturedGeometryPass{scene, viewProjectionMatrix, cameraPosition, &pickingEntities}
         .record(builder);
 
     ImGuiRenderPass{}
@@ -470,14 +477,20 @@ void Editor::recordFrameGraph(GE::FrameGraphBuilder& builder)
         m_viewportReadbackFuture = builder.readback(readBackBuffer, [
             mousePos=*m_viewportReadbackRequest,
             pixelSize=gfx::pixelFormatSize(gfx::PixelFormat::RG32Uint),
-            viewportWidth = m_viewportSize.first
-        ](std::span<std::byte> bytes) -> GE::EntityID {
+            viewportWidth = m_viewportSize.first,
+            pickingEntities = std::move(pickingEntities)
+        ](std::span<std::byte> bytes) -> std::optional<GE::EntityID> {
             const auto x = static_cast<size_t>(mousePos.first);
             const auto y = static_cast<size_t>(mousePos.second);
             const size_t offset = (y * viewportWidth + x) * pixelSize;
-            GE::EntityID value = 0;
-            std::memcpy(&value, bytes.data() + offset, sizeof(value));
-            return value;
+            std::array<uint32_t, 2> words{};
+            assert(offset + sizeof(uint32_t) * words.size() <= bytes.size());
+            std::memcpy(words.data(), bytes.data() + offset, sizeof(uint32_t) * words.size());
+            const uint64_t token = uint64_t(words[0]) | (uint64_t(words[1]) << 32);
+            if (token == 0)
+                return std::nullopt;
+            assert(token <= pickingEntities.size());
+            return pickingEntities[token - 1];
         });
 
         m_viewportReadbackRequest.reset();
@@ -491,8 +504,8 @@ void Editor::syncEditedScene()
     assert(it != m_sceneDescriptors.end());
     *it = GE::Scene::Descriptor{
         .name = m_editedScene->name(),
-        .ecsWorld = m_editedScene->ecsWorld(),
-        .activeCameraId = m_editedScene->activeCamera().entityId
+        .ecsRegistry = m_editedScene->ecsRegistry(),
+        .activeCameraId = m_editedScene->activeCamera().transform([](const auto& camera) { return camera.entityId; })
     };
 }
 

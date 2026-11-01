@@ -63,11 +63,11 @@ bool sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity,
         flags |= ImGuiTreeNodeFlags_Selected;
 
     if (entity.hasChild())
-        node_open = ImGui::TreeNodeEx(reinterpret_cast<void*>(entity.entityId), flags, "%s", entity.name().c_str()); // NOLINT
+        node_open = ImGui::TreeNodeEx(uuids::to_string(entity.entityId).c_str(), flags, "%s", entity.name().c_str()); // NOLINT
     else
     {
         flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-        ImGui::TreeNodeEx(reinterpret_cast<void*>(entity.entityId), flags, "%s", entity.name().c_str()); // NOLINT
+        ImGui::TreeNodeEx(uuids::to_string(entity.entityId).c_str(), flags, "%s", entity.name().c_str()); // NOLINT
     }
 
     if (ImGui::BeginDragDropSource())
@@ -148,8 +148,8 @@ void renderSceneGraph(GE::Scene& editedScene, std::optional<GE::Entity>& selecte
     if (ImGui::BeginChild("scene_graph_child"))
     {
         TracyCZoneN(TracyCZoneN_a, "build_root_entities", true);
-        std::vector<GE::Entity> rootEntities = editedScene.ecsWorld()
-            | GE::ECSView<GE::NameComponent>().without<GE::ParentComponent>()
+        std::vector<GE::Entity> rootEntities = editedScene.ecsRegistry()
+            | GE::ECSView<GE::NameComponent, GE::ExcludeComponents<GE::ParentComponent>>()
             | GE::MakeEntity{}
             | std::ranges::to<std::vector>();
         TracyCZoneEnd(TracyCZoneN_a);

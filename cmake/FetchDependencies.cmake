@@ -155,4 +155,18 @@ function(fetch_dependencies)
         target_compile_options(TracyClient PRIVATE -Wno-deprecated-declarations)
     endif()
     set_target_properties(TracyClient PROPERTIES FOLDER "dependencies")
+
+    # -----------------------------
+    # stduuid
+    # -----------------------------
+    FetchContent_Declare(stduuid
+        GIT_REPOSITORY https://github.com/mariusbancila/stduuid
+        GIT_TAG        daedc9a0029efec422d252e4152a776285a68006
+        GIT_SHALLOW    0
+        GIT_PROGRESS   TRUE
+    )
+    set(UUID_SYSTEM_GENERATOR ON)
+    set(UUID_USING_CXX20_SPAN ON)
+    FetchContent_MakeAvailable(stduuid)
+    set_target_properties(stduuid PROPERTIES FOLDER "dependencies")
 endfunction()

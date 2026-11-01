@@ -67,6 +67,7 @@ target_link_libraries(Game-Engine PUBLIC
     fastgltf::fastgltf
     TracyClient
     GraphicsTracy
+    stduuid
 )
 
 add_subdirectory("shaders")

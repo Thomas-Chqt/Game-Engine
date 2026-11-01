@@ -10,22 +10,43 @@
 #ifndef COMPONENTS_HPP
 #define COMPONENTS_HPP
 
+#include "Game-Engine/Export.hpp"
 #include "Game-Engine/AssetManager.hpp"
-#include "Game-Engine/ECSWorld.hpp"
-#include "Game-Engine/Script.hpp"
 #include "Game-Engine/TypeList.hpp"
+#include "Game-Engine/EntityID.hpp"
+#include "Game-Engine/ScriptValues.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <optional>
+#include <typeinfo>
+#include <type_traits>
 #include <string>
-#include <map>
+#include <utility>
+#include <vector>
 #include <memory>
 #include <variant>
 
 namespace GE
 {
+
+template<typename T>
+concept Component = std::is_copy_constructible_v<T> && std::is_nothrow_move_constructible_v<T> && std::is_nothrow_destructible_v<T>;
+
+using ComponentID = uint32_t;
+
+static constexpr std::size_t maxComponentTypes = 256;
+
+GE_API ComponentID componentId(const std::type_info&);
+
+template<Component T>
+ComponentID componentId()
+{
+    static ComponentID id = componentId(typeid(T));
+    return id;
+}
 
 struct NameComponent
 {
@@ -37,13 +58,13 @@ struct NameComponent
 
 struct ParentComponent
 {
-    EntityID parent = INVALID_ENTITY_ID;
-    EntityID nextChild = INVALID_ENTITY_ID;
+    std::optional<EntityID> parent;
+    std::optional<EntityID> nextChild;
 };
 
 struct ChildrenComponent
 {
-    EntityID firstChild = INVALID_ENTITY_ID;
+    std::optional<EntityID> firstChild;
 };
 
 struct TransformComponent
@@ -97,10 +118,12 @@ struct MeshComponent
     inline operator const AssetID& () const { return id; }
 };
 
+class Script;
+
 struct ScriptComponent
 {
     std::string name;
-    std::map<std::string, VScriptValue> parameters;
+    std::vector<std::pair<std::string, VScriptValue>> parameters;
     std::shared_ptr<Script> instance;
 };
 
