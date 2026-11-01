@@ -5,6 +5,31 @@
 namespace GE_tests
 {
 
+TEST(EntitySerializationTest, scriptParametersKeepYamlMapFormat)
+{
+    using SerializedEntity = std::pair<GE::EntityID, std::vector<GE::ComponentVariant>>;
+    const SerializedEntity entity{uuids::uuid_system_generator{}(), {
+        GE::ScriptComponent{.name = "TestScript", .parameters = {
+            {"speed", 7.0f}, {"label", std::string("custom")}, {"enabled", false}
+        }}
+    }};
+    const auto encoded = YAML::convert<SerializedEntity>::encode(entity);
+    const auto parameters = encoded["components"][0]["data"]["parameters"];
+    ASSERT_TRUE(parameters.IsMap());
+    EXPECT_EQ(parameters["speed"]["data"].as<float>(), 7.0f);
+    EXPECT_EQ(parameters["label"]["data"].as<std::string>(), "custom");
+    const auto decoded = YAML::Load(YAML::Dump(encoded)).as<SerializedEntity>();
+    const auto& script = std::get<GE::ScriptComponent>(decoded.second.at(0));
+    EXPECT_EQ(script.name, "TestScript");
+    ASSERT_EQ(script.parameters.size(), 3);
+    EXPECT_EQ(script.parameters[0].first, "enabled");
+    EXPECT_EQ(std::get<bool>(script.parameters[0].second), false);
+    EXPECT_EQ(script.parameters[1].first, "label");
+    EXPECT_EQ(std::get<std::string>(script.parameters[1].second), "custom");
+    EXPECT_EQ(script.parameters[2].first, "speed");
+    EXPECT_EQ(std::get<float>(script.parameters[2].second), 7.0f);
+}
+
 TEST(EntitySerializationTest, uuidRoundTrip)
 {
     const auto id = uuids::uuid_system_generator{}();

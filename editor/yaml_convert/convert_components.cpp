@@ -2,6 +2,8 @@
 
 #include "convert_vector.hpp" // IWYU pragma: keep
 
+#include <map>
+
 namespace
 {
 
@@ -256,7 +258,7 @@ struct convert<GE::ScriptComponent>
     {
         Node node;
         node["name"] = rhs.name;
-        node["parameters"] = rhs.parameters;
+        node["parameters"] = std::map<std::string, GE::VScriptValue>(rhs.parameters.begin(), rhs.parameters.end());
         return node;
     }
 
@@ -266,7 +268,8 @@ struct convert<GE::ScriptComponent>
             return false;
 
         rhs.name = node["name"].as<std::string>();
-        rhs.parameters = node["parameters"] ? node["parameters"].as<std::map<std::string, GE::VScriptValue>>() : std::map<std::string, GE::VScriptValue>();
+        const auto parameters = node["parameters"] ? node["parameters"].as<std::map<std::string, GE::VScriptValue>>() : std::map<std::string, GE::VScriptValue>();
+        rhs.parameters.assign(parameters.begin(), parameters.end());
         rhs.instance.reset();
         return true;
     }

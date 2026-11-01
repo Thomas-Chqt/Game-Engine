@@ -77,6 +77,7 @@ struct ThrowingConstructorComponent
 
 static_assert(!GE::Component<ThrowingMoveComponent>);
 static_assert(GE::Component<ThrowingConstructorComponent>);
+static_assert(GE::Component<GE::ScriptComponent>);
 
 TEST(ECSTest, emplaceCanCopyArgumentsFromDestinationArchetype)
 {

@@ -32,7 +32,9 @@ void setupSceneScripts(Game& game, Scene& scene, const ScriptLibrary& scriptLibr
         assert(scriptComponent.instance);
         for (const std::string& parameterName : scriptLibrary.listScriptParameterNames(scriptComponent.name))
         {
-            auto it = scriptComponent.parameters.find(parameterName);
+            auto it = std::ranges::find_if(scriptComponent.parameters, [&](const auto& parameter) {
+                return parameter.first == parameterName;
+            });
             scriptLibrary.setScriptParameter(
                 scriptComponent.name,
                 parameterName,

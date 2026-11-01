@@ -111,8 +111,7 @@ void componentEditWidget<GE::ScriptComponent>(GE::Entity entity, [[maybe_unused]
                 scriptComponent.parameters.clear();
                 for (const std::string& parameterName : scriptLibrary->listScriptParameterNames(scriptName))
                 {
-                    auto [parameterIt, inserted] = scriptComponent.parameters.try_emplace(parameterName, scriptLibrary->getScriptDefaultParameterValue(scriptName, parameterName));
-                    assert(inserted);
+                    scriptComponent.parameters.emplace_back(parameterName, scriptLibrary->getScriptDefaultParameterValue(scriptName, parameterName));
                 }
             }
             if (isSelected)

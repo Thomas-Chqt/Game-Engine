@@ -24,7 +24,8 @@
 #include <typeinfo>
 #include <type_traits>
 #include <string>
-#include <map>
+#include <utility>
+#include <vector>
 #include <memory>
 #include <variant>
 
@@ -122,7 +123,7 @@ class Script;
 struct ScriptComponent
 {
     std::string name;
-    std::map<std::string, VScriptValue> parameters;
+    std::vector<std::pair<std::string, VScriptValue>> parameters;
     std::shared_ptr<Script> instance;
 };
 
