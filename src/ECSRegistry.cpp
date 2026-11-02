@@ -3,11 +3,11 @@
 #include "Game-Engine/Archetype.hpp"
 #include "Game-Engine/EntityID.hpp"
 
-#include <ranges>
 #include <uuid.h>
 
 #include <cassert>
 #include <cstddef>
+#include <vector>
 
 namespace GE
 {
@@ -54,33 +54,44 @@ EntityIDMap ECSRegistry::insert(const ECSRegistry& source)
     assert(&source != this);
     EntityIDMap ids;
     ids.reserve(source.entityCount());
-    for (const auto& [id, archetypeId] : source.m_entityArchetypes) {
-        const EntityID newId = uuids::uuid_system_generator{}();
-        assert(isValidEntityID(newId) == false);
-        ids.emplace(id, newId);
+    for (const auto& [archetypeId, archetype] : source.m_archetypes) {
+        for (const auto id : archetype.getComponents<EntityID>()) {
+            const EntityID newId = uuids::uuid_system_generator{}();
+            assert(isValidEntityID(newId) == false);
+            ids.emplace(id, newId);
+        }
     }
+    if (ids.empty())
+        return ids;
 
+    std::vector<std::pair<ArchetypeID, size_t>> appended;
+    appended.reserve(source.archetypeCount());
+    m_entityArchetypes.reserve(entityCount() + source.entityCount());
     try {
-        for (const auto& [sourceId, archetypeId] : source.m_entityArchetypes) {
-            const auto& sourceArchetype = source.m_archetypes.at(archetypeId);
+        for (const auto& [archetypeId, sourceArchetype] : source.m_archetypes) {
+            if (sourceArchetype.size() == 0)
+                continue;
             auto it = m_archetypes.find(archetypeId);
             if (it == m_archetypes.end())
                 it = m_archetypes.emplace(archetypeId, sourceArchetype.createEmpty()).first;
-            const auto id = ids.at(sourceId);
-            [[maybe_unused]] const auto [entityIt, inserted] = m_entityArchetypes.emplace(id, archetypeId);
-            assert(inserted);
-            try {
-                it->second.appendCopy(sourceId, sourceArchetype, ids);
-            }
-            catch (...) {
-                m_entityArchetypes.erase(id);
-                throw;
+            appended.emplace_back(archetypeId, it->second.size());
+            it->second.appendCopies(sourceArchetype, ids);
+        }
+        // Publish registry lookups only after all component columns are copied.
+        for (const auto& [archetypeId, originalSize] : appended) {
+            for (const auto id : m_archetypes.at(archetypeId).getComponents<EntityID>().subspan(originalSize)) {
+                [[maybe_unused]] const auto [it, inserted] = m_entityArchetypes.emplace(id, archetypeId);
+                assert(inserted);
             }
         }
     }
     catch (...) {
-        for (const auto& [sourceId, id] : ids | std::views::filter([&](const auto& pair){ return isValidEntityID(pair.second); }))
-            deleteEntityID(id);
+        for (const auto& [archetypeId, originalSize] : appended) {
+            auto& archetype = m_archetypes.at(archetypeId);
+            for (const auto id : archetype.getComponents<EntityID>().subspan(originalSize))
+                m_entityArchetypes.erase(id);
+            archetype.truncate(originalSize);
+        }
         throw;
     }
     return ids;
