@@ -48,6 +48,8 @@ public:
     void deleteEntityID(EntityID);
     bool isValidEntityID(EntityID) const;
 
+    EntityIDMap insert(const ECSRegistry&);
+
     template<Component T, typename... Args>
     T& emplace(EntityID entityId, Args&&... args);
 

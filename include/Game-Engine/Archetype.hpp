@@ -55,6 +55,12 @@ public:
 
     size_t size() const;
 
+    Archetype createEmpty() const;
+
+    // Append one entity from a distinct archetype with the same component set.
+    // On failure, no entity or partial component row is retained.
+    void appendCopy(EntityID sourceId, const Archetype& source, const EntityIDMap&);
+
     // return new empty archetypes with the same set components, +/- T
     template<Component T> Archetype addComponentBuffer() const;
     template<Component T> Archetype rmvComponentBuffer() const;

@@ -3,6 +3,7 @@
 #include "Game-Engine/Archetype.hpp"
 #include "Game-Engine/EntityID.hpp"
 
+#include <ranges>
 #include <uuid.h>
 
 #include <cassert>
@@ -46,6 +47,43 @@ void ECSRegistry::deleteEntityID(EntityID entityId)
 bool ECSRegistry::isValidEntityID(EntityID id) const
 {
     return m_entityArchetypes.contains(id);
+}
+
+EntityIDMap ECSRegistry::insert(const ECSRegistry& source)
+{
+    assert(&source != this);
+    EntityIDMap ids;
+    ids.reserve(source.entityCount());
+    for (const auto& [id, archetypeId] : source.m_entityArchetypes) {
+        const EntityID newId = uuids::uuid_system_generator{}();
+        assert(isValidEntityID(newId) == false);
+        ids.emplace(id, newId);
+    }
+
+    try {
+        for (const auto& [sourceId, archetypeId] : source.m_entityArchetypes) {
+            const auto& sourceArchetype = source.m_archetypes.at(archetypeId);
+            auto it = m_archetypes.find(archetypeId);
+            if (it == m_archetypes.end())
+                it = m_archetypes.emplace(archetypeId, sourceArchetype.createEmpty()).first;
+            const auto id = ids.at(sourceId);
+            [[maybe_unused]] const auto [entityIt, inserted] = m_entityArchetypes.emplace(id, archetypeId);
+            assert(inserted);
+            try {
+                it->second.appendCopy(sourceId, sourceArchetype, ids);
+            }
+            catch (...) {
+                m_entityArchetypes.erase(id);
+                throw;
+            }
+        }
+    }
+    catch (...) {
+        for (const auto& [sourceId, id] : ids | std::views::filter([&](const auto& pair){ return isValidEntityID(pair.second); }))
+            deleteEntityID(id);
+        throw;
+    }
+    return ids;
 }
 
 size_t ECSRegistry::archetypeCount() const
