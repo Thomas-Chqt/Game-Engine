@@ -48,6 +48,13 @@ public:
     void deleteEntityID(EntityID);
     bool isValidEntityID(EntityID) const;
 
+    // Copy all source entities with fresh UUIDs and return their source-to-copy map.
+    // Source must be distinct; entity references must remain within source and
+    // their components must provide the appropriate ComponentCloneTraits.
+    // May invalidate destination component references and iterators.
+    // On failure, existing entity content is preserved; empty archetypes may remain.
+    EntityIDMap insert(const ECSRegistry& source);
+
     template<Component T, typename... Args>
     T& emplace(EntityID entityId, Args&&... args);
 

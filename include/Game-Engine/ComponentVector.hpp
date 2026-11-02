@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Game-Engine/Components.hpp"
+#include "Game-Engine/ComponentCloneTraits.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -30,6 +31,10 @@ public:
     // dst must be the same type
     virtual void moveComponent(uint64_t idx, AComponentVector& dst) = 0;
 
+    // Append an independent insertion copy, remapping entity references.
+    // dst must have the same component type and be distinct from this vector.
+    virtual void copyComponent(uint64_t idx, AComponentVector& dst, const EntityIDMap&) const = 0;
+
     virtual ~AComponentVector() = default;
 };
 
@@ -50,6 +55,7 @@ public:
     void eraseLast() override;
 
     void moveComponent(uint64_t idx, AComponentVector& dst) override;
+    void copyComponent(uint64_t idx, AComponentVector& dst, const EntityIDMap&) const override;
 
     std::vector<T>& vector() { return m_vector; }
     const std::vector<T>& vector() const { return m_vector; }
@@ -123,6 +129,16 @@ void ComponentVector<T>::moveComponent(uint64_t idx, AComponentVector& aDst)
     dst->vector().emplace_back(std::move(m_vector.at(idx)));
     swapComponents(idx, size() - 1);
     m_vector.pop_back();
+}
+
+template<Component T>
+void ComponentVector<T>::copyComponent(uint64_t idx, AComponentVector& aDst, const EntityIDMap& ids) const
+{
+    assert(typeid(aDst) == typeid(ComponentVector<T>));
+    auto& dst = static_cast<ComponentVector<T>&>(aDst);
+    assert(&dst != this);
+    assert(idx < size());
+    dst.vector().emplace_back(ComponentCloneTraits<T>::clone(m_vector[idx], ids));
 }
 
 }

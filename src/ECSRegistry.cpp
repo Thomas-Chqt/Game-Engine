@@ -48,6 +48,45 @@ bool ECSRegistry::isValidEntityID(EntityID id) const
     return m_entityArchetypes.contains(id);
 }
 
+EntityIDMap ECSRegistry::insert(const ECSRegistry& source)
+{
+    assert(&source != this);
+    EntityIDMap ids;
+    ids.reserve(source.entityCount());
+    for (const auto& [id, archetypeId] : source.m_entityArchetypes) {
+        const EntityID copyId = uuids::uuid_system_generator{}();
+        assert(!isValidEntityID(copyId));
+        ids.emplace(id, copyId);
+    }
+
+    try {
+        for (const auto& [sourceId, archetypeId] : source.m_entityArchetypes) {
+            const auto& sourceArchetype = source.m_archetypes.at(archetypeId);
+            auto it = m_archetypes.find(archetypeId);
+            if (it == m_archetypes.end())
+                it = m_archetypes.emplace(archetypeId, sourceArchetype.createEmpty()).first;
+            const auto id = ids.at(sourceId);
+            [[maybe_unused]] const auto [entityIt, inserted] = m_entityArchetypes.emplace(id, archetypeId);
+            assert(inserted);
+            try {
+                it->second.appendCopy(sourceId, sourceArchetype, ids);
+            }
+            catch (...) {
+                m_entityArchetypes.erase(id);
+                throw;
+            }
+        }
+    }
+    catch (...) {
+        for (const auto& [sourceId, id] : ids) {
+            if (isValidEntityID(id))
+                deleteEntityID(id);
+        }
+        throw;
+    }
+    return ids;
+}
+
 size_t ECSRegistry::archetypeCount() const
 {
     return m_archetypes.size();

@@ -19,6 +19,38 @@ size_t Archetype::size() const
     return m_entityIndices.size();
 }
 
+Archetype Archetype::createEmpty() const
+{
+    std::unordered_map<ComponentID, std::unique_ptr<AComponentVector>> buffers;
+    for (const auto& [id, buffer] : m_componentBuffers)
+        buffers.emplace(id, buffer->create());
+    return Archetype(std::move(buffers));
+}
+
+void Archetype::appendCopy(EntityID sourceId, const Archetype& source, const EntityIDMap& ids)
+{
+    assert(&source != this);
+    assert(source.m_archetypeId == m_archetypeId);
+    assert(source.m_entityIndices.contains(sourceId));
+    const auto id = ComponentCloneTraits<EntityID>::clone(sourceId, ids);
+    assert(!m_entityIndices.contains(id));
+    const auto sourceIdx = source.m_entityIndices.at(sourceId);
+    const auto dstIdx = size();
+    try {
+        for (const auto& [componentId, buffer] : source.m_componentBuffers)
+            buffer->copyComponent(sourceIdx, *m_componentBuffers.at(componentId), ids);
+        [[maybe_unused]] const auto [it, inserted] = m_entityIndices.emplace(id, dstIdx);
+        assert(inserted);
+    }
+    catch (...) {
+        for (auto& [componentId, buffer] : m_componentBuffers) {
+            if (buffer->size() > dstIdx)
+                buffer->eraseLast();
+        }
+        throw;
+    }
+}
+
 void Archetype::erase(EntityID id)
 {
     assert(m_entityIndices.contains(id));
