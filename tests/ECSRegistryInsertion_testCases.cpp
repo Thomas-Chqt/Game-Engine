@@ -217,6 +217,45 @@ TEST(ECSRegistryInsertionTest, insertionClearsScriptsButOrdinaryCopiesKeepIdsAnd
     EXPECT_FALSE(assigned.isValidEntityID(ids.at(id)));
 }
 
+TEST(ECSRegistryInsertionTest, bulkCopiesKeepColumnsAlignedAfterSourceRowSwaps)
+{
+    GE::ECSRegistry source;
+    std::vector<GE::EntityID> originals;
+    for (int value = 0; value < 128; ++value) {
+        const auto id = source.newEntityID();
+        originals.push_back(id);
+        source.emplace<GE::NameComponent>(id, std::to_string(value));
+        source.emplace<InsertionValue>(id, std::vector<int>{value, value * 2});
+        if (value % 3 == 0)
+            source.emplace<GE::MeshComponent>(id, value);
+    }
+    // Moving and erasing entities changes dense column order independently of
+    // both UUID hash maps. All columns must still follow the copied ID column.
+    source.deleteEntityID(originals[7]);
+    source.remove<GE::MeshComponent>(originals[6]);
+    source.emplace<GE::MeshComponent>(originals[5], 5);
+
+    GE::ECSRegistry destination;
+    const auto existing = destination.newEntityID();
+    destination.emplace<GE::NameComponent>(existing, "existing");
+    destination.emplace<InsertionValue>(existing, std::vector<int>{-1});
+    for (int repeat = 0; repeat < 2; ++repeat) {
+        const auto ids = destination.insert(source);
+        EXPECT_EQ(ids.size(), 127);
+        EXPECT_EQ(destination.entityCount(), 1 + (repeat + 1) * 127);
+        for (const auto& [original, copy] : ids) {
+            EXPECT_EQ(destination.get<GE::EntityID>(copy), copy);
+            EXPECT_EQ(destination.get<GE::NameComponent>(copy).name, source.get<GE::NameComponent>(original).name);
+            EXPECT_EQ(destination.get<InsertionValue>(copy).values, source.get<InsertionValue>(original).values);
+            EXPECT_EQ(destination.has<GE::MeshComponent>(copy), source.has<GE::MeshComponent>(original));
+            if (source.has<GE::MeshComponent>(original))
+                EXPECT_EQ(destination.get<GE::MeshComponent>(copy).id, source.get<GE::MeshComponent>(original).id);
+        }
+    }
+    EXPECT_EQ(destination.get<GE::NameComponent>(existing).name, "existing");
+    EXPECT_EQ(destination.get<InsertionValue>(existing).values, std::vector<int>{-1});
+}
+
 TEST(ECSRegistryInsertionTest, throwingCopiesRollBackCompleteAndPartialEntities)
 {
     using First = InsertionThrowingCopy<0>;
@@ -230,6 +269,8 @@ TEST(ECSRegistryInsertionTest, throwingCopiesRollBackCompleteAndPartialEntities)
             source.emplace<First>(id, index);
             source.emplace<Second>(id, index + 10);
         }
+        for (int index = 0; index < 2; ++index)
+            source.emplace<First>(source.newEntityID(), index + 20);
         GE::ECSRegistry destination;
         const auto existing = destination.newEntityID();
         destination.emplace<First>(existing, 100);
@@ -238,16 +279,16 @@ TEST(ECSRegistryInsertionTest, throwingCopiesRollBackCompleteAndPartialEntities)
         destination.emplace<GE::NameComponent>(named, "existing");
         const auto alive = InsertionCopyState::alive;
 
-        // Two throwing component types exercise partial rows as well as rollback
-        // after one or two complete entities, regardless of hash iteration order.
-        for (int failAt = 1; failAt <= 6; ++failAt) {
+        // Fail throughout columns of two archetypes: partial columns, complete
+        // columns, and previously completed archetypes must all be rolled back.
+        for (int failAt = 1; failAt <= 8; ++failAt) {
             InsertionCopyState::attempts = 0;
             InsertionCopyState::failAt = failAt;
             EXPECT_THROW(destination.insert(source), std::runtime_error);
             InsertionCopyState::failAt = 0;
             EXPECT_EQ(InsertionCopyState::alive, alive);
-            EXPECT_EQ(source.entityCount(), 3);
-            EXPECT_EQ(source.componentCount(), 6);
+            EXPECT_EQ(source.entityCount(), 5);
+            EXPECT_EQ(source.componentCount(), 8);
             EXPECT_EQ(destination.entityCount(), 2);
             EXPECT_EQ(destination.componentCount(), 3);
             EXPECT_EQ(destination.get<First>(existing).value, 100);
@@ -256,10 +297,12 @@ TEST(ECSRegistryInsertionTest, throwingCopiesRollBackCompleteAndPartialEntities)
             EXPECT_EQ((destination | GE::ECSView<First, Second>()).count(), 1);
 
             const auto recovered = destination.insert(source);
-            EXPECT_EQ(destination.entityCount(), 5);
+            EXPECT_EQ(destination.entityCount(), 7);
             for (const auto& [original, copy] : recovered) {
                 EXPECT_EQ(destination.get<First>(copy).value, source.get<First>(original).value);
-                EXPECT_EQ(destination.get<Second>(copy).value, source.get<Second>(original).value);
+                EXPECT_EQ(destination.has<Second>(copy), source.has<Second>(original));
+                if (source.has<Second>(original))
+                    EXPECT_EQ(destination.get<Second>(copy).value, source.get<Second>(original).value);
                 destination.deleteEntityID(copy);
             }
             EXPECT_EQ(InsertionCopyState::alive, alive);

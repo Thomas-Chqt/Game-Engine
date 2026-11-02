@@ -26,14 +26,15 @@ public:
 
     virtual void swapComponents(uint64_t idx1, uint64_t idx2) = 0;
     virtual void eraseLast() = 0;
+    virtual void truncate(size_t) = 0;
 
     // move 1 component at the end of dst and erase the src by swaping it with the last element
     // dst must be the same type
     virtual void moveComponent(uint64_t idx, AComponentVector& dst) = 0;
 
-    // Append an independent insertion copy, remapping entity references.
+    // Append the entire column in source row order, remapping entity references.
     // dst must have the same component type and be distinct from this vector.
-    virtual void copyComponent(uint64_t idx, AComponentVector& dst, const EntityIDMap&) const = 0;
+    virtual void copyComponents(AComponentVector& dst, const EntityIDMap&) const = 0;
 
     virtual ~AComponentVector() = default;
 };
@@ -53,9 +54,10 @@ public:
 
     void swapComponents(uint64_t idx1, uint64_t idx2) override;
     void eraseLast() override;
+    void truncate(size_t) override;
 
     void moveComponent(uint64_t idx, AComponentVector& dst) override;
-    void copyComponent(uint64_t idx, AComponentVector& dst, const EntityIDMap&) const override;
+    void copyComponents(AComponentVector& dst, const EntityIDMap&) const override;
 
     std::vector<T>& vector() { return m_vector; }
     const std::vector<T>& vector() const { return m_vector; }
@@ -120,6 +122,14 @@ void ComponentVector<T>::eraseLast()
 }
 
 template<Component T>
+void ComponentVector<T>::truncate(size_t newSize)
+{
+    assert(newSize <= size());
+    while (m_vector.size() > newSize)
+        m_vector.pop_back();
+}
+
+template<Component T>
 void ComponentVector<T>::moveComponent(uint64_t idx, AComponentVector& aDst)
 {
     assert(typeid(aDst) == typeid(ComponentVector<T>));
@@ -132,13 +142,14 @@ void ComponentVector<T>::moveComponent(uint64_t idx, AComponentVector& aDst)
 }
 
 template<Component T>
-void ComponentVector<T>::copyComponent(uint64_t idx, AComponentVector& aDst, const EntityIDMap& ids) const
+void ComponentVector<T>::copyComponents(AComponentVector& aDst, const EntityIDMap& ids) const
 {
     assert(typeid(aDst) == typeid(ComponentVector<T>));
     auto& dst = static_cast<ComponentVector<T>&>(aDst);
     assert(&dst != this);
-    assert(idx < size());
-    dst.vector().emplace_back(ComponentCloneTraits<T>::clone(m_vector[idx], ids));
+    dst.vector().reserve(dst.size() + size());
+    for (const auto& component : m_vector)
+        dst.vector().emplace_back(ComponentCloneTraits<T>::clone(component, ids));
 }
 
 }

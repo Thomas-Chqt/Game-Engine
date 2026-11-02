@@ -27,28 +27,35 @@ Archetype Archetype::createEmpty() const
     return {std::move(buffers)};
 }
 
-void Archetype::appendCopy(EntityID sourceId, const Archetype& source, const EntityIDMap& ids)
+void Archetype::appendCopies(const Archetype& source, const EntityIDMap& ids)
 {
     assert(&source != this);
     assert(source.m_archetypeId == m_archetypeId);
-    assert(source.m_entityIndices.contains(sourceId));
-    const auto id = ComponentCloneTraits<EntityID>::clone(sourceId, ids);
-    assert(!m_entityIndices.contains(id));
-    const auto sourceIdx = source.m_entityIndices.at(sourceId);
-    const auto dstIdx = size();
+    const auto originalSize = size();
+    m_entityIndices.reserve(originalSize + source.size());
     try {
         for (const auto& [componentId, buffer] : source.m_componentBuffers)
-            buffer->copyComponent(sourceIdx, *m_componentBuffers.at(componentId), ids);
-        [[maybe_unused]] const auto [it, inserted] = m_entityIndices.emplace(id, dstIdx);
-        assert(inserted);
+            buffer->copyComponents(*m_componentBuffers.at(componentId), ids);
+        const auto entityIds = getComponents<EntityID>();
+        for (size_t row = originalSize; row < entityIds.size(); ++row) {
+            [[maybe_unused]] const auto [it, inserted] = m_entityIndices.emplace(entityIds[row], row);
+            assert(inserted);
+        }
     }
     catch (...) {
-        for (auto& [componentId, buffer] : m_componentBuffers) {
-            if (buffer->size() > dstIdx)
-                buffer->eraseLast();
-        }
+        truncate(originalSize);
         throw;
     }
+}
+
+void Archetype::truncate(size_t newSize)
+{
+    assert(newSize <= getComponents<EntityID>().size());
+    // The ID column may be shorter than other columns if copying threw.
+    for (const auto id : getComponents<EntityID>().subspan(newSize))
+        m_entityIndices.erase(id);
+    for (auto& [componentId, buffer] : m_componentBuffers)
+        buffer->truncate(newSize);
 }
 
 void Archetype::erase(EntityID id)
