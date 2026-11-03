@@ -65,8 +65,8 @@ public:
     void truncate(size_t);
 
     // return new empty archetypes with the same set components, +/- T
-    template<Component T> Archetype addComponentBuffer() const;
-    template<Component T> Archetype rmvComponentBuffer() const;
+    template<Component T> Archetype createEmptyWith() const;
+    template<Component T> Archetype createEmptyWithout() const;
 
     inline iterator begin() const { return {m_entityIndices.begin()}; }
     inline iterator end() const { return {m_entityIndices.end()}; }
@@ -107,7 +107,7 @@ Archetype Archetype::create()
 }
 
 template<Component T>
-Archetype Archetype::addComponentBuffer() const
+Archetype Archetype::createEmptyWith() const
 {
     assert(m_componentBuffers.contains(componentId<T>()) == false);
     auto newComponentBuffers = m_componentBuffers
@@ -118,7 +118,7 @@ Archetype Archetype::addComponentBuffer() const
 }
 
 template<Component T>
-Archetype Archetype::rmvComponentBuffer() const
+Archetype Archetype::createEmptyWithout() const
 {
     assert(m_componentBuffers.contains(componentId<T>()));
     auto newComponentBuffers = m_componentBuffers
