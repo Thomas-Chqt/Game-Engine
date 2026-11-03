@@ -48,15 +48,6 @@ void Archetype::appendCopies(const Archetype& source, const EntityIDMap& ids)
     }
 }
 
-void Archetype::truncate(size_t newSize)
-{
-    assert(newSize <= getComponents<EntityID>().size());
-    for (const auto id : getComponents<EntityID>().subspan(newSize))
-        m_entityIndices.erase(id);
-    for (auto& [componentId, buffer] : m_componentBuffers)
-        buffer->truncate(newSize);
-}
-
 void Archetype::erase(EntityID id)
 {
     assert(m_entityIndices.contains(id));
@@ -70,6 +61,15 @@ void Archetype::erase(EntityID id)
     if (idx != last)
         m_entityIndices.at(lastId) = idx;
     m_entityIndices.erase(id);
+}
+
+void Archetype::truncate(size_t newSize)
+{
+    assert(newSize <= getComponents<EntityID>().size());
+    for (const auto id : getComponents<EntityID>().subspan(newSize))
+        m_entityIndices.erase(id);
+    for (auto& [componentId, buffer] : m_componentBuffers)
+        buffer->truncate(newSize);
 }
 
 void moveEntity(EntityID id, Archetype& src, Archetype& dst)

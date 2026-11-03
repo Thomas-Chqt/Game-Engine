@@ -56,15 +56,6 @@ public:
     size_t size() const;
 
     Archetype createEmpty() const;
-
-    // Append all columns from a distinct archetype with the same component set,
-    // then index the copied entities. On failure, remove all appended data.
-    void appendCopies(const Archetype& source, const EntityIDMap&);
-
-    // Roll back appended rows, including partial columns from a failed copy.
-    void truncate(size_t);
-
-    // return new empty archetypes with the same set components, +/- T
     template<Component T> Archetype createEmptyWith() const;
     template<Component T> Archetype createEmptyWithout() const;
 
@@ -78,7 +69,11 @@ public:
     template<Component T, typename ...Ts>
     void emplaceBack(EntityID, Ts&&... args);
 
+    void appendCopies(const Archetype& source, const EntityIDMap&);
+
     void erase(EntityID);
+
+    void truncate(size_t);
 
     ~Archetype() = default;
 

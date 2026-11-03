@@ -7,8 +7,6 @@
 namespace GE
 {
 
-// Insertion copies values by default. Components containing entity references
-// must specialize this trait and remap them through the complete source-ID map.
 template<Component T>
 struct ComponentCloneTraits
 {
@@ -21,7 +19,7 @@ struct ComponentCloneTraits<EntityID>
     static EntityID clone(const EntityID& source, const EntityIDMap& ids)
     {
         const auto it = ids.find(source);
-        assert(it != ids.end()); // References must belong to the inserted registry.
+        assert(it != ids.end());
         return it->second;
     }
 };

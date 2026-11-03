@@ -77,7 +77,6 @@ EntityIDMap ECSRegistry::insert(const ECSRegistry& source)
             appended.emplace_back(archetypeId, it->second.size());
             it->second.appendCopies(sourceArchetype, ids);
         }
-        // Publish registry lookups only after all component columns are copied.
         for (const auto& [archetypeId, originalSize] : appended) {
             for (const auto id : m_archetypes.at(archetypeId).getComponents<EntityID>().subspan(originalSize)) {
                 [[maybe_unused]] const auto [it, inserted] = m_entityArchetypes.emplace(id, archetypeId);
