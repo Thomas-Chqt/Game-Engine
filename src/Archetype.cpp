@@ -37,8 +37,8 @@ void Archetype::appendCopies(const Archetype& source, const EntityIDMap& ids)
         for (const auto& [componentId, buffer] : source.m_componentBuffers)
             buffer->copyComponents(*m_componentBuffers.at(componentId), ids);
         const auto entityIds = getComponents<EntityID>();
-        for (size_t row = originalSize; row < entityIds.size(); ++row) {
-            [[maybe_unused]] const auto [it, inserted] = m_entityIndices.emplace(entityIds[row], row);
+        for (size_t idx = originalSize; idx < entityIds.size(); ++idx) {
+            [[maybe_unused]] const auto [it, inserted] = m_entityIndices.emplace(entityIds[idx], idx);
             assert(inserted);
         }
     }
@@ -51,7 +51,6 @@ void Archetype::appendCopies(const Archetype& source, const EntityIDMap& ids)
 void Archetype::truncate(size_t newSize)
 {
     assert(newSize <= getComponents<EntityID>().size());
-    // The ID column may be shorter than other columns if copying threw.
     for (const auto id : getComponents<EntityID>().subspan(newSize))
         m_entityIndices.erase(id);
     for (auto& [componentId, buffer] : m_componentBuffers)
