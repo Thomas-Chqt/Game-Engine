@@ -48,6 +48,8 @@ public:
     void deleteEntityID(EntityID);
     bool isValidEntityID(EntityID) const;
 
+    EntityIDMap insert(const ECSRegistry&);
+
     template<Component T, typename... Args>
     T& emplace(EntityID entityId, Args&&... args);
 
@@ -90,7 +92,7 @@ T& ECSRegistry::emplace(EntityID id, Args&&... args)
     dstId.set(componentId<T>());
     auto it = m_archetypes.find(dstId);
     if (it == m_archetypes.end())
-        it = m_archetypes.emplace(dstId, src.template addComponentBuffer<T>()).first;
+        it = m_archetypes.emplace(dstId, src.template createEmptyWith<T>()).first;
     moveEntity<T>(id, src, it->second, std::forward<Args>(args)...);
     srcId = dstId;
     return it->second.template getEntityComponent<T>(id);
@@ -108,7 +110,7 @@ void ECSRegistry::remove(EntityID id)
     dstId.reset(componentId<T>());
     auto it = m_archetypes.find(dstId);
     if (it == m_archetypes.end())
-        it = m_archetypes.emplace(dstId, src.template rmvComponentBuffer<T>()).first;
+        it = m_archetypes.emplace(dstId, src.template createEmptyWithout<T>()).first;
     moveEntity(id, src, it->second);
     srcId = dstId;
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Game-Engine/Components.hpp"
+#include "Game-Engine/ComponentCloneTraits.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -25,10 +26,15 @@ public:
 
     virtual void swapComponents(uint64_t idx1, uint64_t idx2) = 0;
     virtual void eraseLast() = 0;
+    virtual void truncate(size_t) = 0;
 
     // move 1 component at the end of dst and erase the src by swaping it with the last element
     // dst must be the same type
     virtual void moveComponent(uint64_t idx, AComponentVector& dst) = 0;
+
+    // Append the entire column in source row order, remapping entity references.
+    // dst must have the same component type and be distinct from this vector.
+    virtual void copyComponents(AComponentVector& dst, const EntityIDMap&) const = 0;
 
     virtual ~AComponentVector() = default;
 };
@@ -48,8 +54,10 @@ public:
 
     void swapComponents(uint64_t idx1, uint64_t idx2) override;
     void eraseLast() override;
+    void truncate(size_t) override;
 
     void moveComponent(uint64_t idx, AComponentVector& dst) override;
+    void copyComponents(AComponentVector& dst, const EntityIDMap&) const override;
 
     std::vector<T>& vector() { return m_vector; }
     const std::vector<T>& vector() const { return m_vector; }
@@ -114,6 +122,14 @@ void ComponentVector<T>::eraseLast()
 }
 
 template<Component T>
+void ComponentVector<T>::truncate(size_t newSize)
+{
+    assert(newSize <= size());
+    while (m_vector.size() > newSize)
+        m_vector.pop_back();
+}
+
+template<Component T>
 void ComponentVector<T>::moveComponent(uint64_t idx, AComponentVector& aDst)
 {
     assert(typeid(aDst) == typeid(ComponentVector<T>));
@@ -123,6 +139,17 @@ void ComponentVector<T>::moveComponent(uint64_t idx, AComponentVector& aDst)
     dst->vector().emplace_back(std::move(m_vector.at(idx)));
     swapComponents(idx, size() - 1);
     m_vector.pop_back();
+}
+
+template<Component T>
+void ComponentVector<T>::copyComponents(AComponentVector& aDst, const EntityIDMap& ids) const
+{
+    assert(typeid(aDst) == typeid(ComponentVector<T>));
+    auto& dst = static_cast<ComponentVector<T>&>(aDst);
+    assert(&dst != this);
+    dst.vector().reserve(dst.size() + size());
+    for (const auto& component : m_vector)
+        dst.vector().emplace_back(ComponentCloneTraits<T>::clone(component, ids));
 }
 
 }
