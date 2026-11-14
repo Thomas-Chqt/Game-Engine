@@ -9,6 +9,7 @@
 
 #include "Editor.hpp"
 #include "EditorTheme.hpp"
+#include "ViewportPicking.hpp"
 #include "Graphics/Buffer.hpp"
 #include "Project.hpp"
 #include "yaml_convert/convert_project.hpp"
@@ -483,21 +484,10 @@ void Editor::recordFrameGraph(GE::FrameGraphBuilder& builder)
 
         m_viewportReadbackFuture = builder.readback(readBackBuffer, [
             mousePos=*m_viewportReadbackRequest,
-            pixelSize=gfx::pixelFormatSize(gfx::PixelFormat::RG32Uint),
-            viewportWidth = m_viewportSize.first,
-            pickingEntities = std::move(pickingEntities)
+            viewportSize=m_viewportSize,
+            pickingEntities=std::move(pickingEntities)
         ](std::span<std::byte> bytes) -> std::optional<GE::EntityID> {
-            const auto x = static_cast<size_t>(mousePos.first);
-            const auto y = static_cast<size_t>(mousePos.second);
-            const size_t offset = (y * viewportWidth + x) * pixelSize;
-            std::array<uint32_t, 2> words{};
-            assert(offset + sizeof(uint32_t) * words.size() <= bytes.size());
-            std::memcpy(words.data(), bytes.data() + offset, sizeof(uint32_t) * words.size());
-            const uint64_t token = uint64_t(words[0]) | (uint64_t(words[1]) << 32);
-            if (token == 0)
-                return std::nullopt;
-            assert(token <= pickingEntities.size());
-            return pickingEntities[token - 1];
+            return decodeViewportPick(bytes, viewportSize, mousePos, pickingEntities);
         });
 
         m_viewportReadbackRequest.reset();

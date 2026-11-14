@@ -75,7 +75,7 @@ FSOutput fragmentMain(VSOutput input)
     float3 color = resources.environment.Sample(resources.environmentSampler, normalize(input.direction)).rgb;
     FSOutput output;
     output.color = float4(acesToneMapping(color * exposure), 1.0);
-    output.entityId = uint2(0xffffffffu, 0xffffffffu);
+    output.entityId = uint2(0u, 0u); // Background: no entity picking token.
     return output;
 }
 

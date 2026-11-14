@@ -337,8 +337,9 @@ void Editor::renderImgui()
                 cursorPos.x+contentRegionAvai.x-toolbarInset-(toolbarBesideCube ? VIEW_MANIPULATE_SIZE+VIEW_MANIPULATE_PADDING : 0),
                 cursorPos.y+toolbarInset+(toolbarBesideCube ? 0 : VIEW_MANIPULATE_SIZE+VIEW_MANIPULATE_PADDING));
             toolbarHovered = renderViewportToolbar(m_gizmoSettings, toolbarTopRight, dragging);
-            // Keep an active drag alive even if it passes beneath the toolbar.
-            ImGuizmo::Enable(dragging || (!toolbarHovered && !m_viewportCameraActive && !popupOpen));
+            // The floating toolbar already owns its mouse input; hovering it need not grey the axes.
+            // Preserve the existing guards for camera navigation and open popups, and keep active drags alive.
+            ImGuizmo::Enable(dragging || (!m_viewportCameraActive && !popupOpen));
             float aspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
             glm::mat4x4 viewMatrix = m_editorCamera.viewMatrix();
             glm::mat4x4 projectionMatrix = m_editorCamera.projectionMatrix(aspectRatio);
@@ -380,6 +381,7 @@ void Editor::renderImgui()
         }
 
         if (viewportMousePosition && viewportImageClicked && m_game.has_value() == false && !toolbarHovered
+            && !ImGui::IsMouseDown(ImGuiMouseButton_Right)
             && (transformGizmoRendered == false || ImGuizmo::IsOver() == false)
             && ImGuizmo::IsUsingAny() == false
             && ImGuizmo::IsUsingViewManipulate() == false
