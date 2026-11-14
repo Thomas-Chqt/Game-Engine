@@ -55,7 +55,9 @@ inline constexpr float resourceTileRounding = 6.0f;
 inline constexpr float resourceIconSize = 32.0f;
 inline constexpr float iconStroke = 1.6f;
 inline constexpr int resourceLabelLines = 2;
-inline constexpr float componentIconSize = 14.0f;
+inline constexpr float smallIconStroke = 1.35f;
+inline constexpr auto componentIconColor = rgb(166, 184, 190);
+inline constexpr float componentIconSize = 16.0f;
 inline constexpr float componentMenuDotSpacing = 4.0f;
 inline constexpr float componentMenuDotRadius = 1.2f;
 inline constexpr float componentPickerWidth = 270.0f;
@@ -67,6 +69,18 @@ inline constexpr float componentAxisMinWidth = 48.0f;
 inline constexpr float componentPickerRowPadding = 3.0f;
 inline constexpr float hierarchyRenamePaddingX = 2.0f;
 inline constexpr float hierarchyIndentSpacing = 8.0f;
+inline constexpr float viewportToolButtonSize = 22.0f;
+inline constexpr float viewportToolIconSize = 16.0f;
+inline constexpr float viewportToolSpacing = 1.0f;
+inline constexpr ImVec2 viewportToolbarPadding = {2, 2};
+inline constexpr float viewportToolbarInset = 6.0f;
+inline constexpr float viewportToolbarRounding = 3.0f;
+inline constexpr float viewportToolButtonRounding = 2.0f;
+inline constexpr auto viewportToolbarBackground = rgb(68, 71, 76, 0.98f);
+inline constexpr auto viewportToolbarBorder = rgb(91, 95, 101);
+inline constexpr auto viewportToolHover = rgb(91, 96, 103);
+inline constexpr auto viewportToolSelected = rgb(77, 115, 141);
+inline constexpr auto viewportToolText = rgb(239, 241, 243);
 
 inline void apply()
 {

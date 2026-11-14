@@ -3,7 +3,6 @@
 
 #include <array>
 #include <cctype>
-#include <cmath>
 #include <string>
 #include <vector>
 
@@ -23,39 +22,49 @@ constexpr std::array<ComponentInfo, 5> componentInfo = {{
     {"Mesh", "Display a mesh from the project's assets."},
 }};
 
-// Small unboxed line icons, shared by the headers and the picker.
+// Match the toolbar's 24-unit design grid; keep fine details out of small icons.
 void componentIcon(int index, ImVec2 center)
 {
     auto* draw = ImGui::GetWindowDrawList();
-    const float s = Theme::componentIconSize;
-    const float stroke = Theme::iconStroke;
-    const auto color = ImGui::GetColorU32(Theme::muted);
-    const auto p = [&](float x, float y) { return ImVec2(center.x + x * s, center.y + y * s); };
+    const float size = Theme::componentIconSize;
+    const float stroke = Theme::smallIconStroke;
+    const auto color = ImGui::GetColorU32(Theme::componentIconColor);
+    const auto p = [&](float x, float y) { return ImVec2(center.x+(x-12)*size/24, center.y+(y-12)*size/24); };
     const auto line = [&](float x, float y, float a, float b) { draw->AddLine(p(x,y), p(a,b), color, stroke); };
     switch (index) {
-        case 0: // Transform axes
-            line(-.32f,.32f,.35f,.32f); line(-.32f,.32f,-.32f,-.35f);
-            line(.35f,.32f,.18f,.16f); line(-.32f,-.35f,-.15f,-.18f);
+        case 0: // Transform: three axes, matching the Local space icon.
+            line(7,17,7,5); line(7,17,19,17); line(7,17,16,8);
+            draw->AddTriangleFilled(p(7,2), p(4.5f,6), p(9.5f,6), color);
+            draw->AddTriangleFilled(p(22,17), p(18,14.5f), p(18,19.5f), color);
+            draw->AddTriangleFilled(p(18,6), p(13.5f,7), p(17,10.5f), color);
             break;
-        case 1: // Camera
-            draw->AddRect(p(-.45f,-.28f), p(.15f,.28f), color, 2);
-            line(.15f,-.13f,.43f,-.30f); line(.43f,-.30f,.43f,.30f); line(.43f,.30f,.15f,.13f);
+        case 1: // Camera: side-view body and projecting lens.
+            draw->AddRect(p(2,6), p(15,18), color, size/24, 0, stroke);
+            draw->PathLineTo(p(15,10)); draw->PathLineTo(p(22,6));
+            draw->PathLineTo(p(22,18)); draw->PathLineTo(p(15,14));
+            draw->PathStroke(color, ImDrawFlags_Closed, stroke);
             break;
-        case 2: // Light
-            draw->AddCircle(center, s*.20f, color, 12, stroke);
-            for (int ray=0; ray<8; ++ray) {
-                const float angle = ray * 3.14159265f / 4;
-                line(std::cos(angle)*.31f, std::sin(angle)*.31f, std::cos(angle)*.48f, std::sin(angle)*.48f);
-            }
+        case 2: // Light: bulb silhouette and base, rather than crowded sun rays.
+            draw->PathLineTo(p(9,17));
+            draw->PathBezierCubicCurveTo(p(9,14), p(5,14), p(5,9));
+            draw->PathBezierCubicCurveTo(p(5,5), p(8,2), p(12,2));
+            draw->PathBezierCubicCurveTo(p(16,2), p(19,5), p(19,9));
+            draw->PathBezierCubicCurveTo(p(19,14), p(15,14), p(15,17));
+            draw->PathStroke(color, ImDrawFlags_Closed, stroke);
+            line(10,20,14,20);
             break;
-        case 3: // Script brackets
-            line(-.18f,-.32f,-.44f,0); line(-.44f,0,-.18f,.32f);
-            line(.18f,-.32f,.44f,0); line(.44f,0,.18f,.32f);
+        case 3: // Script: code brackets and slash.
+            draw->PathLineTo(p(7,7)); draw->PathLineTo(p(3,12)); draw->PathLineTo(p(7,17));
+            draw->PathStroke(color, 0, stroke);
+            draw->PathLineTo(p(17,7)); draw->PathLineTo(p(21,12)); draw->PathLineTo(p(17,17));
+            draw->PathStroke(color, 0, stroke);
+            line(14,4,10,20);
             break;
-        case 4: // Mesh cube
-            line(0,-.44f,.40f,-.20f); line(.40f,-.20f,.40f,.24f); line(.40f,.24f,0,.46f);
-            line(0,.46f,-.40f,.24f); line(-.40f,.24f,-.40f,-.20f); line(-.40f,-.20f,0,-.44f);
-            line(-.40f,-.20f,0,.02f); line(.40f,-.20f,0,.02f); line(0,.02f,0,.46f);
+        case 4: // Mesh: a balanced isometric cube with three readable faces.
+            draw->PathLineTo(p(12,2)); draw->PathLineTo(p(21,7)); draw->PathLineTo(p(21,17));
+            draw->PathLineTo(p(12,22)); draw->PathLineTo(p(3,17)); draw->PathLineTo(p(3,7));
+            draw->PathStroke(color, ImDrawFlags_Closed, stroke);
+            line(3,7,12,12); line(21,7,12,12); line(12,12,12,22);
             break;
     }
 }

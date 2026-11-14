@@ -275,6 +275,7 @@ void Editor::renderImgui()
         ImGui::EndMainMenuBar();
     }
 
+    m_viewportCameraActive = false;
     if (ImGui::Begin("viewport"))
     {
         ZoneScopedN("ImGuiWindow(\"viewport\")");
@@ -290,6 +291,7 @@ void Editor::renderImgui()
 
         ImGui::Image(&textureIdPlaceholder, contentRegionAvai);
         const bool viewportImageClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+        const bool viewportHovered = ImGui::IsItemHovered();
 
         std::optional<std::pair<uint32_t, uint32_t>> viewportMousePosition;
         ImVec2 mousePos = ImGui::GetMousePos();
@@ -321,7 +323,22 @@ void Editor::renderImgui()
         }
 
         bool transformGizmoRendered = false;
+        bool toolbarHovered = false;
         if (m_game.has_value() == false) {
+            const bool popupOpen = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
+            const bool dragging = ImGuizmo::IsUsingAny() || ImGuizmo::IsUsingViewManipulate();
+            m_viewportCameraActive = viewportHovered && ImGui::IsMouseDown(ImGuiMouseButton_Right)
+                && !io.WantTextInput && !popupOpen && !dragging;
+            updateGizmoShortcuts(m_gizmoSettings, !dragging && !ImGui::IsMouseDown(ImGuiMouseButton_Right));
+            const float toolbarInset = Theme::viewportToolbarInset;
+            const bool toolbarBesideCube = contentRegionAvai.x >= viewportToolbarSize().x + VIEW_MANIPULATE_SIZE
+                + VIEW_MANIPULATE_PADDING + toolbarInset*2;
+            const ImVec2 toolbarTopRight(
+                cursorPos.x+contentRegionAvai.x-toolbarInset-(toolbarBesideCube ? VIEW_MANIPULATE_SIZE+VIEW_MANIPULATE_PADDING : 0),
+                cursorPos.y+toolbarInset+(toolbarBesideCube ? 0 : VIEW_MANIPULATE_SIZE+VIEW_MANIPULATE_PADDING));
+            toolbarHovered = renderViewportToolbar(m_gizmoSettings, toolbarTopRight, dragging);
+            // Keep an active drag alive even if it passes beneath the toolbar.
+            ImGuizmo::Enable(dragging || (!toolbarHovered && !m_viewportCameraActive && !popupOpen));
             float aspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
             glm::mat4x4 viewMatrix = m_editorCamera.viewMatrix();
             glm::mat4x4 projectionMatrix = m_editorCamera.projectionMatrix(aspectRatio);
@@ -329,8 +346,10 @@ void Editor::renderImgui()
 
             if (m_selectedEntity.has_value() && m_selectedEntity->has<GE::TransformComponent>()) {
                 GE::TransformComponent& transformComponent = m_selectedEntity->get<GE::TransformComponent>();
-                ImGuizmo::OPERATION operations = ImGuizmo::OPERATION::TRANSLATE | ImGuizmo::OPERATION::ROTATE;
-                if (ImGuizmo::Manipulate(glm::value_ptr(viewMatrix), glm::value_ptr(projectionMatrix), operations, ImGuizmo::MODE::LOCAL, glm::value_ptr(transformComponent.worldTransform))) {
+                constexpr std::array<ImGuizmo::OPERATION, 3> operations = {ImGuizmo::TRANSLATE, ImGuizmo::ROTATE, ImGuizmo::SCALE};
+                const auto operation = operations[static_cast<int>(m_gizmoSettings.tool)];
+                const auto mode = m_gizmoSettings.space == GizmoSpace::world ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
+                if (ImGuizmo::Manipulate(glm::value_ptr(viewMatrix), glm::value_ptr(projectionMatrix), operation, mode, glm::value_ptr(transformComponent.worldTransform))) {
                     glm::mat4x4 localTransform = transformComponent.worldTransform;
                     auto parent = m_selectedEntity->parent();
                     if (parent.has_value() && parent->has<GE::TransformComponent>())
@@ -360,7 +379,7 @@ void Editor::renderImgui()
             }
         }
 
-        if (viewportMousePosition && viewportImageClicked && m_game.has_value() == false
+        if (viewportMousePosition && viewportImageClicked && m_game.has_value() == false && !toolbarHovered
             && (transformGizmoRendered == false || ImGuizmo::IsOver() == false)
             && ImGuizmo::IsUsingAny() == false
             && ImGuizmo::IsUsingViewManipulate() == false

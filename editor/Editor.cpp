@@ -166,8 +166,8 @@ Editor::Editor(std::span<const char*> args)
     });
     m_editorInputContext.addInput("camera_rotate", editorCameraRotationInput);
 
-    m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_move", [this](const glm::vec2& value) { m_editorCamera.onMoveInput(value); }) ;
-    m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_rotate", [this](const glm::vec2& value) { m_editorCamera.onRotationInput(value); });
+    m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_move", [this](const glm::vec2& value) { if (m_viewportCameraActive) m_editorCamera.onMoveInput(value); }) ;
+    m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_rotate", [this](const glm::vec2& value) { if (m_viewportCameraActive) m_editorCamera.onRotationInput(value); });
 
     pushInputContext(&m_editorInputContext);
     pushInputContext(&m_imguiInputContext);

@@ -67,6 +67,10 @@ For multi-configuration generators, use the executable in the chosen configurati
 - The editor uses one custom dark theme. All colors, spacing, rounding, font settings,
   and resource icon sizes are in `editor/EditorTheme.hpp`; edit it and rebuild to customize.
   The bundled Open Sans font and its license are in `editor/resources/fonts/`.
+- The compact toolbar at the upper-right of the viewport selects **Move (W)**, **Rotate (E)**, and **Scale (R)**.
+  Its axis/globe button switches Local/World. **Space** cycles tools; **X** toggles Local/World for Move and Rotate. Scale uses local axes.
+  Shortcuts are inactive while typing, using menus, or dragging a gizmo.
+  Hold the right mouse button over the viewport to navigate with WASD and the arrow keys.
 - **Ctrl+S** (**Cmd+S** on macOS) saves the project and shows a brief confirmation.
 - Right-click a resource tile to copy its full path or its path relative to the resources folder.
   Hover a tile for its full name, and double-click folders to open them.

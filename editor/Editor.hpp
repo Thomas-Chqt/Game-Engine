@@ -12,6 +12,7 @@
 
 #include "ImGuiInputContext.hpp"
 #include "Project.hpp"
+#include "imgui_render/viewport_toolbar.hpp"
 
 #include <Game-Engine/Application.hpp>
 #include <Game-Engine/FrameGraph.hpp>
@@ -89,6 +90,8 @@ private:
     std::string m_startSceneName;
 
     EditorCamera m_editorCamera;
+    GizmoSettings m_gizmoSettings;
+    bool m_viewportCameraActive = false;
     std::optional<GE::Scene> m_editedScene;
     std::optional<GE::Entity> m_selectedEntity;
 
