@@ -153,16 +153,35 @@ void ImGuiInputContext::onInputEvent(GE::InputEvent& event)
 {
     ImGuiIO& io = ImGui::GetIO();
 
+    const auto updateModifiers = [&](int key, bool down) {
+        // GLFW keeps left/right Shift, Ctrl, Alt, Super contiguous.
+        if (key >= GLFW_KEY_LEFT_SHIFT && key <= GLFW_KEY_RIGHT_SUPER)
+            m_modifiers[key - GLFW_KEY_LEFT_SHIFT] = down;
+        io.AddKeyEvent(ImGuiMod_Shift, m_modifiers[0] || m_modifiers[4]);
+        io.AddKeyEvent(ImGuiMod_Ctrl, m_modifiers[1] || m_modifiers[5]);
+        io.AddKeyEvent(ImGuiMod_Alt, m_modifiers[2] || m_modifiers[6]);
+        io.AddKeyEvent(ImGuiMod_Super, m_modifiers[3] || m_modifiers[7]);
+    };
+    const auto saveChord = [&](int key) {
+#ifdef __APPLE__
+        return key == GLFW_KEY_S && (m_modifiers[3] || m_modifiers[7]);
+#else
+        return key == GLFW_KEY_S && (m_modifiers[1] || m_modifiers[5]);
+#endif
+    };
+
     event.dispatch<GE::KeyDownEvent>([&](GE::KeyDownEvent& keyDownEvent) {
-        if (keyDownEvent.isRepeat())
-            return;
-        io.AddKeyEvent(glfwKeyToImGuiKey(keyDownEvent.keyCode()), true);
-        if (io.WantCaptureKeyboard)
+        if (!keyDownEvent.isRepeat()) {
+            updateModifiers(keyDownEvent.keyCode(), true);
+            io.AddKeyEvent(glfwKeyToImGuiKey(keyDownEvent.keyCode()), true);
+        }
+        if (io.WantCaptureKeyboard || saveChord(keyDownEvent.keyCode()))
             event.markAsProcessed();
     });
     event.dispatch<GE::KeyUpEvent>([&](GE::KeyUpEvent& keyUpEvent) {
+        updateModifiers(keyUpEvent.keyCode(), false);
         io.AddKeyEvent(glfwKeyToImGuiKey(keyUpEvent.keyCode()), false);
-        if (io.WantCaptureKeyboard)
+        if (io.WantCaptureKeyboard || saveChord(keyUpEvent.keyCode()))
             event.markAsProcessed();
     });
     event.dispatch<GE::CharEvent>([&](GE::CharEvent& charEvent) {

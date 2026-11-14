@@ -1,6 +1,7 @@
 #include "Game-Engine/Components.hpp"
 #include "imgui.h"
 #include "imgui_render.hpp"
+#include "EditorTheme.hpp"
 
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Scene.hpp"
@@ -11,7 +12,10 @@
 #include <tracy/Tracy.hpp>
 #include <tracy/TracyC.h>
 
+#include <algorithm>
+#include <cctype>
 #include <optional>
+#include <string>
 #include <ranges>
 #include <vector>
 
@@ -20,6 +24,60 @@ namespace GE_Editor
 
 namespace
 {
+
+struct RenameState
+{
+    std::optional<GE::Entity> entity;
+    std::vector<char> buffer;
+    bool focus = false;
+    bool rendered = false;
+
+    void commit()
+    {
+        // Keep the previous name when an empty or whitespace-only edit is submitted.
+        if (entity && entity->registry->isValidEntityID(entity->entityId) && std::ranges::any_of(std::string_view(buffer.data()), [](unsigned char c) { return !std::isspace(c); }))
+            entity->get<GE::NameComponent>().name = buffer.data();
+        entity.reset();
+    }
+
+    void begin(GE::Entity target)
+    {
+        if (entity) commit();
+        entity = target;
+        buffer.assign(std::max<std::size_t>(256, target.name().size()+64), '\0');
+        std::copy(target.name().begin(), target.name().end(), buffer.begin());
+        focus = true;
+    }
+};
+
+void renameField(GE::Entity entity, RenameState& rename, ImVec2 min, ImVec2 max)
+{
+    rename.rendered = true;
+    const auto nextRow = ImGui::GetCursorScreenPos();
+    const float labelX = min.x + ImGui::GetTreeNodeToLabelSpacing();
+    ImGui::SetCursorScreenPos(ImVec2(labelX, min.y));
+    ImGui::PushID(uuids::to_string(entity.entityId).c_str());
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(Theme::hierarchyRenamePaddingX, 0));
+    ImGui::SetNextItemWidth(std::max(1.0f, max.x-labelX));
+    const bool firstFrame = rename.focus;
+    if (firstFrame) { ImGui::SetKeyboardFocusHere(); rename.focus = false; }
+    const bool confirmed = ImGui::InputText("##rename", rename.buffer.data(), rename.buffer.size(),
+        ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackResize,
+        [](ImGuiInputTextCallbackData* data) {
+            if (data->EventFlag == ImGuiInputTextFlags_CallbackResize) {
+                auto& buffer = *static_cast<std::vector<char>*>(data->UserData);
+                buffer.resize(data->BufTextLen+1);
+                data->Buf = buffer.data();
+            }
+            return 0;
+        }, &rename.buffer);
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape)) rename.entity.reset();
+    else if (confirmed || (!firstFrame && ImGui::IsItemDeactivated())) rename.commit();
+    ImGui::PopStyleVar();
+    ImGui::PopID();
+    // The inline field uses the existing tree row rather than adding another line.
+    ImGui::SetCursorScreenPos(nextRow);
+}
 
 void reparentKeepingWorldTransform(GE::Entity& entity, std::optional<GE::Entity> newParent)
 {
@@ -53,24 +111,36 @@ void reparentKeepingWorldTransform(GE::Entity& entity, std::optional<GE::Entity>
     entity.updateTransformHierarchy();
 }
 
-bool sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager)
+bool sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager, RenameState& rename)
 {
     ZoneScoped;
     bool node_open = false;
-    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen;
+    ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen;
 
     if (selectedEntity == entity)
         flags |= ImGuiTreeNodeFlags_Selected;
 
+    const bool editing = rename.entity == entity;
+    if (editing) flags |= ImGuiTreeNodeFlags_AllowOverlap;
     if (entity.hasChild())
-        node_open = ImGui::TreeNodeEx(uuids::to_string(entity.entityId).c_str(), flags, "%s", entity.name().c_str()); // NOLINT
-    else
-    {
+        node_open = ImGui::TreeNodeEx(uuids::to_string(entity.entityId).c_str(), flags, "%s", editing ? "" : entity.name().c_str());
+    else {
         flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-        ImGui::TreeNodeEx(uuids::to_string(entity.entityId).c_str(), flags, "%s", entity.name().c_str()); // NOLINT
+        ImGui::TreeNodeEx(uuids::to_string(entity.entityId).c_str(), flags, "%s", editing ? "" : entity.name().c_str());
+    }
+    const auto rowMin = ImGui::GetItemRectMin();
+    const auto rowMax = ImGui::GetItemRectMax();
+    const bool clicked = ImGui::IsItemClicked();
+    const bool doubleClickedName = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)
+        && ImGui::GetMousePos().x >= rowMin.x + ImGui::GetTreeNodeToLabelSpacing();
+    const bool renameShortcut = selectedEntity == entity && ImGui::IsWindowFocused()
+        && !ImGui::GetIO().WantTextInput && ImGui::IsKeyPressed(ImGuiKey_F2);
+    if (!editing && (doubleClickedName || renameShortcut)) {
+        rename.begin(entity);
+        selectedEntity = entity;
     }
 
-    if (ImGui::BeginDragDropSource())
+    if (rename.entity != entity && ImGui::BeginDragDropSource())
     {
         ImGui::SetDragDropPayload("dnd_entity", &entity, sizeof(GE::Entity));
         ImGui::TextUnformatted(entity.name().c_str());
@@ -89,13 +159,13 @@ bool sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity,
         ImGui::EndDragDropTarget();
     }
 
-    if (ImGui::IsItemClicked())
-        selectedEntity = entity;
+    if (clicked) selectedEntity = entity;
 
-    if (ImGui::BeginPopupContextItem())
+    if (rename.entity != entity && ImGui::BeginPopupContextItem())
     {
         bool destroyed = false;
         std::vector<MenuItem> items = {
+            {"Rename", [&] { rename.begin(entity); selectedEntity = entity; }},
             {"Delete", [&] {
                 if (selectedEntity && entity == *selectedEntity)
                     selectedEntity = std::nullopt;
@@ -129,10 +199,12 @@ bool sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity,
             return node_open;
     }
 
+    if (rename.entity == entity) renameField(entity, rename, rowMin, rowMax);
+
     if (node_open && entity.hasChild())
     {
         for (auto& child : entity.children()) {
-            if (sceneGrapRow(child, selectedEntity, assetManager))
+            if (sceneGrapRow(child, selectedEntity, assetManager, rename))
                 ImGui::TreePop();
         }
     }
@@ -145,6 +217,12 @@ bool sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity,
 void renderSceneGraph(GE::Scene& editedScene, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager)
 {
     ZoneScoped;
+    ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, Theme::hierarchyIndentSpacing);
+    static RenameState rename;
+    if (rename.entity && (rename.entity->registry != &editedScene.ecsRegistry()
+        || !editedScene.ecsRegistry().isValidEntityID(rename.entity->entityId)))
+        rename.entity.reset();
+    rename.rendered = false;
     if (ImGui::BeginChild("scene_graph_child"))
     {
         TracyCZoneN(TracyCZoneN_a, "build_root_entities", true);
@@ -156,10 +234,11 @@ void renderSceneGraph(GE::Scene& editedScene, std::optional<GE::Entity>& selecte
 
         TracyCZoneN(TracyCZoneN_b, "render_graph_rows", true);
         for (auto entity : rootEntities) {
-            if (sceneGrapRow(entity, selectedEntity, assetManager))
+            if (sceneGrapRow(entity, selectedEntity, assetManager, rename))
                 ImGui::TreePop();
         }
         TracyCZoneEnd(TracyCZoneN_b);
+        if (rename.entity && !rename.rendered) rename.commit();
 
         if (ImGui::BeginPopupContextWindow("scene_graph_context", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
         {
@@ -198,6 +277,7 @@ void renderSceneGraph(GE::Scene& editedScene, std::optional<GE::Entity>& selecte
         }
         ImGui::EndDragDropTarget();
     }
+    ImGui::PopStyleVar();
 }
 
 }

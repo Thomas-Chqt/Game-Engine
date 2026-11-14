@@ -46,9 +46,6 @@ template<GE::Component T>
 void componentEditWidget(GE::Entity, [[maybe_unused]] GE::AssetManager&, [[maybe_unused]] const GE::ScriptLibrary*) { static_assert(false, "not implemented"); }
 
 template<>
-void componentEditWidget<GE::NameComponent>(GE::Entity entity, [[maybe_unused]] GE::AssetManager&, [[maybe_unused]] const GE::ScriptLibrary*);
-
-template<>
 void componentEditWidget<GE::TransformComponent>(GE::Entity entity, [[maybe_unused]] GE::AssetManager&, [[maybe_unused]] const GE::ScriptLibrary*);
 
 template<>
@@ -134,6 +131,8 @@ void menuFromPath(MenuItemRange auto&& items, int offset = 0)
         it = childEnd;
     }
 }
+
+void renderComponentInspector(GE::Entity, GE::AssetManager&, const GE::ScriptLibrary*);
 
 void renderSceneGraph(GE::Scene& editedScene, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager);
 

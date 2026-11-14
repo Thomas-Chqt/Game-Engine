@@ -11,6 +11,8 @@
 
 #include <Game-Engine/InputContext.hpp>
 
+#include <array>
+
 namespace GE_Editor
 {
 
@@ -18,6 +20,9 @@ class ImGuiInputContext : public GE::InputContext
 {
 public:
     void onInputEvent(GE::InputEvent& event) override;
+
+private:
+    std::array<bool, 8> m_modifiers{};
 };
 
 }

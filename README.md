@@ -62,6 +62,23 @@ For multi-configuration generators, use the executable in the chosen configurati
   <img src="properties.webp" width="49%"></img>
 </p>
 
+## Editor conveniences
+
+- The editor uses one custom dark theme. All colors, spacing, rounding, font settings,
+  and resource icon sizes are in `editor/EditorTheme.hpp`; edit it and rebuild to customize.
+  The bundled Open Sans font and its license are in `editor/resources/fonts/`.
+- **Ctrl+S** (**Cmd+S** on macOS) saves the project and shows a brief confirmation.
+- Right-click a resource tile to copy its full path or its path relative to the resources folder.
+  Hover a tile for its full name, and double-click folders to open them.
+- Rename entities directly in the scene hierarchy with **F2**, a double-click on the name,
+  or **right-click → Rename**. Enter commits, Escape cancels, and clicking away commits.
+  Names are entity metadata and are not listed as removable components.
+- **+ Add component** opens a searchable picker. Type to filter, use arrow keys to select,
+  and press Enter to add. Existing components are marked Added. New components expand into view.
+  Use a component header's three-dot menu or right-click the header to remove it.
+- Transform fields show X/Y/Z axes. Rotation and camera field of view are displayed in
+  degrees; project files continue to use radians. Ctrl+click a numeric field to type a value.
+
 ## Libraries Used
 
 - [`Graphics`](https://github.com/Thomas-Chqt/Graphics): rendering abstraction layer and shader toolchain

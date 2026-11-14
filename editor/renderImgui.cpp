@@ -7,6 +7,7 @@
  */
 
 #include "Editor.hpp"
+#include "EditorTheme.hpp"
 #include "ImGuizmo.h"
 #include "imgui_render/imgui_render.hpp"
 
@@ -49,7 +50,7 @@
 #include <utility>
 #include <variant>
 
-constexpr float TILE_SIZE = 60.0f;
+constexpr float TILE_SIZE = GE_Editor::Theme::resourceTileSize;
 constexpr float VIEW_MANIPULATE_SIZE = 64.0f;
 constexpr float VIEW_MANIPULATE_PADDING = 4.0f;
 constexpr float VIEW_MANIPULATE_ORBIT_DISTANCE = 8.0f;
@@ -57,15 +58,29 @@ constexpr float VIEW_MANIPULATE_ORBIT_DISTANCE = 8.0f;
 namespace
 {
 
-using EditableEntityComponents = GE::TypeList<GE::NameComponent, GE::TransformComponent, GE::CameraComponent, GE::LightComponent, GE::ScriptComponent, GE::MeshComponent>;
-
-template<typename T> struct EditableEntityComponentTraits;
-template<> struct EditableEntityComponentTraits<GE::NameComponent>      { static constexpr const char* label = "Name component";      };
-template<> struct EditableEntityComponentTraits<GE::TransformComponent> { static constexpr const char* label = "Transform component"; };
-template<> struct EditableEntityComponentTraits<GE::CameraComponent>    { static constexpr const char* label = "Camera component";    };
-template<> struct EditableEntityComponentTraits<GE::LightComponent>     { static constexpr const char* label = "Light component";     };
-template<> struct EditableEntityComponentTraits<GE::ScriptComponent>    { static constexpr const char* label = "Script component";    };
-template<> struct EditableEntityComponentTraits<GE::MeshComponent>      { static constexpr const char* label = "Mesh component";      };
+void drawResourceIcon(ImVec2 center, bool directory)
+{
+    namespace Theme = GE_Editor::Theme;
+    auto* draw = ImGui::GetWindowDrawList();
+    const float size = Theme::resourceIconSize;
+    const auto point = [&](float x, float y) { return ImVec2(center.x + x * size, center.y + y * size); };
+    const auto color = ImGui::ColorConvertFloat4ToU32(directory ? Theme::folder : Theme::file);
+    if (directory) {
+        const std::array<ImVec2, 6> outline = {point(-0.50f, -0.33f), point(-0.12f, -0.33f),
+            point(0.0f, -0.20f), point(0.50f, -0.20f), point(0.50f, 0.36f), point(-0.50f, 0.36f)};
+        draw->AddPolyline(outline.data(), outline.size(), color, ImDrawFlags_Closed, Theme::iconStroke);
+        draw->AddLine(point(-0.50f, -0.10f), point(0.50f, -0.10f), color, Theme::iconStroke);
+    }
+    else {
+        const std::array<ImVec2, 5> outline = {point(-0.32f, -0.46f), point(0.10f, -0.46f),
+            point(0.34f, -0.22f), point(0.34f, 0.46f), point(-0.32f, 0.46f)};
+        draw->AddPolyline(outline.data(), outline.size(), color, ImDrawFlags_Closed, Theme::iconStroke);
+        const std::array<ImVec2, 3> fold = {point(0.10f, -0.46f), point(0.10f, -0.22f), point(0.34f, -0.22f)};
+        draw->AddPolyline(fold.data(), fold.size(), color, 0, Theme::iconStroke);
+        draw->AddLine(point(-0.18f, 0.07f), point(0.18f, 0.07f), color, Theme::iconStroke);
+        draw->AddLine(point(-0.18f, 0.23f), point(0.10f, 0.23f), color, Theme::iconStroke);
+    }
+}
 
 bool isGltfPath(const std::filesystem::path& path)
 {
@@ -221,21 +236,44 @@ void Editor::renderImgui()
 
     ImGui::DockSpaceOverViewport();
 
+    const bool canSave = m_projectFilePath.has_value() && !m_projectFilePath->empty();
+    const auto save = [this] {
+        try { saveProject(); }
+        catch (const std::exception& error) {
+            m_statusMessage = std::format("Save failed: {}", error.what());
+            m_statusUntil = ImGui::GetTime() + 8.0;
+        }
+    };
+    // Route globally, including while a text field has focus. Cmd on macOS, Ctrl elsewhere.
+    if (canSave && ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_S, ImGuiInputFlags_RouteGlobal))
+        save();
+
     if (ImGui::BeginMainMenuBar())
     {
+        if (ImGui::BeginMenu("File")) {
+            ImGui::MenuItem("New", nullptr, false, false);
+            ImGui::MenuItem("Open", nullptr, false, false);
+#ifdef __APPLE__
+            const char* saveShortcut = "Cmd+S";
+#else
+            const char* saveShortcut = "Ctrl+S";
+#endif
+            if (ImGui::MenuItem("Save", saveShortcut, false, canSave)) save();
+            ImGui::EndMenu();
+        }
         menuFromPath(std::to_array<MenuItem>({
-            {"file/new",                  {}},
-            {"file/open",                 {}},
-            {"file/save",                 m_projectFilePath.has_value() && !m_projectFilePath->empty() ? [this] { saveProject(); } : std::function<void()>()},
-            {"project/properties",        []{ projectPropertiesOpen = true; }},
-            {"project/reload script lib", m_scriptLibPath.has_value() && std::filesystem::exists(*m_scriptLibPath) && !m_game.has_value() ? [this]() { reloadScriptLib(); } : std::function<void()>()},
-            {"project/run",               m_game.has_value() ? std::function<void()>() : [this]() { startGame(); }},
-            {"project/stop",              m_game.has_value() ? [this]() { stopGame(); } : std::function<void()>()},
-            {"debug/asset manager",       []{ assetManagerWindowOpen = true; }},
-
+            {"Project/Properties",        []{ projectPropertiesOpen = true; }},
+            {"Project/Reload script library", m_scriptLibPath.has_value() && std::filesystem::exists(*m_scriptLibPath) && !m_game.has_value() ? [this]() { reloadScriptLib(); } : std::function<void()>()},
+            {"Project/Run",               m_game.has_value() ? std::function<void()>() : [this]() { startGame(); }},
+            {"Project/Stop",              m_game.has_value() ? [this]() { stopGame(); } : std::function<void()>()},
+            {"Debug/Asset manager",       []{ assetManagerWindowOpen = true; }},
         }));
+        if (ImGui::GetTime() < m_statusUntil) {
+            ImGui::Separator();
+            ImGui::TextUnformatted(m_statusMessage.c_str());
+        }
+        ImGui::EndMainMenuBar();
     }
-    ImGui::EndMainMenuBar();
 
     if (ImGui::Begin("viewport"))
     {
@@ -315,7 +353,7 @@ void Editor::renderImgui()
                 VIEW_MANIPULATE_ORBIT_DISTANCE,
                 viewManipulatePosition,
                 viewManipulateSize,
-                IM_COL32(16, 16, 16, 96)
+                ImGui::ColorConvertFloat4ToU32(Theme::orientationBackground)
             );
             if (ImGuizmo::IsUsingViewManipulate()) {
                 m_editorCamera.setViewMatrix(viewMatrix);
@@ -371,36 +409,62 @@ void Editor::renderImgui()
         if (ImGui::Button("<"))
             resourceBrowserSubDir = resourceBrowserSubDir.parent_path();
         ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Parent folder");
         ImGui::SameLine();
         const std::string resourcePath = (m_resourceDir->filename() / resourceBrowserSubDir).string();
         ImGui::TextUnformatted(resourcePath.c_str());
         ImGui::BeginChild("ResourcesChild");
-        tileGrid(std::filesystem::directory_iterator(*m_resourceDir / resourceBrowserSubDir), std::function([](const std::filesystem::directory_entry& entry){
+        std::vector<std::filesystem::directory_entry> entries;
+        for (const auto& entry : std::filesystem::directory_iterator(*m_resourceDir / resourceBrowserSubDir))
+            entries.push_back(entry);
+        std::ranges::sort(entries, [](const auto& a, const auto& b) {
+            if (a.is_directory() != b.is_directory()) return a.is_directory();
+            return a.path().filename() < b.path().filename();
+        });
+        tileGrid(entries, std::function([&](const std::filesystem::directory_entry& entry){
+            const std::string entryPath = entry.path().string();
+            const std::string entryName = entry.path().filename().string();
+            std::string extension = entry.path().extension().string();
+            std::ranges::transform(extension, extension.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            const bool directory = entry.is_directory();
+            const bool model = extension == ".glb" || extension == ".gltf" || extension == ".obj";
+            const bool image = extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".hdr" || extension == ".webp";
+            const char* type = directory ? "Folder" : model ? "Model" : image ? "Image" : "File";
+            ImGui::PushID(entryPath.c_str());
             ImGui::BeginGroup();
-            {
-                const std::string entryPath = entry.path().string();
-                const std::string entryName = entry.path().filename().string();
-                if (entry.is_directory()) {
-                    ImGui::Button(std::format("DIR##{}", entryPath).c_str(), ImVec2(TILE_SIZE, TILE_SIZE));
-                    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                        resourceBrowserSubDir /= entry.path().filename();
-                }
-                else {
-                    ImGui::Button(std::format("FILE##{}", entryPath).c_str(), ImVec2(TILE_SIZE, TILE_SIZE));
-                    if (ImGui::BeginDragDropSource())
-                    {
-                        ImGui::SetDragDropPayload("resource_dnd", entryPath.c_str(), entryPath.size() + 1);
-                        ImGui::TextUnformatted(entryName.c_str());
-                        ImGui::EndDragDropSource();
-                    }
-                }
-                ImVec2 textMin = ImGui::GetCursorScreenPos();
-                ImVec2 textSize = {TILE_SIZE, ImGui::GetTextLineHeightWithSpacing()};
-                ImVec4 clipRect(textMin.x, textMin.y, textMin.x + textSize.x, textMin.y + textSize.y);
-                ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), ImGui::GetFontSize(), textMin, ImGui::GetColorU32(ImGuiCol_Text), entryName.c_str(), nullptr, 0.0f, &clipRect);
-                ImGui::Dummy(textSize);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, Theme::resourceTileRounding);
+            ImGui::Button("##thumbnail", ImVec2(TILE_SIZE, TILE_SIZE));
+            ImGui::PopStyleVar();
+            // Vector placeholders share the square preview area with future thumbnails.
+            const auto tileMin = ImGui::GetItemRectMin();
+            drawResourceIcon(ImVec2(tileMin.x + TILE_SIZE * 0.5f, tileMin.y + TILE_SIZE * 0.5f), directory);
+            if (directory && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                resourceBrowserSubDir /= entry.path().filename();
+            if (!directory && ImGui::BeginDragDropSource()) {
+                ImGui::SetDragDropPayload("resource_dnd", entryPath.c_str(), entryPath.size() + 1);
+                ImGui::TextUnformatted(entryName.c_str());
+                ImGui::EndDragDropSource();
             }
+            const auto textMin = ImGui::GetCursorScreenPos();
+            const ImVec2 textSize(TILE_SIZE, ImGui::GetTextLineHeightWithSpacing() * Theme::resourceLabelLines);
+            const ImVec4 clip(textMin.x, textMin.y, textMin.x + textSize.x, textMin.y + textSize.y);
+            ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), ImGui::GetFontSize(), textMin,
+                ImGui::GetColorU32(ImGuiCol_Text), entryName.c_str(), nullptr, TILE_SIZE, &clip);
+            ImGui::Dummy(textSize);
             ImGui::EndGroup();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+                ImGui::SetTooltip("%s\n%s%s", entryName.c_str(), type, directory ? " - double-click to open" : " - drag into the editor");
+            if (ImGui::BeginPopupContextItem("resource_actions")) {
+                const auto copyPath = [&](const std::filesystem::path& path) {
+                    ImGui::SetClipboardText(path.string().c_str());
+                    m_statusMessage = "Path copied";
+                    m_statusUntil = ImGui::GetTime() + 3.0;
+                };
+                if (ImGui::MenuItem("Copy full path")) copyPath(std::filesystem::absolute(entry.path()));
+                if (ImGui::MenuItem("Copy resource-relative path")) copyPath(entry.path().lexically_relative(*m_resourceDir));
+                ImGui::EndPopup();
+            }
+            ImGui::PopID();
         }));
         ImGui::EndChild();
     }
@@ -419,44 +483,12 @@ void Editor::renderImgui()
     if (ImGui::Begin("Entity inspector"))
     {
         ZoneScopedN("EntityInspectorWindow");
-        ImGui::PushItemWidth(-80);
+        ImGui::PushItemWidth(-110);
         if (!m_selectedEntity)
             ImGui::TextUnformatted("No entity selected");
         else
         {
-            GE::forEachType<EditableEntityComponents>([&]<typename ComponentT>
-            {
-                if (m_selectedEntity->has<ComponentT>() && collapsingHeaderWithActionButton(EditableEntityComponentTraits<ComponentT>::label, "Remove", EditableEntityComponentTraits<ComponentT>::label, [&]{
-                    if constexpr (std::same_as<ComponentT, GE::MeshComponent>) {
-                        assert(assetManager().isValidAssetId(m_selectedEntity->get<GE::MeshComponent>().id));
-                        assetManager().unloadAsset(m_selectedEntity->get<GE::MeshComponent>().id);
-                    }
-                    m_selectedEntity->remove<ComponentT>();
-                }))
-                {
-                    componentEditWidget<ComponentT>(*m_selectedEntity, assetManager(), m_scriptLibrary.has_value() ? &m_scriptLibrary.value() : nullptr);
-                }
-            });
-
-            ImGui::Separator();
-
-            if (ImGui::Button("Add component", ImVec2(-FLT_MIN, 0.0f)))
-                ImGui::OpenPopup("add_component_popup");
-
-            if (ImGui::BeginPopup("add_component_popup"))
-            {
-                GE::forEachType<EditableEntityComponents>([&]<typename ComponentT>() {
-                    if (m_selectedEntity->has<ComponentT>() == false && ImGui::Selectable(EditableEntityComponentTraits<ComponentT>::label))
-                    {
-                        m_selectedEntity->emplace<ComponentT>();
-                        if constexpr (std::same_as<ComponentT, GE::MeshComponent>)
-                            assetManager().loadAsset(m_selectedEntity->get<GE::MeshComponent>().id);
-                    }
-                });
-
-                ImGui::EndPopup();
-            }
-
+            renderComponentInspector(*m_selectedEntity, assetManager(), m_scriptLibrary.has_value() ? &m_scriptLibrary.value() : nullptr);
         }
         ImGui::PopItemWidth();
     }

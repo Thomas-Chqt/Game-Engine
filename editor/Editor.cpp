@@ -8,6 +8,7 @@
  */
 
 #include "Editor.hpp"
+#include "EditorTheme.hpp"
 #include "Graphics/Buffer.hpp"
 #include "Project.hpp"
 #include "yaml_convert/convert_project.hpp"
@@ -100,6 +101,8 @@ std::expected<Project, std::string> loadProjectFile(const std::filesystem::path&
 Editor::Editor(std::span<const char*> args)
 {
     ImGui::CreateContext();
+    Theme::apply();
+    Theme::loadFont();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.IniFilename = nullptr;
@@ -313,8 +316,12 @@ void Editor::saveProject()
         throw std::runtime_error("failed to serialize project");
 
     file << out.c_str();
+    file.flush();
     if (!file.good())
         throw std::runtime_error("failed to write project file");
+
+    m_statusMessage = "Project saved";
+    m_statusUntil = ImGui::GetTime() + 3.0;
 }
 
 void Editor::editScene(std::optional<std::string_view> name)
