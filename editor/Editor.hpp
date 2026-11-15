@@ -12,7 +12,6 @@
 
 #include "ImGuiInputContext.hpp"
 #include "Project.hpp"
-#include "imgui_render/viewport_toolbar.hpp"
 
 #include <Game-Engine/Application.hpp>
 #include <Game-Engine/Components.hpp>
@@ -24,7 +23,8 @@
 #include <Game-Engine/Entity.hpp>
 
 #include <future>
-#include <imgui.h>
+#include <functional>
+#include <memory>
 
 #include <cassert>
 #include <cstdint>
@@ -38,6 +38,8 @@
 
 namespace GE_Editor
 {
+
+struct EditorUiState;
 
 class Editor : public GE::Application
 {
@@ -62,7 +64,7 @@ public:
     void startGame();
     void stopGame();
 
-    ~Editor() override = default;
+    ~Editor() override;
 
 private:
     void setPrimaryInputContext(GE::InputContext&);
@@ -72,8 +74,7 @@ private:
     void cancelGizmoDrag();
     void stopViewportCamera();
 
-    std::string m_statusMessage;
-    double m_statusUntil = 0.0;
+    std::unique_ptr<EditorUiState> m_uiState;
 
     std::unique_ptr<void, std::function<void(void*)>> m_imguiGuard;
 
@@ -93,14 +94,12 @@ private:
     std::string m_startSceneName;
 
     EditorCamera m_editorCamera;
-    GizmoSettings m_gizmoSettings;
     struct GizmoDrag
     {
         GE::Entity entity;
         GE::TransformComponent originalTransform;
     };
     std::optional<GizmoDrag> m_gizmoDrag;
-    bool m_gizmoCancelledUntilMouseRelease = false;
     bool m_viewportCameraActive = false;
     std::pair<double, double> m_cameraMousePosition = {0, 0};
     std::optional<GE::Scene> m_editedScene;

@@ -132,9 +132,12 @@ void menuFromPath(MenuItemRange auto&& items, int offset = 0)
     }
 }
 
-void renderComponentInspector(GE::Entity, GE::AssetManager&, const GE::ScriptLibrary*);
+struct ComponentInspectorState;
+struct SceneGraphState;
 
-void renderSceneGraph(GE::Scene& editedScene, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager);
+void renderComponentInspector(GE::Entity, GE::AssetManager&, const GE::ScriptLibrary*, ComponentInspectorState&);
+
+void renderSceneGraph(GE::Scene& editedScene, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager, SceneGraphState&);
 
 template<typename T>
 void tileGrid(const std::ranges::range auto& items, const std::function<void(const T&)>& fn) requires std::same_as<std::ranges::range_value_t<std::remove_cvref_t<decltype(items)>>, T>

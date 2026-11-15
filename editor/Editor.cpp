@@ -9,6 +9,7 @@
 
 #include "Editor.hpp"
 #include "EditorTheme.hpp"
+#include "EditorUiState.hpp"
 #include "ViewportPicking.hpp"
 #include "Graphics/Buffer.hpp"
 #include "Project.hpp"
@@ -100,6 +101,7 @@ std::expected<Project, std::string> loadProjectFile(const std::filesystem::path&
 }
 
 Editor::Editor(std::span<const char*> args)
+    : m_uiState(std::make_unique<EditorUiState>())
 {
     ImGui::CreateContext();
     Theme::apply();
@@ -107,20 +109,20 @@ Editor::Editor(std::span<const char*> args)
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.IniFilename = nullptr;
-    io.BackendPlatformUserData = &window();
+    io.BackendPlatformUserData = this;
     io.BackendPlatformName = "Game-Engine Editor";
     io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasSetMousePos;
 
     ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
     platformIO.Platform_GetClipboardTextFn = [](ImGuiContext*) {
-        static std::string clipboardText;
-        auto& window = *static_cast<GE::Window*>(ImGui::GetIO().BackendPlatformUserData);
-        clipboardText = window.clipboardString();
+        auto& editor = *static_cast<Editor*>(ImGui::GetIO().BackendPlatformUserData);
+        auto& clipboardText = editor.m_uiState->clipboardText;
+        clipboardText = editor.window().clipboardString();
         return clipboardText.c_str();
     };
     platformIO.Platform_SetClipboardTextFn = [](ImGuiContext*, const char* text) {
-        auto& window = *static_cast<GE::Window*>(ImGui::GetIO().BackendPlatformUserData);
-        window.setClipboardString(text);
+        auto& editor = *static_cast<Editor*>(ImGui::GetIO().BackendPlatformUserData);
+        editor.window().setClipboardString(text);
     };
 
     gfx::imgui::init(device(), gfx::imgui::InitInfo{
@@ -173,6 +175,8 @@ Editor::Editor(std::span<const char*> args)
     pushInputContext(&m_editorInputContext);
     pushInputContext(&m_imguiInputContext);
 }
+
+Editor::~Editor() = default;
 
 void Editor::onUpdate()
 {
@@ -237,6 +241,7 @@ void Editor::loadProject(Project&& project)
     ZoneScoped;
     cancelGizmoDrag();
     stopViewportCamera();
+    m_uiState->resourceBrowserSubDir.clear();
 
     if (m_game.has_value())
         stopGame();
@@ -347,15 +352,14 @@ void Editor::saveProject()
     file.flush();
     if (!file.good())
         throw std::runtime_error("failed to write project file");
-
-    m_statusMessage = "Project saved";
-    m_statusUntil = ImGui::GetTime() + 3.0;
 }
 
 void Editor::editScene(std::optional<std::string_view> name)
 {
     cancelGizmoDrag();
     stopViewportCamera();
+    m_uiState->componentInspector = {};
+    m_uiState->sceneGraph = {};
     if (m_editedScene)
         syncEditedScene();
 

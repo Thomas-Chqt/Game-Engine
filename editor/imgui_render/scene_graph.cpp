@@ -2,6 +2,7 @@
 #include "imgui.h"
 #include "imgui_render.hpp"
 #include "EditorTheme.hpp"
+#include "ui_state.hpp"
 
 #include "Game-Engine/Entity.hpp"
 #include "Game-Engine/Scene.hpp"
@@ -22,35 +23,27 @@
 namespace GE_Editor
 {
 
+void SceneGraphState::commit()
+{
+    // Keep the previous name when an empty or whitespace-only edit is submitted.
+    if (entity && entity->registry->isValidEntityID(entity->entityId) && std::ranges::any_of(std::string_view(buffer.data()), [](unsigned char c) { return !std::isspace(c); }))
+        entity->get<GE::NameComponent>().name = buffer.data();
+    entity.reset();
+}
+
+void SceneGraphState::begin(GE::Entity target)
+{
+    if (entity) commit();
+    entity = target;
+    buffer.assign(std::max<std::size_t>(256, target.name().size()+64), '\0');
+    std::copy(target.name().begin(), target.name().end(), buffer.begin());
+    focus = true;
+}
+
 namespace
 {
 
-struct RenameState
-{
-    std::optional<GE::Entity> entity;
-    std::vector<char> buffer;
-    bool focus = false;
-    bool rendered = false;
-
-    void commit()
-    {
-        // Keep the previous name when an empty or whitespace-only edit is submitted.
-        if (entity && entity->registry->isValidEntityID(entity->entityId) && std::ranges::any_of(std::string_view(buffer.data()), [](unsigned char c) { return !std::isspace(c); }))
-            entity->get<GE::NameComponent>().name = buffer.data();
-        entity.reset();
-    }
-
-    void begin(GE::Entity target)
-    {
-        if (entity) commit();
-        entity = target;
-        buffer.assign(std::max<std::size_t>(256, target.name().size()+64), '\0');
-        std::copy(target.name().begin(), target.name().end(), buffer.begin());
-        focus = true;
-    }
-};
-
-void renameField(GE::Entity entity, RenameState& rename, ImVec2 min, ImVec2 max)
+void renameField(GE::Entity entity, SceneGraphState& rename, ImVec2 min, ImVec2 max)
 {
     rename.rendered = true;
     const auto nextRow = ImGui::GetCursorScreenPos();
@@ -111,7 +104,7 @@ void reparentKeepingWorldTransform(GE::Entity& entity, std::optional<GE::Entity>
     entity.updateTransformHierarchy();
 }
 
-bool sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager, RenameState& rename)
+bool sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager, SceneGraphState& rename)
 {
     ZoneScoped;
     bool node_open = false;
@@ -214,11 +207,10 @@ bool sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity,
 
 } // namespace
 
-void renderSceneGraph(GE::Scene& editedScene, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager)
+void renderSceneGraph(GE::Scene& editedScene, std::optional<GE::Entity>& selectedEntity, GE::AssetManager& assetManager, SceneGraphState& rename)
 {
     ZoneScoped;
     ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, Theme::hierarchyIndentSpacing);
-    static RenameState rename;
     if (rename.entity && (rename.entity->registry != &editedScene.ecsRegistry()
         || !editedScene.ecsRegistry().isValidEntityID(rename.entity->entityId)))
         rename.entity.reset();

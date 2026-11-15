@@ -8,6 +8,8 @@
 
 #include "Editor.hpp"
 #include "EditorTheme.hpp"
+#include "EditorUiState.hpp"
+#include "imgui_render/icons.hpp"
 #include "ImGuizmo.h"
 #include "imgui_render/imgui_render.hpp"
 
@@ -57,30 +59,6 @@ constexpr float VIEW_MANIPULATE_ORBIT_DISTANCE = 8.0f;
 
 namespace
 {
-
-void drawResourceIcon(ImVec2 center, bool directory)
-{
-    namespace Theme = GE_Editor::Theme;
-    auto* draw = ImGui::GetWindowDrawList();
-    const float size = Theme::resourceIconSize;
-    const auto point = [&](float x, float y) { return ImVec2(center.x + x * size, center.y + y * size); };
-    const auto color = ImGui::ColorConvertFloat4ToU32(directory ? Theme::folder : Theme::file);
-    if (directory) {
-        const std::array<ImVec2, 6> outline = {point(-0.50f, -0.33f), point(-0.12f, -0.33f),
-            point(0.0f, -0.20f), point(0.50f, -0.20f), point(0.50f, 0.36f), point(-0.50f, 0.36f)};
-        draw->AddPolyline(outline.data(), outline.size(), color, ImDrawFlags_Closed, Theme::iconStroke);
-        draw->AddLine(point(-0.50f, -0.10f), point(0.50f, -0.10f), color, Theme::iconStroke);
-    }
-    else {
-        const std::array<ImVec2, 5> outline = {point(-0.32f, -0.46f), point(0.10f, -0.46f),
-            point(0.34f, -0.22f), point(0.34f, 0.46f), point(-0.32f, 0.46f)};
-        draw->AddPolyline(outline.data(), outline.size(), color, ImDrawFlags_Closed, Theme::iconStroke);
-        const std::array<ImVec2, 3> fold = {point(0.10f, -0.46f), point(0.10f, -0.22f), point(0.34f, -0.22f)};
-        draw->AddPolyline(fold.data(), fold.size(), color, 0, Theme::iconStroke);
-        draw->AddLine(point(-0.18f, 0.07f), point(0.18f, 0.07f), color, Theme::iconStroke);
-        draw->AddLine(point(-0.18f, 0.23f), point(0.10f, 0.23f), color, Theme::iconStroke);
-    }
-}
 
 bool isGltfPath(const std::filesystem::path& path)
 {
@@ -184,13 +162,14 @@ void Editor::cancelGizmoDrag()
     }
     // Enable(false) also clears ImGuizmo's active drag. Do not let a held mouse resume it.
     ImGuizmo::Enable(false);
-    m_gizmoCancelledUntilMouseRelease = ImGui::IsMouseDown(ImGuiMouseButton_Left);
+    m_uiState->gizmoCancelledUntilMouseRelease = ImGui::IsMouseDown(ImGuiMouseButton_Left);
 }
 
 void Editor::renderImgui()
 {
     ZoneScopedN("Editor::renderImgui");
 
+    auto& ui = *m_uiState;
     ImGuiIO& io = ImGui::GetIO();
     const auto [width, height] = window().size();
     const auto [framebufferWidth, framebufferHeight] = window().frameBufferSize();
@@ -200,13 +179,12 @@ void Editor::renderImgui()
         height > 0 ? static_cast<float>(framebufferHeight) / static_cast<float>(height) : 1.0f
     );
 
-    static std::chrono::steady_clock::time_point previousFrameTime;
     const auto currentTime = std::chrono::steady_clock::now();
-    const float elapsedTime = previousFrameTime == std::chrono::steady_clock::time_point{}
+    const float elapsedTime = ui.previousFrameTime == std::chrono::steady_clock::time_point{}
         ? 1.0f / 60.0f
-        : std::chrono::duration<float>(currentTime - previousFrameTime).count();
+        : std::chrono::duration<float>(currentTime - ui.previousFrameTime).count();
     io.DeltaTime = std::max(elapsedTime, 0.00001f);
-    previousFrameTime = currentTime;
+    ui.previousFrameTime = currentTime;
 
     if (io.WantSetMousePos && !m_viewportCameraActive)
         window().setCursorPos(io.MousePos.x, io.MousePos.y);
@@ -243,13 +221,9 @@ void Editor::renderImgui()
     gfx::imgui::newFrame(device());
     TracyCZoneEnd(imguiNewFrameCtx);
 
-    static bool projectPropertiesOpen = false;
-    static bool assetManagerWindowOpen = false;
-    static std::filesystem::path resourceBrowserSubDir;
-
     ImGui::NewFrame();
     ImGuizmo::BeginFrame();
-    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) m_gizmoCancelledUntilMouseRelease = false;
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) ui.gizmoCancelledUntilMouseRelease = false;
     const bool escapePressed = ImGui::IsKeyPressed(ImGuiKey_Escape, false);
     if (m_gizmoDrag && (escapePressed || m_selectedEntity != m_gizmoDrag->entity))
         cancelGizmoDrag();
@@ -257,11 +231,15 @@ void Editor::renderImgui()
     ImGui::DockSpaceOverViewport();
 
     const bool canSave = m_projectFilePath.has_value() && !m_projectFilePath->empty();
-    const auto save = [this] {
-        try { saveProject(); }
+    const auto save = [this, &ui] {
+        try {
+            saveProject();
+            ui.statusMessage = "Project saved";
+            ui.statusUntil = ImGui::GetTime() + 3.0;
+        }
         catch (const std::exception& error) {
-            m_statusMessage = std::format("Save failed: {}", error.what());
-            m_statusUntil = ImGui::GetTime() + 8.0;
+            ui.statusMessage = std::format("Save failed: {}", error.what());
+            ui.statusUntil = ImGui::GetTime() + 8.0;
         }
     };
     // Route globally, including while a text field has focus. Cmd on macOS, Ctrl elsewhere.
@@ -282,15 +260,15 @@ void Editor::renderImgui()
             ImGui::EndMenu();
         }
         menuFromPath(std::to_array<MenuItem>({
-            {"Project/Properties",        []{ projectPropertiesOpen = true; }},
+            {"Project/Properties",        [&ui]{ ui.projectPropertiesOpen = true; }},
             {"Project/Reload script library", m_scriptLibPath.has_value() && std::filesystem::exists(*m_scriptLibPath) && !m_game.has_value() ? [this]() { reloadScriptLib(); } : std::function<void()>()},
             {"Project/Run",               m_game.has_value() ? std::function<void()>() : [this]() { startGame(); }},
             {"Project/Stop",              m_game.has_value() ? [this]() { stopGame(); } : std::function<void()>()},
-            {"Debug/Asset manager",       []{ assetManagerWindowOpen = true; }},
+            {"Debug/Asset manager",       [&ui]{ ui.assetManagerWindowOpen = true; }},
         }));
-        if (ImGui::GetTime() < m_statusUntil) {
+        if (ImGui::GetTime() < ui.statusUntil) {
             ImGui::Separator();
-            ImGui::TextUnformatted(m_statusMessage.c_str());
+            ImGui::TextUnformatted(ui.statusMessage.c_str());
         }
         ImGui::EndMainMenuBar();
     }
@@ -299,7 +277,6 @@ void Editor::renderImgui()
     if (ImGui::Begin("viewport"))
     {
         ZoneScopedN("ImGuiWindow(\"viewport\")");
-        static std::variant<std::string, uint64_t> textureIdPlaceholder = std::string("viewportBackBuffer");
 
         ImVec2 cursorPos = ImGui::GetCursorScreenPos();
         ImVec2 contentRegionAvai = ImGui::GetContentRegionAvail();
@@ -309,7 +286,7 @@ void Editor::renderImgui()
         uint32_t newWidth = contentRegionAvai.x <= 0 ? 1 : static_cast<uint32_t>(contentRegionAvai.x);
         uint32_t newHeight = contentRegionAvai.y <= 0 ? 1 : static_cast<uint32_t>(contentRegionAvai.y);
 
-        ImGui::Image(&textureIdPlaceholder, contentRegionAvai);
+        ImGui::Image(&ui.viewportTexture, contentRegionAvai);
         const bool viewportImageClicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
         const bool viewportHovered = ImGui::IsItemHovered();
 
@@ -348,7 +325,7 @@ void Editor::renderImgui()
             const bool popupOpen = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
             const bool dragging = ImGuizmo::IsUsingAny() || ImGuizmo::IsUsingViewManipulate();
             const bool cameraAllowed = ImGui::IsMouseDown(ImGuiMouseButton_Right)
-                && !io.WantTextInput && !popupOpen && !dragging && !m_gizmoCancelledUntilMouseRelease;
+                && !io.WantTextInput && !popupOpen && !dragging && !ui.gizmoCancelledUntilMouseRelease;
             if (!cameraAllowed)
                 stopViewportCamera();
             else if (!m_viewportCameraActive && viewportHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
@@ -357,17 +334,17 @@ void Editor::renderImgui()
                 m_viewportCameraActive = true;
             }
             keepCameraCaptured = m_viewportCameraActive;
-            updateGizmoShortcuts(m_gizmoSettings, !dragging && !m_gizmoCancelledUntilMouseRelease && !ImGui::IsMouseDown(ImGuiMouseButton_Right));
+            updateGizmoShortcuts(ui.gizmoSettings, !dragging && !ui.gizmoCancelledUntilMouseRelease && !ImGui::IsMouseDown(ImGuiMouseButton_Right));
             const float toolbarInset = Theme::viewportToolbarInset;
             const bool toolbarBesideCube = contentRegionAvai.x >= viewportToolbarSize().x + VIEW_MANIPULATE_SIZE
                 + VIEW_MANIPULATE_PADDING + toolbarInset*2;
             const ImVec2 toolbarTopRight(
                 cursorPos.x+contentRegionAvai.x-toolbarInset-(toolbarBesideCube ? VIEW_MANIPULATE_SIZE+VIEW_MANIPULATE_PADDING : 0),
                 cursorPos.y+toolbarInset+(toolbarBesideCube ? 0 : VIEW_MANIPULATE_SIZE+VIEW_MANIPULATE_PADDING));
-            toolbarHovered = renderViewportToolbar(m_gizmoSettings, toolbarTopRight, dragging);
+            toolbarHovered = renderViewportToolbar(ui.gizmoSettings, toolbarTopRight, dragging);
             // The floating toolbar already owns its mouse input; hovering it need not grey the axes.
             // Preserve the existing guards for camera navigation and open popups, and keep active drags alive.
-            ImGuizmo::Enable(!m_gizmoCancelledUntilMouseRelease && (dragging || (!m_viewportCameraActive && !popupOpen)));
+            ImGuizmo::Enable(!ui.gizmoCancelledUntilMouseRelease && (dragging || (!m_viewportCameraActive && !popupOpen)));
             float aspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
             glm::mat4x4 viewMatrix = m_editorCamera.viewMatrix();
             glm::mat4x4 projectionMatrix = m_editorCamera.projectionMatrix(aspectRatio);
@@ -376,8 +353,8 @@ void Editor::renderImgui()
             if (m_selectedEntity.has_value() && m_selectedEntity->has<GE::TransformComponent>()) {
                 GE::TransformComponent& transformComponent = m_selectedEntity->get<GE::TransformComponent>();
                 constexpr std::array<ImGuizmo::OPERATION, 3> operations = {ImGuizmo::TRANSLATE, ImGuizmo::ROTATE, ImGuizmo::SCALE};
-                const auto operation = operations[static_cast<int>(m_gizmoSettings.tool)];
-                const auto mode = m_gizmoSettings.space == GizmoSpace::world ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
+                const auto operation = operations[static_cast<int>(ui.gizmoSettings.tool)];
+                const auto mode = ui.gizmoSettings.space == GizmoSpace::world ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
                 const auto beforeManipulation = transformComponent;
                 const bool changed = ImGuizmo::Manipulate(glm::value_ptr(viewMatrix), glm::value_ptr(projectionMatrix), operation, mode, glm::value_ptr(transformComponent.worldTransform));
                 if (ImGuizmo::IsUsing() && !m_gizmoDrag)
@@ -416,7 +393,7 @@ void Editor::renderImgui()
             }
         }
 
-        if (viewportMousePosition && viewportImageClicked && m_game.has_value() == false && !toolbarHovered && !m_gizmoCancelledUntilMouseRelease
+        if (viewportMousePosition && viewportImageClicked && m_game.has_value() == false && !toolbarHovered && !ui.gizmoCancelledUntilMouseRelease
             && !ImGui::IsMouseDown(ImGuiMouseButton_Right)
             && (transformGizmoRendered == false || ImGuizmo::IsOver() == false)
             && ImGuizmo::IsUsingAny() == false
@@ -434,7 +411,7 @@ void Editor::renderImgui()
     if (ImGui::Begin("Scene graph"))
     {
         assert(m_editedScene.has_value());
-        renderSceneGraph(*m_editedScene, m_selectedEntity, assetManager());
+        renderSceneGraph(*m_editedScene, m_selectedEntity, assetManager(), ui.sceneGraph);
     }
     ImGui::End();
 
@@ -465,17 +442,17 @@ void Editor::renderImgui()
     if (ImGui::Begin("Resources") && m_resourceDir.has_value() && std::filesystem::exists(*m_resourceDir))
     {
         ZoneScopedN("ImGuiWindow(\"Resources\")");
-        ImGui::BeginDisabled(resourceBrowserSubDir.empty());
+        ImGui::BeginDisabled(ui.resourceBrowserSubDir.empty());
         if (ImGui::Button("<"))
-            resourceBrowserSubDir = resourceBrowserSubDir.parent_path();
+            ui.resourceBrowserSubDir = ui.resourceBrowserSubDir.parent_path();
         ImGui::EndDisabled();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Parent folder");
         ImGui::SameLine();
-        const std::string resourcePath = (m_resourceDir->filename() / resourceBrowserSubDir).string();
+        const std::string resourcePath = (m_resourceDir->filename() / ui.resourceBrowserSubDir).string();
         ImGui::TextUnformatted(resourcePath.c_str());
         ImGui::BeginChild("ResourcesChild");
         std::vector<std::filesystem::directory_entry> entries;
-        for (const auto& entry : std::filesystem::directory_iterator(*m_resourceDir / resourceBrowserSubDir))
+        for (const auto& entry : std::filesystem::directory_iterator(*m_resourceDir / ui.resourceBrowserSubDir))
             entries.push_back(entry);
         std::ranges::sort(entries, [](const auto& a, const auto& b) {
             if (a.is_directory() != b.is_directory()) return a.is_directory();
@@ -497,9 +474,10 @@ void Editor::renderImgui()
             ImGui::PopStyleVar();
             // Vector placeholders share the square preview area with future thumbnails.
             const auto tileMin = ImGui::GetItemRectMin();
-            drawResourceIcon(ImVec2(tileMin.x + TILE_SIZE * 0.5f, tileMin.y + TILE_SIZE * 0.5f), directory);
+            (directory ? Icons::folder : Icons::file)(ImVec2(tileMin.x + TILE_SIZE * 0.5f, tileMin.y + TILE_SIZE * 0.5f),
+                Theme::resourceIconSize, ImGui::GetColorU32(directory ? Theme::folder : Theme::file), Theme::iconStroke);
             if (directory && ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-                resourceBrowserSubDir /= entry.path().filename();
+                ui.resourceBrowserSubDir /= entry.path().filename();
             if (!directory && ImGui::BeginDragDropSource()) {
                 ImGui::SetDragDropPayload("resource_dnd", entryPath.c_str(), entryPath.size() + 1);
                 ImGui::TextUnformatted(entryName.c_str());
@@ -517,8 +495,8 @@ void Editor::renderImgui()
             if (ImGui::BeginPopupContextItem("resource_actions")) {
                 const auto copyPath = [&](const std::filesystem::path& path) {
                     ImGui::SetClipboardText(path.string().c_str());
-                    m_statusMessage = "Path copied";
-                    m_statusUntil = ImGui::GetTime() + 3.0;
+                    ui.statusMessage = "Path copied";
+                    ui.statusUntil = ImGui::GetTime() + 3.0;
                 };
                 if (ImGui::MenuItem("Copy full path")) copyPath(std::filesystem::absolute(entry.path()));
                 if (ImGui::MenuItem("Copy resource-relative path")) copyPath(entry.path().lexically_relative(*m_resourceDir));
@@ -530,12 +508,12 @@ void Editor::renderImgui()
     }
     ImGui::End();
 
-    if (assetManagerWindowOpen)
+    if (ui.assetManagerWindowOpen)
     {
         ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImGui::SetNextWindowSize(ImVec2(viewport->Size.x * 0.65f, viewport->Size.y * 0.45f), ImGuiCond_FirstUseEver);
 
-        if (ImGui::Begin("Asset manager", &assetManagerWindowOpen))
+        if (ImGui::Begin("Asset manager", &ui.assetManagerWindowOpen))
             renderAssetManagerDebugWindow(assetManager());
         ImGui::End();
     }
@@ -548,13 +526,13 @@ void Editor::renderImgui()
             ImGui::TextUnformatted("No entity selected");
         else
         {
-            renderComponentInspector(*m_selectedEntity, assetManager(), m_scriptLibrary.has_value() ? &m_scriptLibrary.value() : nullptr);
+            renderComponentInspector(*m_selectedEntity, assetManager(), m_scriptLibrary.has_value() ? &m_scriptLibrary.value() : nullptr, ui.componentInspector);
         }
         ImGui::PopItemWidth();
     }
     ImGui::End();
 
-    if (projectPropertiesOpen)
+    if (ui.projectPropertiesOpen)
     {
         ImGuiViewport* viewport = ImGui::GetMainViewport();
         const ImVec2 windowSize(viewport->Size.x * 0.42f, viewport->Size.y * 0.70f);
@@ -565,7 +543,7 @@ void Editor::renderImgui()
         );
         ImGui::SetNextWindowSize(windowSize, ImGuiCond_Appearing);
 
-        if (ImGui::Begin("Project properties", &projectPropertiesOpen, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoCollapse))
+        if (ImGui::Begin("Project properties", &ui.projectPropertiesOpen, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoCollapse))
         {
             EditableProjectProperties properties{
                 .projectName = m_projectName,
@@ -573,7 +551,7 @@ void Editor::renderImgui()
                 .scriptLibPath = m_scriptLibPath,
                 .inputs = m_gameInputs
             };
-            projectPropertiesOpen = renderPropertiesWindow(properties);
+            ui.projectPropertiesOpen = renderPropertiesWindow(properties);
         }
         ImGui::End();
     }
