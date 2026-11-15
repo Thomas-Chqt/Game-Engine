@@ -208,7 +208,7 @@ void Editor::renderImgui()
     io.DeltaTime = std::max(elapsedTime, 0.00001f);
     previousFrameTime = currentTime;
 
-    if (io.WantSetMousePos)
+    if (io.WantSetMousePos && !m_viewportCameraActive)
         window().setCursorPos(io.MousePos.x, io.MousePos.y);
 
     if ((io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) == 0)
@@ -295,8 +295,7 @@ void Editor::renderImgui()
         ImGui::EndMainMenuBar();
     }
 
-    const bool cameraWasActive = m_viewportCameraActive;
-    m_viewportCameraActive = false;
+    bool keepCameraCaptured = false;
     if (ImGui::Begin("viewport"))
     {
         ZoneScopedN("ImGuiWindow(\"viewport\")");
@@ -348,13 +347,16 @@ void Editor::renderImgui()
         if (m_game.has_value() == false) {
             const bool popupOpen = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
             const bool dragging = ImGuizmo::IsUsingAny() || ImGuizmo::IsUsingViewManipulate();
-            m_viewportCameraActive = viewportHovered && ImGui::IsMouseDown(ImGuiMouseButton_Right)
+            const bool cameraAllowed = ImGui::IsMouseDown(ImGuiMouseButton_Right)
                 && !io.WantTextInput && !popupOpen && !dragging && !m_gizmoCancelledUntilMouseRelease;
-            // Skip activation/re-entry deltas so pressing RMB cannot jump the view.
-            if (m_viewportCameraActive && cameraWasActive) {
-                constexpr float mouseLookSensitivity = 0.1f;
-                m_editorCamera.onRotationInput({-io.MouseDelta.y * mouseLookSensitivity, io.MouseDelta.x * mouseLookSensitivity});
+            if (!cameraAllowed)
+                stopViewportCamera();
+            else if (!m_viewportCameraActive && viewportHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+                window().setCursorCaptured(true);
+                m_cameraMousePosition = window().cursorPos();
+                m_viewportCameraActive = true;
             }
+            keepCameraCaptured = m_viewportCameraActive;
             updateGizmoShortcuts(m_gizmoSettings, !dragging && !m_gizmoCancelledUntilMouseRelease && !ImGui::IsMouseDown(ImGuiMouseButton_Right));
             const float toolbarInset = Theme::viewportToolbarInset;
             const bool toolbarBesideCube = contentRegionAvai.x >= viewportToolbarSize().x + VIEW_MANIPULATE_SIZE
@@ -425,6 +427,9 @@ void Editor::renderImgui()
         }
     }
     ImGui::End();
+
+    if (!keepCameraCaptured)
+        stopViewportCamera();
 
     if (ImGui::Begin("Scene graph"))
     {

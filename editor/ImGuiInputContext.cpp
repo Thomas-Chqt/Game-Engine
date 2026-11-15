@@ -196,10 +196,13 @@ void ImGuiInputContext::onInputEvent(GE::InputEvent& event)
     });
     event.dispatch<GE::MouseUpEvent>([&](GE::MouseUpEvent& mouseUpEvent) {
         io.AddMouseButtonEvent(mouseUpEvent.mouseCode(), false);
-        if (io.WantCaptureMouse)
+        if (io.WantCaptureMouse && !mouseUpEvent.window().cursorCaptured())
             event.markAsProcessed();
     });
     event.dispatch<GE::MouseMoveEvent>([&](GE::MouseMoveEvent& mouseMoveEvent) {
+        // Leave captured motion to the editor; virtual cursor positions must not move UI hover.
+        if (mouseMoveEvent.window().cursorCaptured())
+            return;
         auto [x, y] = mouseMoveEvent.mousePos();
         io.AddMousePosEvent(static_cast<float>(x), static_cast<float>(y));
         if (io.WantCaptureMouse)

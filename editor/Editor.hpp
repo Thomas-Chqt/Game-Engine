@@ -70,6 +70,7 @@ private:
     void renderImgui();
     void syncEditedScene();
     void cancelGizmoDrag();
+    void stopViewportCamera();
 
     std::string m_statusMessage;
     double m_statusUntil = 0.0;
@@ -101,6 +102,7 @@ private:
     std::optional<GizmoDrag> m_gizmoDrag;
     bool m_gizmoCancelledUntilMouseRelease = false;
     bool m_viewportCameraActive = false;
+    std::pair<double, double> m_cameraMousePosition = {0, 0};
     std::optional<GE::Scene> m_editedScene;
     std::optional<GE::Entity> m_selectedEntity;
 

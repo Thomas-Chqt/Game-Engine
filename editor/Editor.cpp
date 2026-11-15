@@ -204,13 +204,39 @@ void Editor::onUpdate()
 
 void Editor::onEvent(GE::Event& event)
 {
-    if (event.dispatch<GE::WindowRequestCloseEvent>([&](auto&) { terminate(); })) return;
+    if (event.dispatch<GE::WindowRequestCloseEvent>([&](auto&) { stopViewportCamera(); terminate(); })) return;
+    event.dispatch<GE::MouseMoveEvent>([&](GE::MouseMoveEvent& move) {
+        if (!m_viewportCameraActive) return;
+        const auto [x, y] = move.mousePos();
+        const auto [previousX, previousY] = m_cameraMousePosition;
+        m_cameraMousePosition = {x, y};
+        constexpr float mouseLookSensitivity = 0.1f;
+        m_editorCamera.onRotationInput({-static_cast<float>(y - previousY) * mouseLookSensitivity,
+            static_cast<float>(x - previousX) * mouseLookSensitivity});
+        event.markAsProcessed();
+    });
+    event.dispatch<GE::MouseUpEvent>([&](GE::MouseUpEvent& up) {
+        if (m_viewportCameraActive && up.mouseCode() == static_cast<int>(GE::MouseButton::r)) {
+            stopViewportCamera();
+            event.markAsProcessed();
+        }
+    });
+}
+
+void Editor::stopViewportCamera()
+{
+    if (!m_viewportCameraActive) return;
+    m_viewportCameraActive = false;
+    window().setCursorCaptured(false);
+    const auto [x, y] = window().cursorPos();
+    ImGui::GetIO().AddMousePosEvent(static_cast<float>(x), static_cast<float>(y));
 }
 
 void Editor::loadProject(Project&& project)
 {
     ZoneScoped;
     cancelGizmoDrag();
+    stopViewportCamera();
 
     if (m_game.has_value())
         stopGame();
@@ -329,6 +355,7 @@ void Editor::saveProject()
 void Editor::editScene(std::optional<std::string_view> name)
 {
     cancelGizmoDrag();
+    stopViewportCamera();
     if (m_editedScene)
         syncEditedScene();
 
@@ -361,6 +388,7 @@ void Editor::startGame()
 {
     assert(m_game.has_value() == false);
     cancelGizmoDrag();
+    stopViewportCamera();
     syncEditedScene();
     m_game.emplace(GE::Game::Descriptor{
         .assetManager = &assetManager(),
