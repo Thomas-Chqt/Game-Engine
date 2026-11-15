@@ -149,22 +149,6 @@ void importDroppedGltf(const std::filesystem::path& path, GE::AssetManager& asse
 namespace GE_Editor
 {
 
-void Editor::cancelGizmoDrag()
-{
-    if (!m_gizmoDrag) return;
-    auto snapshot = *m_gizmoDrag;
-    m_gizmoDrag.reset();
-    if (m_editedScene && snapshot.entity.registry == &m_editedScene->ecsRegistry()
-        && m_editedScene->ecsRegistry().isValidEntityID(snapshot.entity.entityId)
-        && snapshot.entity.has<GE::TransformComponent>()) {
-        snapshot.entity.get<GE::TransformComponent>() = snapshot.originalTransform;
-        snapshot.entity.updateTransformHierarchy();
-    }
-    // Enable(false) also clears ImGuizmo's active drag. Do not let a held mouse resume it.
-    ImGuizmo::Enable(false);
-    m_uiState->gizmoCancelledUntilMouseRelease = ImGui::IsMouseDown(ImGuiMouseButton_Left);
-}
-
 void Editor::renderImgui()
 {
     ZoneScopedN("Editor::renderImgui");
@@ -225,8 +209,8 @@ void Editor::renderImgui()
     ImGuizmo::BeginFrame();
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) ui.gizmoCancelledUntilMouseRelease = false;
     const bool escapePressed = ImGui::IsKeyPressed(ImGuiKey_Escape, false);
-    if (m_gizmoDrag && (escapePressed || m_selectedEntity != m_gizmoDrag->entity))
-        cancelGizmoDrag();
+    if (auto dragEntity = ui.gizmoDragEntity(); dragEntity && (escapePressed || m_selectedEntity != dragEntity))
+        ui.cancelGizmoDrag(m_editedScene ? &*m_editedScene : nullptr);
 
     ImGui::DockSpaceOverViewport();
 
@@ -357,11 +341,11 @@ void Editor::renderImgui()
                 const auto mode = ui.gizmoSettings.space == GizmoSpace::world ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
                 const auto beforeManipulation = transformComponent;
                 const bool changed = ImGuizmo::Manipulate(glm::value_ptr(viewMatrix), glm::value_ptr(projectionMatrix), operation, mode, glm::value_ptr(transformComponent.worldTransform));
-                if (ImGuizmo::IsUsing() && !m_gizmoDrag)
-                    m_gizmoDrag.emplace(GizmoDrag{*m_selectedEntity, beforeManipulation});
+                if (ImGuizmo::IsUsing())
+                    ui.beginGizmoDrag(*m_selectedEntity, beforeManipulation);
                 // Handle Escape on the first drag frame as well as on subsequent frames.
-                if (m_gizmoDrag && escapePressed)
-                    cancelGizmoDrag();
+                if (ui.gizmoDragEntity() && escapePressed)
+                    ui.cancelGizmoDrag(m_editedScene ? &*m_editedScene : nullptr);
                 else if (changed) {
                     glm::mat4x4 localTransform = transformComponent.worldTransform;
                     auto parent = m_selectedEntity->parent();
@@ -372,7 +356,7 @@ void Editor::renderImgui()
                     glm::decompose(localTransform, transformComponent.scale, transformComponent.rotation, transformComponent.position, skew, perspective);
                     m_selectedEntity->updateTransformHierarchy();
                 }
-                if (!ImGuizmo::IsUsing()) m_gizmoDrag.reset(); // Mouse release commits the current transform.
+                if (!ImGuizmo::IsUsing()) ui.commitGizmoDrag(); // Mouse release commits the current transform.
                 transformGizmoRendered = true;
             }
 

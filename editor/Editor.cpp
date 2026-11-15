@@ -239,7 +239,7 @@ void Editor::stopViewportCamera()
 void Editor::loadProject(Project&& project)
 {
     ZoneScoped;
-    cancelGizmoDrag();
+    m_uiState->cancelGizmoDrag(m_editedScene ? &*m_editedScene : nullptr);
     stopViewportCamera();
     m_uiState->resourceBrowserSubDir.clear();
 
@@ -356,7 +356,7 @@ void Editor::saveProject()
 
 void Editor::editScene(std::optional<std::string_view> name)
 {
-    cancelGizmoDrag();
+    m_uiState->cancelGizmoDrag(m_editedScene ? &*m_editedScene : nullptr);
     stopViewportCamera();
     m_uiState->componentInspector = {};
     m_uiState->sceneGraph = {};
@@ -391,7 +391,7 @@ void Editor::reloadScriptLib()
 void Editor::startGame()
 {
     assert(m_game.has_value() == false);
-    cancelGizmoDrag();
+    m_uiState->cancelGizmoDrag(m_editedScene ? &*m_editedScene : nullptr);
     stopViewportCamera();
     syncEditedScene();
     m_game.emplace(GE::Game::Descriptor{

@@ -59,7 +59,7 @@ set_target_properties(GE-Editor PROPERTIES
     VISIBILITY_INLINES_HIDDEN YES
 )
 
-file(GLOB_RECURSE GE_EDITOR_SRC "*.cpp" "*.hpp")
+file(GLOB_RECURSE GE_EDITOR_SRC CONFIGURE_DEPENDS "*.cpp" "*.hpp")
 target_sources(GE-Editor PRIVATE ${GE_EDITOR_SRC})
 
 target_include_directories(GE-Editor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

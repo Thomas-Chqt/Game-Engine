@@ -14,7 +14,6 @@
 #include "Project.hpp"
 
 #include <Game-Engine/Application.hpp>
-#include <Game-Engine/Components.hpp>
 #include <Game-Engine/FrameGraph.hpp>
 #include <Game-Engine/InputContext.hpp>
 #include <Game-Engine/Input.hpp>
@@ -71,7 +70,6 @@ private:
     void processDropedFiles();
     void renderImgui();
     void syncEditedScene();
-    void cancelGizmoDrag();
     void stopViewportCamera();
 
     std::unique_ptr<EditorUiState> m_uiState;
@@ -94,12 +92,6 @@ private:
     std::string m_startSceneName;
 
     EditorCamera m_editorCamera;
-    struct GizmoDrag
-    {
-        GE::Entity entity;
-        GE::TransformComponent originalTransform;
-    };
-    std::optional<GizmoDrag> m_gizmoDrag;
     bool m_viewportCameraActive = false;
     std::pair<double, double> m_cameraMousePosition = {0, 0};
     std::optional<GE::Scene> m_editedScene;
