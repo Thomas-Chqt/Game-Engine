@@ -15,6 +15,7 @@
 #include "imgui_render/viewport_toolbar.hpp"
 
 #include <Game-Engine/Application.hpp>
+#include <Game-Engine/Components.hpp>
 #include <Game-Engine/FrameGraph.hpp>
 #include <Game-Engine/InputContext.hpp>
 #include <Game-Engine/Input.hpp>
@@ -68,6 +69,7 @@ private:
     void processDropedFiles();
     void renderImgui();
     void syncEditedScene();
+    void cancelGizmoDrag();
 
     std::string m_statusMessage;
     double m_statusUntil = 0.0;
@@ -91,6 +93,13 @@ private:
 
     EditorCamera m_editorCamera;
     GizmoSettings m_gizmoSettings;
+    struct GizmoDrag
+    {
+        GE::Entity entity;
+        GE::TransformComponent originalTransform;
+    };
+    std::optional<GizmoDrag> m_gizmoDrag;
+    bool m_gizmoCancelledUntilMouseRelease = false;
     bool m_viewportCameraActive = false;
     std::optional<GE::Scene> m_editedScene;
     std::optional<GE::Entity> m_selectedEntity;

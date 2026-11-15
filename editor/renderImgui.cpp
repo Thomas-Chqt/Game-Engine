@@ -171,6 +171,22 @@ void importDroppedGltf(const std::filesystem::path& path, GE::AssetManager& asse
 namespace GE_Editor
 {
 
+void Editor::cancelGizmoDrag()
+{
+    if (!m_gizmoDrag) return;
+    auto snapshot = *m_gizmoDrag;
+    m_gizmoDrag.reset();
+    if (m_editedScene && snapshot.entity.registry == &m_editedScene->ecsRegistry()
+        && m_editedScene->ecsRegistry().isValidEntityID(snapshot.entity.entityId)
+        && snapshot.entity.has<GE::TransformComponent>()) {
+        snapshot.entity.get<GE::TransformComponent>() = snapshot.originalTransform;
+        snapshot.entity.updateTransformHierarchy();
+    }
+    // Enable(false) also clears ImGuizmo's active drag. Do not let a held mouse resume it.
+    ImGuizmo::Enable(false);
+    m_gizmoCancelledUntilMouseRelease = ImGui::IsMouseDown(ImGuiMouseButton_Left);
+}
+
 void Editor::renderImgui()
 {
     ZoneScopedN("Editor::renderImgui");
@@ -233,6 +249,10 @@ void Editor::renderImgui()
 
     ImGui::NewFrame();
     ImGuizmo::BeginFrame();
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) m_gizmoCancelledUntilMouseRelease = false;
+    const bool escapePressed = ImGui::IsKeyPressed(ImGuiKey_Escape, false);
+    if (m_gizmoDrag && (escapePressed || m_selectedEntity != m_gizmoDrag->entity))
+        cancelGizmoDrag();
 
     ImGui::DockSpaceOverViewport();
 
@@ -328,8 +348,8 @@ void Editor::renderImgui()
             const bool popupOpen = ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel);
             const bool dragging = ImGuizmo::IsUsingAny() || ImGuizmo::IsUsingViewManipulate();
             m_viewportCameraActive = viewportHovered && ImGui::IsMouseDown(ImGuiMouseButton_Right)
-                && !io.WantTextInput && !popupOpen && !dragging;
-            updateGizmoShortcuts(m_gizmoSettings, !dragging && !ImGui::IsMouseDown(ImGuiMouseButton_Right));
+                && !io.WantTextInput && !popupOpen && !dragging && !m_gizmoCancelledUntilMouseRelease;
+            updateGizmoShortcuts(m_gizmoSettings, !dragging && !m_gizmoCancelledUntilMouseRelease && !ImGui::IsMouseDown(ImGuiMouseButton_Right));
             const float toolbarInset = Theme::viewportToolbarInset;
             const bool toolbarBesideCube = contentRegionAvai.x >= viewportToolbarSize().x + VIEW_MANIPULATE_SIZE
                 + VIEW_MANIPULATE_PADDING + toolbarInset*2;
@@ -339,7 +359,7 @@ void Editor::renderImgui()
             toolbarHovered = renderViewportToolbar(m_gizmoSettings, toolbarTopRight, dragging);
             // The floating toolbar already owns its mouse input; hovering it need not grey the axes.
             // Preserve the existing guards for camera navigation and open popups, and keep active drags alive.
-            ImGuizmo::Enable(dragging || (!m_viewportCameraActive && !popupOpen));
+            ImGuizmo::Enable(!m_gizmoCancelledUntilMouseRelease && (dragging || (!m_viewportCameraActive && !popupOpen)));
             float aspectRatio = static_cast<float>(newWidth) / static_cast<float>(newHeight);
             glm::mat4x4 viewMatrix = m_editorCamera.viewMatrix();
             glm::mat4x4 projectionMatrix = m_editorCamera.projectionMatrix(aspectRatio);
@@ -350,7 +370,14 @@ void Editor::renderImgui()
                 constexpr std::array<ImGuizmo::OPERATION, 3> operations = {ImGuizmo::TRANSLATE, ImGuizmo::ROTATE, ImGuizmo::SCALE};
                 const auto operation = operations[static_cast<int>(m_gizmoSettings.tool)];
                 const auto mode = m_gizmoSettings.space == GizmoSpace::world ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
-                if (ImGuizmo::Manipulate(glm::value_ptr(viewMatrix), glm::value_ptr(projectionMatrix), operation, mode, glm::value_ptr(transformComponent.worldTransform))) {
+                const auto beforeManipulation = transformComponent;
+                const bool changed = ImGuizmo::Manipulate(glm::value_ptr(viewMatrix), glm::value_ptr(projectionMatrix), operation, mode, glm::value_ptr(transformComponent.worldTransform));
+                if (ImGuizmo::IsUsing() && !m_gizmoDrag)
+                    m_gizmoDrag.emplace(GizmoDrag{*m_selectedEntity, beforeManipulation});
+                // Handle Escape on the first drag frame as well as on subsequent frames.
+                if (m_gizmoDrag && escapePressed)
+                    cancelGizmoDrag();
+                else if (changed) {
                     glm::mat4x4 localTransform = transformComponent.worldTransform;
                     auto parent = m_selectedEntity->parent();
                     if (parent.has_value() && parent->has<GE::TransformComponent>())
@@ -360,6 +387,7 @@ void Editor::renderImgui()
                     glm::decompose(localTransform, transformComponent.scale, transformComponent.rotation, transformComponent.position, skew, perspective);
                     m_selectedEntity->updateTransformHierarchy();
                 }
+                if (!ImGuizmo::IsUsing()) m_gizmoDrag.reset(); // Mouse release commits the current transform.
                 transformGizmoRendered = true;
             }
 
@@ -380,7 +408,7 @@ void Editor::renderImgui()
             }
         }
 
-        if (viewportMousePosition && viewportImageClicked && m_game.has_value() == false && !toolbarHovered
+        if (viewportMousePosition && viewportImageClicked && m_game.has_value() == false && !toolbarHovered && !m_gizmoCancelledUntilMouseRelease
             && !ImGui::IsMouseDown(ImGuiMouseButton_Right)
             && (transformGizmoRendered == false || ImGuizmo::IsOver() == false)
             && ImGuizmo::IsUsingAny() == false

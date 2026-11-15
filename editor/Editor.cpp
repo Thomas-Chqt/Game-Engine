@@ -210,6 +210,7 @@ void Editor::onEvent(GE::Event& event)
 void Editor::loadProject(Project&& project)
 {
     ZoneScoped;
+    cancelGizmoDrag();
 
     if (m_game.has_value())
         stopGame();
@@ -327,6 +328,7 @@ void Editor::saveProject()
 
 void Editor::editScene(std::optional<std::string_view> name)
 {
+    cancelGizmoDrag();
     if (m_editedScene)
         syncEditedScene();
 
@@ -358,6 +360,7 @@ void Editor::reloadScriptLib()
 void Editor::startGame()
 {
     assert(m_game.has_value() == false);
+    cancelGizmoDrag();
     syncEditedScene();
     m_game.emplace(GE::Game::Descriptor{
         .assetManager = &assetManager(),

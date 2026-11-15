@@ -69,6 +69,7 @@ For multi-configuration generators, use the executable in the chosen configurati
   The bundled Open Sans font and its license are in `editor/resources/fonts/`.
 - The compact toolbar at the upper-right of the viewport selects **Move (W)**, **Rotate (E)**, and **Scale (R)**.
   Its axis/globe button switches Local/World. **Space** cycles tools; **X** toggles Local/World for Move and Rotate. Scale uses local axes.
+  **Escape** cancels an active gizmo drag and restores its starting transform. Release the mouse before dragging again.
   Shortcuts are inactive while typing, using menus, or dragging a gizmo.
   Hold the right mouse button over the viewport to navigate with WASD and the arrow keys.
 - **Ctrl+S** (**Cmd+S** on macOS) saves the project and shows a brief confirmation.
