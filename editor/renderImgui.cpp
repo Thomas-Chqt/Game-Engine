@@ -295,6 +295,7 @@ void Editor::renderImgui()
         ImGui::EndMainMenuBar();
     }
 
+    const bool cameraWasActive = m_viewportCameraActive;
     m_viewportCameraActive = false;
     if (ImGui::Begin("viewport"))
     {
@@ -349,6 +350,11 @@ void Editor::renderImgui()
             const bool dragging = ImGuizmo::IsUsingAny() || ImGuizmo::IsUsingViewManipulate();
             m_viewportCameraActive = viewportHovered && ImGui::IsMouseDown(ImGuiMouseButton_Right)
                 && !io.WantTextInput && !popupOpen && !dragging && !m_gizmoCancelledUntilMouseRelease;
+            // Skip activation/re-entry deltas so pressing RMB cannot jump the view.
+            if (m_viewportCameraActive && cameraWasActive) {
+                constexpr float mouseLookSensitivity = 0.1f;
+                m_editorCamera.onRotationInput({-io.MouseDelta.y * mouseLookSensitivity, io.MouseDelta.x * mouseLookSensitivity});
+            }
             updateGizmoShortcuts(m_gizmoSettings, !dragging && !m_gizmoCancelledUntilMouseRelease && !ImGui::IsMouseDown(ImGuiMouseButton_Right));
             const float toolbarInset = Theme::viewportToolbarInset;
             const bool toolbarBesideCube = contentRegionAvai.x >= viewportToolbarSize().x + VIEW_MANIPULATE_SIZE

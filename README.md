@@ -71,7 +71,7 @@ For multi-configuration generators, use the executable in the chosen configurati
   Its axis/globe button switches Local/World. **Space** cycles tools; **X** toggles Local/World for Move and Rotate. Scale uses local axes.
   **Escape** cancels an active gizmo drag and restores its starting transform. Release the mouse before dragging again.
   Shortcuts are inactive while typing, using menus, or dragging a gizmo.
-  Hold the right mouse button over the viewport to navigate with WASD and the arrow keys.
+  Hold the right mouse button over the viewport and move the mouse to look around; use WASD to move. The arrow keys also rotate the view.
 - **Ctrl+S** (**Cmd+S** on macOS) saves the project and shows a brief confirmation.
 - Right-click a resource tile to copy its full path or its path relative to the resources folder.
   Hover a tile for its full name, and double-click folders to open them.
