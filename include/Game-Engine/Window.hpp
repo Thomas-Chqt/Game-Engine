@@ -22,6 +22,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <set>
 #include <utility>
@@ -90,7 +91,9 @@ public:
 
     std::optional<std::filesystem::path> popDroppedFile();
 
-    std::string clipboardString() const;
+    // Null-terminated view owned by GLFW, valid until the next clipboard get/set
+    // or GLFW termination. An unavailable text clipboard returns an empty view.
+    std::string_view clipboardString() const;
     void setClipboardString(const std::string&) const;
 
     void createSurface(gfx::Instance*);

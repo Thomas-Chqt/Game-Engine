@@ -109,20 +109,18 @@ Editor::Editor(std::span<const char*> args)
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.IniFilename = nullptr;
-    io.BackendPlatformUserData = this;
+    io.BackendPlatformUserData = &window();
     io.BackendPlatformName = "Game-Engine Editor";
     io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasSetMousePos;
 
     ImGuiPlatformIO& platformIO = ImGui::GetPlatformIO();
     platformIO.Platform_GetClipboardTextFn = [](ImGuiContext*) {
-        auto& editor = *static_cast<Editor*>(ImGui::GetIO().BackendPlatformUserData);
-        auto& clipboardText = editor.m_uiState->clipboardText;
-        clipboardText = editor.window().clipboardString();
-        return clipboardText.c_str();
+        auto& window = *static_cast<GE::Window*>(ImGui::GetIO().BackendPlatformUserData);
+        return window.clipboardString().data();
     };
     platformIO.Platform_SetClipboardTextFn = [](ImGuiContext*, const char* text) {
-        auto& editor = *static_cast<Editor*>(ImGui::GetIO().BackendPlatformUserData);
-        editor.window().setClipboardString(text);
+        auto& window = *static_cast<GE::Window*>(ImGui::GetIO().BackendPlatformUserData);
+        window.setClipboardString(text);
     };
 
     gfx::imgui::init(device(), gfx::imgui::InitInfo{

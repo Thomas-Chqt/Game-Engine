@@ -29,7 +29,6 @@ struct EditorUiState
 
     std::string statusMessage;
     double statusUntil = 0.0;
-    std::string clipboardText;
     std::chrono::steady_clock::time_point previousFrameTime;
     // ImGui retains this address until the frame graph consumes the draw commands.
     std::variant<std::string, uint64_t> viewportTexture = std::string("viewportBackBuffer");

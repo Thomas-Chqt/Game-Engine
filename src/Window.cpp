@@ -269,9 +269,10 @@ std::optional<std::filesystem::path> Window::popDroppedFile()
     return node.value();
 }
 
-std::string Window::clipboardString() const
+std::string_view Window::clipboardString() const
 {
-    return ::glfwGetClipboardString(m_glfwWindow);
+    const char* text = ::glfwGetClipboardString(m_glfwWindow);
+    return text ? text : "";
 }
 
 void Window::setClipboardString(const std::string& str) const
