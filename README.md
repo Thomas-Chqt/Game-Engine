@@ -67,12 +67,9 @@ For multi-configuration generators, use the executable in the chosen configurati
 - The editor uses one custom dark theme. All colors, spacing, rounding, font settings,
   and resource icon sizes are in `editor/EditorTheme.hpp`; edit it and rebuild to customize.
   The bundled Open Sans font and its license are in `editor/resources/fonts/`.
-- The compact toolbar at the upper-right of the viewport selects **Move (W)**, **Rotate (E)**, and **Scale (R)**.
-  Its axis/globe button or **X** switches Local/World for Move and Rotate. Scale uses local axes. **Space** cycles tools.
-  **Escape** cancels an active gizmo drag and restores its starting transform. Release the mouse before dragging again.
-  Tool shortcuts are inactive while typing, using menus, dragging a gizmo, or navigating with RMB.
-  These shortcuts use the engine editor input context. RMB navigation pushes a camera context above it, so W moves the camera until RMB is released.
-  Hold the right mouse button in the viewport to capture and hide the cursor, then move the mouse to look around; use WASD to move. Release RMB to restore the cursor. The arrow keys also rotate the view.
+- The compact toolbar at the upper-right of the viewport selects **Move**, **Rotate**, and **Scale**.
+  Its axis/globe button switches Local/World for Move and Rotate. Scale uses local axes.
+- Use **WASD** to move the editor camera and the **arrow keys** to rotate it. No mouse button is required.
 - **File → Save** saves the project and shows a brief confirmation.
 - Right-click a resource tile to copy its full path or its path relative to the resources folder.
   Hover a tile for its full name, and double-click folders to open them.
@@ -82,7 +79,7 @@ For multi-configuration generators, use the executable in the chosen configurati
 - **+ Add component** opens a searchable picker. Type to filter and click a component to add it. Existing components are marked Added. New components expand into view.
   Use a component header's three-dot menu or right-click the header to remove it.
 - Transform fields show X/Y/Z axes. Rotation and camera field of view are displayed in
-  degrees; project files continue to use radians. Ctrl+click a numeric field to type a value.
+  degrees; project files continue to use radians.
 
 ## Libraries Used
 

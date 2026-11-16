@@ -153,25 +153,14 @@ void ImGuiInputContext::onInputEvent(GE::InputEvent& event)
 {
     ImGuiIO& io = ImGui::GetIO();
 
-    const auto updateModifiers = [&](int key, bool down) {
-        // GLFW keeps left/right Shift, Ctrl, Alt, Super contiguous.
-        if (key >= GLFW_KEY_LEFT_SHIFT && key <= GLFW_KEY_RIGHT_SUPER)
-            m_modifiers[key - GLFW_KEY_LEFT_SHIFT] = down;
-        io.AddKeyEvent(ImGuiMod_Shift, m_modifiers[0] || m_modifiers[4]);
-        io.AddKeyEvent(ImGuiMod_Ctrl, m_modifiers[1] || m_modifiers[5]);
-        io.AddKeyEvent(ImGuiMod_Alt, m_modifiers[2] || m_modifiers[6]);
-        io.AddKeyEvent(ImGuiMod_Super, m_modifiers[3] || m_modifiers[7]);
-    };
     event.dispatch<GE::KeyDownEvent>([&](GE::KeyDownEvent& keyDownEvent) {
-        if (!keyDownEvent.isRepeat()) {
-            updateModifiers(keyDownEvent.keyCode(), true);
-            io.AddKeyEvent(glfwKeyToImGuiKey(keyDownEvent.keyCode()), true);
-        }
+        if (keyDownEvent.isRepeat())
+            return;
+        io.AddKeyEvent(glfwKeyToImGuiKey(keyDownEvent.keyCode()), true);
         if (io.WantCaptureKeyboard)
             event.markAsProcessed();
     });
     event.dispatch<GE::KeyUpEvent>([&](GE::KeyUpEvent& keyUpEvent) {
-        updateModifiers(keyUpEvent.keyCode(), false);
         io.AddKeyEvent(glfwKeyToImGuiKey(keyUpEvent.keyCode()), false);
         if (io.WantCaptureKeyboard)
             event.markAsProcessed();
@@ -188,13 +177,10 @@ void ImGuiInputContext::onInputEvent(GE::InputEvent& event)
     });
     event.dispatch<GE::MouseUpEvent>([&](GE::MouseUpEvent& mouseUpEvent) {
         io.AddMouseButtonEvent(mouseUpEvent.mouseCode(), false);
-        if (io.WantCaptureMouse && !mouseUpEvent.window().cursorCaptured())
+        if (io.WantCaptureMouse)
             event.markAsProcessed();
     });
     event.dispatch<GE::MouseMoveEvent>([&](GE::MouseMoveEvent& mouseMoveEvent) {
-        // Leave captured motion to the editor; virtual cursor positions must not move UI hover.
-        if (mouseMoveEvent.window().cursorCaptured())
-            return;
         auto [x, y] = mouseMoveEvent.mousePos();
         io.AddMousePosEvent(static_cast<float>(x), static_cast<float>(y));
         if (io.WantCaptureMouse)

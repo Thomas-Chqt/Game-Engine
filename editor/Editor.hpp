@@ -70,15 +70,12 @@ private:
     void processDropedFiles();
     void renderImgui();
     void syncEditedScene();
-    void startViewportCamera();
-    void stopViewportCamera();
 
     std::unique_ptr<EditorUiState> m_uiState;
 
     std::unique_ptr<void, std::function<void(void*)>> m_imguiGuard;
 
     GE::InputContext m_editorInputContext;
-    GE::InputContext m_cameraInputContext;
     ImGuiInputContext m_imguiInputContext;
 
     std::optional<std::filesystem::path> m_projectFilePath;
@@ -94,8 +91,6 @@ private:
     std::string m_startSceneName;
 
     EditorCamera m_editorCamera;
-    bool m_viewportCameraActive = false;
-    std::pair<double, double> m_cameraMousePosition = {0, 0};
     std::optional<GE::Scene> m_editedScene;
     std::optional<GE::Entity> m_selectedEntity;
 

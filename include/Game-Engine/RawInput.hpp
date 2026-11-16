@@ -31,9 +31,6 @@ enum class KeyboardButton : uint16_t
     a          = GLFW_KEY_A,
     s          = GLFW_KEY_S,
     d          = GLFW_KEY_D,
-    e          = GLFW_KEY_E,
-    r          = GLFW_KEY_R,
-    x          = GLFW_KEY_X,
     space      = GLFW_KEY_SPACE,
     up         = GLFW_KEY_UP,
     left       = GLFW_KEY_LEFT,
@@ -50,7 +47,7 @@ enum class MouseButton : uint8_t
 
 using RawInputTypes = TypeList<KeyboardButton, MouseButton>;
 
-inline constexpr std::array<KeyboardButton, 16> KEYBOARD_BUTTONS = {
+inline constexpr std::array<KeyboardButton, 13> KEYBOARD_BUTTONS = {
     KeyboardButton::esc,
     KeyboardButton::one,
     KeyboardButton::two,
@@ -58,9 +55,6 @@ inline constexpr std::array<KeyboardButton, 16> KEYBOARD_BUTTONS = {
     KeyboardButton::a,
     KeyboardButton::s,
     KeyboardButton::d,
-    KeyboardButton::e,
-    KeyboardButton::r,
-    KeyboardButton::x,
     KeyboardButton::space,
     KeyboardButton::up,
     KeyboardButton::left,
@@ -80,9 +74,6 @@ constexpr std::string_view keyboardButtonName(KeyboardButton button)
         case KeyboardButton::a:          return "a";
         case KeyboardButton::s:          return "s";
         case KeyboardButton::d:          return "d";
-        case KeyboardButton::e:          return "e";
-        case KeyboardButton::r:          return "r";
-        case KeyboardButton::x:          return "x";
         case KeyboardButton::space:      return "space";
         case KeyboardButton::up:         return "up";
         case KeyboardButton::left:       return "left";

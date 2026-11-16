@@ -44,7 +44,7 @@ bool renderViewportToolbar(GizmoSettings& settings, ImVec2 topRight, bool draggi
         | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoScrollWithMouse)) {
         hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
         ImGui::BeginDisabled(dragging);
-        constexpr std::array<const char*, 3> names = {"Move (W)", "Rotate (E)", "Scale (R)"};
+        constexpr std::array<const char*, 3> names = {"Move", "Rotate", "Scale"};
         constexpr std::array<Icons::RenderFunction, 3> icons = {Icons::move, Icons::rotate, Icons::scale};
         for (int i=0; i<3; ++i) {
             if (i) ImGui::SameLine();
@@ -55,7 +55,7 @@ bool renderViewportToolbar(GizmoSettings& settings, ImVec2 topRight, bool draggi
             icons[i](ImVec2(min.x+button*.5f, min.y+button*.5f), Theme::viewportToolIconSize,
                 ImGui::GetColorU32(Theme::viewportToolText), Theme::smallIconStroke);
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-                ImGui::SetTooltip("%s\nSpace: cycle tools", names[i]);
+                ImGui::SetTooltip("%s", names[i]);
             ImGui::PopID();
         }
         ImGui::SameLine();
@@ -74,7 +74,7 @@ bool renderViewportToolbar(GizmoSettings& settings, ImVec2 topRight, bool draggi
             ImGui::GetColorU32(Theme::viewportToolText), Theme::smallIconStroke);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_DelayShort)) {
             if (scale) ImGui::SetTooltip("Scale uses local axes.");
-            else ImGui::SetTooltip("%s space (X)\nClick to use %s axes", world ? "World" : "Local", world ? "local" : "world");
+            else ImGui::SetTooltip("%s space\nClick to use %s axes", world ? "World" : "Local", world ? "local" : "world");
         }
         ImGui::EndDisabled();
         ImGui::EndDisabled();

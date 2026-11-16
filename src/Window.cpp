@@ -215,18 +215,8 @@ void Window::setCursorVisibility(bool value)
 {
     if (m_cursorVisible == value)
         return;
+    ::glfwSetInputMode(m_glfwWindow, GLFW_CURSOR, value ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN);
     m_cursorVisible = value;
-    if (!m_cursorCaptured)
-        ::glfwSetInputMode(m_glfwWindow, GLFW_CURSOR, value ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN);
-}
-
-void Window::setCursorCaptured(bool value)
-{
-    if (m_cursorCaptured == value)
-        return;
-    m_cursorCaptured = value;
-    ::glfwSetInputMode(m_glfwWindow, GLFW_CURSOR, value ? GLFW_CURSOR_DISABLED
-        : (m_cursorVisible.value_or(true) ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN));
 }
 
 void Window::setCursorShape(CursorShape shape)

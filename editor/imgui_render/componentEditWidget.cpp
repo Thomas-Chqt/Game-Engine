@@ -41,7 +41,7 @@ bool transformVector(const char* label, glm::vec3& value, float speed, float min
         const auto max = ImGui::GetItemRectMax();
         ImGui::GetWindowDrawList()->AddLine(ImVec2(min.x, max.y), max, ImGui::ColorConvertFloat4ToU32(Theme::axes[axis]), Theme::axisLineWidth);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-            ImGui::SetTooltip("%s axis - drag to adjust, Ctrl+click to type", axis == 0 ? "X" : axis == 1 ? "Y" : "Z");
+            ImGui::SetTooltip("%s axis - drag to adjust", axis == 0 ? "X" : axis == 1 ? "Y" : "Z");
         ImGui::PopStyleColor();
         ImGui::PopID();
     }

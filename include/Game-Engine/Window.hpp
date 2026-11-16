@@ -85,8 +85,6 @@ public:
     void setCursorPos(double x, double y);
 
     void setCursorVisibility(bool);
-    void setCursorCaptured(bool);
-    inline bool cursorCaptured() const { return m_cursorCaptured; }
     void setCursorShape(CursorShape);
 
     std::optional<std::filesystem::path> popDroppedFile();
@@ -106,7 +104,6 @@ private:
     ::GLFWcursor* m_cursor = nullptr;
     std::optional<CursorShape> m_cursorShape;
     std::optional<bool> m_cursorVisible;
-    bool m_cursorCaptured = false;
     std::unordered_map<void*, std::deque<std::function<void(Event&)>>> m_eventCallbacks;
     std::set<std::filesystem::path> m_droppedFilePool;
 
