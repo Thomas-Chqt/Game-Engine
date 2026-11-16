@@ -211,6 +211,8 @@ void Editor::renderImgui()
     // Engine actions arrive before NewFrame; apply their requests after current UI capture/focus is known.
     const bool cancelGizmoRequested = std::exchange(ui.cancelGizmoRequested, false);
     const bool cycleGizmoRequested = std::exchange(ui.cycleGizmoRequested, false);
+    const auto requestedGizmoTool = std::exchange(ui.requestedGizmoTool, std::nullopt);
+    const bool toggleGizmoSpaceRequested = std::exchange(ui.toggleGizmoSpaceRequested, false);
     if (auto dragEntity = ui.gizmoDragEntity(); dragEntity && (cancelGizmoRequested || m_selectedEntity != dragEntity))
         ui.cancelGizmoDrag(m_editedScene ? &*m_editedScene : nullptr);
 
@@ -305,16 +307,19 @@ void Editor::renderImgui()
                 && !io.WantTextInput && !popupOpen && !dragging && !ui.gizmoCancelledUntilMouseRelease;
             if (!cameraAllowed)
                 stopViewportCamera();
-            else if (!m_viewportCameraActive && viewportHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
-                window().setCursorCaptured(true);
-                m_cameraMousePosition = window().cursorPos();
-                m_viewportCameraActive = true;
-            }
+            else if (!m_viewportCameraActive && viewportHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+                startViewportCamera();
             keepCameraCaptured = m_viewportCameraActive;
-            if (cycleGizmoRequested && !dragging && !ui.gizmoCancelledUntilMouseRelease
-                && !ImGui::IsMouseDown(ImGuiMouseButton_Right) && !io.WantTextInput
-                && !ImGui::IsAnyItemActive() && !popupOpen)
-                ui.gizmoSettings.tool = static_cast<GizmoTool>((static_cast<int>(ui.gizmoSettings.tool)+1)%3);
+            if (!dragging && !ui.gizmoCancelledUntilMouseRelease
+                && !m_viewportCameraActive && !ImGui::IsMouseDown(ImGuiMouseButton_Right)
+                && !io.WantTextInput && !ImGui::IsAnyItemActive() && !popupOpen) {
+                if (cycleGizmoRequested)
+                    ui.gizmoSettings.tool = static_cast<GizmoTool>((static_cast<int>(ui.gizmoSettings.tool)+1)%3);
+                if (requestedGizmoTool)
+                    ui.gizmoSettings.tool = *requestedGizmoTool;
+                if (toggleGizmoSpaceRequested && ui.gizmoSettings.tool != GizmoTool::scale)
+                    ui.gizmoSettings.space = ui.gizmoSettings.space == GizmoSpace::local ? GizmoSpace::world : GizmoSpace::local;
+            }
             const float toolbarInset = Theme::viewportToolbarInset;
             const bool toolbarBesideCube = contentRegionAvai.x >= viewportToolbarSize().x + VIEW_MANIPULATE_SIZE
                 + VIEW_MANIPULATE_PADDING + toolbarInset*2;

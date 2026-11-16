@@ -81,6 +81,35 @@ namespace GE_Editor
 namespace
 {
 
+constexpr std::array cameraNavigationKeys = {GE::KeyboardButton::w, GE::KeyboardButton::a, GE::KeyboardButton::s, GE::KeyboardButton::d,
+    GE::KeyboardButton::up, GE::KeyboardButton::down, GE::KeyboardButton::left, GE::KeyboardButton::right};
+
+GE::InputContext makeCameraInputContext(EditorCamera& camera)
+{
+    GE::InputContext context;
+    GE::Range2DInput move;
+    move.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
+        .xPos = GE::KeyboardButton::d, .xNeg = GE::KeyboardButton::a, .yPos = GE::KeyboardButton::w, .yNeg = GE::KeyboardButton::s,
+    });
+    move.callback = [&camera](const glm::vec2& value) { camera.onMoveInput(value); };
+    context.addInput("camera_move", move);
+
+    GE::Range2DInput rotate;
+    rotate.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
+        .xPos = GE::KeyboardButton::up, .xNeg = GE::KeyboardButton::down, .yPos = GE::KeyboardButton::right, .yNeg = GE::KeyboardButton::left,
+    });
+    rotate.callback = [&camera](const glm::vec2& value) { camera.onRotationInput(value); };
+    context.addInput("camera_rotate", rotate);
+
+    // Reserve tool keys during navigation, including presses followed by RMB release in the same poll.
+    for (auto key : {GE::KeyboardButton::e, GE::KeyboardButton::r, GE::KeyboardButton::x, GE::KeyboardButton::space}) {
+        GE::ActionInput reserved;
+        reserved.setMapper<GE::KeyboardButton>(key);
+        context.addInput(std::format("reserve_{}", GE::keyboardButtonName(key)), reserved);
+    }
+    return context;
+}
+
 std::expected<Project, std::string> loadProjectFile(const std::filesystem::path& path)
 {
     ZoneScoped;
@@ -155,30 +184,20 @@ Editor::Editor(std::span<const char*> args)
         }
     }
 
-    GE::Range2DInput editorCameraMoveInput;
-    editorCameraMoveInput.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
-        .xPos = GE::KeyboardButton::d, .xNeg = GE::KeyboardButton::a, .yPos = GE::KeyboardButton::w, .yNeg = GE::KeyboardButton::s,
-    });
-    m_editorInputContext.addInput("camera_move", editorCameraMoveInput);
+    m_cameraInputContext = makeCameraInputContext(m_editorCamera);
 
-    GE::Range2DInput editorCameraRotationInput;
-    editorCameraRotationInput.setMapper<GE::KeyboardButton>(GE::InputMapper<GE::KeyboardButton, GE::Range2DInput>::Descriptor{
-        .xPos = GE::KeyboardButton::up, .xNeg = GE::KeyboardButton::down, .yPos = GE::KeyboardButton::right, .yNeg = GE::KeyboardButton::left,
-    });
-    m_editorInputContext.addInput("camera_rotate", editorCameraRotationInput);
-
-    m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_move", [this](const glm::vec2& value) { if (m_viewportCameraActive) m_editorCamera.onMoveInput(value); }) ;
-    m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_rotate", [this](const glm::vec2& value) { if (m_viewportCameraActive) m_editorCamera.onRotationInput(value); });
-
-    GE::ActionInput cycleGizmoInput;
-    cycleGizmoInput.setMapper<GE::KeyboardButton>(GE::KeyboardButton::space);
-    m_editorInputContext.addInput("gizmo_cycle", cycleGizmoInput);
-    m_editorInputContext.setInputCallback<GE::ActionInput>("gizmo_cycle", [this] { m_uiState->cycleGizmoRequested = true; });
-
-    GE::ActionInput cancelGizmoInput;
-    cancelGizmoInput.setMapper<GE::KeyboardButton>(GE::KeyboardButton::esc);
-    m_editorInputContext.addInput("gizmo_cancel", cancelGizmoInput);
-    m_editorInputContext.setInputCallback<GE::ActionInput>("gizmo_cancel", [this] { m_uiState->cancelGizmoRequested = true; });
+    const auto bindAction = [this](const char* name, GE::KeyboardButton key, const GE::ActionInput::CallbackType& callback) {
+        GE::ActionInput input;
+        input.setMapper<GE::KeyboardButton>(key);
+        input.callback = callback;
+        m_editorInputContext.addInput(name, input);
+    };
+    bindAction("gizmo_move", GE::KeyboardButton::w, [this] { m_uiState->requestedGizmoTool = GizmoTool::move; });
+    bindAction("gizmo_rotate", GE::KeyboardButton::e, [this] { m_uiState->requestedGizmoTool = GizmoTool::rotate; });
+    bindAction("gizmo_scale", GE::KeyboardButton::r, [this] { m_uiState->requestedGizmoTool = GizmoTool::scale; });
+    bindAction("gizmo_space", GE::KeyboardButton::x, [this] { m_uiState->toggleGizmoSpaceRequested = true; });
+    bindAction("gizmo_cycle", GE::KeyboardButton::space, [this] { m_uiState->cycleGizmoRequested = true; });
+    bindAction("gizmo_cancel", GE::KeyboardButton::esc, [this] { m_uiState->cancelGizmoRequested = true; });
 
     // Editor actions emit requests; the UI applies them with current focus/interaction guards.
     // Give them priority so an active gizmo's ImGui keyboard capture cannot swallow cancellation.
@@ -237,10 +256,32 @@ void Editor::onEvent(GE::Event& event)
     });
 }
 
+void Editor::startViewportCamera()
+{
+    assert(!m_viewportCameraActive && !m_game);
+    window().setCursorCaptured(true);
+    m_cameraMousePosition = window().cursorPos();
+    pushInputContext(&m_cameraInputContext);
+    m_viewportCameraActive = true;
+
+    // A key may already be held when navigation starts (including RMB and W in the same frame).
+    for (auto key : cameraNavigationKeys) {
+        if (!window().isPressed(key)) continue;
+        GE::KeyDownEvent heldKey(window(), static_cast<int>(key), false);
+        m_cameraInputContext.onInputEvent(heldKey);
+    }
+}
+
 void Editor::stopViewportCamera()
 {
     if (!m_viewportCameraActive) return;
     m_viewportCameraActive = false;
+    popInputContext();
+    // Release keys in this context only; real releases after the pop will no longer reach it.
+    for (auto key : cameraNavigationKeys) {
+        GE::KeyUpEvent releasedKey(window(), static_cast<int>(key));
+        m_cameraInputContext.onInputEvent(releasedKey);
+    }
     window().setCursorCaptured(false);
     const auto [x, y] = window().cursorPos();
     ImGui::GetIO().AddMousePosEvent(static_cast<float>(x), static_cast<float>(y));
@@ -423,6 +464,7 @@ void Editor::stopGame()
 
 void Editor::setPrimaryInputContext(GE::InputContext& inputContext)
 {
+    assert(!m_viewportCameraActive);
     popInputContext();
     popInputContext();
 

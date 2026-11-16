@@ -70,6 +70,7 @@ private:
     void processDropedFiles();
     void renderImgui();
     void syncEditedScene();
+    void startViewportCamera();
     void stopViewportCamera();
 
     std::unique_ptr<EditorUiState> m_uiState;
@@ -77,6 +78,7 @@ private:
     std::unique_ptr<void, std::function<void(void*)>> m_imguiGuard;
 
     GE::InputContext m_editorInputContext;
+    GE::InputContext m_cameraInputContext;
     ImGuiInputContext m_imguiInputContext;
 
     std::optional<std::filesystem::path> m_projectFilePath;
