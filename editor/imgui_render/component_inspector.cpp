@@ -6,7 +6,6 @@
 #include <array>
 #include <cctype>
 #include <string>
-#include <vector>
 
 namespace GE_Editor
 {
@@ -73,10 +72,8 @@ std::string lower(std::string value)
 int componentPicker(const std::array<bool, componentCount>& added, ComponentInspectorState& state)
 {
     auto& search = state.search;
-    auto& highlighted = state.highlighted;
     if (ImGui::Button("+ Add component", ImVec2(-FLT_MIN, 0))) {
         search.fill(0);
-        highlighted = -1;
         ImGui::OpenPopup("add_component");
     }
     ImGui::SetNextWindowSize(ImVec2(Theme::componentPickerWidth, 0));
@@ -84,37 +81,24 @@ int componentPicker(const std::array<bool, componentCount>& added, ComponentInsp
     if (ImGui::BeginPopup("add_component")) {
         if (ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
         ImGui::SetNextItemWidth(-FLT_MIN);
-        const bool changed = ImGui::InputTextWithHint("##search", "Search components...", search.data(), search.size());
+        ImGui::InputTextWithHint("##search", "Search components...", search.data(), search.size());
         ImGui::Separator();
         const auto query = lower(search.data());
-        std::vector<int> visible;
-        std::vector<int> available;
+        int visible = 0;
+        int available = 0;
         int index = 0;
-        GE::forEachType<Components>([&]<typename T> {
-            const int i = index++;
-            if (lower(ComponentUiTraits<T>::name).find(query) == std::string::npos) return;
-            visible.push_back(i);
-            if (!added[i]) available.push_back(i);
-        });
-        if (changed || std::ranges::find(available, highlighted) == available.end())
-            highlighted = available.empty() ? -1 : available.front();
-        if (!available.empty()) {
-            const auto current = std::ranges::find(available, highlighted) - available.begin();
-            if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) highlighted = available[(current+1)%available.size()];
-            if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) highlighted = available[(current+available.size()-1)%available.size()];
-            if (ImGui::IsKeyPressed(ImGuiKey_Enter)) chosen = highlighted;
-        }
-        index = 0;
         GE::forEachType<Components>([&]<typename T> {
             using Traits = ComponentUiTraits<T>;
             const int i = index++;
-            if (std::ranges::find(visible, i) == visible.end()) return;
+            if (lower(Traits::name).find(query) == std::string::npos) return;
+            ++visible;
+            if (!added[i]) ++available;
             ImGui::PushID(Traits::name);
             ImGui::BeginDisabled(added[i]);
             const auto rowMin = ImGui::GetCursorScreenPos();
             const float height = ImGui::GetFontSize() + Theme::componentPickerRowPadding*2;
             ImGui::PushStyleColor(ImGuiCol_Header, Theme::selection);
-            if (ImGui::Selectable("##component", i==highlighted, 0, ImVec2(0, height))) chosen = i;
+            if (ImGui::Selectable("##component", false, 0, ImVec2(0, height))) chosen = i;
             ImGui::PopStyleColor();
             const auto rowMax = ImGui::GetItemRectMax();
             const float centerY = (rowMin.y+rowMax.y)*.5f;
@@ -133,11 +117,9 @@ int componentPicker(const std::array<bool, componentCount>& added, ComponentInsp
             ImGui::EndDisabled();
             ImGui::PopID();
         });
-        if (visible.empty()) ImGui::TextDisabled("No components match your search.");
-        else if (available.empty()) ImGui::TextDisabled("Matching components are already added.");
-        ImGui::Separator();
-        ImGui::TextDisabled("Arrow keys to select - Enter to add");
-        if (chosen>=0 || ImGui::IsKeyPressed(ImGuiKey_Escape)) ImGui::CloseCurrentPopup();
+        if (visible == 0) ImGui::TextDisabled("No components match your search.");
+        else if (available == 0) ImGui::TextDisabled("Matching components are already added.");
+        if (chosen>=0) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
     return chosen;

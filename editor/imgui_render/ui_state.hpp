@@ -11,7 +11,6 @@ namespace GE_Editor
 struct ComponentInspectorState
 {
     std::array<char, 96> search{};
-    int highlighted = -1;
     std::optional<GE::Entity> previousEntity;
     int reveal = -1;
 };

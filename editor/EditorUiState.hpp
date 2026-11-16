@@ -23,6 +23,8 @@ struct EditorUiState
     bool assetManagerWindowOpen = false;
     std::filesystem::path resourceBrowserSubDir;
     GizmoSettings gizmoSettings;
+    bool cycleGizmoRequested = false;
+    bool cancelGizmoRequested = false;
     bool gizmoCancelledUntilMouseRelease = false;
     ComponentInspectorState componentInspector;
     SceneGraphState sceneGraph;

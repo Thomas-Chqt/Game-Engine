@@ -64,8 +64,7 @@ void renameField(GE::Entity entity, SceneGraphState& rename, ImVec2 min, ImVec2 
             }
             return 0;
         }, &rename.buffer);
-    if (ImGui::IsKeyPressed(ImGuiKey_Escape)) rename.entity.reset();
-    else if (confirmed || (!firstFrame && ImGui::IsItemDeactivated())) rename.commit();
+    if (confirmed || (!firstFrame && ImGui::IsItemDeactivated())) rename.commit();
     ImGui::PopStyleVar();
     ImGui::PopID();
     // The inline field uses the existing tree row rather than adding another line.
@@ -126,9 +125,7 @@ bool sceneGrapRow(GE::Entity& entity, std::optional<GE::Entity>& selectedEntity,
     const bool clicked = ImGui::IsItemClicked();
     const bool doubleClickedName = ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)
         && ImGui::GetMousePos().x >= rowMin.x + ImGui::GetTreeNodeToLabelSpacing();
-    const bool renameShortcut = selectedEntity == entity && ImGui::IsWindowFocused()
-        && !ImGui::GetIO().WantTextInput && ImGui::IsKeyPressed(ImGuiKey_F2);
-    if (!editing && (doubleClickedName || renameShortcut)) {
+    if (!editing && doubleClickedName) {
         rename.begin(entity);
         selectedEntity = entity;
     }

@@ -67,19 +67,19 @@ For multi-configuration generators, use the executable in the chosen configurati
 - The editor uses one custom dark theme. All colors, spacing, rounding, font settings,
   and resource icon sizes are in `editor/EditorTheme.hpp`; edit it and rebuild to customize.
   The bundled Open Sans font and its license are in `editor/resources/fonts/`.
-- The compact toolbar at the upper-right of the viewport selects **Move (W)**, **Rotate (E)**, and **Scale (R)**.
-  Its axis/globe button switches Local/World. **Space** cycles tools; **X** toggles Local/World for Move and Rotate. Scale uses local axes.
+- The compact toolbar at the upper-right of the viewport selects **Move**, **Rotate**, and **Scale**.
+  Its axis/globe button switches Local/World for Move and Rotate. Scale uses local axes. **Space** cycles tools.
   **Escape** cancels an active gizmo drag and restores its starting transform. Release the mouse before dragging again.
-  Shortcuts are inactive while typing, using menus, or dragging a gizmo.
+  Tool cycling is inactive while typing, using menus, or dragging a gizmo.
+  Space and Escape use the engine input context; other custom shortcuts are deferred until the input system supports them.
   Hold the right mouse button in the viewport to capture and hide the cursor, then move the mouse to look around; use WASD to move. Release RMB to restore the cursor. The arrow keys also rotate the view.
-- **Ctrl+S** (**Cmd+S** on macOS) saves the project and shows a brief confirmation.
+- **File → Save** saves the project and shows a brief confirmation.
 - Right-click a resource tile to copy its full path or its path relative to the resources folder.
   Hover a tile for its full name, and double-click folders to open them.
-- Rename entities directly in the scene hierarchy with **F2**, a double-click on the name,
+- Rename entities directly in the scene hierarchy with a double-click on the name
   or **right-click → Rename**. Enter commits, Escape cancels, and clicking away commits.
   Names are entity metadata and are not listed as removable components.
-- **+ Add component** opens a searchable picker. Type to filter, use arrow keys to select,
-  and press Enter to add. Existing components are marked Added. New components expand into view.
+- **+ Add component** opens a searchable picker. Type to filter and click a component to add it. Existing components are marked Added. New components expand into view.
   Use a component header's three-dot menu or right-click the header to remove it.
 - Transform fields show X/Y/Z axes. Rotation and camera field of view are displayed in
   degrees; project files continue to use radians. Ctrl+click a numeric field to type a value.

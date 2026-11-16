@@ -208,8 +208,10 @@ void Editor::renderImgui()
     ImGui::NewFrame();
     ImGuizmo::BeginFrame();
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) ui.gizmoCancelledUntilMouseRelease = false;
-    const bool escapePressed = ImGui::IsKeyPressed(ImGuiKey_Escape, false);
-    if (auto dragEntity = ui.gizmoDragEntity(); dragEntity && (escapePressed || m_selectedEntity != dragEntity))
+    // Engine actions arrive before NewFrame; apply their requests after current UI capture/focus is known.
+    const bool cancelGizmoRequested = std::exchange(ui.cancelGizmoRequested, false);
+    const bool cycleGizmoRequested = std::exchange(ui.cycleGizmoRequested, false);
+    if (auto dragEntity = ui.gizmoDragEntity(); dragEntity && (cancelGizmoRequested || m_selectedEntity != dragEntity))
         ui.cancelGizmoDrag(m_editedScene ? &*m_editedScene : nullptr);
 
     ImGui::DockSpaceOverViewport();
@@ -226,21 +228,12 @@ void Editor::renderImgui()
             ui.statusUntil = ImGui::GetTime() + 8.0;
         }
     };
-    // Route globally, including while a text field has focus. Cmd on macOS, Ctrl elsewhere.
-    if (canSave && ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_S, ImGuiInputFlags_RouteGlobal))
-        save();
-
     if (ImGui::BeginMainMenuBar())
     {
         if (ImGui::BeginMenu("File")) {
             ImGui::MenuItem("New", nullptr, false, false);
             ImGui::MenuItem("Open", nullptr, false, false);
-#ifdef __APPLE__
-            const char* saveShortcut = "Cmd+S";
-#else
-            const char* saveShortcut = "Ctrl+S";
-#endif
-            if (ImGui::MenuItem("Save", saveShortcut, false, canSave)) save();
+            if (ImGui::MenuItem("Save", nullptr, false, canSave)) save();
             ImGui::EndMenu();
         }
         menuFromPath(std::to_array<MenuItem>({
@@ -318,7 +311,10 @@ void Editor::renderImgui()
                 m_viewportCameraActive = true;
             }
             keepCameraCaptured = m_viewportCameraActive;
-            updateGizmoShortcuts(ui.gizmoSettings, !dragging && !ui.gizmoCancelledUntilMouseRelease && !ImGui::IsMouseDown(ImGuiMouseButton_Right));
+            if (cycleGizmoRequested && !dragging && !ui.gizmoCancelledUntilMouseRelease
+                && !ImGui::IsMouseDown(ImGuiMouseButton_Right) && !io.WantTextInput
+                && !ImGui::IsAnyItemActive() && !popupOpen)
+                ui.gizmoSettings.tool = static_cast<GizmoTool>((static_cast<int>(ui.gizmoSettings.tool)+1)%3);
             const float toolbarInset = Theme::viewportToolbarInset;
             const bool toolbarBesideCube = contentRegionAvai.x >= viewportToolbarSize().x + VIEW_MANIPULATE_SIZE
                 + VIEW_MANIPULATE_PADDING + toolbarInset*2;
@@ -343,8 +339,8 @@ void Editor::renderImgui()
                 const bool changed = ImGuizmo::Manipulate(glm::value_ptr(viewMatrix), glm::value_ptr(projectionMatrix), operation, mode, glm::value_ptr(transformComponent.worldTransform));
                 if (ImGuizmo::IsUsing())
                     ui.beginGizmoDrag(*m_selectedEntity, beforeManipulation);
-                // Handle Escape on the first drag frame as well as on subsequent frames.
-                if (ui.gizmoDragEntity() && escapePressed)
+                // Handle a cancellation request on the first drag frame as well.
+                if (ui.gizmoDragEntity() && cancelGizmoRequested)
                     ui.cancelGizmoDrag(m_editedScene ? &*m_editedScene : nullptr);
                 else if (changed) {
                     glm::mat4x4 localTransform = transformComponent.worldTransform;

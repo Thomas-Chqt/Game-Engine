@@ -162,26 +162,18 @@ void ImGuiInputContext::onInputEvent(GE::InputEvent& event)
         io.AddKeyEvent(ImGuiMod_Alt, m_modifiers[2] || m_modifiers[6]);
         io.AddKeyEvent(ImGuiMod_Super, m_modifiers[3] || m_modifiers[7]);
     };
-    const auto saveChord = [&](int key) {
-#ifdef __APPLE__
-        return key == GLFW_KEY_S && (m_modifiers[3] || m_modifiers[7]);
-#else
-        return key == GLFW_KEY_S && (m_modifiers[1] || m_modifiers[5]);
-#endif
-    };
-
     event.dispatch<GE::KeyDownEvent>([&](GE::KeyDownEvent& keyDownEvent) {
         if (!keyDownEvent.isRepeat()) {
             updateModifiers(keyDownEvent.keyCode(), true);
             io.AddKeyEvent(glfwKeyToImGuiKey(keyDownEvent.keyCode()), true);
         }
-        if (io.WantCaptureKeyboard || saveChord(keyDownEvent.keyCode()))
+        if (io.WantCaptureKeyboard)
             event.markAsProcessed();
     });
     event.dispatch<GE::KeyUpEvent>([&](GE::KeyUpEvent& keyUpEvent) {
         updateModifiers(keyUpEvent.keyCode(), false);
         io.AddKeyEvent(glfwKeyToImGuiKey(keyUpEvent.keyCode()), false);
-        if (io.WantCaptureKeyboard || saveChord(keyUpEvent.keyCode()))
+        if (io.WantCaptureKeyboard)
             event.markAsProcessed();
     });
     event.dispatch<GE::CharEvent>([&](GE::CharEvent& charEvent) {

@@ -13,7 +13,6 @@ struct GizmoSettings
     GizmoSpace space = GizmoSpace::local;
 };
 
-void updateGizmoShortcuts(GizmoSettings& settings, bool enabled);
 ImVec2 viewportToolbarSize();
 bool renderViewportToolbar(GizmoSettings& settings, ImVec2 topRight, bool dragging);
 } // namespace GE_Editor

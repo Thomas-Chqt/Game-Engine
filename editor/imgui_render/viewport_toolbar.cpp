@@ -19,22 +19,6 @@ bool selectedButton(const char* id, bool selected, ImVec2 size)
 }
 } // namespace
 
-void updateGizmoShortcuts(GizmoSettings& settings, bool enabled)
-{
-    const auto& io = ImGui::GetIO();
-    if (!enabled || io.WantTextInput || ImGui::IsAnyItemActive()
-        || io.KeyCtrl || io.KeySuper || io.KeyAlt || io.KeyShift
-        || ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) return;
-
-    if (ImGui::Shortcut(ImGuiKey_W, ImGuiInputFlags_RouteGlobal)) settings.tool = GizmoTool::move;
-    if (ImGui::Shortcut(ImGuiKey_E, ImGuiInputFlags_RouteGlobal)) settings.tool = GizmoTool::rotate;
-    if (ImGui::Shortcut(ImGuiKey_R, ImGuiInputFlags_RouteGlobal)) settings.tool = GizmoTool::scale;
-    if (ImGui::Shortcut(ImGuiKey_Space, ImGuiInputFlags_RouteGlobal))
-        settings.tool = static_cast<GizmoTool>((static_cast<int>(settings.tool)+1)%3);
-    if (settings.tool != GizmoTool::scale && ImGui::Shortcut(ImGuiKey_X, ImGuiInputFlags_RouteGlobal))
-        settings.space = settings.space == GizmoSpace::local ? GizmoSpace::world : GizmoSpace::local;
-}
-
 ImVec2 viewportToolbarSize()
 {
     return ImVec2(Theme::viewportToolButtonSize*4 + Theme::viewportToolSpacing*4 + 1 + Theme::viewportToolbarPadding.x*2,
@@ -60,7 +44,7 @@ bool renderViewportToolbar(GizmoSettings& settings, ImVec2 topRight, bool draggi
         | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoScrollWithMouse)) {
         hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
         ImGui::BeginDisabled(dragging);
-        constexpr std::array<const char*, 3> names = {"Move (W)", "Rotate (E)", "Scale (R)"};
+        constexpr std::array<const char*, 3> names = {"Move", "Rotate", "Scale"};
         constexpr std::array<Icons::RenderFunction, 3> icons = {Icons::move, Icons::rotate, Icons::scale};
         for (int i=0; i<3; ++i) {
             if (i) ImGui::SameLine();
@@ -90,7 +74,7 @@ bool renderViewportToolbar(GizmoSettings& settings, ImVec2 topRight, bool draggi
             ImGui::GetColorU32(Theme::viewportToolText), Theme::smallIconStroke);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_DelayShort)) {
             if (scale) ImGui::SetTooltip("Scale uses local axes.");
-            else ImGui::SetTooltip("%s space (X)\nClick to use %s axes", world ? "World" : "Local", world ? "local" : "world");
+            else ImGui::SetTooltip("%s space\nClick to use %s axes", world ? "World" : "Local", world ? "local" : "world");
         }
         ImGui::EndDisabled();
         ImGui::EndDisabled();

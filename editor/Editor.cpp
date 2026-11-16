@@ -170,8 +170,20 @@ Editor::Editor(std::span<const char*> args)
     m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_move", [this](const glm::vec2& value) { if (m_viewportCameraActive) m_editorCamera.onMoveInput(value); }) ;
     m_editorInputContext.setInputCallback<GE::Range2DInput>("camera_rotate", [this](const glm::vec2& value) { if (m_viewportCameraActive) m_editorCamera.onRotationInput(value); });
 
-    pushInputContext(&m_editorInputContext);
+    GE::ActionInput cycleGizmoInput;
+    cycleGizmoInput.setMapper<GE::KeyboardButton>(GE::KeyboardButton::space);
+    m_editorInputContext.addInput("gizmo_cycle", cycleGizmoInput);
+    m_editorInputContext.setInputCallback<GE::ActionInput>("gizmo_cycle", [this] { m_uiState->cycleGizmoRequested = true; });
+
+    GE::ActionInput cancelGizmoInput;
+    cancelGizmoInput.setMapper<GE::KeyboardButton>(GE::KeyboardButton::esc);
+    m_editorInputContext.addInput("gizmo_cancel", cancelGizmoInput);
+    m_editorInputContext.setInputCallback<GE::ActionInput>("gizmo_cancel", [this] { m_uiState->cancelGizmoRequested = true; });
+
+    // Editor actions emit requests; the UI applies them with current focus/interaction guards.
+    // Give them priority so an active gizmo's ImGui keyboard capture cannot swallow cancellation.
     pushInputContext(&m_imguiInputContext);
+    pushInputContext(&m_editorInputContext);
 }
 
 Editor::~Editor() = default;
@@ -414,8 +426,14 @@ void Editor::setPrimaryInputContext(GE::InputContext& inputContext)
     popInputContext();
     popInputContext();
 
-    pushInputContext(&inputContext);
-    pushInputContext(&m_imguiInputContext);
+    if (&inputContext == &m_editorInputContext) {
+        pushInputContext(&m_imguiInputContext);
+        pushInputContext(&inputContext);
+    }
+    else {
+        pushInputContext(&inputContext);
+        pushInputContext(&m_imguiInputContext);
+    }
 }
 
 void Editor::processDropedFiles()
