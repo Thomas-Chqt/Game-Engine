@@ -46,8 +46,9 @@ namespace
 void renameField(GE::Entity entity, SceneGraphState& rename, ImVec2 min, ImVec2 max)
 {
     rename.rendered = true;
-    const auto nextRow = ImGui::GetCursorScreenPos();
     const float labelX = min.x + ImGui::GetTreeNodeToLabelSpacing();
+    // Share the tree row's line height and let InputText advance the cursor normally.
+    ImGui::SameLine();
     ImGui::SetCursorScreenPos(ImVec2(labelX, min.y));
     ImGui::PushID(uuids::to_string(entity.entityId).c_str());
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(Theme::hierarchyRenamePaddingX, 0));
@@ -67,8 +68,6 @@ void renameField(GE::Entity entity, SceneGraphState& rename, ImVec2 min, ImVec2 
     if (confirmed || (!firstFrame && ImGui::IsItemDeactivated())) rename.commit();
     ImGui::PopStyleVar();
     ImGui::PopID();
-    // The inline field uses the existing tree row rather than adding another line.
-    ImGui::SetCursorScreenPos(nextRow);
 }
 
 void reparentKeepingWorldTransform(GE::Entity& entity, std::optional<GE::Entity> newParent)
