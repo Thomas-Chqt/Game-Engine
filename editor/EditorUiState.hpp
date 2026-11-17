@@ -11,7 +11,7 @@
 
 namespace GE_Editor
 {
-// Transient presentation state. Scene data and input/rendering coordination stay in Editor.
+
 struct EditorUiState
 {
     bool projectPropertiesOpen = false;
@@ -20,11 +20,10 @@ struct EditorUiState
     GizmoSettings gizmoSettings;
     ComponentInspectorState componentInspector;
     SceneGraphState sceneGraph;
-
     std::string statusMessage;
     double statusUntil = 0.0;
     std::chrono::steady_clock::time_point previousFrameTime;
-    // ImGui retains this address until the frame graph consumes the draw commands.
     std::variant<std::string, uint64_t> viewportTexture = std::string("viewportBackBuffer");
 };
+
 } // namespace GE_Editor

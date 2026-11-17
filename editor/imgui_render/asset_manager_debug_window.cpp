@@ -88,11 +88,11 @@ void renderAssetManagerDebugWindow(GE::AssetManager& manager)
     {
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
-        ImGui::Text("Assets\n%zu total / %u loaded", assetIds.size(), loadedAssetCount); // NOLINT(cppcoreguidelines-pro-type-vararg)
+        ImGui::Text("Assets\n%zu total / %u loaded", assetIds.size(), loadedAssetCount);
         ImGui::TableSetColumnIndex(1);
-        ImGui::Text("Containers\n%zu total / %u live", containerPaths.size(), loadedContainerCount); // NOLINT(cppcoreguidelines-pro-type-vararg)
+        ImGui::Text("Containers\n%zu total / %u live", containerPaths.size(), loadedContainerCount);
         ImGui::TableSetColumnIndex(2);
-        ImGui::Text("Built-in\n%zu", builtInAssets.size()); // NOLINT(cppcoreguidelines-pro-type-vararg)
+        ImGui::Text("Built-in\n%zu", builtInAssets.size());
         ImGui::EndTable();
     }
 
@@ -116,7 +116,7 @@ void renderAssetManagerDebugWindow(GE::AssetManager& manager)
             ImGui::TableNextRow();
 
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text("%llu", static_cast<unsigned long long>(asset.assetId)); // NOLINT(cppcoreguidelines-pro-type-vararg)
+            ImGui::Text("%llu", static_cast<unsigned long long>(asset.assetId));
 
             ImGui::TableSetColumnIndex(1);
             ImGui::TextUnformatted(asset.typeName.data()); // NOLINT(bugprone-suspicious-stringview-data-usage)
@@ -125,7 +125,7 @@ void renderAssetManagerDebugWindow(GE::AssetManager& manager)
             ImGui::TextUnformatted(asset.assetName.data()); // NOLINT(bugprone-suspicious-stringview-data-usage)
 
             ImGui::TableSetColumnIndex(3);
-            ImGui::Text("%zu", asset.index); // NOLINT(cppcoreguidelines-pro-type-vararg)
+            ImGui::Text("%zu", asset.index);
 
             ImGui::TableSetColumnIndex(4);
             ImGui::TextUnformatted(stateText.c_str());
@@ -166,10 +166,10 @@ void renderAssetManagerDebugWindow(GE::AssetManager& manager)
             continue;
 
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-            ImGui::SetTooltip("%s", path.string().c_str()); // NOLINT(cppcoreguidelines-pro-type-vararg)
+            ImGui::SetTooltip("%s", path.string().c_str());
 
         if (containerAssetsIt == assetsByContainer.end() || containerAssetsIt->second.empty())
-            ImGui::TextDisabled("No registered assets in this container"); // NOLINT(cppcoreguidelines-pro-type-vararg)
+            ImGui::TextDisabled("No registered assets in this container");
         else
             drawAssetTable(std::format("asset_manager_container_table##{}", path.string()).c_str(), containerAssetsIt->second);
     }

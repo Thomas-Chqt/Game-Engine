@@ -21,8 +21,10 @@ bool selectedButton(const char* id, bool selected, ImVec2 size)
 
 ImVec2 viewportToolbarSize()
 {
-    return ImVec2(Theme::viewportToolButtonSize*4 + Theme::viewportToolSpacing*4 + 1 + Theme::viewportToolbarPadding.x*2,
-        Theme::viewportToolButtonSize + Theme::viewportToolbarPadding.y*2);
+    return {
+        Theme::viewportToolButtonSize*4 + Theme::viewportToolSpacing*4 + 1 + Theme::viewportToolbarPadding.x*2,
+        Theme::viewportToolButtonSize + Theme::viewportToolbarPadding.y*2
+    };
 }
 
 bool renderViewportToolbar(GizmoSettings& settings, ImVec2 topRight, bool dragging)
@@ -52,10 +54,10 @@ bool renderViewportToolbar(GizmoSettings& settings, ImVec2 topRight, bool draggi
             ImGui::PushID(i);
             if (selectedButton("##tool", settings.tool == tool, ImVec2(button, button))) settings.tool = tool;
             const auto min = ImGui::GetItemRectMin();
-            icons[i](ImVec2(min.x+button*.5f, min.y+button*.5f), Theme::viewportToolIconSize,
+            icons.at(i)(ImVec2(min.x+button*.5f, min.y+button*.5f), Theme::viewportToolIconSize,
                 ImGui::GetColorU32(Theme::viewportToolText), Theme::smallIconStroke);
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-                ImGui::SetTooltip("%s", names[i]);
+                ImGui::SetTooltip("%s", names.at(i));
             ImGui::PopID();
         }
         ImGui::SameLine();

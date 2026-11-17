@@ -37,7 +37,6 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <cctype>
@@ -309,7 +308,7 @@ void Editor::renderImgui()
             if (m_selectedEntity.has_value() && m_selectedEntity->has<GE::TransformComponent>()) {
                 GE::TransformComponent& transformComponent = m_selectedEntity->get<GE::TransformComponent>();
                 constexpr std::array<ImGuizmo::OPERATION, 3> operations = {ImGuizmo::TRANSLATE, ImGuizmo::ROTATE, ImGuizmo::SCALE};
-                const auto operation = operations[static_cast<int>(ui.gizmoSettings.tool)];
+                const auto operation = operations.at(static_cast<int>(ui.gizmoSettings.tool));
                 const auto mode = ui.gizmoSettings.space == GizmoSpace::world ? ImGuizmo::WORLD : ImGuizmo::LOCAL;
                 if (ImGuizmo::Manipulate(glm::value_ptr(viewMatrix), glm::value_ptr(projectionMatrix), operation, mode, glm::value_ptr(transformComponent.worldTransform))) {
                     glm::mat4x4 localTransform = transformComponent.worldTransform;
@@ -390,7 +389,8 @@ void Editor::renderImgui()
         if (ImGui::Button("<"))
             ui.resourceBrowserSubDir = ui.resourceBrowserSubDir.parent_path();
         ImGui::EndDisabled();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Parent folder");
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("Parent folder");
         ImGui::SameLine();
         const std::string resourcePath = (m_resourceDir->filename() / ui.resourceBrowserSubDir).string();
         ImGui::TextUnformatted(resourcePath.c_str());
@@ -442,8 +442,10 @@ void Editor::renderImgui()
                     ui.statusMessage = "Path copied";
                     ui.statusUntil = ImGui::GetTime() + 3.0;
                 };
-                if (ImGui::MenuItem("Copy full path")) copyPath(std::filesystem::absolute(entry.path()));
-                if (ImGui::MenuItem("Copy resource-relative path")) copyPath(entry.path().lexically_relative(*m_resourceDir));
+                if (ImGui::MenuItem("Copy full path"))
+                    copyPath(std::filesystem::absolute(entry.path()));
+                if (ImGui::MenuItem("Copy resource-relative path"))
+                    copyPath(entry.path().lexically_relative(*m_resourceDir));
                 ImGui::EndPopup();
             }
             ImGui::PopID();

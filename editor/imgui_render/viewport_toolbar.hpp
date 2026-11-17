@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <imgui.h>
 
 namespace GE_Editor
 {
-enum class GizmoTool { move, rotate, scale };
-enum class GizmoSpace { local, world };
+enum class GizmoTool : uint8_t { move, rotate, scale };
+enum class GizmoSpace : uint8_t { local, world };
 
 struct GizmoSettings
 {

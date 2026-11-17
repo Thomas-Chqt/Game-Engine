@@ -7,11 +7,12 @@
 
 namespace GE_Editor::Theme
 {
+
 // The editor's visual settings live here. Edit, rebuild, and relaunch to preview.
 // Colors use RGB bytes so the palette can be copied directly from a design tool.
 inline constexpr ImVec4 rgb(int r, int g, int b, float alpha = 1.0f)
 {
-    return ImVec4(r / 255.0f, g / 255.0f, b / 255.0f, alpha);
+    return {float(r) / 255.0f, float(g) / 255.0f, float(b) / 255.0f, alpha};
 }
 
 inline constexpr ImVec4 withAlpha(ImVec4 color, float alpha)
@@ -37,7 +38,7 @@ inline constexpr auto file = rgb(146, 174, 183);
 inline constexpr auto orientationBackground = rgb(16, 16, 16, 96.0f / 255.0f);
 inline constexpr std::array<ImVec4, 3> axes = {rgb(218, 119, 116), rgb(131, 183, 136), rgb(119, 163, 212)};
 
-inline constexpr char fontPath[] = RESOURCE_DIR "/fonts/OpenSans-Regular.ttf";
+inline constexpr const char* fontPath = RESOURCE_DIR "/fonts/OpenSans-Regular.ttf";
 inline constexpr float fontSize = 14.0f;
 inline constexpr ImVec2 windowPadding = {10, 8};
 inline constexpr ImVec2 framePadding = {7, 4};

@@ -17,6 +17,7 @@ Checks:
   - -cppcoreguidelines-pro-bounds-pointer-arithmetic
   - -cppcoreguidelines-avoid-do-while
   - -cppcoreguidelines-avoid-const-or-ref-data-members
+  - -cppcoreguidelines-pro-type-vararg
 
   - misc-*
   - -misc-non-private-member-variables-in-classes

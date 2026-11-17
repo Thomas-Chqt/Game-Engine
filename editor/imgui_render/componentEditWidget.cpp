@@ -31,17 +31,17 @@ bool transformVector(const char* label, glm::vec3& value, float speed, float min
     const std::array<const char*, 3> formats = {"X %.3f", "Y %.3f", "Z %.3f"};
     bool changed = false;
     for (int axis = 0; axis < 3; ++axis) {
-        if (axis) ImGui::SameLine();
+        if (axis)
+            ImGui::SameLine();
         ImGui::PushID(axis);
-        ImGui::PushStyleColor(ImGuiCol_SliderGrab, Theme::axes[axis]);
-        // Axis names stay visible even at zero; the colored underline helps scanning.
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, Theme::axes.at(axis));
         ImGui::SetNextItemWidth(width);
-        changed |= ImGui::DragFloat("##value", &value[axis], speed, minimum, maximum, formats[axis]);
+        changed |= ImGui::DragFloat("##value", &value[axis], speed, minimum, maximum, formats.at(axis));
         const auto min = ImGui::GetItemRectMin();
         const auto max = ImGui::GetItemRectMax();
-        ImGui::GetWindowDrawList()->AddLine(ImVec2(min.x, max.y), max, ImGui::ColorConvertFloat4ToU32(Theme::axes[axis]), Theme::axisLineWidth);
+        ImGui::GetWindowDrawList()->AddLine(ImVec2(min.x, max.y), max, ImGui::ColorConvertFloat4ToU32(Theme::axes.at(axis)), Theme::axisLineWidth);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-            ImGui::SetTooltip("%s axis - drag to adjust", axis == 0 ? "X" : axis == 1 ? "Y" : "Z");
+            ImGui::SetTooltip("%s axis - drag to adjust", axis == 0 ? "X" : axis == 1 ? "Y" : "Z"); // NOLINT
         ImGui::PopStyleColor();
         ImGui::PopID();
     }
@@ -113,7 +113,7 @@ template<>
 void componentEditWidget<GE::ScriptComponent>(GE::Entity entity, [[maybe_unused]] GE::AssetManager&, [[maybe_unused]] const GE::ScriptLibrary* scriptLibrary)
 {
     if (scriptLibrary == nullptr) {
-        ImGui::TextDisabled("No script library loaded"); // NOLINT(cppcoreguidelines-pro-type-vararg)
+        ImGui::TextDisabled("No script library loaded");
         return;
     }
 

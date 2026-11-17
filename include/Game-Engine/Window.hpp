@@ -89,8 +89,6 @@ public:
 
     std::optional<std::filesystem::path> popDroppedFile();
 
-    // Null-terminated view owned by GLFW, valid until the next clipboard get/set
-    // or GLFW termination. An unavailable text clipboard returns an empty view.
     std::string_view clipboardString() const;
     void setClipboardString(const std::string&) const;
 

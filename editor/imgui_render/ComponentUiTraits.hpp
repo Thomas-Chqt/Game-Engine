@@ -6,6 +6,7 @@
 
 namespace GE_Editor
 {
+
 template<GE::Component T> struct ComponentUiTraits;
 
 template<> struct ComponentUiTraits<GE::TransformComponent>
@@ -42,4 +43,5 @@ template<> struct ComponentUiTraits<GE::MeshComponent>
     static constexpr const char* description = "Display a mesh from the project's assets.";
     static constexpr Icons::RenderFunction renderIcon = Icons::mesh;
 };
+
 } // namespace GE_Editor

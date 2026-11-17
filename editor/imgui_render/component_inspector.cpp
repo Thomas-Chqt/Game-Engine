@@ -23,7 +23,8 @@ bool componentActions(const char* name, float height)
         ImGui::OpenPopup("actions");
     const auto dotColor = ImGui::GetColorU32(ImGui::IsItemHovered() ? ImGuiCol_Text : ImGuiCol_TextDisabled);
     Icons::more(ImVec2(min.x+height*.5f, min.y+height*.5f), Theme::componentMenuDotSpacing, Theme::componentMenuDotRadius, dotColor);
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) ImGui::SetTooltip("Component actions");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+        ImGui::SetTooltip("Component actions");
     bool remove = false;
     if (ImGui::BeginPopup("actions")) {
         ImGui::TextDisabled("%s", name);
@@ -92,9 +93,10 @@ int componentPicker(const std::array<bool, componentCount>& added, ComponentInsp
             const int i = index++;
             if (lower(Traits::name).find(query) == std::string::npos) return;
             ++visible;
-            if (!added[i]) ++available;
+            if (!added.at(i))
+                ++available;
             ImGui::PushID(Traits::name);
-            ImGui::BeginDisabled(added[i]);
+            ImGui::BeginDisabled(added.at(i));
             const auto rowMin = ImGui::GetCursorScreenPos();
             const float height = ImGui::GetFontSize() + Theme::componentPickerRowPadding*2;
             ImGui::PushStyleColor(ImGuiCol_Header, Theme::selection);
@@ -107,18 +109,20 @@ int componentPicker(const std::array<bool, componentCount>& added, ComponentInsp
                 Theme::componentIconSize, ImGui::GetColorU32(Theme::componentIconColor), Theme::smallIconStroke);
             ImGui::GetWindowDrawList()->AddText(ImVec2(rowMin.x+Theme::componentIconSize+Theme::componentIconGap, textY),
                 ImGui::GetColorU32(ImGuiCol_Text), Traits::name);
-            if (added[i]) {
+            if (added.at(i)) {
                 const char* badge = "Added";
                 ImGui::GetWindowDrawList()->AddText(ImVec2(rowMax.x-ImGui::CalcTextSize(badge).x-ImGui::GetStyle().FramePadding.x,
                     textY), ImGui::GetColorU32(ImGuiCol_TextDisabled), badge);
             }
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_DelayShort))
-                ImGui::SetTooltip("%s%s", Traits::description, added[i] ? "\nAlready added to this entity." : "");
+                ImGui::SetTooltip("%s%s", Traits::description, added.at(i) ? "\nAlready added to this entity." : "");
             ImGui::EndDisabled();
             ImGui::PopID();
         });
-        if (visible == 0) ImGui::TextDisabled("No components match your search.");
-        else if (available == 0) ImGui::TextDisabled("Matching components are already added.");
+        if (visible == 0)
+            ImGui::TextDisabled("No components match your search.");
+        else if (available == 0)
+            ImGui::TextDisabled("Matching components are already added.");
         if (chosen>=0) ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
     }
@@ -143,7 +147,7 @@ void renderComponentInspector(GE::Entity entity, GE::AssetManager& assets, const
         if (componentHeader<ComponentT>(reveal==i, remove))
             componentEditWidget<ComponentT>(entity, assets, scripts);
         if (remove) entity.remove<ComponentT>();
-        added[i] = entity.has<ComponentT>();
+        added.at(i) = entity.has<ComponentT>();
     });
     reveal = -1;
     ImGui::Separator();

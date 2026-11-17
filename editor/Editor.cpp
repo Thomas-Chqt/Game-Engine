@@ -44,7 +44,6 @@
 #include <imgui.h>
 #include <gfx_imgui/gfx_imgui.hpp>
 
-#include <array>
 #include <format>
 #include <fstream>
 #include <memory>
@@ -173,8 +172,6 @@ Editor::Editor(std::span<const char*> args)
     pushInputContext(&m_editorInputContext);
     pushInputContext(&m_imguiInputContext);
 }
-
-Editor::~Editor() = default;
 
 void Editor::onUpdate()
 {
@@ -377,6 +374,8 @@ void Editor::stopGame()
     setPrimaryInputContext(m_editorInputContext);
     m_game.reset();
 }
+
+Editor::~Editor() = default;
 
 void Editor::setPrimaryInputContext(GE::InputContext& inputContext)
 {

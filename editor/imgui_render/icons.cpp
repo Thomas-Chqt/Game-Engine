@@ -2,28 +2,31 @@
 
 #include <array>
 #include <cmath>
+#include <numbers>
 
 namespace GE_Editor::Icons
 {
+
 namespace
 {
-// Shared 24-unit drawing grid; callers own colors, sizing, and layout.
+
 struct Canvas
 {
     ImVec2 center;
-    float size;
-    ImU32 color;
-    float stroke;
+    float size{};
+    ImU32 color{};
+    float stroke{};
     ImDrawList* draw = ImGui::GetWindowDrawList();
 
     ImVec2 p(float x, float y) const { return {center.x+(x-12)*size/24, center.y+(y-12)*size/24}; }
     void line(float x, float y, float a, float b) const { draw->AddLine(p(x,y), p(a,b), color, stroke); }
 };
+
 }
 
 void move(ImVec2 center, float size, ImU32 color, float stroke)
 {
-    const Canvas c{center, size, color, stroke};
+    const Canvas c{.center=center, .size=size, .color=color, .stroke=stroke};
     c.line(5,12,19,12); c.line(12,5,12,19);
     c.draw->AddTriangleFilled(c.p(2,12), c.p(6,9), c.p(6,15), color);
     c.draw->AddTriangleFilled(c.p(22,12), c.p(18,9), c.p(18,15), color);
@@ -33,8 +36,8 @@ void move(ImVec2 center, float size, ImU32 color, float stroke)
 
 void rotate(ImVec2 center, float size, ImU32 color, float stroke)
 {
-    const Canvas c{center, size, color, stroke};
-    c.draw->PathArcTo(c.p(12,12), size*8.5f/24, .15f*3.14159265f, 1.85f*3.14159265f, 32);
+    const Canvas c{.center=center, .size=size, .color=color, .stroke=stroke};
+    c.draw->PathArcTo(c.p(12,12), size*8.5f/24, .15f*std::numbers::pi_v<float>, 1.85f*std::numbers::pi_v<float>, 32);
     c.draw->PathStroke(color, 0, stroke);
     const std::array<ImVec2, 3> head = {c.p(15,9), c.p(20,9), c.p(20,4)};
     c.draw->AddPolyline(head.data(), head.size(), color, 0, stroke);
@@ -42,7 +45,7 @@ void rotate(ImVec2 center, float size, ImU32 color, float stroke)
 
 void scale(ImVec2 center, float size, ImU32 color, float stroke)
 {
-    const Canvas c{center, size, color, stroke};
+    const Canvas c{.center=center, .size=size, .color=color, .stroke=stroke};
     c.draw->AddRect(c.p(3,15), c.p(9,21), color, 0, 0, stroke);
     c.line(9,15,20,4);
     const std::array<ImVec2, 3> head = {c.p(13,4), c.p(20,4), c.p(20,11)};
@@ -51,7 +54,7 @@ void scale(ImVec2 center, float size, ImU32 color, float stroke)
 
 void axes(ImVec2 center, float size, ImU32 color, float stroke)
 {
-    const Canvas c{center, size, color, stroke};
+    const Canvas c{.center=center, .size=size, .color=color, .stroke=stroke};
     c.line(7,17,7,5); c.line(7,17,19,17); c.line(7,17,16,8);
     c.draw->AddTriangleFilled(c.p(7,2), c.p(4.5f,6), c.p(9.5f,6), color);
     c.draw->AddTriangleFilled(c.p(22,17), c.p(18,14.5f), c.p(18,19.5f), color);
@@ -60,10 +63,10 @@ void axes(ImVec2 center, float size, ImU32 color, float stroke)
 
 void world(ImVec2 center, float size, ImU32 color, float stroke)
 {
-    const Canvas c{center, size, color, stroke};
+    const Canvas c{.center=center, .size=size, .color=color, .stroke=stroke};
     c.draw->AddCircle(c.p(12,12), size*9/24, color, 32, stroke);
     for (int i=0; i<32; ++i) {
-        const float a = i*6.2831853f/32;
+        const float a = float(i)*6.2831853f/32;
         c.draw->PathLineTo(c.p(12+std::cos(a)*4.5f, 12+std::sin(a)*9));
     }
     c.draw->PathStroke(color, ImDrawFlags_Closed, stroke);
@@ -72,7 +75,7 @@ void world(ImVec2 center, float size, ImU32 color, float stroke)
 
 void camera(ImVec2 center, float size, ImU32 color, float stroke)
 {
-    const Canvas c{center, size, color, stroke};
+    const Canvas c{.center=center, .size=size, .color=color, .stroke=stroke};
     c.draw->AddRect(c.p(2,6), c.p(15,18), color, size/24, 0, stroke);
     c.draw->PathLineTo(c.p(15,10)); c.draw->PathLineTo(c.p(22,6));
     c.draw->PathLineTo(c.p(22,18)); c.draw->PathLineTo(c.p(15,14));
@@ -81,7 +84,7 @@ void camera(ImVec2 center, float size, ImU32 color, float stroke)
 
 void light(ImVec2 center, float size, ImU32 color, float stroke)
 {
-    const Canvas c{center, size, color, stroke};
+    const Canvas c{.center=center, .size=size, .color=color, .stroke=stroke};
     c.draw->PathLineTo(c.p(9,17));
     c.draw->PathBezierCubicCurveTo(c.p(9,14), c.p(5,14), c.p(5,9));
     c.draw->PathBezierCubicCurveTo(c.p(5,5), c.p(8,2), c.p(12,2));
@@ -93,7 +96,7 @@ void light(ImVec2 center, float size, ImU32 color, float stroke)
 
 void script(ImVec2 center, float size, ImU32 color, float stroke)
 {
-    const Canvas c{center, size, color, stroke};
+    const Canvas c{.center=center, .size=size, .color=color, .stroke=stroke};
     c.draw->PathLineTo(c.p(7,7)); c.draw->PathLineTo(c.p(3,12)); c.draw->PathLineTo(c.p(7,17));
     c.draw->PathStroke(color, 0, stroke);
     c.draw->PathLineTo(c.p(17,7)); c.draw->PathLineTo(c.p(21,12)); c.draw->PathLineTo(c.p(17,17));
@@ -103,7 +106,7 @@ void script(ImVec2 center, float size, ImU32 color, float stroke)
 
 void mesh(ImVec2 center, float size, ImU32 color, float stroke)
 {
-    const Canvas c{center, size, color, stroke};
+    const Canvas c{.center=center, .size=size, .color=color, .stroke=stroke};
     c.draw->PathLineTo(c.p(12,2)); c.draw->PathLineTo(c.p(21,7)); c.draw->PathLineTo(c.p(21,17));
     c.draw->PathLineTo(c.p(12,22)); c.draw->PathLineTo(c.p(3,17)); c.draw->PathLineTo(c.p(3,7));
     c.draw->PathStroke(color, ImDrawFlags_Closed, stroke);
@@ -134,6 +137,6 @@ void file(ImVec2 center, float size, ImU32 color, float stroke)
 void more(ImVec2 center, float spacing, float radius, ImU32 color)
 {
     for (int dot=-1; dot<=1; ++dot)
-        ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(center.x, center.y+dot*spacing), radius, color);
+        ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(center.x, center.y+float(dot)*spacing), radius, color);
 }
 } // namespace GE_Editor::Icons
